@@ -4,7 +4,7 @@ export type Locator =
   | { readonly kind: 'timecode'; readonly startMs: number; readonly endMs: number }
   | { readonly kind: 'page'; readonly page: number }
   | { readonly kind: 'section'; readonly path: readonly string[]; readonly line?: number }
-  | { readonly kind: 'line'; readonly line: number };
+  | { readonly kind: 'line'; readonly line: number; readonly endLine?: number; readonly symbol?: string };
 
 export function formatLocator(loc: Locator): string {
   switch (loc.kind) {
@@ -14,8 +14,10 @@ export function formatLocator(loc: Locator): string {
       return `p.${loc.page}`;
     case 'section':
       return loc.path.length > 0 ? loc.path.join(' › ') : `l.${loc.line ?? 1}`;
-    case 'line':
-      return `l.${loc.line}`;
+    case 'line': {
+      const range = loc.endLine !== undefined && loc.endLine !== loc.line ? `l.${loc.line}–${loc.endLine}` : `l.${loc.line}`;
+      return loc.symbol ? `${loc.symbol}, ${range}` : range;
+    }
   }
 }
 

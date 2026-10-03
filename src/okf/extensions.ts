@@ -35,6 +35,12 @@ export type OkbExtension = {
   ingested?: string[];
   /** Concept-assist links already injected, keyed by `${term}@${targetPath}`. */
   linked?: string[];
+  /** Note template the note follows (`okb template list`). */
+  template?: string;
+  /** Style the prose was last written in; lets maintenance list notes worth revising. */
+  writing?: { preset: string; language: string };
+  /** Verification events that covered an earlier version of the text. */
+  prior_verified?: unknown[];
 };
 
 export function getExtension(fm: OkfFrontmatter): OkbExtension {

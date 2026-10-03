@@ -5,6 +5,8 @@ import { parseOkf } from '../okf/document.js';
 import { validateDocument } from '../okf/validate.js';
 import { OkbError } from '../util/errors.js';
 import type { BundlePath } from '../util/paths.js';
+import { findSecrets } from '../security/secrets.js';
+import { secretError } from '../security/guard.js';
 
 /** Reject new structural problems, while allowing repair of an imperfect legacy KB. */
 export async function validatePlannedFiles(config: OkbConfig, desired: ReadonlyMap<string, { before: string | null; after: string | null }>): Promise<void> {
@@ -13,6 +15,9 @@ export async function validatePlannedFiles(config: OkbConfig, desired: ReadonlyM
   for (const [path, { before, after }] of desired) {
     if (after === null) { snapshot.delete(path as BundlePath); continue; }
     snapshot.set(path as BundlePath, after);
+    const known = new Set(findSecrets(before ?? '').map((f) => f.masked));
+    const added = findSecrets(after).filter((f) => !known.has(f.masked));
+    if (added.length) throw secretError(added.map((f) => ({ ...f, at: `${path}:${f.line}` })), 'proposal');
     if (!path.endsWith('.md')) continue;
     const next = parseOkf(path, after);
     const issues = validateDocument(next, config.okf.productRules).findings;

@@ -14,7 +14,7 @@ prouve pas la sélection des skills ni la qualité de synthèse.
 
 ## Évaluations natives de Claude
 
-Le dossier `plugin/evals/` contient neuf cas de déclenchement positifs/négatifs
+Le dossier `plugin/evals/` contient dix cas de déclenchement positifs/négatifs (dont `revise-fr`, ajouté avec le style configurable)
 et un cas sémantique de correction tardive/acronyme inconnu. Les cas utilisent
 uniquement Read, Glob, Grep et Skill ; ils ne touchent pas une vraie KB. Les graders
 `tool_used` examinent les invocations réelles de Skill, pas le sélecteur lexical

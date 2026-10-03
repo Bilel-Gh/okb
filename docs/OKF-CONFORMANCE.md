@@ -38,7 +38,11 @@ parenthèses, `%` et `#` présents dans les noms sont encodés. Les migrations p
 code/citations et signalent les cas ambigus. Un déplacement réécrit les destinations
 entrantes et sortantes ; il ne remplace pas une simple opération Git de renommage.
 
-`x_okb` porte les alias, domaines, sens, prérequis, historiques d’import et liens.
+`x_okb` porte les alias, domaines, sens, prérequis, historiques d’import, liens
+et le style d’écriture (`x_okb.writing`).
+Les aides pédagogiques sont rendues en syntaxe d’alerte GitHub (`> [!TIP]`,
+`> [!NOTE]`), qu’Obsidian affiche comme encadrés ; les schémas sont des blocs
+` ```mermaid `. Ce sont des conventions d’affichage, pas des champs OKF.
 Les localisateurs détaillés des affirmations sont des extensions de provenance
 `x_okb_blocks`/`x_okb_claim_kind` dans les entrées sources. Ils n’appartiennent pas
 au standard. Dans OKF, « concept » désigne largement les documents de connaissance ;

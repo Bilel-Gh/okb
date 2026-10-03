@@ -23,13 +23,22 @@ const CASES: readonly { request: string; expect: SkillId; why: string }[] = [
   { request: 'Annule la dernière application', expect: 'okb-review', why: 'rollback' },
   { request: 'Trouve les liens cassés dans ma base', expect: 'okb-maintain', why: 'link audit' },
   { request: 'I want to rename a note, will the links survive?', expect: 'okb-maintain', why: 'move with inbound links' },
+  { request: "Réécris la fiche sur le dispatcher plus simplement, avec une analogie", expect: 'okb-revise', why: 'restyle one note' },
+  { request: 'Rewrite my note about retries in the expert style', expect: 'okb-revise', why: 'restyle in another preset' },
+  { request: "Capture cette idée pour plus tard : relier les fiches aux procédures", expect: 'okb-inbox', why: 'quick capture' },
+  { request: 'Help me triage my inbox', expect: 'okb-inbox', why: 'inbox triage' },
+  { request: 'On fait la revue de la semaine de mon second cerveau ?', expect: 'okb-weekly', why: 'weekly ritual' },
+  { request: "Interroge-moi sur la fiche idempotence", expect: 'okb-learn', why: 'active recall' },
 
   // negative — the skill must stay out of the way
   { request: 'Just summarise this article for me, do not save anything', expect: 'none', why: 'summary only' },
   { request: 'Review this pull request', expect: 'none', why: 'code review, not a proposal' },
   { request: 'How does this repository build its TypeScript?', expect: 'none', why: 'code question' },
   { request: 'What is the capital of Portugal?', expect: 'none', why: 'general knowledge' },
+  { request: 'Rewrite this function so it is simpler to read', expect: 'none', why: 'code rewrite, not a note' },
   { request: 'okb doctor says an adapter failed, what now?', expect: 'none', why: 'installation diagnosis, handled by the doctor command' },
+  { request: "Fais une capture d'écran de la page d'accueil", expect: 'none', why: 'screenshot, not a capture' },
+  { request: 'Prepare the sprint weekly for the team PR', expect: 'none', why: 'team sprint, not the second brain review' },
 
   // ambiguous — a question is better than a guess
   { request: 'Can you look at my notes and fix them?', expect: 'none', why: 'retrieve or audit, unclear' },
@@ -64,7 +73,7 @@ describe('plugin descriptions', () => {
       // A command delegates; it must not restate a procedure.
       expect(body.split('\n').filter((l) => l.trim()).length).toBeLessThan(12);
       if (command !== 'doctor.md') {
-        expect(body).toMatch(/okb-(setup|ingest|ask|review|maintain)` skill/);
+        expect(body).toMatch(/okb-(setup|ingest|ask|review|maintain|revise|inbox|weekly|learn)` skill/);
       }
     }
   });

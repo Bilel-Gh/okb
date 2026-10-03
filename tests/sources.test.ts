@@ -22,8 +22,24 @@ describe('source adapters', () => {
   it('declares exactly what it supports', async () => {
     const { config } = await env();
     const matrix = supportMatrix(config);
-    expect(matrix.map((m) => m.kind).sort()).toEqual(['docx', 'html', 'markdown', 'pdf', 'vtt']);
+    expect(matrix.map((m) => m.kind).sort()).toEqual(['code', 'docx', 'html', 'markdown', 'pdf', 'vtt']);
     expect(matrix.find((m) => m.kind === 'pdf')?.notes).toContain('no OCR');
+  });
+
+  it('titles a skill or agent file by its frontmatter name, not by an inner heading', async () => {
+    const { s, config } = await env();
+    const path = resolve(s.dir, 'reviewer.md');
+    await writeFixture(path, '---\nname: evidence-reviewer\ndescription: Reviews claims.\n---\n\nRead the sources.\n\n# Output\n\nJSON.\n');
+    const doc = await extractSource(await acquire(path, config), config);
+    expect(doc.source.title).toBe('evidence-reviewer');
+  });
+
+  it('keeps table cells apart so a quote cannot glue two columns', async () => {
+    const { s, config } = await env();
+    const path = resolve(s.dir, 'table.md');
+    await writeFixture(path, '# T\n\n| Where | What |\n|---|---|\n| profile.yaml | Private preferences |\n');
+    const doc = await extractSource(await acquire(path, config), config);
+    expect(doc.blocks.find((b) => b.kind === 'table')?.text).toBe('Where | What\nprofile.yaml | Private preferences');
   });
 
   it('extracts VTT cues with timecodes and speakers', async () => {

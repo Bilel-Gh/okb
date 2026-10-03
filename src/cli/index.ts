@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-import { readFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import YAML from 'yaml';
 import { applyProposal, loadReceipt, rollback } from '../apply/apply.js';
-import { grantApproval } from '../apply/approval.js';
+import { approvalPath, grantApproval } from '../apply/approval.js';
 import { guardApply, assertGuard, checkPathPolicy } from '../apply/guard.js';
 import { loadConfig, okbHome, type EffectiveConfig } from '../config/load.js';
-import { configSchema } from '../config/schema.js';
+import { configSchema, WRITING_PRESETS } from '../config/schema.js';
 import { anonymizeHome, redact } from '../config/redact.js';
 import { doctor, measureContext } from '../doctor/doctor.js';
-import { loadBundleFor } from '../kb/bundle.js';
+import { loadBundleFor, withPendingFiles } from '../kb/bundle.js';
 import { applyFileEdits, checkLinks, planMove } from '../links/check.js';
 import { maintain } from '../maintain/maintain.js';
 import { applyMigration, planMigration, rollbackMigration } from '../migrate/migrate.js';
@@ -24,32 +24,50 @@ import { prepareProposal } from '../pipeline/ingest.js';
 import { unifiedDiff } from '../proposal/diff.js';
 import { groupChangesByPath, materializeFile } from '../proposal/materialize.js';
 import { resolveSelection } from '../proposal/model.js';
-import { listProposals, loadProposal, saveProposal } from '../proposal/store.js';
+import { listProposals, loadProposal, saveProposal, updateProposalStatus } from '../proposal/store.js';
+import { combineProposals } from '../proposal/combine.js';
 import { retainAcquired } from '../sources/retention.js';
 import { acquire, extractSource, supportMatrix } from '../sources/registry.js';
 import { parseConceptAssist, runSetup, switchProfile, CONCEPT_ASSIST_HELP } from '../setup/setup.js';
+import { renderBrief } from '../style/brief.js';
+import { PRESETS } from '../style/presets.js';
+import { resolveStyle } from '../style/resolve.js';
+import { proposeRevision } from '../revise/revise.js';
+import { getTemplate, loadTemplates, pick, renderSkeleton, renderTemplateGuide } from '../templates/registry.js';
 import { ensureState, statePaths } from '../state/paths.js';
 import { estimateTokens, paginate } from '../util/context-meter.js';
 import { OkbError } from '../util/errors.js';
-import { readTextIfExists, writeTextAtomic, writeJsonAtomic } from '../util/fsx.js';
+import { serve } from '../web/serve.js';
+import { ensureDir, readTextIfExists, writeTextAtomic, writeJsonAtomic } from '../util/fsx.js';
 import { shortId } from '../util/hash.js';
-import { asBundlePath, bundlePathToAbsolute } from '../util/paths.js';
-import { flagBool, flagList, flagNumber, flagString, parseArgs, type ParsedArgs } from './args.js';
+import { asBundlePath, bundlePathToAbsolute, type BundlePath } from '../util/paths.js';
+import { flagBool, flagList, flagNumber, flagString, flagValues, parseArgs, type ParsedArgs } from './args.js';
+import { capture, findInboxItem, listInbox, settleInboxItem } from '../inbox/inbox.js';
+import { weeklyReport } from '../weekly/weekly.js';
 import { Output, reportError, type OutputMode } from './output.js';
 
 const HELP = `okb — Open Knowledge Brain
 
   okb setup      --profile <id> --kb-root <path> --concept-assist off|targeted|pedagogical
   okb config     show [--defaults] [--json]
-  okb ingest     <source> --analysis-file <dossier.json> --append <path> --heading <text> | --create <path> --title <text>
+  okb profile    [--json]  (which profile and KB commands use now; installed profiles; switch with okb setup switch <id>)
+  okb template   [list] | show <id> [--skeleton]  (note templates: sections every note of a kind follows)
+  okb style      [presets] [--preset p] [--set knob=value] [--note text] [--reader level] [--domain d]
+  okb ingest     <source> [--with <other-source>] [--after <ids>|prepared] --analysis-file <dossier.json> --append <path> --heading <text> | --create <path> --title <text> [--description <text>]
   okb ask        "<question>" [--limit N] [--cursor C]
-  okb review     [<proposal-id>] [--list] [--diff] [--approve --only a,b]
+  okb revise     <note.md> --file <revised.md> [--reason <text>] [--preset p] [--set knob=value]  (prepare a style revision)
+  okb review     [<proposal-id>] [--list] [--diff] [--approve --only a,b] [--discard]
+  okb combine    <proposal-id> <proposal-id>...  (one proposal, one approval, one receipt)
   okb apply      <proposal-id> [--only a,b] [--resume] [--dry-run] [--rollback <receipt>]
-  okb maintain   [--fix-links] [--json]
+  okb maintain   [--check-sources] [--json]  (read-only audit; local source hashes are opt-in)
+  okb capture    "<text>" [--title t] [--source s] [--tag x] [--from-file f]  (private inbox, not the KB)
+  okb inbox      [list] [--all] | show <id> | done <id> [--proposal p] | drop <id> [--reason r]
+  okb weekly     [--days 7] [--json]  (read-only weekly review: inbox, proposals, notes to re-read, audit)
+  okb serve      [--port 4317]  (local reader: notes, search, proposals and writing style)
   okb doctor     [--json]
   okb concepts   detect <source> | list
   okb links      check [--renderer r] | move <from> <to> (prepare move proposal)
-  okb nav        [--json]  (prepare navigation proposal)
+  okb nav        [--after <ids>|prepared] [--json]  (prepare navigation proposal)
   okb migrate    portable-links [--write] | --rollback <id>
   okb route      "<request>"
   okb context    [--json]
@@ -65,18 +83,37 @@ async function main(argv: readonly string[]): Promise<number> {
     switch (args.command) {
       case 'setup':
         return await cmdSetup(args, out, mode);
+      case 'profile':
+        return await cmdProfile(args, out, mode);
       case 'config':
         return await cmdConfig(args, out, mode);
+      case 'style':
+        return await cmdStyle(args, out, mode);
       case 'ingest':
         return await cmdIngest(args, out, mode);
       case 'ask':
         return await cmdAsk(args, out, mode);
       case 'review':
         return await cmdReview(args, out, mode);
+      case 'revise':
+        return await cmdRevise(args, out, mode);
+      case 'combine':
+        return await cmdCombine(args, out, mode);
+      case 'template':
+      case 'templates':
+        return await cmdTemplate(args, out, mode);
       case 'apply':
         return await cmdApply(args, out, mode);
       case 'maintain':
         return await cmdMaintain(args, out, mode);
+      case 'capture':
+        return await cmdCapture(args, out, mode);
+      case 'inbox':
+        return await cmdInbox(args, out, mode);
+      case 'weekly':
+        return await cmdWeekly(args, out, mode);
+      case 'serve':
+        return await cmdServe(args, out, mode);
       case 'doctor':
         return await cmdDoctor(args, out, mode);
       case 'concepts':
@@ -169,7 +206,7 @@ async function cmdSetup(args: ParsedArgs, out: Output, mode: OutputMode): Promis
     ...(flagList(args, 'exclude').length > 0 ? { exclude: flagList(args, 'exclude') } : {}),
     ...(flagString(args, 'answer-language') ? { answerLanguage: flagString(args, 'answer-language')! } : {}),
     ...(flagString(args, 'org-config') ? { orgConfig: resolve(flagString(args, 'org-config')!) } : {}),
-
+    ...(flagString(args, 'writing-preset') ? { writingPreset: flagString(args, 'writing-preset')! } : {}),
   });
 
   if (mode === 'json') {
@@ -239,6 +276,141 @@ async function cmdConfig(args: ParsedArgs, out: Output, mode: OutputMode): Promi
   return 0;
 }
 
+/**
+ * The writing brief for one piece of work. Read-only: one-off adjustments are
+ * reported back for the dossier and never written to the profile.
+ */
+function styleRequest(args: ParsedArgs) {
+  return {
+    ...(flagString(args, 'preset') ? { preset: flagString(args, 'preset')! } : {}),
+    set: flagList(args, 'set'),
+    notes: flagValues(args, 'note'),
+    ...(flagString(args, 'domain') ? { domain: flagString(args, 'domain')! } : {}),
+    ...(flagString(args, 'reader') ? { reader: flagString(args, 'reader')! } : {}),
+  };
+}
+
+async function cmdStyle(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  if (args.positionals[0] === 'presets') {
+    const presets = WRITING_PRESETS.map((id) => ({ id, summary: PRESETS[id].summary, values: PRESETS[id].values }));
+    if (mode === 'json') {
+      out.json({ ok: true, presets });
+      return 0;
+    }
+    for (const p of presets) {
+      out.line(`${p.id} — ${p.summary}`);
+      out.line(`  ${Object.entries(p.values).map(([k, v]) => `${k}=${v}`).join(' ')}`);
+    }
+    return 0;
+  }
+  if (args.positionals.length > 0) throw new OkbError('E_INVALID', `unknown subcommand "${args.positionals[0]}"`, { hint: 'okb style [presets] [--preset p] [--set knob=value] [--note text] [--domain d]' });
+  const { config } = await effective(args);
+  const resolved = resolveStyle(config, styleRequest(args));
+  const brief = renderBrief(resolved);
+  // Drafts (dossiers, revised notes) live in private state, never in the KB.
+  const draftDir = resolve(config.stateHome, 'drafts');
+  await ensureDir(draftDir);
+  if (mode === 'json') {
+    out.json({ ok: true, style: resolved.style, reader: resolved.reader, conceptAssist: resolved.conceptAssist, adjustments: resolved.adjustments, persisted: false, draftDir, brief });
+    return 0;
+  }
+  out.line(brief.trimEnd());
+  return 0;
+}
+
+/**
+ * Notes that other prepared proposals will create. A new proposal may link to
+ * them; applying it alone, before them, is refused by the broken-link check.
+ */
+async function pendingCreations(config: EffectiveConfig['config'], after: readonly string[]) {
+  if (after.length === 0) return null;
+  const proposals = after.length === 1 && after[0] === 'prepared'
+    ? (await listProposals(config)).filter((p) => p.status === 'prepared')
+    : await Promise.all(after.map((id) => loadProposal(config, id)));
+  const files = new Map<BundlePath, string>();
+  for (const p of proposals) {
+    if (p.status !== 'prepared') throw new OkbError('E_CONFLICT', `proposal ${p.id} is ${p.status}, not pending`);
+    for (const c of p.changes) {
+      if (c.kind !== 'create-document') continue;
+      if (files.has(c.path)) throw new OkbError('E_CONFLICT', `two pending proposals create ${c.path}`);
+      files.set(c.path, materializeFile(c.path, null, p.changes.filter((x) => x.path === c.path)));
+    }
+  }
+  return { files, proposalIds: proposals.map((p) => p.id) };
+}
+
+async function cmdCombine(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  if (args.positionals.length < 2) throw new OkbError('E_INVALID', 'usage: okb combine <proposal-id> <proposal-id>...');
+  const parts = await Promise.all(args.positionals.map((id) => loadProposal(config, id)));
+  const combined = combineProposals(config, parts);
+  assertGuard(await guardApply(config, combined, combined.changes));
+  await saveProposal(config, combined);
+  // The parts stay on disk with their dossiers; marking them superseded keeps
+  // them out of `okb ingest --after prepared` and makes the history readable.
+  for (const p of parts) await updateProposalStatus(config, p.id, 'superseded');
+  if (mode === 'json') {
+    out.json({ ok: true, proposalId: combined.id, combined: parts.map((p, i) => ({ tag: `p${i + 1}`, id: p.id })), changes: combined.changes.length, notes: combined.notes });
+    return 0;
+  }
+  out.line(`proposal ${combined.id} combines ${parts.length} proposals (${combined.changes.length} changes); nothing written yet`);
+  out.line(`next: okb review ${combined.id} --diff`);
+  return 0;
+}
+
+/** Note templates: what sections each kind of note has, and what goes in them. */
+async function cmdTemplate(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  const language = config.writing.language ?? config.profile.answer.language;
+  const sub = args.positionals[0] ?? 'list';
+  if (sub === 'list') {
+    const all = await loadTemplates(config);
+    if (mode === 'json') {
+      out.json({ ok: true, required: config.kb.requireTemplate, templates: all.map((t) => ({ id: t.id, okfType: t.okfType, folder: t.folder, label: pick(t.label, language), when: pick(t.when, language), roles: t.sections.map((s) => ({ role: s.role, required: s.required })) })) });
+      return 0;
+    }
+    for (const t of all) out.line(`${t.id.padEnd(11)} ${pick(t.label, language)} — ${pick(t.when, language)}`);
+    return 0;
+  }
+  if (sub === 'show') {
+    const id = args.positionals[1];
+    if (!id) throw new OkbError('E_INVALID', 'usage: okb template show <id> [--skeleton]');
+    const t = await getTemplate(config, id);
+    const emojis = resolveStyle(config).style.emojis === 'landmarks';
+    const text = flagBool(args, 'skeleton') ? renderSkeleton(t, language, emojis) : renderTemplateGuide(t, language);
+    if (mode === 'json') out.json({ ok: true, template: t, text });
+    else out.line(text.trimEnd());
+    return 0;
+  }
+  throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { hint: 'okb template list | show <id> [--skeleton]' });
+}
+
+/** One note rewritten in another style, as a reviewable proposal. */
+async function cmdRevise(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  const target = args.positionals[0];
+  const file = flagString(args, 'file');
+  if (!target || !file) throw new OkbError('E_INVALID', 'usage: okb revise <note.md> --file <revised.md> [--reason <text>]');
+  const bundle = await loadBundleFor(config);
+  const style = resolveStyle(config, styleRequest(args)).style;
+  const { proposal, check } = proposeRevision(config, bundle, {
+    path: asBundlePath(target),
+    revised: await readFile(resolve(file), 'utf8'),
+    reason: flagString(args, 'reason') ?? `rewrite in the ${style.preset} style`,
+    style,
+  });
+  assertGuard(await guardApply(config, proposal, proposal.changes));
+  await saveProposal(config, proposal);
+  if (mode === 'json') {
+    out.json({ ok: true, proposalId: proposal.id, path: target, kept: check.kept, frontmatterChanges: check.frontmatterChanges, notes: proposal.notes });
+    return 0;
+  }
+  out.line(`proposal ${proposal.id} prepared (nothing written yet)`);
+  for (const note of proposal.notes) out.line(`note: ${note}`);
+  out.line(`next: okb review ${proposal.id} --diff`);
+  return 0;
+}
+
 async function cmdIngest(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
   const { config } = await effective(args);
   const sourceArg = args.positionals[0];
@@ -252,10 +424,23 @@ async function cmdIngest(args: ParsedArgs, out: Output, mode: OutputMode): Promi
   if (acquired) await retainAcquired(config, acquired, doc);
   const runId = runFlag ?? shortId(`${doc.source.id}:${doc.source.sha256}`);
   await saveNormalized(config, runId, doc);
+  // Secondary sources of a synthesis. Each one is extracted (and paged) through
+  // its own run first; here they are re-read from disk, so their bytes must match.
+  const extraDocs = [];
+  for (const extra of flagList(args, 'with')) {
+    const acquiredExtra = await acquire(extra, config);
+    const extraDoc = await extractSource(acquiredExtra, config);
+    await retainAcquired(config, acquiredExtra, extraDoc);
+    extraDocs.push(extraDoc);
+  }
+  const docs = [doc, ...extraDocs];
   if (flagBool(args, 'template')) {
+    const style = resolveStyle(config, styleRequest(args)).style;
+    const noteTemplateId = flagString(args, 'note-template');
+    const noteTemplate = noteTemplateId ? await getTemplate(config, noteTemplateId) : undefined;
     const path = resolve(statePaths(config).runs, runId, 'analysis-template.json');
-    await writeJsonAtomic(path, analysisTemplate(doc));
-    if (mode === 'json') out.json({ ok: true, runId, path, source: doc.source, totalBlocks: doc.blocks.length });
+    await writeJsonAtomic(path, analysisTemplate(docs, style, noteTemplate));
+    if (mode === 'json') out.json({ ok: true, runId, path, sources: docs.map((d) => ({ uri: d.source.uri, sha256: d.source.sha256, title: d.source.title, totalBlocks: d.blocks.length })), style });
     else out.line(path);
     return 0;
   }
@@ -277,7 +462,9 @@ async function cmdIngest(args: ParsedArgs, out: Output, mode: OutputMode): Promi
   const analysisFile = flagString(args, 'analysis-file');
   if (sectionFile && analysisFile) throw new OkbError('E_INVALID', 'choose --analysis-file only for sourced prose');
   if (sectionFile) throw new OkbError('E_INVALID', '--section-file was replaced by --analysis-file: claims need located evidence');
-  const report = await prepareProposal(config, doc, {
+  const pending = await pendingCreations(config, flagList(args, 'after'));
+  const report = await prepareProposal(config, docs, {
+    ...(pending ? { pending } : {}),
     target: appendPath
       ? {
           mode: 'append',
@@ -288,6 +475,8 @@ async function cmdIngest(args: ParsedArgs, out: Output, mode: OutputMode): Promi
           mode: 'create',
           path: asBundlePath(createPath!),
           title: flagString(args, 'title') ?? doc.source.title ?? 'Notes importées',
+          ...(flagString(args, 'description') ? { description: flagString(args, 'description')! } : {}),
+          ...(flagString(args, 'type') ? { type: flagString(args, 'type')! } : {}),
         },
     ...(analysisFile ? { analysis: JSON.parse(await readFile(resolve(analysisFile), 'utf8')) } : {}),
     ...(flagString(args, 'concept-assist')
@@ -309,6 +498,7 @@ async function cmdIngest(args: ParsedArgs, out: Output, mode: OutputMode): Promi
       contentHash: report.proposal.contentHash,
       conceptAssistLevel: report.conceptAssistLevel,
       source: doc.source,
+      ...(extraDocs.length ? { alsoSources: extraDocs.map((d) => d.source) } : {}),
       changes: report.proposal.changes.map((c) => ({
         id: c.id,
         kind: c.kind,
@@ -463,11 +653,31 @@ async function cmdReview(args: ParsedArgs, out: Output, mode: OutputMode): Promi
 
   const proposal = await loadProposal(config, args.positionals[0]!);
 
+  if (flagBool(args, 'discard')) {
+    // Drops a prepared proposal from the queue; nothing in the KB changes and the
+    // file stays in state for the record.
+    if (proposal.status !== 'prepared') throw new OkbError('E_CONFLICT', `proposal ${proposal.id} is ${proposal.status}; only a prepared proposal can be discarded`);
+    await updateProposalStatus(config, proposal.id, 'superseded');
+    await rm(approvalPath(config, proposal.id), { force: true });
+    if (mode === 'json') out.json({ ok: true, discarded: proposal.id });
+    else out.line(`discarded ${proposal.id}; nothing was written to the KB`);
+    return 0;
+  }
+
   const only = flagList(args, 'only');
+  if (flagBool(args, 'approve') && proposal.status === 'superseded') throw new OkbError('E_CONFLICT', 'a superseded proposal cannot be approved; prepare a new proposal');
   const requested = only.length > 0 ? only : proposal.changes.map(c => c.id);
   const { accepted, dropped } = resolveSelection(proposal, requested);
   const selected = proposal.changes.filter(c => accepted.includes(c.id));
-  assertGuard(await guardApply(config, proposal, selected));
+  const done = proposal.status === 'applied' || proposal.status === 'partially-applied';
+  if (done && flagBool(args, 'approve')) {
+    throw new OkbError('E_CONFLICT', `proposal ${proposal.id} is already ${proposal.status} (receipt rcpt-${proposal.id}); nothing to approve`, {
+      hint: `Nothing to do. To undo it: okb apply --rollback rcpt-${proposal.id}`,
+    });
+  }
+  // An applied proposal now meets its own files: checking it against the tree only
+  // makes sense while it is still waiting to be applied.
+  if (!done) assertGuard(await guardApply(config, proposal, selected));
   if (flagBool(args, 'approve')) {
     const approval = await grantApproval(config, proposal, accepted, config.profile.humanActor);
     if (mode === 'json') {
@@ -480,7 +690,7 @@ async function cmdReview(args: ParsedArgs, out: Output, mode: OutputMode): Promi
     return 0;
   }
 
-  const byPath = groupChangesByPath(selected);
+  const byPath = groupChangesByPath(done ? [] : selected);
   const diffs: { path: string; diff: string; stats: { added: number; removed: number } }[] = [];
   for (const [path, changes] of byPath) {
     const before = await readTextIfExists(bundlePathToAbsolute(config.kb.root, path));
@@ -520,6 +730,11 @@ async function cmdReview(args: ParsedArgs, out: Output, mode: OutputMode): Promi
       out.line(d.diff);
       out.line();
     }
+  }
+  if (done) {
+    out.line(`already ${proposal.status}: receipt rcpt-${proposal.id} (the notes are in the KB; no diff against the current tree)`);
+    out.line(`undo with: okb apply --rollback rcpt-${proposal.id}`);
+    return 0;
   }
   out.line(`approve with: okb review ${proposal.id} --approve [--only ${proposal.changes.map((c) => c.id).slice(0, 2).join(',')}]`);
   return 0;
@@ -562,7 +777,7 @@ async function cmdApply(args: ParsedArgs, out: Output, mode: OutputMode): Promis
 
 async function cmdMaintain(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
   const { config } = await effective(args);
-  const report = await maintain(config);
+  const report = await maintain(config, { checkSources: flagBool(args, 'check-sources') });
 
   if (mode === 'json') {
     out.json({ ok: report.okfConformant, ...report });
@@ -581,6 +796,92 @@ async function cmdMaintain(args: ParsedArgs, out: Output, mode: OutputMode): Pro
   out.table(page);
   out.truncation(truncation, 'okb maintain');
   return report.okfConformant ? 0 : 1;
+}
+
+async function cmdCapture(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  const file = flagString(args, 'from-file');
+  const text = file ? await readFile(resolve(file), 'utf8') : args.positionals.join(' ');
+  const tags = flagList(args, 'tag');
+  const item = await capture(config, { text, title: flagString(args, 'title'), source: flagString(args, 'source'), tags });
+  if (mode === 'json') out.json({ ok: true, item });
+  else out.line(`captured ${item.id}: ${item.title}\nPrivate inbox (not the KB). Triage later with: okb inbox`);
+  return 0;
+}
+
+async function cmdInbox(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  const sub = args.positionals[0] ?? 'list';
+  if (sub === 'list') {
+    const items = await listInbox(config, { statuses: flagBool(args, 'all') ? ['open', 'done', 'dropped'] : ['open'] });
+    if (mode === 'json') { out.json({ ok: true, items }); return 0; }
+    if (!items.length) { out.line('inbox empty'); return 0; }
+    out.table(items.map((i) => [i.id, i.status, `${i.ageDays} d`, i.title.slice(0, 70), i.source ?? '']));
+    out.line(`\nIngest an item with: okb ingest <path>  (okb inbox show <id> prints the path)`);
+    return 0;
+  }
+  const id = args.positionals[1];
+  if (!id) throw new OkbError('E_INVALID', `usage: okb inbox ${sub} <id>`);
+  if (sub === 'show') {
+    const item = await findInboxItem(config, id);
+    const text = await readFile(item.path, 'utf8');
+    if (mode === 'json') out.json({ ok: true, item, text });
+    else out.line(`${item.path}\n\n${text}`);
+    return 0;
+  }
+  if (sub === 'done' || sub === 'drop') {
+    const item = await settleInboxItem(config, id, sub === 'done' ? 'done' : 'dropped', { proposal: flagString(args, 'proposal'), reason: flagString(args, 'reason') });
+    if (mode === 'json') out.json({ ok: true, item });
+    else out.line(`${item.id} → ${item.status} (kept in ${item.path})`);
+    return 0;
+  }
+  throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { hint: 'okb inbox [list] [--all] | show <id> | done <id> | drop <id>' });
+}
+
+async function cmdWeekly(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  const report = await weeklyReport(config, { days: flagNumber(args, 'days') });
+  if (mode === 'json') { out.json({ ok: true, ...report }); return 0; }
+  const r = report;
+  out.line(`Weekly review — ${r.period.from.slice(0, 10)} → ${r.period.to.slice(0, 10)} (${config.profile.id})`);
+  out.line(`\nInbox: ${r.inbox.open} open${r.inbox.oldestDays !== null ? `, oldest ${r.inbox.oldestDays} d` : ''}`);
+  for (const i of r.inbox.stale) out.line(`  waiting ${i.ageDays} d: ${i.id} ${i.title.slice(0, 70)}  → ingest, done or drop`);
+  out.line(`\nProposals waiting for your review: ${r.proposals.prepared.length}`);
+  for (const p of r.proposals.prepared) out.line(`  ${p.ageDays >= r.proposals.staleDays ? 'OLD ' : ''}${p.id} (${p.ageDays} d, ${p.changes} change(s)) ${p.label.slice(0, 60)}`);
+  out.line(`\nApplied this period: ${r.applied.receipts} receipt(s), ${r.applied.created.length} note(s) created, ${r.applied.updated.length} updated`);
+  out.line(`\nRe-read now (created 1, 7, 30 or 90 days ago): ${r.toReview.length}`);
+  for (const n of r.toReview) out.line(`  J+${n.milestone}: ${n.title} (${n.path})`);
+  out.line(`\nMaintenance: ${r.maintenance.errors} error(s), ${r.maintenance.warnings} warning(s)${Object.keys(r.maintenance.byCode).length ? ` — ${Object.entries(r.maintenance.byCode).map(([c, n]) => `${c}×${n}`).join(', ')}` : ''}`);
+  out.line('\nNothing was written. The okb-weekly skill walks through this list with you.');
+  return 0;
+}
+
+async function cmdProfile(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  const raw = await readTextIfExists(resolve(okbHome(), 'config.yaml'));
+  const root = raw ? ((YAML.parse(raw) as { profiles?: unknown; activeProfile?: unknown }) ?? {}) : {};
+  const installed = Array.isArray(root.profiles) ? root.profiles.map(String) : [];
+  const active = typeof root.activeProfile === 'string' ? root.activeProfile : null;
+  const info = { profile: config.profile.id, kbRoot: config.kb.root, active, installed, explicit: config.profile.id !== active };
+  if (mode === 'json') { out.json({ ok: true, ...info }); return 0; }
+  out.line(`📚 ${config.profile.id} → ${config.kb.root}${info.explicit ? '  (chosen with --profile for this command)' : ''}`);
+  out.line(`installed: ${installed.map((p) => (p === active ? `${p} (active)` : p)).join(', ') || '(none)'}`);
+  out.line('switch with: okb setup switch <profile>');
+  return 0;
+}
+
+async function cmdServe(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  const { server, url } = await serve(config, { port: flagNumber(args, 'port') });
+  if (mode === 'json') out.json({ ok: true, url, profile: config.profile.id, readOnly: true });
+  else out.line(`OKB local reader: ${url}\nProfile: ${config.profile.id}. Read-only; stop with Ctrl+C.`);
+  await new Promise<void>((done) => {
+    const stop = () => { server.closeAllConnections(); server.close(() => done()); };
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+    server.once('close', () => { process.off('SIGINT', stop); process.off('SIGTERM', stop); done(); });
+  });
+  return 0;
 }
 
 async function cmdDoctor(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
@@ -700,10 +1001,9 @@ async function cmdLinks(args: ParsedArgs, out: Output, mode: OutputMode): Promis
 
 async function cmdNav(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
   const { config } = await effective(args);
-  const files = await buildNavigation(config);
-  const write = flagBool(args, 'write');
-
-  const bundle = await loadBundleFor(config);
+  const pending = await pendingCreations(config, flagList(args, 'after'));
+  const bundle = pending ? withPendingFiles(await loadBundleFor(config), pending.files) : await loadBundleFor(config);
+  const files = await buildNavigation(config, { bundle });
   const proposal = proposeFiles(config, bundle, new Map(files.filter(f => f.status !== 'current').map(f => [f.path, f.content])), 'navigation refresh');
   await saveProposal(config, proposal);
 

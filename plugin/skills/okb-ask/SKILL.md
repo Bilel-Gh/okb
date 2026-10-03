@@ -5,6 +5,8 @@ description: Answer a question from the user's OKF knowledge bundle, quoting loc
 
 # Answer from the knowledge bundle
 
+> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use.
+
 ## Steps
 
 1. Retrieve. The command returns hits, located excerpts and prerequisites:
@@ -18,7 +20,10 @@ description: Answer a question from the user's OKF knowledge bundle, quoting loc
 
 3. Answer with attribution. Each claim names the document it came from, as a
    relative Markdown link when you are writing into a note, as a plain path when
-   you are answering in chat.
+   you are answering in chat. When the user wants an explanation rather than a
+   lookup, read `okb style --json` once in the conversation and follow its brief
+   (language, reader level, analogies with limits, diagrams); facts still come
+   only from the hits.
 
 4. Qualify the trust level, every time:
 

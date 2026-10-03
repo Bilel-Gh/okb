@@ -9,7 +9,7 @@
  * session.
  */
 
-export type SkillId = 'okb-setup' | 'okb-ingest' | 'okb-ask' | 'okb-review' | 'okb-maintain' | 'none';
+export type SkillId = 'okb-setup' | 'okb-ingest' | 'okb-ask' | 'okb-review' | 'okb-maintain' | 'okb-revise' | 'okb-inbox' | 'okb-weekly' | 'okb-learn' | 'none';
 
 export type Signal = { readonly re: RegExp; readonly weight: 1 | 2 };
 
@@ -90,6 +90,48 @@ export const ROUTING_RULES: readonly RoutingRule[] = [
       weak(/\b(health|santé|état)\b.*\b(kb|base|vault|bundle)\b/i),
     ],
     negative: [/\b(install|installation|doctor|adapter|dependenc|dépendance)/i],
+  },
+  {
+    skill: 'okb-revise',
+    when: 'an existing note should be rewritten in another style, level or language, without new facts',
+    notWhen: 'new content from a source, a question, or rewriting code',
+    positive: [
+      strong(/\b(réécri[st]|réécrire|reformule[rz]?|rewrite|reword|restyle|simplifie[rz]?|vulgarise[rz]?|tradui[st]|translate)\b.*\b(note|article|fiche|page)\b/i),
+      strong(/\b(plus simple(ment)?|plus clair|more simply|simpler|style (pédagogique|expert|standard))\b/i),
+    ],
+    negative: [/\b(this|ce|cette)\s+(code|function|fonction|pr|pull request|commit)\b/i, /\b(transcript|transcription|\.vtt|\.pdf|\.docx)\b/i],
+  },
+  {
+    skill: 'okb-inbox',
+    when: 'jotting something down for later, or triaging the private inbox into notes',
+    notWhen: 'a source to ingest right away, a question, or a screenshot',
+    positive: [
+      strong(/\b(capture[rz]?|inbox|bo[iî]te d['’]entr[ée]e|jot (this|it) down)\b/i),
+      strong(/\b(trie[rz]?|vide[rz]?|triage|sort)\b.*\b(inbox|captures?)\b/i),
+      weak(/\b(pour plus tard|for later|note rapide|quick note|garde[- ]moi (ça|cette idée))\b/i),
+    ],
+    negative: [/\b(capture d['’][ée]cran|screenshot|screen capture)\b/i],
+  },
+  {
+    skill: 'okb-weekly',
+    when: 'the periodic review of the second brain: inbox, waiting proposals, notes to re-read, maintenance',
+    notWhen: 'a one-off audit, a single question or a new source',
+    positive: [
+      strong(/\b(weekly( review)?|revue (de la |de ma )?semaine|revue hebdo(madaire)?)\b/i),
+      weak(/\b(bilan|point|récap)\b.*\b(semaine|week)\b/i),
+    ],
+    negative: [/\b(sprint|pull request|pr)\b/i],
+  },
+  {
+    skill: 'okb-learn',
+    when: 'revising or being quizzed on notes or concepts from the bundle',
+    notWhen: 'adding content, rewriting a note, or a one-off factual question',
+    positive: [
+      strong(/\b(quiz|interroge[- ]moi|teste[- ]moi|quiz me|test me|flashcards?)\b/i),
+      strong(/\b(révise[rz]?|réviser|revise my notes|memori[sz]e|mémorise[rz]?)\b/i),
+      weak(/\b(apprendre|learn|retenir|retain)\b/i),
+    ],
+    negative: [/\b(réécri|reformule|rewrite|restyle|style)\b/i, /\b(code|pull request|commit)\b/i],
   },
 ];
 

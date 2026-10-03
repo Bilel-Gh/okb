@@ -4,6 +4,7 @@ import { basename, resolve } from 'node:path';
 import type { OkbConfig, SourceKind } from '../config/schema.js';
 import { OkbError } from '../util/errors.js';
 import { sha256, shortId } from '../util/hash.js';
+import { codeAdapter } from './adapters/code.js';
 import { docxAdapter } from './adapters/docx.js';
 import { htmlAdapter } from './adapters/html.js';
 import { markdownAdapter } from './adapters/markdown.js';
@@ -17,6 +18,7 @@ export const ADAPTERS: readonly Adapter[] = [
   pdfAdapter,
   docxAdapter,
   htmlAdapter,
+  codeAdapter,
   markdownAdapter,
 ];
 
@@ -40,6 +42,7 @@ export function supportMatrix(config: OkbConfig): SupportMatrixEntry[] {
     html: 'heuristic boilerplate removal; JavaScript-rendered pages are not executed',
     pdf: 'text layer only; a scanned PDF reports "unsupported", no OCR is bundled',
     docx: 'body text via DOCX→HTML; comments, tracked changes and text boxes are skipped',
+    code: 'source/config files read as text with line ranges and top-level symbols; nothing is executed or type-checked',
   };
   return ADAPTERS.map((a) => ({
     kind: a.kind,
@@ -90,7 +93,7 @@ export async function acquireUrl(url: string, config: OkbConfig): Promise<Acquir
       throw new OkbError('E_FORBIDDEN_PATH', `URL or redirect is outside the configured domain allow-list: ${host}`);
     }
     let response: Response;
-    try { response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(30_000), headers: { 'user-agent': 'okb/0.2' } }); }
+    try { response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(30_000), headers: { 'user-agent': 'okb/0.3' } }); }
     catch (cause) { throw new OkbError('E_EXTRACTION', 'page could not be fetched; no content assumed', { cause }); }
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location');
@@ -152,7 +155,7 @@ export async function extractSource(
         contentType: input.contentType,
         supported: ADAPTERS.map((a) => a.kind),
       },
-      hint: 'Supported kinds: vtt, markdown/text, html, pdf (text layer), docx.',
+      hint: 'Supported kinds: vtt, markdown/text, html, pdf (text layer), docx, code (source/config files as text).',
     });
   }
   if (!config.sources.enabled.includes(adapter.kind)) {

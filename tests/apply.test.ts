@@ -200,6 +200,8 @@ describe('interruption and recovery', () => {
 
     const resumed = await applyProposal(config, proposal, { resume: true });
     expect(resumed.results.every((r) => r.action === 'skipped')).toBe(true);
+    // Running the same apply again says it is done, not that it "started".
+    await expect(applyProposal(config, proposal)).rejects.toMatchObject({ code: 'E_CONFLICT', message: expect.stringContaining('already applied') });
   });
 
   it('restores every touched file after a failed or unwanted apply', async () => {

@@ -15,7 +15,7 @@ const MD_EXT = /\.(md|markdown|mdx|txt|text)$/i;
 
 export const markdownAdapter: Adapter = {
   name: 'markdown',
-  version: '1',
+  version: '3',
   kind: 'markdown',
 
   matches(input: Acquired): boolean {
@@ -36,6 +36,9 @@ export const markdownAdapter: Adapter = {
         body = doc.body;
         frontmatterLines = raw.slice(0, doc.bodyOffset).split('\n').length - 1;
         if (typeof doc.data.title === 'string') title = doc.data.title;
+        // Skills and agents name themselves in frontmatter; their first H1 is
+        // often an inner section such as "Output", which would mislabel citations.
+        else if (typeof doc.data.name === 'string') title = doc.data.name;
       }
     } catch {
       limitations.push('a frontmatter block was present but could not be parsed; treated as body text');
@@ -85,7 +88,8 @@ export const markdownAdapter: Adapter = {
       }
       const kind =
         node.type === 'blockquote' ? 'quote' : node.type === 'table' ? 'table' : 'paragraph';
-      const text = textOf(node).trim();
+      // Table cells keep a visible separator: "a | b", one row per line.
+      const text = (node.type === 'table' ? tableText(node) : textOf(node)).trim();
       if (text === '') continue;
       blocks.push(
         makeBlock(sourceId, index++, kind, text, { kind: 'section', path: [...section].filter(Boolean), line }, {
@@ -114,3 +118,8 @@ export const markdownAdapter: Adapter = {
     return { source, blocks, outline: buildOutline(blocks) };
   },
 };
+
+function tableText(table: unknown): string {
+  const rows = (table as { children?: { children?: unknown[] }[] }).children ?? [];
+  return rows.map((row) => (row.children ?? []).map((cell) => textOf(cell).trim()).join(' | ')).join('\n');
+}

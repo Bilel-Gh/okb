@@ -3,6 +3,7 @@ import type { OkbConfig } from '../config/schema.js';
 import { loadBundleFor, type Bundle, type KbEntry } from '../kb/bundle.js';
 import { markdownLink } from '../links/portable.js';
 import { asBundlePath, type BundlePath } from '../util/paths.js';
+import { labelsFor } from '../style/labels.js';
 
 export type NavSection = {
   readonly heading: string;
@@ -41,18 +42,18 @@ export async function buildNavigation(
     if (dir === '.') continue;
     const path = asBundlePath(posix.join(dir, 'index.md'));
     out.push(renderFile(bundle, path, [
-      { heading: titleOfFolder(dir), entries: entries.map(describe).sort(byTitle) },
+      { heading: titleOfFolder(dir), entries: entries.map(describe).sort(byPath) },
     ]));
   }
 
   const home = asBundlePath(config.kb.layout.home);
   const sections: NavSection[] = [];
-  const rootEntries = (folders.get('.') ?? []).map(describe).sort(byTitle);
-  if (rootEntries.length > 0) sections.push({ heading: 'Start here', entries: rootEntries });
+  const rootEntries = (folders.get('.') ?? []).map(describe).sort(byPath);
+  if (rootEntries.length > 0) sections.push({ heading: labelsFor(config.writing.language ?? config.profile.answer.language).startHere, entries: rootEntries });
 
   for (const [dir, entries] of [...folders].sort(([a], [b]) => a.localeCompare(b))) {
     if (dir === '.') continue;
-    sections.push({ heading: titleOfFolder(dir), entries: entries.map(describe).sort(byTitle) });
+    sections.push({ heading: titleOfFolder(dir), entries: entries.map(describe).sort(byPath) });
   }
   out.push(renderFile(bundle, home, sections, { okfVersion: config.okf.version }));
 
@@ -97,8 +98,13 @@ function describe(entry: KbEntry) {
   };
 }
 
-function byTitle(a: { title: string }, b: { title: string }): number {
-  return a.title.localeCompare(b.title);
+/**
+ * File order, as Obsidian's explorer shows it: a numbered prefix
+ * (`01-…`, `02-…`) sets a reading order, and titles starting with an emoji do
+ * not scramble it.
+ */
+function byPath(a: { path: string }, b: { path: string }): number {
+  return a.path.localeCompare(b.path);
 }
 
 function titleOfFolder(dir: string): string {

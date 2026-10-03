@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdtemp, cp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, dirname, join } from 'node:path';
@@ -10,6 +10,35 @@ const env={...process.env,OKB_HOME:join(temp,'home'),OKB_PROFILE:'smoke'};
 for(const key of ['OKB_KB_ROOT','OKB_ORG_CONFIG','OKB_TEAM_CONFIG','OKB_STATE_HOME','OKB_APPLY_MODE','OKB_CONCEPT_ASSIST']) delete env[key];
 const npm=process.platform==='win32'?'npm.cmd':'npm';
 function run(bin,args,extra={}) { return execFileSync(bin,args,{cwd:temp,env,encoding:'utf8',stdio:['ignore','pipe','pipe'],...extra}); }
+async function smokeReader(bin, proposalId) {
+  const child = spawn(process.execPath, [bin, 'serve', '--port', '0', '--json'], { cwd: temp, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  let stderr = '';
+  child.stderr.on('data', chunk => { stderr += chunk; });
+  const closed = new Promise(resolve => child.once('close', resolve));
+  try {
+    const { url } = await new Promise((resolve, reject) => {
+      let stdout = '';
+      const timer = setTimeout(() => reject(new Error('local reader startup timed out')), 10000);
+      child.on('error', error => { clearTimeout(timer); reject(error); });
+      child.on('close', code => { clearTimeout(timer); reject(new Error(`local reader exited ${code}: ${stderr}`)); });
+      child.stdout.on('data', chunk => {
+        stdout += chunk;
+        try { const ready = JSON.parse(stdout); clearTimeout(timer); resolve(ready); } catch { /* wait for complete JSON */ }
+      });
+    });
+    const page = await fetch(url);
+    assert.equal(page.status, 200);
+    assert((await page.text()).includes('Mon deuxième cerveau'));
+    assert.equal((await fetch(`${url}/app.js`)).status, 200);
+    assert.equal((await fetch(`${url}/style.css`)).status, 200);
+    assert((await (await fetch(`${url}/api/search?q=dispatcher`)).json()).hits.length > 0);
+    const preview = await (await fetch(`${url}/api/proposal?id=${proposalId}`)).json();
+    assert(preview.guard.ok && preview.files.some(file => file.after.includes('DRX')));
+  } finally {
+    child.kill('SIGTERM');
+    await closed;
+  }
+}
 try {
   const packed=JSON.parse(run(npm,['pack','--json','--pack-destination',temp],{cwd:root}))[0];
   assert(!packed.files.some(f=>/^(?:\.dev|tests|src|node_modules)\//.test(f.path)));
@@ -30,10 +59,11 @@ try {
   const dossier=join(temp,'dossier.json');await writeFile(dossier,JSON.stringify(analysis));
   const p=cli(['ingest',source,'--run',first.runId,'--analysis-file',dossier,'--create','notes/smoke.md','--title','Smoke']);
   const review=cli(['review',p.proposalId,'--diff']);assert(review.diffs.length>0);
+  await smokeReader(bin, p.proposalId);
   cli(['review',p.proposalId,'--approve']);
   const r=cli(['apply',p.proposalId]).receipt;assert(r.complete);
   assert((await readFile(join(vault,'notes/smoke.md'),'utf8')).includes('[DRX](../concepts/drx.md)'));
   assert(cli(['links','check']).issues.every(i=>i.level!=='error'));
   cli(['apply','--rollback',r.id]);
-  console.log(JSON.stringify({ok:true,package:packed.filename,version:packed.version,flow:'clean install → setup → paged extraction → analysis → preview → approve → apply → links → rollback'}));
+  console.log(JSON.stringify({ok:true,package:packed.filename,version:packed.version,flow:'clean install → setup → paged extraction → analysis → preview → local reader → approve → apply → links → rollback'}));
 } finally { await rm(temp,{recursive:true,force:true}); }

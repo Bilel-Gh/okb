@@ -1,4 +1,30 @@
-# Vérification de la livraison 0.2.0
+# Vérification de la livraison
+
+## Reprise locale 0.3.0 — 3 octobre 2026
+
+Contrôles exécutés sur le Mac personnel, avec Node 24.4.0 explicitement sélectionné
+pour les scripts (un npm système utilisait sinon Node 20.11.1).
+
+| Contrôle réellement exécuté | Résultat |
+|---|---|
+| `release:check` : types, compilation, tests | 248 tests réussis, 18 fichiers |
+| Validateur local du plugin | 16 composants |
+| Validateur Claude Code 2.1.27 | Manifest validé ; strict/eval absents |
+| Installation propre du paquet 0.3.0 | Parcours fictif complet, lecteur HTTP et assets installés compris |
+| Tests serveur local | Lecture sans mutation, recherche citée, diff identique au CLI, snapshot concurrent refusé, accès externe/écriture/traversée/symlink refusés |
+| Tests modèles/style | Ordre personnalisé, sources secondaires, rôles et chemins, aides désactivées, citations et code préservés jusque dans les encadrés |
+| Tests application/maintenance | Édition concurrente, reprise avec cible supprimée, proposition écartée, fraîcheur inconnue/modifiée/absente, alias et liens invalides |
+
+Aucune ingestion métier, aucun commit/push, aucune modification de réglages globaux
+Claude ou MCP. Les signatures dans les tests portent uniquement sur leurs profils
+fictifs temporaires. La KB pédagogique réelle demeure soumise à une approbation
+humaine ; le contrôle des propositions ne vaut pas intégration.
+
+Le routage et la qualité des réponses de Claude ne sont pas mesurés par ces tests.
+Le CLI installé ne permet pas les évaluations natives ; voir
+[CLAUDE-COMPATIBILITY.md](CLAUDE-COMPATIBILITY.md).
+
+## Livraison historique 0.2.0
 
 Travail réalisé sur l’archive du projet fournie, sans accès au Mac, à la KB réelle,
 aux services internes ou au compte Claude de l’utilisateur.

@@ -31,11 +31,23 @@ okb setup --profile moi --kb-root /chemin/vers/ma-kb --concept-assist targeted \
 okb doctor --profile moi
 ```
 
+Ajoute `--writing-preset pedagogique` (ou `standard`, `expert`) pour choisir le
+style des articles, puis `okb style` pour lire le brief que Claude suivra.
 Remplace les chemins et identifiants. Tu peux choisir `off` pour désactiver l’aide
 aux concepts, `targeted` pour le vocabulaire utile au sujet, ou `pedagogical` pour
 ajouter les notions fondamentales. Ce choix reste modifiable, notamment par domaine.
 La configuration contient des données personnelles : garde-la hors du dépôt du
 produit. Aucun dépôt distant n’est créé et rien n’est poussé sur Git.
+
+Pour consulter tes notes et les propositions dans le navigateur :
+
+```bash
+okb serve --profile moi
+```
+
+Ouvre l’adresse locale affichée, puis « À relire » pour lire les contenus proposés
+avant leur intégration. Les signatures restent dans ton terminal. Voir
+[le lecteur local](docs/LOCAL-READER.md).
 
 ## 3. Charger Claude
 
@@ -46,7 +58,7 @@ claude --plugin-dir "$PWD/plugin"
 ```
 
 Vérifie les commandes `/okb:doctor`, `/okb:setup`, `/okb:ingest`, `/okb:ask`,
-`/okb:review`, `/okb:apply` et `/okb:maintain`. Le CLI `okb` doit être accessible
+`/okb:review`, `/okb:apply`, `/okb:maintain` et `/okb:revise`. Le CLI `okb` doit être accessible
 depuis le terminal de Claude. Les skills sont sélectionnés par leurs descriptions ;
 les commandes sont des raccourcis explicites.
 
@@ -65,3 +77,17 @@ optionnels ; les acronymes sans définition fiable restent à clarifier.
 Pour comprendre le projet sans tout lire : commence par le dossier d’analyse,
 puis le contrat de proposition, puis l’application transactionnelle. Les tests de
 régression illustrent les situations où chaque frontière évite une perte de données.
+
+## Si plusieurs versions de Node sont installées
+
+`node --version` dans le terminal et le Node lancé par npm peuvent différer.
+En cas d’erreur comme `node:util ... styleText`, vérifier le runtime des scripts :
+
+```bash
+npm exec -- node --version
+```
+
+Sélectionner Node 22.12+ avec le gestionnaire déjà installé et vérifier à nouveau.
+Avec nvm, `nvm use 24` agit sur le terminal courant si cette version est présente.
+La commande `doctor` vérifie le processus qui exécute OKB, pas tous les Node de la
+machine. Aucun changement global Claude ou MCP n’est nécessaire.

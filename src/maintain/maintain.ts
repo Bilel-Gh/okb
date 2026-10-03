@@ -6,6 +6,11 @@ import { validateDocument, type Finding } from '../okf/validate.js';
 import { isStale } from '../okf/types.js';
 import { normalizeSurface } from '../kb/search.js';
 import type { BundlePath } from '../util/paths.js';
+import { loadTemplates } from '../templates/registry.js';
+import { checkSourceFreshness } from './source-freshness.js';
+import { extractLinks } from '../markdown/ast.js';
+import { classifyLink } from '../links/portable.js';
+import { findSecrets } from '../security/secrets.js';
 
 export type MaintainIssue = {
   readonly code: string;
@@ -26,7 +31,7 @@ export type MaintainReport = {
 
 export async function maintain(
   config: OkbConfig,
-  options: { bundle?: Bundle; now?: Date } = {},
+  options: { bundle?: Bundle; now?: Date; checkSources?: boolean } = {},
 ): Promise<MaintainReport> {
   const bundle = options.bundle ?? (await loadBundleFor(config));
   const now = options.now ?? new Date();
@@ -100,10 +105,26 @@ export async function maintain(
         message: 'the meaning of this term is still unconfirmed',
       });
     }
+
+    // A style change never rewrites the bundle; it only makes notes eligible.
+    const written = entry.ext.writing;
+    if (written && typeof written.preset === 'string' && written.preset !== config.writing.preset) {
+      issues.push({
+        code: 'STYLE_DIFFERS',
+        level: 'info',
+        path: entry.path,
+        message: `written with preset "${written.preset}", the configuration now says "${config.writing.preset}"`,
+        hint: 'Nothing is rewritten automatically. Revise a note on request with the okb-revise workflow.',
+      });
+    }
   }
 
+  issues.push(...(await templateDrift(config, bundle)));
+  // Reading original sources is explicit: ordinary maintenance stays in the KB.
+  if (options.checkSources) issues.push(...(await checkSourceFreshness(config, bundle)));
   issues.push(...duplicateSurfaces(bundle));
   issues.push(...orphans(bundle));
+  issues.push(...secretsInNotes(bundle));
 
   const summary: Record<string, number> = {};
   for (const f of okfFindings) summary[`okf:${f.code}`] = (summary[`okf:${f.code}`] ?? 0) + 1;
@@ -120,19 +141,49 @@ export async function maintain(
   };
 }
 
+/**
+ * A note that names a template but lost one of its required sections, typically
+ * after a hand edit. Reported, never repaired automatically.
+ */
+async function templateDrift(config: OkbConfig, bundle: Bundle): Promise<MaintainIssue[]> {
+  const templates = new Map((await loadTemplates(config)).map((t) => [t.id, t]));
+  const bare = (text: string) => text.toLowerCase().replace(/^[^\p{L}\p{N}]+/u, '').trim();
+  const out: MaintainIssue[] = [];
+  for (const entry of bundle.entries) {
+    const id = entry.ext.template;
+    if (entry.reserved || !id) continue;
+    const template = templates.get(id);
+    if (!template) {
+      out.push({ code: 'TEMPLATE_UNKNOWN', level: 'warning', path: entry.path, message: `declares template "${id}", which this bundle does not define` });
+      continue;
+    }
+    const headings = new Set(entry.headings.map(bare));
+    const missing = template.sections
+      .filter((s) => s.required && !headings.has(bare(s.heading.fr)) && !headings.has(bare(s.heading.en)))
+      .map((s) => s.role);
+    if (missing.length) {
+      out.push({ code: 'TEMPLATE_DRIFT', level: 'warning', path: entry.path, message: `template "${id}" requires section(s) ${missing.join(', ')}`, hint: `okb template show ${id}` });
+    }
+  }
+  return out;
+}
+
 /** Two documents claiming the same surface form without declaring senses. */
 function duplicateSurfaces(bundle: Bundle): MaintainIssue[] {
-  const bySurface = new Map<string, BundlePath[]>();
+  const bySurface = new Map<string, Set<BundlePath>>();
   for (const entry of bundle.entries) {
     if (entry.reserved) continue;
     for (const surface of [entry.title, ...(entry.ext.aliases ?? [])]) {
       const key = normalizeSurface(surface);
       if (key.length < 2) continue;
-      bySurface.set(key, [...(bySurface.get(key) ?? []), entry.path]);
+      const paths = bySurface.get(key) ?? new Set<BundlePath>();
+      paths.add(entry.path);
+      bySurface.set(key, paths);
     }
   }
   const out: MaintainIssue[] = [];
-  for (const [surface, paths] of bySurface) {
+  for (const [surface, matches] of bySurface) {
+    const paths = [...matches];
     if (paths.length < 2) continue;
     const undeclared = paths.filter((p) => (bundle.byPath.get(p)?.ext.senses ?? []).length === 0);
     if (undeclared.length < 2) continue;
@@ -152,11 +203,11 @@ function orphans(bundle: Bundle): MaintainIssue[] {
   const linked = new Set<string>();
   for (const [file, text] of bundle.snapshot.files) {
     if (!file.endsWith('.md')) continue;
-    for (const match of text.matchAll(/\]\(([^)\s]+)\)/g)) {
-      const url = match[1]!;
-      if (/^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('#')) continue;
-      const resolved = resolveRelative(file, url.split('#')[0]!);
-      if (resolved) linked.add(resolved);
+    for (const link of extractLinks(bundle.docs.get(file)?.body ?? text)) {
+      const classification = classifyLink(link.url, file);
+      if ((classification.kind === 'internal' || classification.kind === 'internal-asset') && classification.target && classification.target !== file) {
+        linked.add(classification.target);
+      }
     }
   }
   const out: MaintainIssue[] = [];
@@ -175,12 +226,22 @@ function orphans(bundle: Bundle): MaintainIssue[] {
   return out;
 }
 
-function resolveRelative(from: string, url: string): string | null {
-  const segments = from.split('/').slice(0, -1);
-  for (const part of decodeURIComponent(url).split('/')) {
-    if (part === '.' || part === '') continue;
-    if (part === '..') segments.pop();
-    else segments.push(part);
+/**
+ * A credential written by hand (OKB itself refuses them in proposals). Only the
+ * kind, line and a masked prefix are reported: the report must not leak it.
+ */
+function secretsInNotes(bundle: Bundle): MaintainIssue[] {
+  const out: MaintainIssue[] = [];
+  for (const [file, text] of bundle.snapshot.files) {
+    for (const f of findSecrets(text)) {
+      out.push({
+        code: 'SECRET_IN_NOTE',
+        level: 'error',
+        path: file,
+        message: `line ${f.line}: ${f.kind} (${f.masked})`,
+        hint: 'Remove it from the note, replace it with a reference (where the secret lives, not the secret) and revoke the key if the KB was ever shared or synced.',
+      });
+    }
   }
-  return segments.join('/') || null;
+  return out;
 }

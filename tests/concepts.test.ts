@@ -240,6 +240,27 @@ Here [dispatcher](../concepts/dispatcher.md) is already a link.
     expect(next).toContain('the [exchange](concepts/exchange.md)');
   });
 
+  it('links every term once before repeating any, and honours a per-document cap', () => {
+    const text = '---\ntype: Reference\n---\n\n# One\n\nThe broker and the queue.\n\n# Two\n\nThe broker again.\n\n# Three\n\nThe broker, the queue.\n';
+    const targets = [
+      { surfaces: ['broker'], canonical: 'broker', target: asBundlePath('concepts/broker.md') },
+      { surfaces: ['queue'], canonical: 'queue', target: asBundlePath('concepts/queue.md') },
+    ];
+    const tight = planLinkInjection(asBundlePath('a.md'), text, targets, { maxLinksPerDocument: 2, maxLinksPerTermPerSection: 1 });
+    expect(tight.insertions.map((i) => i.canonical).sort()).toEqual(['broker', 'queue']);
+    const once = planLinkInjection(asBundlePath('a.md'), text, targets, { maxLinksPerDocument: 10, maxLinksPerTermPerSection: 1, maxLinksPerTermPerDocument: 1 });
+    expect(once.insertions).toHaveLength(2);
+    const repeated = planLinkInjection(asBundlePath('a.md'), text, targets, { maxLinksPerDocument: 10, maxLinksPerTermPerSection: 1 });
+    expect(repeated.insertions.filter((i) => i.canonical === 'broker')).toHaveLength(3);
+  });
+
+  it('leaves rendered navigation sections alone, even behind a landmark emoji', () => {
+    const text = '---\ntype: Reference\n---\n\nThe broker routes jobs.\n\n## ➡️ Pour aller plus loin\n\n- [Jobs](jobs.md) — how the broker queues them\n';
+    const plan = planLinkInjection(asBundlePath('a.md'), text, [{ surfaces: ['broker'], canonical: 'broker', target: asBundlePath('concepts/broker.md') }], { maxLinksPerDocument: 10, maxLinksPerTermPerSection: 1 });
+    expect(plan.insertions).toHaveLength(1);
+    expect(text.slice(0, plan.insertions[0]!.span.start)).not.toContain('Pour aller plus loin');
+  });
+
   it('never links a document to itself', () => {
     const plan = planLinkInjection(
       asBundlePath('concepts/dispatcher.md'),

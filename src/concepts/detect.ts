@@ -25,6 +25,10 @@ export type ConceptCandidate = {
   readonly rationale: string;
   /** Expansion found *in the source*, never invented. */
   readonly expansionFromSource?: { readonly text: string; readonly blockId: string };
+  /** Full verbatim evidence, with an optional shorter display-only excerpt. */
+  readonly evidenceQuotes?: readonly { readonly blockId: string; readonly quote: string; readonly displayQuote?: string }[];
+  /** The full concept from a version 2 dossier, rendered with the concept template. */
+  readonly rich?: import('../pipeline/analysis.js').RichConcept;
 };
 
 export type DetectOptions = {

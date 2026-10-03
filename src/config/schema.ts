@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const CONFIG_VERSION = 1 as const;
 
-export const SOURCE_KINDS = ['vtt', 'markdown', 'html', 'pdf', 'docx'] as const;
+export const SOURCE_KINDS = ['vtt', 'markdown', 'html', 'pdf', 'docx', 'code'] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
 export const CONCEPT_ASSIST_LEVELS = ['off', 'targeted', 'pedagogical'] as const;
@@ -13,6 +13,7 @@ const level = z.enum(CONCEPT_ASSIST_LEVELS);
 const answerSchema = z
   .object({
     language: z.string().default('en'),
+    /** Legacy, read by nothing. Kept so existing profiles stay valid; use `writing.detail`. */
     style: z.enum(['concise', 'detailed']).default('concise'),
     alwaysCite: z.boolean().default(true),
     maxEvidencePerAnswer: z.number().int().min(1).max(50).default(6),
@@ -66,6 +67,8 @@ const kbSchema = z
       .array(z.enum(['standard', 'github', 'obsidian']))
       .min(1)
       .default(['standard', 'github', 'obsidian']),
+    /** Every new note must follow a note template (`okb template list`). */
+    requireTemplate: z.boolean().default(false),
     /** Treat links to not-yet-written documents as warnings, per OKF §6.1. */
     brokenTargetsAre: z.enum(['error', 'warning']).default('warning'),
   })
@@ -75,7 +78,7 @@ const okfSchema = z
   .object({
     version: z.literal('0.2').default('0.2'),
     /** Actor recorded in `generated.by` for machine-authored content. */
-    machineActor: z.string().default('okb/0.2'),
+    machineActor: z.string().default('okb/0.3'),
     productRules: z
       .object({
         requiredFields: z
@@ -136,6 +139,58 @@ const connectorsSchema = z
   })
   .strict();
 
+export const WRITING_PRESETS = ['standard', 'pedagogique', 'expert'] as const;
+export type WritingPreset = (typeof WRITING_PRESETS)[number];
+
+/**
+ * How generated and revised articles are written. Every knob except `preset`
+ * is optional: an unset knob takes the preset's value, so a profile states only
+ * what differs from its starting point. Reliability rules are not here on
+ * purpose — they are product rules, not preferences (see src/style/brief.ts).
+ */
+export const WRITING_KNOBS = {
+  detail: ['essential', 'standard', 'thorough'],
+  tone: ['neutral', 'warm', 'formal'],
+  examples: ['none', 'generic', 'project'],
+  analogies: ['off', 'when-useful'],
+  diagrams: ['off', 'when-useful', 'prefer'],
+  emojis: ['off', 'landmarks'],
+  progression: ['usage-first', 'reference'],
+  defineTerms: ['inline', 'off'],
+} as const;
+
+const knob = <T extends readonly [string, ...string[]]>(values: T) => z.enum(values).optional();
+
+const writingSchema = z
+  .object({
+    preset: z.enum(WRITING_PRESETS).default('standard'),
+    /** Defaults to profile.answer.language. */
+    language: z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/, 'language must look like `fr` or `en-GB`').optional(),
+    detail: knob(WRITING_KNOBS.detail),
+    tone: knob(WRITING_KNOBS.tone),
+    examples: knob(WRITING_KNOBS.examples),
+    analogies: knob(WRITING_KNOBS.analogies),
+    diagrams: knob(WRITING_KNOBS.diagrams),
+    emojis: knob(WRITING_KNOBS.emojis),
+    progression: knob(WRITING_KNOBS.progression),
+    defineTerms: knob(WRITING_KNOBS.defineTerms),
+    /** A few free-text preferences; short on purpose, they travel with every brief. */
+    instructions: z.array(z.string().min(1).max(240)).max(8).default([]),
+  })
+  .strict();
+
+export const READER_LEVELS = ['beginner', 'intermediate', 'expert'] as const;
+export type ReaderLevel = (typeof READER_LEVELS)[number];
+
+/** What the reader already knows. Separate from style and from concept assist. */
+const readerSchema = z
+  .object({
+    level: z.enum(READER_LEVELS).default('intermediate'),
+    /** Per-domain override, keyed like conceptAssist.byDomain (`--domain`). */
+    byDomain: z.record(z.string(), z.enum(READER_LEVELS)).default({}),
+  })
+  .strict();
+
 const conceptAssistSchema = z
   .object({
     level: level.default('targeted'),
@@ -146,6 +201,8 @@ const conceptAssistSchema = z
         maxSuggestionsPerSource: z.number().int().min(0).default(8),
         maxLinksPerDocument: z.number().int().min(0).default(12),
         maxLinksPerTermPerSection: z.number().int().min(0).default(1),
+        /** Repeats of one term across sections; 1 keeps short articles readable. */
+        maxLinksPerTermPerDocument: z.number().int().min(1).default(99),
         prereqDepth: z.number().int().min(0).max(5).default(2),
         minTermOccurrences: z.number().int().min(1).default(1),
         maxCardLines: z.number().int().min(5).default(30),
@@ -228,6 +285,8 @@ export const configSchema = z
     sources: sourcesSchema.default({}),
     connectors: connectorsSchema.default({}),
     conceptAssist: conceptAssistSchema.default({}),
+    writing: writingSchema.default({}),
+    reader: readerSchema.default({}),
     changes: changesSchema.default({}),
     context: contextSchema.default({}),
     git: gitSchema.default({}),

@@ -6,6 +6,7 @@ import { effectiveStatus, trustTier, type TrustTier } from '../okf/types.js';
 import { readText, walkFiles } from '../util/fsx.js';
 import { asBundlePath, matchesAny, type BundlePath } from '../util/paths.js';
 import { snapshotFromEntries, type BundleSnapshot } from '../links/check.js';
+import { OkbError } from '../util/errors.js';
 
 export type KbEntry = {
   readonly path: BundlePath;
@@ -101,6 +102,26 @@ function deriveTitle(doc: OkfDocument): string {
   const first = /^\s*#\s+(.+)$/m.exec(doc.body);
   if (first) return first[1]!.trim();
   return doc.path.split('/').pop()!.replace(/\.md$/, '').replace(/-/g, ' ');
+}
+
+/**
+ * The bundle as it will be once notes from other prepared proposals exist.
+ * In memory only: it lets a new proposal link to them, and the apply-time link
+ * check still refuses the result until those notes really exist.
+ */
+export function withPendingFiles(bundle: Bundle, files: ReadonlyMap<BundlePath, string>): Bundle {
+  if (files.size === 0) return bundle;
+  const docs = new Map(bundle.docs);
+  const entries = [...bundle.entries];
+  const snapshot: [string, string][] = [...bundle.snapshot.files];
+  for (const [path, text] of files) {
+    if (bundle.snapshot.files.has(path)) throw new OkbError('E_CONFLICT', `${path} already exists; the pending proposal that creates it is stale`);
+    const doc = parseOkf(path, text);
+    docs.set(doc.path, doc);
+    entries.push(toEntry(doc));
+    snapshot.push([path, text]);
+  }
+  return { ...bundle, docs, entries, byPath: new Map(entries.map((e) => [e.path, e])), snapshot: snapshotFromEntries(snapshot) };
 }
 
 export function conceptsFolderEntries(bundle: Bundle, folder: string): KbEntry[] {

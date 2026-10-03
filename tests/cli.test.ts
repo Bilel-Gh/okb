@@ -155,9 +155,17 @@ describe('packaged CLI', () => {
     }>(await okb(['doctor', '--json'], s.env));
 
     expect(report.ok).toBe(true);
-    expect(report.support.map((s2) => s2.kind).sort()).toEqual(['docx', 'html', 'markdown', 'pdf', 'vtt']);
+    expect(report.support.map((s2) => s2.kind).sort()).toEqual(['code', 'docx', 'html', 'markdown', 'pdf', 'vtt']);
     expect(report.context.alwaysOn.bytes).toBeGreaterThan(0);
     expect(report.checks.find((c) => c.name === 'runtime')?.status).toBeTruthy();
+  });
+
+  it('tells which profile and KB the commands use', async () => {
+    const s = await makeSandbox({ profileId: 'alpha' });
+    sandboxes.push(s);
+    const info = json<{ profile: string; kbRoot: string }>(await okb(['profile', '--json'], s.env));
+    expect(info.profile).toBe('alpha');
+    expect(info.kbRoot).toBe(s.vault);
   });
 
   it('generates a navigable index tree that resolves in every renderer', async () => {
@@ -173,6 +181,14 @@ describe('packaged CLI', () => {
     expect(denied.code).toBe(77);
     expect((await okb(['review', planned.proposalId, '--approve'], s.env)).code).toBe(0);
     expect((await okb(['apply', planned.proposalId], s.env)).code).toBe(0);
+    // Running the same steps again explains that the work is done, writes nothing.
+    const again = await okb(['review', planned.proposalId, '--approve'], s.env);
+    expect(again.code).toBe(75);
+    expect(again.stderr).toContain('already applied');
+    const shown = await okb(['review', planned.proposalId], s.env);
+    expect(shown.code).toBe(0);
+    expect(shown.stdout).toContain(`undo with: okb apply --rollback rcpt-${planned.proposalId}`);
+    expect((await okb(['apply', planned.proposalId], s.env)).stderr).toContain('already applied');
     const concepts = await readFile(resolve(s.vault, 'concepts', 'index.md'), 'utf8');
     expect(concepts).toContain('* [Dispatcher](dispatcher.md)');
     expect(concepts).not.toContain('---');
@@ -250,6 +266,54 @@ describe('packaged CLI', () => {
     expect(Math.ceil(Buffer.byteLength(first.stdout,'utf8')/3.8)).toBeLessThanOrEqual(4000);
     const next=await okb(['ingest',source,'--extract-only','--json','--run',page.runId,'--cursor',page.truncation.nextCursor],s.env);
     expect(next.code).toBe(0);expect(Math.ceil(Buffer.byteLength(next.stdout,'utf8')/3.8)).toBeLessThanOrEqual(4000);
+  });
+
+  it('prints the writing brief for one request without changing the profile', async () => {
+    const s = await makeSandbox({ profileId: 'writer', answerLanguage: 'fr', writing: { preset: 'pedagogique' } } as never);
+    sandboxes.push(s);
+    const profileBefore = await readFile(resolve(s.home, 'profiles', 'writer', 'profile.yaml'), 'utf8');
+    const brief = json<{ style: { preset: string; detail: string; emojis: string }; persisted: boolean; brief: string }>(
+      await okb(['style', '--set', 'detail=thorough', '--note', 'Cite les fichiers, avec leurs lignes.', '--json'], s.env),
+    );
+    expect(brief.style).toMatchObject({ preset: 'pedagogique', detail: 'thorough', emojis: 'landmarks' });
+    expect(brief.persisted).toBe(false);
+    expect(brief.brief).toContain('Cite les fichiers, avec leurs lignes.');
+    expect(await readFile(resolve(s.home, 'profiles', 'writer', 'profile.yaml'), 'utf8')).toBe(profileBefore);
+    const presets = json<{ presets: { id: string }[] }>(await okb(['style', 'presets', '--json'], s.env));
+    expect(presets.presets.map((p) => p.id)).toEqual(['standard', 'pedagogique', 'expert']);
+    const bad = await okb(['style', '--set', 'tone=sarcastic', '--json'], s.env);
+    expect(bad.code).not.toBe(0);
+  });
+
+  it('prepares a version 2 dossier template covering several sources', async () => {
+    const s = await makeSandbox({ profileId: 'alpha' });
+    sandboxes.push(s);
+    const run = json<{ path: string; sources: { sha256: string; totalBlocks: number }[]; style: { preset: string } }>(
+      await okb(['ingest', resolve(FIXTURE_SOURCES, 'dispatcher-notes.md'), '--with', resolve(FIXTURE_SOURCES, 'dispatch.ts'), '--template', '--json'], s.env),
+    );
+    expect(run.sources).toHaveLength(2);
+    const template = JSON.parse(await readFile(run.path, 'utf8'));
+    expect(template).toMatchObject({ version: 2, sources: run.sources.map((x) => x.sha256), style: { preset: 'standard' }, related: [] });
+  });
+
+  it('discards a prepared proposal without touching the KB', async () => {
+    const s = await makeSandbox({ profileId: 'alpha' });
+    sandboxes.push(s);
+    const prepared = json<{ proposalId: string }>(
+      await okb(['ingest', resolve(FIXTURE_SOURCES, 'dispatcher-notes.md'), '--create', 'flows/raw.md', '--json'], s.env),
+    );
+    expect((await okb(['review', prepared.proposalId, '--approve', '--json'], s.env)).code).toBe(0);
+    const approval = resolve(s.home, 'profiles/alpha/state/approvals', `${prepared.proposalId}.json`);
+    await expect(access(approval)).resolves.toBeUndefined();
+    const discarded = await okb(['review', prepared.proposalId, '--discard', '--json'], s.env);
+    expect(json<{ discarded: string }>(discarded).discarded).toBe(prepared.proposalId);
+    const list = json<{ proposals: { id: string; status: string }[] }>(await okb(['review', '--list', '--json'], s.env));
+    expect(list.proposals.find((p) => p.id === prepared.proposalId)?.status).toBe('superseded');
+    expect((await okb(['review', prepared.proposalId, '--discard', '--json'], s.env)).code).not.toBe(0);
+    await expect(access(approval)).rejects.toThrow();
+    expect((await okb(['review', prepared.proposalId, '--approve', '--json'], s.env)).code).not.toBe(0);
+    expect((await okb(['apply', prepared.proposalId, '--json'], s.env)).code).not.toBe(0);
+    await expect(readFile(resolve(s.vault, 'flows', 'raw.md'))).rejects.toThrow();
   });
 
   it('rejects an unsupported source with a non-zero exit code', async () => {

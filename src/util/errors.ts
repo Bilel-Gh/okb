@@ -10,6 +10,7 @@ export type OkbErrorCode =
   | 'E_APPROVAL_MISMATCH'
   | 'E_CONFLICT'
   | 'E_INVALID'
+  | 'E_SECRET'
   | 'E_IO'
   | 'E_INTERNAL';
 

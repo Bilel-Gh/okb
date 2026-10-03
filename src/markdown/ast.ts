@@ -106,13 +106,16 @@ export type ProtectOptions = {
 };
 
 function sectionSpansByHeading(body: string, tree: Root, headingText: string): Span[] {
-  const needle = headingText.trim().toLowerCase();
+  // A landmark emoji in front of a heading ("➡️ Pour aller plus loin") does not
+  // change which section it is.
+  const bare = (text: string) => text.trim().toLowerCase().replace(/^[^\p{L}\p{N}]+/u, '');
+  const needle = bare(headingText);
   const out: Span[] = [];
   const children = tree.children;
   for (let i = 0; i < children.length; i += 1) {
     const node = children[i]!;
     if (node.type !== 'heading') continue;
-    if (textOf(node).trim().toLowerCase() !== needle) continue;
+    if (bare(textOf(node)) !== needle) continue;
     const start = node.position?.start?.offset;
     if (start === undefined) continue;
     let end = body.length;

@@ -48,6 +48,8 @@ export type CardInput = {
   readonly path: BundlePath;
   readonly prereqs?: readonly BundlePath[];
   readonly domain?: string;
+  /** Other sources of the same import: an excerpt may come from any of them. */
+  readonly otherDocs?: readonly NormalizedDoc[];
 };
 
 /**
@@ -60,8 +62,10 @@ export type CardInput = {
 export function buildConceptCard(input: CardInput): ConceptCard {
   const { candidate, doc, config, path } = input;
   const needsClarification = candidate.resolution.status === 'needs-clarification';
-  const quotes = quotesFor(doc, candidate.evidenceBlockIds, 3);
+  const quotes = quotesFor([doc, ...(input.otherDocs ?? [])], candidate.evidenceBlockIds, 3, candidate.evidenceQuotes);
   const sourceId = sourceCiteId(doc);
+  // Every source a displayed excerpt comes from is cited, the defining one first.
+  const cited = [doc, ...quotes.map((q) => q.doc).filter((d) => d !== doc)].filter((d, i, all) => all.indexOf(d) === i);
 
   const rubrics: Rubric[] = [];
 
@@ -94,7 +98,7 @@ export function buildConceptCard(input: CardInput): ConceptCard {
     rubrics.push({
       heading: 'Ce que dit la source',
       body: quotes
-        .map((q) => `> ${q.text}\n>\n> — ${formatLocator(q.locator)}[^${sourceId}]`)
+        .map((q) => `${blockquote(q.block.text)}\n>\n> — ${formatLocator(q.block.locator)}[^${sourceCiteId(q.doc)}]`)
         .join('\n\n'),
     });
   }
@@ -127,9 +131,11 @@ export function buildConceptCard(input: CardInput): ConceptCard {
     'status: draft',
     `generated: { by: ${yamlString(config.okf.machineActor)}, at: ${nowIso()} }`,
     'sources:',
-    `  - id: ${sourceId}`,
-    `    resource: ${yamlString(sourceResource(doc))}`,
-    `    title: ${yamlString(doc.source.title ?? doc.source.uri)}`,
+    ...cited.flatMap((d) => [
+      `  - id: ${sourceCiteId(d)}`,
+      `    resource: ${yamlString(sourceResource(d))}`,
+      `    title: ${yamlString(sourceLabel(d))}`,
+    ]),
     'x_okb:',
     '  v: 1',
     `  aliases: [${[...new Set([candidate.surface])].map(yamlString).join(', ')}]`,
@@ -144,7 +150,7 @@ export function buildConceptCard(input: CardInput): ConceptCard {
     oneLiner(candidate, needsClarification),
     '',
     ...rubrics.map((r) => `# ${r.heading}\n\n${r.body}\n`),
-    `[^${sourceId}]: ${doc.source.title ?? doc.source.uri}`,
+    ...cited.map((d) => `[^${sourceCiteId(d)}]: ${sourceLabel(d)}`),
     '',
   ].join('\n');
 
@@ -167,12 +173,34 @@ function oneLiner(candidate: ConceptCandidate, needsClarification: boolean): str
 function describe(candidate: ConceptCandidate): string {
   return candidate.resolution.status === 'needs-clarification'
     ? `Terme « ${candidate.surface} » relevé dans une source, sens à confirmer.`
-    : `Fiche courte : ${candidate.surface}.`;
+    : candidate.expansionFromSource
+      ? `${candidate.surface} : ${clip(candidate.expansionFromSource.text, 180)}.`
+      : `Fiche courte : ${candidate.surface}.`;
 }
 
-function quotesFor(doc: NormalizedDoc, blockIds: readonly string[], max: number): Block[] {
+function clip(text: string, max: number): string {
+  const flat = text.replace(/\s+/g, ' ').trim().replace(/[.\s]+$/, '');
+  return flat.length <= max ? flat : `${flat.slice(0, max - 1).replace(/\s+\S*$/, '')}…`;
+}
+
+function quotesFor(docs: readonly NormalizedDoc[], blockIds: readonly string[], max: number, exact?: CardInput['candidate']['evidenceQuotes']): { block: Block; doc: NormalizedDoc }[] {
+  const byId = new Map(docs.flatMap((d) => d.blocks.map((b) => [b.id, { block: b, doc: d }] as const)));
+  if (exact?.length) {
+    // The author's verbatim excerpt, not the whole block: a 50-line code block
+    // would bury the definition and overflow a short card.
+    return exact
+      .filter((e) => byId.get(e.blockId)?.block.text.includes(e.quote) &&
+        (e.displayQuote === undefined || (e.displayQuote.trim().length > 0 && e.quote.includes(e.displayQuote))))
+      .slice(0, max)
+      .map((e) => { const hit = byId.get(e.blockId)!; return { block: { ...hit.block, text: e.displayQuote ?? e.quote }, doc: hit.doc }; });
+  }
   const wanted = new Set(blockIds);
-  return doc.blocks.filter((b) => wanted.has(b.id)).slice(0, max);
+  return docs[0]!.blocks.filter((b) => wanted.has(b.id)).slice(0, max).map((block) => ({ block, doc: docs[0]! }));
+}
+
+/** Every line prefixed, so a multi-line excerpt stays inside one quotation. */
+function blockquote(text: string): string {
+  return text.split('\n').map((line) => (line.trim() ? `> ${line}` : '>')).join('\n');
 }
 
 export function sourceCiteId(doc: NormalizedDoc): string {
@@ -195,6 +223,20 @@ function titleOf(bundle: Bundle, path: BundlePath): string {
 
 export function yamlString(value: string): string {
   return JSON.stringify(value);
+}
+
+/**
+ * How a source is named inside a note. A local file without a title shows its
+ * file name, never the absolute path: a bundle must not reveal where its author
+ * keeps private material, and it must stay readable on another machine.
+ */
+export function sourceLabel(doc: NormalizedDoc): string {
+  if (doc.source.title) return doc.source.title;
+  if (doc.source.uri.startsWith('file:')) {
+    const name = doc.source.uri.split(/[/\\]/).pop() ?? '';
+    try { return decodeURIComponent(name) || 'Source'; } catch { return name || 'Source'; }
+  }
+  return doc.source.uri;
 }
 
 export function sourceResource(doc: NormalizedDoc): string {

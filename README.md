@@ -1,4 +1,4 @@
-# OKB — Open Knowledge Brain · 0.2.0
+# OKB — Open Knowledge Brain · 0.3.0
 
 A configurable local knowledge workflow for Claude Code and Obsidian. Claude
 reads and synthesises; the TypeScript core validates evidence references,
@@ -20,9 +20,11 @@ claude plugin validate ./plugin
 claude --plugin-dir "$PWD/plugin"
 ```
 
-The plugin needs the matching `okb` CLI on PATH. The npm package includes the
-compiled CLI and plugin, but Claude does not install this CLI automatically.
-To install from a packed release instead: `npm install -g ./okb-0.2.0.tgz`.
+The plugin ships `bin/okb`, which Claude Code puts on the Bash tool's PATH while
+the plugin is enabled; it runs the CLI compiled beside the plugin, so `npm link`
+is only needed to use `okb` in your own terminal. A plugin copied without its
+package falls back to another `okb` on PATH.
+To install from a packed release instead: `npm install -g ./okb-0.3.0.tgz`.
 Do not run `npx okb` against an unverified public package of the same name.
 
 Configure an existing or separately created empty KB directory:
@@ -41,13 +43,39 @@ Concept assistance is explicitly chosen: off, targeted, or pedagogical.
 
 | Intent | Workflow |
 |---|---|
-| Import a transcript/document | `okb-ingest` skill or `/okb:ingest` |
+| Import a transcript/document/code, alone or together | `okb-ingest` skill or `/okb:ingest` |
 | Find an answer in existing notes | `okb-ask` or `/okb:ask` |
+| Rewrite one note in another style | `okb-revise` or `/okb:revise` |
 | Review a proposed change | `okb-review` or `/okb:review` |
 | Apply an approved selection | `/okb:apply` |
 | Audit, organise or move notes | `okb-maintain` or `/okb:maintain` |
 | Change configuration | `okb-setup` or `/okb:setup` |
 | Inspect installation/context | `/okb:doctor` |
+| See which profile/KB is in use, switch | `okb profile` · `okb setup switch <id>` |
+| See or adjust the writing brief | `okb style [--set knob=value]` |
+| See the note templates | `okb template list` · `okb template show <id>` |
+| Read notes and exact proposal previews in a local browser | `okb serve --profile <id>` |
+| Check local source fingerprints on request | `okb maintain --check-sources` |
+| Jot something down now, decide later (private inbox, not the KB) | `/okb:capture` · `okb capture "<text>"` |
+| Triage the inbox into proposals, one item at a time | `okb-inbox` or `/okb:inbox` |
+| Weekly review: inbox, waiting proposals, notes to re-read, audit | `okb-weekly` or `/okb:weekly` · `okb weekly` |
+| Revise a note by active recall (short questions, cited feedback) | `okb-learn` or `/okb:learn` |
+
+Nothing credential-shaped (API keys, tokens, private keys, passwords in URLs or
+assignments) can enter a proposal, a capture or an applied note: OKB refuses with
+`E_SECRET` and a masked excerpt, and `okb maintain` reports `SECRET_IN_NOTE` in
+hand-written notes.
+
+Articles follow a configurable **writing style** (presets `standard`,
+`pedagogique`, `expert`, plus overrides), kept separate from the reader's prior
+knowledge, from concept assistance and from the fixed reliability rules. A
+style change never rewrites existing notes. See [style](docs/STYLE.md).
+
+Every note follows a **template** (guide, concept, procedure, experience,
+decision, meeting) that fixes its sections, their order and headings, so the
+bundle stays navigable as it grows; concept cards teach a notion in a minute
+(definition, analogy and its limit, how it works, example, diagram, pitfalls).
+See [templates](docs/TEMPLATES.md).
 
 A source follows: bounded extraction → source analysis → KB search → proposal →
 independent evidence review → human approval → transactional apply.
@@ -74,7 +102,9 @@ centrally enforced enterprise access control.
 ## Supported input and storage
 
 VTT captions with timecodes/speakers; Markdown/text; static HTML or explicitly
-allowed public URLs; PDF text layers; DOCX body text. Scanned PDF, protected or
+allowed public URLs; PDF text layers; DOCX body text; source and configuration
+files read as text with line ranges and top-level symbols (nothing executed).
+One article may synthesise several sources (`--with`). Scanned PDF, protected or
 JavaScript-only pages, and unsupported document parts are reported as absent.
 No audio transcription, OCR or browser automation is bundled.
 
@@ -104,6 +134,8 @@ edits. Per-file writes are atomic; a group of files is recoverable, **not** a
 single filesystem transaction. Arbitrary same-account shell access remains
 outside the approval mechanism's isolation guarantees.
 
-Read [architecture](docs/ARCHITECTURE.md), [installation](docs/INSTALL.md),
+Read [architecture](docs/ARCHITECTURE.md), [decisions](docs/DECISIONS.md), [style](docs/STYLE.md), [templates](docs/TEMPLATES.md), [installation](docs/INSTALL.md),
 [security](docs/SECURITY.md), [OKF conformance](docs/OKF-CONFORMANCE.md),
-[context](docs/CONTEXT.md) and [release notes](docs/RELEASE-0.2.0.md).
+[context](docs/CONTEXT.md) and release notes ([0.3.0](docs/RELEASE-0.3.0.md), [0.2.0](docs/RELEASE-0.2.0.md)).
+See also the [local reader](docs/LOCAL-READER.md), [independent diagnosis](docs/DIAGNOSTIC-2026-10.md)
+and [verified Claude contracts](docs/CLAUDE-COMPATIBILITY.md).

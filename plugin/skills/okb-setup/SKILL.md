@@ -5,6 +5,8 @@ description: Install or reconfigure an okb profile — knowledge bundle location
 
 # Install or reconfigure a profile
 
+> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use.
+
 The product is generic; everything personal lives in a profile under `$OKB_HOME`
 (default `~/.okb`). Re-running setup updates known keys and preserves every other
 key the user added.
@@ -28,6 +30,12 @@ a file.
    (`human:<id>`).
 5. **Organisation overlay**, if the user has one. It can only narrow what the
    profile allows, never widen it.
+6. **Writing style**, optional: preset `standard` (default), `pedagogique` or
+   `expert`, and the reader's level (`beginner`, `intermediate`, `expert`, also
+   per domain). Show `okb style presets` if they hesitate. Style, reader level
+   and concept assist are three separate settings. For a bundle that should
+   stay uniform, suggest `kb.requireTemplate: true` (every new note follows a
+   note template, see `okb template list`).
 
 A configuration file answers all of it without a questionnaire:
 
@@ -35,12 +43,17 @@ A configuration file answers all of it without a questionnaire:
 okb setup --from ./onboarding.yaml
 ```
 
+The file may carry `writing:` (preset plus knobs to override, see
+`okb config show --defaults`) and `reader:` (`level`, `byDomain`).
+
 ## Apply
 
 ```bash
 okb setup --profile <id> --kb-root <path> --concept-assist targeted \
-  --human-actor human:<id> --answer-language fr --concepts-folder concepts
+  --human-actor human:<id> --answer-language fr --concepts-folder concepts \
+  --writing-preset pedagogique
 okb doctor
+okb style            # the brief the writing workflows will follow
 ```
 
 Then confirm what is on and what is off:

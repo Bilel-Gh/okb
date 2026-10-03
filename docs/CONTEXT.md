@@ -5,9 +5,11 @@ La conversion octets / 3,8 est une estimation, pas un tokenizer Claude. La rubri
 alwaysOn est un indicateur de métadonnées potentiellement exposées, pas une mesure
 de la session réelle, des messages système, des autres plugins ou des MCP.
 
-Cinq descriptions de skills et les descriptions des deux agents rendent les
+Six descriptions de skills et les descriptions des deux agents rendent les
 workflows découvrables. Les procédures détaillées se chargent sur sélection.
-Les sept commandes explicites désactivent l’invocation automatique par le modèle.
+Les huit commandes explicites désactivent l’invocation automatique par le modèle.
+Le brief de style (~2 Ko) n’est produit que par `okb style`, au moment d’écrire ;
+il remplace la lecture de toute la configuration pendant un import.
 Les références du dossier d’analyse ne sont lues que pendant l’import. Aucun
 énorme fichier de connaissance n’est importé au démarrage.
 

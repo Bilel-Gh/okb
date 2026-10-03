@@ -98,8 +98,10 @@ export function materializeFile(
   }
 
   // Record the idempotence keys so a second import of the same source is a no-op.
+  // A whole-document replacement (mechanical change or style revision) merges no
+  // source content, so it has no place in the idempotence ledger.
   const keys = changes
-    .filter((c) => c.category !== 'metadata' && c.kind !== 'patch-frontmatter')
+    .filter((c) => c.category !== 'metadata' && c.kind !== 'patch-frontmatter' && c.kind !== 'replace-document')
     .map((c) => c.contentKey);
   const linkKeys = changes
     .filter((c) => c.kind === 'insert-links')

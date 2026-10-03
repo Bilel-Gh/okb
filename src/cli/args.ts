@@ -11,7 +11,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   const positionals: string[] = [];
   const flags: Record<string, string | boolean | string[]> = {};
 
-  const booleans = new Set(['json','help','list','diff','approve','resume','reprocess','extract-only','dry-run','write','defaults','allow-bundle-absolute','raw-digest','template']);
+  const booleans = new Set(['json','help','list','diff','approve','discard','resume','reprocess','extract-only','dry-run','write','defaults','allow-bundle-absolute','raw-digest','template','skeleton','check-sources']);
   for (let i = 0; i < rest.length; i += 1) {
     const token = rest[i]!;
     if (!token.startsWith('--')) {
@@ -72,6 +72,13 @@ export function flagList(args: ParsedArgs, key: string): string[] {
   if (value === undefined || typeof value === 'boolean') return [];
   const raw = Array.isArray(value) ? value : [value];
   return raw.flatMap((v) => v.split(',')).map((v) => v.trim()).filter(Boolean);
+}
+
+/** Every value of a repeatable flag, without splitting on commas (free text). */
+export function flagValues(args: ParsedArgs, key: string): string[] {
+  const value = args.flags[key];
+  if (value === undefined || typeof value === 'boolean') return [];
+  return (Array.isArray(value) ? value : [value]).map((v) => v.trim()).filter(Boolean);
 }
 
 export function flagNumber(args: ParsedArgs, key: string): number | undefined {

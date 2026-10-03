@@ -1,0 +1,12 @@
+{
+  "name": "okb-local",
+  "owner": { "name": "OKB contributors" },
+  "metadata": { "description": "Local catalogue to install the OKB plugin from this folder." },
+  "plugins": [
+    {
+      "name": "okb",
+      "source": "./plugin",
+      "description": "Open Knowledge Brain: ingest sources, search with evidence, and propose reviewed changes to an OKF knowledge bundle."
+    }
+  ]
+}

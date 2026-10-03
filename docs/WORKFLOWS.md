@@ -6,8 +6,9 @@
 2. Lire la suite avec le même `--run` et `--cursor`. Les blocs trop longs sont
    fractionnés ; chaque fragment conserve son localisateur. Lire jusqu’au bout.
 3. `okb ask "sujet" --limit 5 --json` cherche une destination existante.
-4. `okb ingest /chemin/source.vtt --run <runId> --template --json` crée un modèle
-   de dossier dans l’état privé. Claude le remplit selon
+   `okb style --json` donne le brief de rédaction (avec ajustements ponctuels).
+4. `okb ingest /chemin/source.vtt --run <runId> [--with autre-source]… --template --json`
+   crée un modèle de dossier v2 (sources, style) dans l’état privé. Claude le remplit selon
    [le contrat d’analyse](../plugin/skills/okb-ingest/references/analysis-dossier.md).
 5. Préparer, sans modifier la KB :
 
@@ -33,6 +34,34 @@ inspection. Il ne constitue pas un enrichissement intelligent terminé. La skill
 normale utilise toujours le dossier. Une source sans contenu lisible ne produit
 pas de proposition.
 
+## Plusieurs sources et code
+
+Un article qui explique « où regarder dans le code » cite souvent une note de
+conception et les fichiers qui l’implémentent. Chaque source est extraite et lue
+dans son propre run, puis le dossier v2 liste leurs empreintes dans `sources` ;
+la préparation reçoit la source principale et `--with` pour les autres. Les
+notes de bas de page indiquent le fichier et les lignes (`assignJob, l.6–14`).
+Le titre d’un fichier de code est son chemin relatif au projet, sans chemin
+personnel. Lire un fichier de code ne prouve pas son comportement à l’exécution.
+
+## Construire plusieurs notes liées
+
+Un parcours de lecture (accueil, articles, fiches) se prépare en plusieurs
+propositions. `okb ingest … --after prepared` laisse une proposition s’appuyer
+sur les notes que d’autres propositions en attente vont créer : liens et fiches
+concepts sont résolus et la proposition le signale. `okb combine <id> <id>…`
+les fusionne ensuite en une proposition unique : un diff, une approbation, un
+reçu, un retour arrière. Appliquée seule et trop tôt, une proposition dépendante
+est refusée par le contrôle des liens cassés ; rien n’est écrit.
+
+## Réviser le style d’une note
+
+`okb revise <note> --file <brouillon> --reason "…"` prépare le remplacement
+d’une seule note. Citations, code, définitions et références de notes de bas de
+page doivent rester identiques ; le frontmatter n’accepte que `title`,
+`description` et `tags`. Revue, approbation et retour arrière sont les mêmes que
+pour un import. Voir [STYLE.md](STYLE.md).
+
 ## Concepts et refus partiels
 
 Les nouvelles définitions demandent des extraits source. Les acronymes inconnus
@@ -51,6 +80,25 @@ proposer un nouvel ajout ; inspecter le diff pour éviter des sections redondant
 Une nouvelle révision de source est différente et doit conserver la visibilité
 des divergences avec la KB existante.
 
+## Capturer, trier, revoir
+
+Capturer ne coûte rien, décider reste délibéré. `okb capture "texte"` (ou
+`--from-file`, `--title`, `--source`, `--tag`) range une capture dans l'**inbox
+privée** du profil (`<état>/inbox/`), hors de la KB : ce n'est pas encore une
+connaissance. La skill `okb-inbox` propose ensuite, élément par élément, une
+destination (compléter une note, nouvelle note avec son modèle, fiche concept,
+abandon) ; seul `okb ingest` crée une proposition, approuvée par l'utilisateur.
+`okb inbox done <id> --proposal <p>` ou `okb inbox drop <id> --reason …` déplace
+l'élément dans `done/` ou `dropped/` : rien n'est supprimé.
+
+`okb weekly [--days 7]` prépare la revue hebdomadaire sans rien écrire : captures
+en attente (signalées à partir de 21 jours), propositions non relues (anciennes
+après 7 jours), notes appliquées pendant la période, notes **à relire** parce
+qu'elles ont été créées il y a 1, 7, 30 ou 90 jours (relire au bon moment fixe la
+mémoire), et synthèse de `okb maintain`. La skill `okb-weekly` déroule ce rituel ;
+`okb-learn` pose des questions courtes sur une note et corrige en montrant le
+passage cité, sans rien écrire par défaut.
+
 ## Lire et entretenir
 
 `okb ask "question" --json` retourne des passages, chemins, lignes réelles,
@@ -63,6 +111,20 @@ pas la KB à partir de sa propre réponse.
 personnalisé peut être remplacé par la navigation générée : cette perte potentielle
 est visible dans le diff et l’ancienne version reste dans la sauvegarde après apply.
 
+`okb maintain --check-sources` ajoute une comparaison des empreintes des sources
+locales déjà ingérées. `SOURCE_CHANGED` signale des octets différents,
+`SOURCE_MISSING` un fichier absent, `SOURCE_FRESHNESS_UNKNOWN` un contrôle
+impossible (métadonnées absentes/ambiguës, source distante, symlink, taille ou
+instabilité). Aucune connexion réseau, copie ou mise à jour des notes. Une
+empreinte identique ne prouve pas que les connaissances restent vraies. Une
+source secondaire doit disposer de son extraction enregistrée ou d’une archive
+pour être retrouvée. Sans `--check-sources`, les fichiers d’origine ne sont pas lus.
+
+`okb serve` permet de lire les notes, de rechercher et de parcourir les contenus
+proposés dans un navigateur local. Aucun bouton ne signe une approbation :
+l’interface affiche les commandes à exécuter soi-même. Voir
+[LOCAL-READER.md](LOCAL-READER.md).
+
 ## Reprendre ou annuler
 
 `okb apply <id> --resume` reprend uniquement le même contenu et la même sélection.
@@ -70,3 +132,8 @@ est visible dans le diff et l’ancienne version reste dans la sauvegarde après
 reçu écrit avant la première mutation. Si un humain a modifié un fichier depuis,
 l’annulation s’arrête avant d’écraser ce travail. Après rollback, recréer une
 proposition : l’ancienne autorisation est supprimée.
+
+La reprise recontrôle également le résultat prévu sur la KB courante : une cible
+de lien supprimée pendant l’interruption bloque les écritures restantes.
+`okb review <id> --discard` écarte une proposition préparée et retire sa signature
+éventuelle. Une proposition écartée ne peut plus être approuvée ou appliquée.

@@ -33,6 +33,7 @@ const hashOf = (text: string | null) => text === null ? null : sha256(text);
 
 export async function applyProposal(config: OkbConfig, proposal: Proposal, options: ApplyOptions = {}): Promise<Receipt> {
   assertProposal(proposal);
+  if (proposal.status === 'superseded') throw new OkbError('E_CONFLICT', 'this proposal was discarded or superseded; prepare a new proposal');
   if (proposal.profileId !== config.profile.id || resolve(proposal.kbRoot) !== resolve(config.kb.root)) throw new OkbError('E_CONFLICT', 'proposal belongs to a different bundle or profile');
   await assertStateOutsideKb(config);
   if (!config.changes.keepBackups) throw new OkbError('E_CONFIG', 'transactional apply requires changes.keepBackups: true');
@@ -51,9 +52,25 @@ export async function applyProposal(config: OkbConfig, proposal: Proposal, optio
     let receipt = await readJsonIfExists<Receipt>(file);
     if (receipt?.rolledBack) throw new OkbError('E_CONFLICT', 'this proposal was rolled back; prepare a new proposal');
     if (receipt) {
-      if (!options.resume) throw new OkbError('E_CONFLICT', 'this apply already started; use --resume or roll back its receipt');
+      if (!options.resume && receipt.complete) {
+        throw new OkbError('E_CONFLICT', `this proposal is already applied (receipt ${id}); nothing was written`, {
+          hint: `Nothing to do. To undo it: okb apply --rollback ${id}`,
+        });
+      }
+      if (!options.resume) throw new OkbError('E_CONFLICT', 'this apply was interrupted; use --resume or roll back its receipt', { hint: `okb apply ${proposal.id} --resume, or okb apply --rollback ${id}` });
       if (receipt.proposalContentHash !== proposal.contentHash || JSON.stringify(receipt.selection) !== JSON.stringify(accepted)) throw new OkbError('E_CONFLICT', 'resume must use the same proposal and exact selection');
       await validateReceiptTargets(config, receipt, 'resume');
+      // Untouched notes may have moved or disappeared since the interruption.
+      // Recheck the complete planned bundle before writing the remaining files.
+      const staged = new Map<string, { before: string | null; after: string | null }>();
+      for (const result of receipt.results) {
+        const before = await readTextIfExists(await safeTarget(config, result.path));
+        const after = result.sha256
+          ? await readTextIfExists(resolve(state.backups, proposal.id, `${sha256(result.path)}.next`))
+          : null;
+        staged.set(result.path, { before, after });
+      }
+      await validatePlannedFiles(config, staged);
     } else {
       if (options.resume) throw new OkbError('E_NOT_FOUND', 'no interrupted apply exists for this proposal');
       await requireCleanGitTree(config);
@@ -66,6 +83,10 @@ export async function applyProposal(config: OkbConfig, proposal: Proposal, optio
       // cannot leave the earlier files modified.
       for (const [path, pathChanges] of groupChangesByPath(changes)) {
         const before = await readTextIfExists(bundlePathToAbsolute(config.kb.root, path));
+        // An external editor does not participate in the OKB lock. Preserve an
+        // edit that happened after guardApply, rather than silently treating it
+        // as the new baseline for the already-approved replacement.
+        if (hashOf(before) !== proposal.baseline[path]) throw new OkbError('E_STALE', `file changed during preparation for apply: ${path}`, { hint: 'Nothing was written. Prepare the proposal again against the current file.' });
         const deletion = pathChanges.some(c => c.kind === 'delete-document');
         if (deletion && (pathChanges.length !== 1 || before === null)) throw new OkbError('E_CONFLICT', 'a deletion must target one existing file');
         const after = deletion ? null : materializeFile(path, before, pathChanges);

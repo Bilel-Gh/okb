@@ -15,9 +15,10 @@ flowchart TD
   A --> P[Proposition immuable]
   P --> V[Revue des preuves]
   V --> H[Approbation de la sélection]
-  H --> W[Écriture contrôlée]
+  H --> B[Reçu initial et sauvegardes privés]
+  B --> W[Écriture contrôlée]
   W --> K
-  W --> B[Reçu et sauvegardes privés]
+  W --> J[Reçu finalisé]
 ```
 
 Le dossier d’analyse porte les blocs déclarés lus, les affirmations rapportées ou
@@ -30,14 +31,18 @@ ne transforme une affirmation en fait techniquement vérifié.
 | Module | Contrat |
 |---|---|
 | `sources/` | acquisition limitée, adaptateurs, blocs normalisés et localisateurs |
-| `pipeline/analysis.ts` | dossier versionné, couverture déclarée, identité des extraits |
+| `pipeline/analysis.ts` | dossier v1/v2, couverture déclarée sur toutes les sources, identité des extraits, aides reliées aux affirmations, rendu stylé |
 | `kb/`, `concepts/` | recherche locale, alias, sens, propositions de définitions et de liens |
-| `proposal/` | contenu exact, dépendances, sélection, hash recalculable, validation |
+| `proposal/` | contenu exact, dépendances, sélection, hash recalculable, validation, combinaison de propositions |
 | `apply/` | autorisation, limites de chemin, verrou, préparation durable, reprise et rollback |
 | `config/`, `setup/` | profils privés, précédence, restrictions cumulées |
 | `okf/`, `links/`, `markdown/` | format ouvert, références relatives, modifications par positions AST |
 | `nav/`, `migrate/`, `maintain/` | opérations d’entretien utilisant le même contrat de proposition |
-| `plugin/` | cinq skills, sept commandes, deux agents et un hook limité |
+| `style/` | préréglages, résolution par couches et demande ponctuelle, brief de rédaction, libellés fixes |
+| `templates/` | modèles de notes (sections, ordre, titres, consignes), surcharges par KB |
+| `revise/` | révision du style d’une note : éléments protégés, frontmatter, proposition de remplacement |
+| `web/` | lecteur local sans mutations : notes, recherche, propositions exactes, style et audit |
+| `plugin/` | six skills, huit commandes, deux agents, un hook limité et `bin/okb` |
 
 ## Choix assumés
 
@@ -61,6 +66,17 @@ normalisé est conservé hors KB ; `--run` le réutilise sans relire le réseau.
 curseur signifie « livré au caller ». La couverture sémantique est déclarée dans
 le dossier puis contrôlée par revue, pas déduite du nombre de tokens envoyés.
 
+**Le style est un paramètre, pas une réécriture.** Le brief est généré à la
+demande depuis quelques valeurs du profil ; le style utilisé est figé dans le
+dossier et dans `x_okb.writing`. Les faits restent des affirmations sourcées ;
+les analogies, schémas et exemples sont des aides rattachées à ces affirmations.
+Voir [STYLE.md](STYLE.md).
+
+**Des modèles pour que la KB reste lisible en grandissant.** Chaque note suit un
+modèle (guide, concept, procédure, retour d’expérience, décision, réunion) qui
+fixe ses sections et leurs titres ; le CLI refuse un dossier qui s’en écarte. Voir
+[TEMPLATES.md](TEMPLATES.md).
+
 **Propositions avant mutations.** Import, navigation, migration et déplacement
 produisent le même objet. Un déplacement est un groupe indivisible. Le hash porte
 sur le contenu, les preuves, dépendances, profil et KB. Une approbation vise la
@@ -75,6 +91,21 @@ existe avant l’écriture. Au redémarrage, chaque fichier doit correspondre à
 entre `rename()` et le journal. L’annulation précontrôle tous les fichiers et
 refuse les modifications ultérieures. Les fichiers sont atomiques séparément,
 mais un lecteur externe peut observer un lot partiellement appliqué.
+
+L’état de départ est revérifié pendant la préparation des écritures : une
+édition Obsidian entre le contrôle initial et la lecture à sauvegarder n’est pas
+adoptée silencieusement comme nouvelle référence. La reprise revalide le résultat
+structurel et les liens sur la KB courante avant ses prochains fichiers.
+
+**Fraîcheur sur demande.** L’entretien peut comparer une référence locale à son
+empreinte d’ingestion à partir des métadonnées privées déjà présentes. Il ne
+recontacte pas les URL et n’interprète pas le changement de contenu. Une comparaison
+impossible reste « inconnue », et aucune note n’est réécrite automatiquement.
+
+**Lecture avant approbation.** Le serveur local réutilise recherche et
+matérialisation du CLI, affiche des données via DOM texte et accepte uniquement
+des lectures depuis son origine sur 127.0.0.1. L’approbation reste dans le terminal.
+Ce choix réduit le coût de revue sans ajouter un second moteur d’écriture.
 
 **Une intelligence éditoriale, pas un générateur de fiches vides.** Les heuristiques
 remontent des termes et les définitions explicites. Le dossier peut proposer des

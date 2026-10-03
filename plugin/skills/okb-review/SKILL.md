@@ -5,9 +5,14 @@ description: Review, select, apply or roll back an existing OKB knowledge propos
 
 # Review the exact selected change
 
+> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use.
+
 1. Run `okb review --list --json` or `okb review <id> --diff --json`.
    Show the paths, useful content changes, concept candidates and unresolved
    contradictions. Review is separate from technical verification.
+   Several pending proposals that belong together (notes linking to each other)
+   can be merged with `okb combine <id> <id>…`: one diff, one approval, one
+   receipt and one rollback. Their change ids become `p1-…`, `p2-…`.
 2. A selection can include article, concept cards, links and mechanical changes.
    Preview the **same selection** with `okb review <id> --only a,b --diff --json`.
    Refused cards drop only their dependent links; moves must be accepted as a
@@ -21,6 +26,9 @@ description: Review, select, apply or roll back an existing OKB knowledge propos
    authorised. You may omit `--only` to use the exact stored approved selection.
    A different selection or changed payload needs a new grant.
 5. Report the receipt and `okb apply --rollback <receipt-id>`.
+
+A prepared proposal the user drops is marked with `okb review <id> --discard`;
+nothing is written to the KB.
 
 An interrupted run can resume with `okb apply <id> --resume`. The receipt exists
 before the first KB write, so it also supports rollback of an incomplete apply.

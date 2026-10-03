@@ -13,8 +13,10 @@ npm run release:check
 npm link
 ```
 
+`npm link` n’est nécessaire que pour taper `okb` dans ton terminal : quand le
+plugin est chargé, son `bin/okb` est sur le PATH de l’outil Bash de Claude.
 `npm ci` utilise le verrouillage du dépôt. `npm pack` fabrique un paquet compilé
-installable via `npm install -g /chemin/okb-0.2.0.tgz`. Le plugin reste dans ce paquet ;
+installable via `npm install -g /chemin/okb-0.3.0.tgz`. Le plugin reste dans ce paquet ;
 avec une installation globale, son emplacement est `$(npm root -g)/okb/plugin`.
 Les chemins du plugin n’assument jamais l’emplacement de ta KB.
 
@@ -32,6 +34,27 @@ dépôt et utiliser `okb setup --from /chemin/prive/onboarding.yaml`.
 Les options explicites priment sur ce fichier. Le niveau d’aide aux concepts est
 obligatoire au premier setup. La skill le demande une fois si aucun choix n’a été
 fourni, sans redemander les paramètres connus.
+
+## Installer sur un nouveau poste
+
+Sur un poste professionnel ou celui d’un collègue, sans rien changer aux réglages
+globaux de Claude :
+
+1. Copier le dossier du produit sans `node_modules/`, ou le paquet
+   `okb-<version>.tgz` produit par `npm pack`.
+2. Dans le dossier : `npm ci` puis `npm run release:check` (accès au registre npm
+   nécessaire). Avec le paquet : `npm install -g okb-<version>.tgz`.
+3. Créer le profil à partir d’un fichier d’onboarding privé :
+   `okb setup --from /chemin/prive/onboarding.yaml`, puis `okb doctor`,
+   `okb style` et `okb template list` pour vérifier ce qui est actif.
+4. KB existante : `okb maintain` et `okb links check` d’abord, en lecture seule.
+   Les anomalies préexistantes se traitent par des propositions, jamais en masse.
+5. Claude : `claude --plugin-dir /chemin/du/produit/plugin`, puis `/okb:doctor`.
+   `okb` doit répondre dans le terminal de Claude (via `plugin/bin/okb`).
+6. Mesurer le comportement réel : `claude plugin eval ./plugin --no-publish`
+   (consomme le quota) et `/context` avec et sans le plugin.
+7. Obsidian : « Ouvrir un dossier comme coffre » sur `kb.root`. Le dossier
+   `.obsidian/` qu’il crée est exclu par défaut.
 
 ## Préférences et politiques
 
@@ -52,6 +75,10 @@ Exemples génériques : [org-policy.yaml](../examples/org-policy.yaml) et
 valeurs effectives, restrictions appliquées et clés inconnues conservées mais inactives.
 `okb config show --defaults` présente le schéma complet ; ce n’est pas le format
 simplifié de `setup --from`.
+
+Le style de rédaction (`writing`) et le niveau du lecteur (`reader`) se règlent
+avec `--writing-preset` ou les clés `writing:`/`reader:` d’un fichier d’onboarding,
+puis dans le profil. `okb style` affiche le brief effectif. Voir [STYLE.md](STYLE.md).
 
 Pour les concepts, modifier `conceptAssist.level`, `byDomain`, `known`, `deepen`,
 `fundamentals`, `stoplist` et les limites dans le profil. Une désactivation ne
@@ -78,3 +105,28 @@ Retirer le chargement du plugin de Claude puis `npm uninstall -g okb` (ou
 `npm unlink -g okb` pour une installation liée). Cela retire le produit, pas les
 profils, l’état ni la KB. Ne pas supprimer l’état si tu veux garder le rollback.
 Le produit ne crée ni dépôt, ni remote, ni commit, ni push.
+
+## Installer le plugin dans l'application Claude
+
+`--plugin-dir` charge le plugin pour une session de terminal seulement. Pour l'avoir dans
+toutes les sessions, y compris l'application de bureau, ce dossier sert de catalogue local
+(`.claude-plugin/marketplace.json`) :
+
+```bash
+claude plugin marketplace add /chemin/du/produit
+claude plugin install okb@okb-local
+```
+
+Claude Code copie alors le plugin dans son cache, sans le dossier `dist/` du produit. Le
+script `plugin/bin/okb` cherche donc le moteur dans cet ordre : `dist/` voisin, `$OKB_CLI`,
+`~/.okb/bin/okb`, puis un `okb` sur le PATH. Crée le lanceur une fois :
+
+```bash
+mkdir -p ~/.okb/bin && printf '#!/bin/sh\nexec /chemin/du/lanceur/okb "$@"\n' > ~/.okb/bin/okb && chmod +x ~/.okb/bin/okb
+```
+
+Après une modification du plugin à version égale : `claude plugin uninstall okb@okb-local`
+puis `claude plugin install okb@okb-local`. Une nouvelle session est nécessaire pour la
+charger. Le hook du plugin s'applique alors à toutes tes sessions Claude Code (il bloque
+seulement l'approbation de propositions par l'agent). `okb profile` dit quel profil et quelle
+KB les commandes utilisent ; chaque skill l'affiche en tête de sa première réponse.

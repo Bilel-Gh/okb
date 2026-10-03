@@ -1,0 +1,25 @@
+#!/bin/sh
+# Claude Code puts a plugin's bin/ on the Bash tool's PATH while the plugin is
+# enabled. This wrapper runs the CLI shipped beside the plugin (npm package or
+# built source checkout), so skills and CLI always come from the same version.
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cli="$here/../../dist/cli/index.js"
+if [ -f "$cli" ]; then
+  exec node "$cli" "$@"
+fi
+# Plugin copied without its package (e.g. a marketplace cache): use the launcher
+# that points to the user's checkout or install, then another okb on PATH.
+for launcher in "${OKB_CLI:-}" "${OKB_HOME:-$HOME/.okb}/bin/okb"; do
+  [ -n "$launcher" ] && [ -x "$launcher" ] && exec "$launcher" "$@"
+done
+old_ifs=$IFS
+IFS=:
+for dir in $PATH; do
+  [ -n "$dir" ] && [ -x "$dir/okb" ] || continue
+  [ "$(CDPATH= cd -- "$dir" 2>/dev/null && pwd)" = "$here" ] && continue
+  IFS=$old_ifs
+  exec "$dir/okb" "$@"
+done
+IFS=$old_ifs
+echo "okb: no CLI next to this plugin ($cli), no launcher at ~/.okb/bin/okb, none on PATH. Link one: ln -s /path/to/okb/bin/launcher ~/.okb/bin/okb (or set OKB_CLI)." >&2
+exit 127

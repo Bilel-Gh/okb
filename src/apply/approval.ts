@@ -29,8 +29,8 @@ export type Approval = {
  *
  * Honest limit: the key lives on the same filesystem. Anything able to run
  * arbitrary shell commands as this user can read it and forge an approval. The
- * mechanism that stops an agent from doing so is the Claude Code permission
- * deny-list shipped with the plugin, not this file. See docs/SECURITY.md.
+ * mechanism that discourages an agent from doing so is the plugin's PreToolUse
+ * hook (a best-effort string matcher), not this file. See docs/SECURITY.md.
  */
 async function approvalSecret(config: OkbConfig): Promise<string> {
   const file = statePaths(config).secretFile;
@@ -73,6 +73,7 @@ export async function grantApproval(
   approvedBy: string,
 ): Promise<Approval> {
   assertProposal(proposal);
+  if (proposal.status === 'superseded') throw new OkbError('E_CONFLICT', 'this proposal was discarded or superseded; prepare a new proposal');
   if (!selection.length || new Set(selection).size !== selection.length || selection.some(id => !proposal.changes.some(c => c.id === id))) throw new OkbError('E_INVALID', 'invalid or empty approval selection');
   const secret = await approvalSecret(config);
   const base: Omit<Approval, 'mac'> = {

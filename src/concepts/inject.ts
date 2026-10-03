@@ -35,6 +35,7 @@ export type LinkInsertion = {
 export type InjectLimits = {
   readonly maxLinksPerDocument: number;
   readonly maxLinksPerTermPerSection: number;
+  readonly maxLinksPerTermPerDocument?: number;
   readonly explicitDotSlash?: boolean;
 };
 
@@ -51,6 +52,9 @@ const SOURCE_SECTION_TITLES = [
   'citations',
   'bibliographie',
   'verbatim',
+  // Navigation lists written by the renderer: already links, no room for more.
+  'pour aller plus loin',
+  'going further',
 ];
 
 /**
@@ -106,21 +110,19 @@ export function planLinkInjection(
     .flatMap((t) => t.surfaces.map((surface) => ({ ...t, surface })))
     .sort((a, b) => b.surface.length - a.surface.length);
 
-  for (const item of ordered) {
-    if (insertions.length >= limits.maxLinksPerDocument) {
-      skipped.push({ term: item.canonical, reason: 'maxLinksPerDocument reached' });
-      continue;
-    }
-    if (item.target === filePath) {
-      skipped.push({ term: item.canonical, reason: 'a document does not link to itself' });
-      continue;
-    }
+  // Two passes: every term gets its first useful occurrence before any term gets
+  // a repeat in a later section, so the document limit cannot starve a term.
+  const perTerm = new Map<string, number>();
+  const perTermCap = limits.maxLinksPerTermPerDocument ?? Number.POSITIVE_INFINITY;
+  for (const pass of [1, 2] as const) for (const item of ordered) {
     const linkKey = `${item.canonical}@${item.target}`;
-
+    if (insertions.length >= limits.maxLinksPerDocument) continue;
+    if (item.target === filePath) continue;
+    if (pass === 2 && !perTerm.has(linkKey)) continue;
 
     const re = surfaceRegex(item.surface);
-    let placed = false;
     for (const match of body.matchAll(re)) {
+      if ((perTerm.get(linkKey) ?? 0) >= (pass === 1 ? 1 : perTermCap)) break;
       const start = match.index! + match[1]!.length;
       const end = start + match[2]!.length;
       if (isProtected(forbidden, start, end)) continue;
@@ -145,11 +147,19 @@ export function planLinkInjection(
         ...(item.dependsOn ? { dependsOn: item.dependsOn } : {}),
       });
       perSection.set(sectionKey, (perSection.get(sectionKey) ?? 0) + 1);
+      perTerm.set(linkKey, (perTerm.get(linkKey) ?? 0) + 1);
       taken.push({ start, end });
-      placed = true;
       if (insertions.length >= limits.maxLinksPerDocument) break;
     }
-    if (!placed) skipped.push({ term: item.canonical, reason: 'no unprotected occurrence found' });
+  }
+  for (const item of ordered) {
+    const linkKey = `${item.canonical}@${item.target}`;
+    if (perTerm.has(linkKey) || skipped.some((s) => s.term === item.canonical)) continue;
+    skipped.push({
+      term: item.canonical,
+      reason: item.target === filePath ? 'a document does not link to itself'
+        : insertions.length >= limits.maxLinksPerDocument ? 'maxLinksPerDocument reached' : 'no unprotected occurrence found',
+    });
   }
 
   insertions.sort((a, b) => a.span.start - b.span.start);

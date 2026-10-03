@@ -26,4 +26,6 @@ for (const kind of ['skills','agents','commands']) for (const entry of await rea
 const hooks=JSON.parse(await readFile(resolve(plugin,'hooks/hooks.json'),'utf8'));
 assert.equal(hooks.hooks.PreToolUse.length,1);
 await stat(resolve(plugin,'hooks/guard-approval.mjs'));
+const bin=await stat(resolve(plugin,'bin/okb'));
+assert.ok(bin.mode & 0o111,'plugin/bin/okb must be executable: Claude Code puts plugin bin/ on the Bash PATH');
 console.log(JSON.stringify({ok:true,components:count,validator:'local static checks; native Claude validation is separate'}));

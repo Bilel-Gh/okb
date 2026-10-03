@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import YAML from 'yaml';
 import { makeSandbox, type Sandbox, FIXTURE_SOURCES } from './helpers/sandbox.js';
@@ -16,7 +16,7 @@ import { prepareProposal } from '../src/pipeline/ingest.js';
 import { validateAnalysis, type SourceAnalysis } from '../src/pipeline/analysis.js';
 import { proposeFiles } from '../src/proposal/files.js';
 import { computeProposalHash, resolveSelection } from '../src/proposal/model.js';
-import { saveProposal, loadProposal } from '../src/proposal/store.js';
+import { saveProposal, loadProposal, updateProposalStatus } from '../src/proposal/store.js';
 import { materializeFile } from '../src/proposal/materialize.js';
 import { acquire, acquireUrl, extractSource } from '../src/sources/registry.js';
 import { asBundlePath, assertInsideRoot } from '../src/util/paths.js';
@@ -44,6 +44,15 @@ async function fixture() {
 const approve = async (f: Awaited<ReturnType<typeof fixture>>, ids = f.p.changes.map(c => c.id)) => grantApproval(f.config,f.p,ids,'human:test');
 
 describe('trust boundaries', () => {
+  it('refuses a discarded proposal even when an earlier exact approval remains', async () => {
+    const f = await fixture();
+    await approve(f);
+    await updateProposalStatus(f.config, f.p.id, 'superseded');
+    const discarded = await loadProposal(f.config, f.p.id);
+    await expect(grantApproval(f.config, discarded, discarded.changes.map(c => c.id), 'human:test')).rejects.toMatchObject({ code: 'E_CONFLICT' });
+    await expect(applyProposal(f.config, discarded)).rejects.toMatchObject({ code: 'E_CONFLICT', message: expect.stringContaining('superseded') });
+    await expect(readFile(resolve(f.s.vault, 'notes/broker.md'))).rejects.toThrow();
+  });
   it('rejects a payload altered without changing its claimed hash', async () => {
     const f = await fixture(); await approve(f);
     const changed = { ...f.p, changes: f.p.changes.map((c,i) => i ? c : { ...c, createDocument: { content: 'hijacked' } }) };
@@ -93,6 +102,50 @@ describe('trust boundaries', () => {
 });
 
 describe('transactions', () => {
+  it('preserves an external edit between the guard and staging of an approved replacement', async () => {
+    const s = await box();
+    const config = await s.config();
+    const path = asBundlePath('flows/run-a-delivery-job.md');
+    const file = resolve(s.vault, path);
+    const bundle = await loadBundleFor(config);
+    const before = await readFile(file, 'utf8');
+    const p = proposeFiles(config, bundle, new Map([[path, before + '\nApproved new prose.\n']]), 'Test replacement');
+    await saveProposal(config, p);
+    await grantApproval(config, p, p.changes.map(c => c.id), 'human:test');
+    const humanEdit = before + '\nA concurrent edit by the reader.\n';
+    const original = fsx.readTextIfExists;
+    let edited = false;
+    vi.spyOn(fsx, 'readTextIfExists').mockImplementation(async path => {
+      const text = await original(path);
+      if (path === file && !edited) { edited = true; await writeFile(file, humanEdit); }
+      return text;
+    });
+    await expect(applyProposal(config, p)).rejects.toMatchObject({ code: 'E_STALE' });
+    expect(await readFile(file, 'utf8')).toBe(humanEdit);
+    expect(await readdir(resolve(config.stateHome, 'receipts'))).toEqual([]);
+  });
+  it('rechecks links on resume when an untouched target disappeared after the interruption', async () => {
+    const s = await box();
+    const config = await s.config();
+    const linked = resolve(s.vault, 'concepts/idempotence.md');
+    const source = await readFile(linked, 'utf8');
+    const text = '---\ntype: Reference\ntitle: Recovery\ndescription: A fictional recovery test.\nstatus: draft\ngenerated: { by: "human:test", at: "2026-01-15T09:40:00Z" }\nsources: [{ resource: "concepts/idempotence.md" }]\n---\n\n# Recovery\n\nSee [Idempotence](../concepts/idempotence.md).\n';
+    const p = proposeFiles(config, await loadBundleFor(config), new Map([['notes/recovery.md', text]]), 'Test recovery');
+    await saveProposal(config, p);
+    await grantApproval(config, p, p.changes.map(c => c.id), 'human:test');
+    const original = fsx.writeTextAtomic;
+    vi.spyOn(fsx, 'writeTextAtomic').mockImplementation(async (path, text) => {
+      if (path.startsWith(s.vault + '/')) throw new Error('interrupted before first note write');
+      await original(path, text);
+    });
+    await expect(applyProposal(config, p)).rejects.toThrow('interrupted');
+    vi.restoreAllMocks();
+    await rm(linked);
+    await expect(applyProposal(config, p, { resume: true })).rejects.toMatchObject({ code: 'E_INVALID', message: expect.stringContaining('links') });
+    await expect(readFile(resolve(s.vault, 'notes/recovery.md'))).rejects.toThrow();
+    await writeFile(linked, source);
+    expect((await applyProposal(config, p, { resume: true })).complete).toBe(true);
+  });
   it('resumes the rename-before-journal crash window and keeps all backups for rollback', async () => {
     const f = await fixture(); await approve(f);
     const original = fsx.writeTextAtomic;

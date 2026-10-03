@@ -6,6 +6,7 @@ import { OkbError } from '../util/errors.js';
 import { ensureDir, readJsonIfExists, writeJsonAtomic } from '../util/fsx.js';
 import { assertProposal, type Proposal } from './model.js';
 import { assertId } from '../util/paths.js';
+import { assertNoSecrets } from '../security/guard.js';
 
 export function proposalDir(config: OkbConfig, id: string): string {
   return resolve(statePaths(config).proposals, assertId(id, 'proposal id'));
@@ -13,6 +14,7 @@ export function proposalDir(config: OkbConfig, id: string): string {
 
 export async function saveProposal(config: OkbConfig, proposal: Proposal): Promise<string> {
   assertProposal(proposal);
+  assertNoSecrets({ changes: proposal.changes, evidence: proposal.evidence }, 'proposal');
   const dir = proposalDir(config, proposal.id);
   await ensureDir(dir);
   await writeJsonAtomic(resolve(dir, 'proposal.json'), proposal);

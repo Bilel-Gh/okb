@@ -24,6 +24,12 @@ export type SetupAnswers = {
   readonly machineActor?: string;
   /** Extra tooling paths inside the bundle that are not knowledge. */
   readonly exclude?: readonly string[];
+  /** Writing preferences (preset + overrides), merged over the existing ones. */
+  readonly writing?: Record<string, unknown>;
+  /** Shortcut for `writing.preset`; wins over `writing.preset` from a file. */
+  readonly writingPreset?: string;
+  /** Prior knowledge of the reader, merged over the existing one. */
+  readonly reader?: Record<string, unknown>;
 };
 
 export type SetupResult = {
@@ -81,7 +87,7 @@ export async function runSetup(
   const existing = existingRaw ? ((YAML.parse(existingRaw) as Record<string, unknown>) ?? {}) : {};
   const created = existingRaw === null;
 
-  const managedKeys = ['profile', 'kb', 'conceptAssist', 'okf', 'orgConfig'];
+  const managedKeys = ['profile', 'kb', 'conceptAssist', 'okf', 'orgConfig', 'writing', 'reader'];
   const preserved = Object.keys(existing).filter((k) => !managedKeys.includes(k));
 
   const next: Record<string, unknown> = {
@@ -122,6 +128,18 @@ export async function runSetup(
     },
     ...(answers.machineActor
       ? { okf: { ...(asRecord(existing.okf) ?? {}), machineActor: answers.machineActor } }
+      : {}),
+    ...(answers.writing !== undefined || answers.writingPreset !== undefined
+      ? {
+          writing: {
+            ...(asRecord(existing.writing) ?? {}),
+            ...(asRecord(answers.writing) ?? {}),
+            ...(answers.writingPreset !== undefined ? { preset: answers.writingPreset } : {}),
+          },
+        }
+      : {}),
+    ...(answers.reader !== undefined
+      ? { reader: { ...(asRecord(existing.reader) ?? {}), ...(asRecord(answers.reader) ?? {}) } }
       : {}),
     ...(answers.orgConfig ? { orgConfig: resolve(expandHome(answers.orgConfig, env)) } : {}),
     ...(answers.teamConfig ? { teamConfig: resolve(expandHome(answers.teamConfig, env)) } : {}),
