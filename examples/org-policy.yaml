@@ -1,0 +1,10 @@
+version: 1
+policy:
+  allowDirectApply: false
+  allowWebConnector: false
+  maxApplyFiles: 25
+  maxSourceBytes: 20000000
+  writeAllow: ["**/*.md"]
+  writeDeny: ["archives/frozen/**"]
+  allowedConnectors: []
+  allowedRemotes: []

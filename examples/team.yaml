@@ -1,0 +1,9 @@
+context:
+  pageSize: 20
+conceptAssist:
+  byDomain:
+    onboarding: pedagogical
+    operations: targeted
+policy:
+  maxApplyFiles: 15
+  writeDeny: ["reference/approved/**"]

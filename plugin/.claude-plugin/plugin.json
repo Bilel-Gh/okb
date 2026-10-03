@@ -1,0 +1,15 @@
+{
+  "name": "okb",
+  "version": "0.2.0",
+  "description": "Open Knowledge Brain: ingest sources, search with evidence, and propose reviewed changes to an OKF knowledge bundle.",
+  "keywords": [
+    "knowledge-base",
+    "okf",
+    "obsidian",
+    "ingestion",
+    "second-brain"
+  ],
+  "author": {
+    "name": "OKB contributors"
+  }
+}

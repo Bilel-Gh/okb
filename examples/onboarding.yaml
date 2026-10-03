@@ -1,0 +1,15 @@
+# Copy this outside the product repository and replace the example path.
+profileId: me
+kbRoot: /path/to/existing/knowledge-base
+humanActor: human:me
+locale: fr-FR
+answerLanguage: fr
+role: ""
+projects: []
+conceptAssist: targeted
+conceptsFolder: concepts
+exclude:
+  - CLAUDE.md
+  - AGENTS.md
+# orgConfig: /path/to/private/org-policy.yaml
+# teamConfig: /path/to/private/team.yaml

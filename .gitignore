@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.tgz
+coverage/
+.dev/
+.DS_Store
+.env
+.env.*
+!.env.example
+plugin/evals/results/
+evals/results/

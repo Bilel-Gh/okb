@@ -1,0 +1,22 @@
+WEBVTT - Acme Robotics weekly sync
+
+00:00:02.000 --> 00:00:11.500
+<v Dana>Quick recap on the fleet. The DRX pipeline moves a job from the depot queue to a robot.
+
+00:00:11.500 --> 00:00:21.000
+<v Dana>DRX stands for Delivery Routing eXchange, by the way, in case anyone wondered.
+
+00:00:21.000 --> 00:00:33.000
+<v Priya>And the dispatcher picks the nearest free robot. That part has not changed.
+
+00:00:33.000 --> 00:00:45.000
+<v Priya>One caveat: the telemetry channel is bidirectional now, we added a command path last sprint.
+
+00:00:45.000 --> 00:01:02.000
+<v Dana>Actually, correction on what I said earlier: DRX is not a pipeline, it is a queue broker. I misspoke.
+
+00:01:02.000 --> 00:01:14.000
+<v Priya>Also the ZQT counter shows up in the dashboard. Nobody remembers what ZQT means.
+
+00:01:14.000 --> 00:01:28.000
+<v Dana>Right. And idempotence still applies, except when the depot replays a job after a cold restart.
