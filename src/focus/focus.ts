@@ -198,6 +198,8 @@ const LABELS: Record<Lang, { title: string; did: string; decided: string; keep: 
 };
 
 const clean = (items: readonly string[] | undefined) => (items ?? []).map((s) => s.trim()).filter(Boolean);
+/** Local wall-clock time as `YYYY-MM-DDTHH:MM`: the journal is read by a person, not a machine. */
+const localStamp = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 const MARKER = /<!-- okb-session (\{.*\}) -->/g;
 
 /**
@@ -215,15 +217,16 @@ export async function recordSession(config: OkbConfig, input: SessionInput): Pro
 
   const now = input.now ?? new Date();
   const at = now.toISOString();
+  const local = localStamp(now);
   const profile = config.profile.id;
   const captured: InboxItem[] = [];
   for (const text of keep) {
-    captured.push(await capture(config, { text, source: `session ${at.slice(0, 10)} (${profile})`, tags: ['session'], now }));
+    captured.push(await capture(config, { text, source: `session ${local.slice(0, 10)} (${profile})`, tags: ['session'], now }));
   }
 
   const L = LABELS[langOf(config)];
   const { journal } = focusPaths(config);
-  const month = at.slice(0, 7);
+  const month = local.slice(0, 7);
   const path = resolve(journal, `${month}.md`);
   const existing = await readTextIfExists(path);
   const head = existing ?? `---\ntitle: ${L.title} ${month}\ndescription: ${langOf(config) === 'fr' ? 'Une entrée par session de travail avec Claude, écrite par okb done.' : 'One entry per work session with Claude, written by okb done.'}\n---\n\n# ${L.title} — ${month}\n`;
@@ -232,7 +235,7 @@ export async function recordSession(config: OkbConfig, input: SessionInput): Pro
   const colon = langOf(config) === 'fr' ? ' :' : ':';
   const lines = [
     '',
-    `## ${at.slice(0, 10)} ${at.slice(11, 16)} · ${profile}`,
+    `## ${local.slice(0, 10)} ${local.slice(11, 16)} · ${profile}`,
     `<!-- okb-session ${marker} -->`,
     '',
     `**${L.summary}${colon}** ${summary}`,
@@ -278,7 +281,7 @@ export async function sessionsSince(config: OkbConfig, from: Date): Promise<Last
   let names: string[] = [];
   try { names = (await readdir(journal)).filter((n) => /^\d{4}-\d{2}\.md$/.test(n)).sort(); } catch { return []; }
   const out: LastSession[] = [];
-  for (const name of names.filter((n) => basename(n, '.md') >= from.toISOString().slice(0, 7))) {
+  for (const name of names.filter((n) => basename(n, '.md') >= localStamp(from).slice(0, 7))) {
     const raw = await readTextIfExists(resolve(journal, name));
     for (const m of (raw ?? '').matchAll(MARKER)) {
       try {
