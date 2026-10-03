@@ -78,7 +78,7 @@ const okfSchema = z
   .object({
     version: z.literal('0.2').default('0.2'),
     /** Actor recorded in `generated.by` for machine-authored content. */
-    machineActor: z.string().default('okb/0.3'),
+    machineActor: z.string().default('okb/0.4'),
     productRules: z
       .object({
         requiredFields: z

@@ -27,6 +27,7 @@ process qui reviennent et les KB versionnées avec Git.
 - **Dossiers cachés ignorés** : `.github/README.md` et autres outils ne sont plus
   lus comme des notes.
 - **Catalogue du plugin** renommé `okb` : `claude plugin install okb@okb`.
+- `generated.by` des nouvelles notes vaut `okb/0.4`.
 
 ## Mise à jour depuis 0.3.0
 
