@@ -5,7 +5,7 @@ description: Review, select, apply or roll back an existing OKB knowledge propos
 
 # Review the exact selected change
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use.
+> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
 
 1. Run `okb review --list --json` or `okb review <id> --diff --json`.
    Show the paths, useful content changes, concept candidates and unresolved

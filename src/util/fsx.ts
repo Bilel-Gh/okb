@@ -108,7 +108,8 @@ export async function walkFiles(
     }
     for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
       if (entry.isDirectory()) {
-        if (skip.has(entry.name)) continue;
+        // Hidden directories hold tooling (.git, .github, .obsidian, .okb, .trash), never notes.
+        if (skip.has(entry.name) || entry.name.startsWith('.')) continue;
         await rec(join(dir, entry.name), prefix ? `${prefix}/${entry.name}` : entry.name);
       } else if (entry.isFile()) {
         out.push(prefix ? `${prefix}/${entry.name}` : entry.name);

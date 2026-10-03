@@ -244,11 +244,28 @@ const contextSchema = z
   })
   .strict();
 
+/**
+ * The focus note (written by the person) and the session journal (written by
+ * `okb done`). Both live outside the bundle; empty paths default to the profile
+ * state. Several profiles may share one focus note.
+ */
+const focusSchema = z
+  .object({
+    file: z.string().default(''),
+    journal: z.string().default(''),
+    /** After this many days the weekly review asks whether the focus is still right. */
+    staleDays: z.number().int().min(1).default(14),
+    /** Give the focus and the last session to Claude when a session starts (plugin hook). */
+    sessionStart: z.boolean().default(true),
+  })
+  .strict();
+
 const gitSchema = z
   .object({
     enabled: z.boolean().default(true),
     requireCleanTree: z.boolean().default(false),
     warnOnDirtyTree: z.boolean().default(true),
+    /** Commit each apply and rollback in the KB's own Git repository (touched files only; never pushes). */
     autoCommit: z.boolean().default(false),
     /** Remotes the product may ever push to. Empty means "no push destination". */
     allowedRemotes: z.array(z.string()).default([]),
@@ -290,6 +307,7 @@ export const configSchema = z
     changes: changesSchema.default({}),
     context: contextSchema.default({}),
     git: gitSchema.default({}),
+    focus: focusSchema.default({}),
     policy: policySchema.default({}),
     /** Root of operational state: proposals, runs, caches, logs. Never inside the KB. */
     stateHome: z.string().default(''),

@@ -5,7 +5,7 @@ description: Capture a thought, link or note into the private OKB inbox in one s
 
 # Capture now, decide later
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use.
+> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
 
 The inbox lives in the profile state, outside the KB. A capture is never
 knowledge: it becomes a note only through `okb ingest`, a proposal and the

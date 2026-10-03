@@ -4,9 +4,10 @@ import { resolve } from 'node:path';
 import YAML from 'yaml';
 import { applyProposal, loadReceipt, rollback } from '../apply/apply.js';
 import { approvalPath, grantApproval } from '../apply/approval.js';
+import { commitKbChanges, type GitCommitResult } from '../apply/git.js';
 import { guardApply, assertGuard, checkPathPolicy } from '../apply/guard.js';
 import { loadConfig, okbHome, type EffectiveConfig } from '../config/load.js';
-import { configSchema, WRITING_PRESETS } from '../config/schema.js';
+import { configSchema, WRITING_PRESETS, type OkbConfig } from '../config/schema.js';
 import { anonymizeHome, redact } from '../config/redact.js';
 import { doctor, measureContext } from '../doctor/doctor.js';
 import { loadBundleFor, withPendingFiles } from '../kb/bundle.js';
@@ -44,6 +45,8 @@ import { asBundlePath, bundlePathToAbsolute, type BundlePath } from '../util/pat
 import { flagBool, flagList, flagNumber, flagString, flagValues, parseArgs, type ParsedArgs } from './args.js';
 import { capture, findInboxItem, listInbox, settleInboxItem } from '../inbox/inbox.js';
 import { weeklyReport } from '../weekly/weekly.js';
+import { focusPaths, initFocus, readFocus, recordSession, renderFocusContext, setFocus } from '../focus/focus.js';
+import { draftSkill, writeSkillDraft } from '../skillify/skillify.js';
 import { Output, reportError, type OutputMode } from './output.js';
 
 const HELP = `okb — Open Knowledge Brain
@@ -62,7 +65,11 @@ const HELP = `okb — Open Knowledge Brain
   okb maintain   [--check-sources] [--json]  (read-only audit; local source hashes are opt-in)
   okb capture    "<text>" [--title t] [--source s] [--tag x] [--from-file f]  (private inbox, not the KB)
   okb inbox      [list] [--all] | show <id> | done <id> [--proposal p] | drop <id> [--reason r]
-  okb weekly     [--days 7] [--json]  (read-only weekly review: inbox, proposals, notes to re-read, audit)
+  okb weekly     [--days 7] [--json]  (read-only weekly review: inbox, proposals, notes to re-read, focus, audit)
+  okb focus      [show] [--context] | init | set "<text>" [--from-file f]  (what you work on now; Claude reads it first)
+  okb done       --summary "<text>" [--did x]... [--decided x]... [--keep x]... [--next "<text>"] | --from-file session.json
+                 (end of a session: journal entry + one inbox capture per --keep; nothing goes to the KB)
+  okb skillify   <note.md> [--name n] [--out <dir>] [--force]  (draft a Claude Code skill from a procedure/process note)
   okb serve      [--port 4317]  (local reader: notes, search, proposals and writing style)
   okb doctor     [--json]
   okb concepts   detect <source> | list
@@ -112,6 +119,12 @@ async function main(argv: readonly string[]): Promise<number> {
         return await cmdInbox(args, out, mode);
       case 'weekly':
         return await cmdWeekly(args, out, mode);
+      case 'focus':
+        return await cmdFocus(args, out, mode);
+      case 'done':
+        return await cmdDone(args, out, mode);
+      case 'skillify':
+        return await cmdSkillify(args, out, mode);
       case 'serve':
         return await cmdServe(args, out, mode);
       case 'doctor':
@@ -746,11 +759,13 @@ async function cmdApply(args: ParsedArgs, out: Output, mode: OutputMode): Promis
   const rollbackId = flagString(args, 'rollback');
   if (rollbackId) {
     const results = await rollback(config, rollbackId);
+    const git = await commitKbChanges(config, results.map((r) => r.path), `okb: roll back ${rollbackId}\n\n${results.length} file(s) restored.`);
     if (mode === 'json') {
-      out.json({ ok: true, restored: results });
+      out.json({ ok: true, restored: results, git });
       return 0;
     }
     out.line(`restored ${results.length} file(s) from receipt ${rollbackId}`);
+    reportGit(out, config, git);
     return 0;
   }
 
@@ -764,15 +779,26 @@ async function cmdApply(args: ParsedArgs, out: Output, mode: OutputMode): Promis
     ...(flagBool(args, 'dry-run') ? { dryRun: true } : {}),
   });
 
+  const written = flagBool(args, 'dry-run') ? [] : receipt.results.filter((r) => r.action !== 'skipped').map((r) => r.path);
+  const label = proposal.notes[0] ?? proposal.changes[0]?.label ?? '';
+  const git = flagBool(args, 'dry-run')
+    ? null
+    : await commitKbChanges(config, written, `okb: apply ${proposal.id} (${written.length} file(s))\n\n${label}\nReceipt: ${receipt.id}`.trim());
   if (mode === 'json') {
-    out.json({ ok: true, receipt });
+    out.json({ ok: true, receipt, ...(git ? { git } : {}) });
     return 0;
   }
   out.line(`receipt ${receipt.id} — ${receipt.results.length} file(s)`);
   out.table(receipt.results.map((r) => [r.action, r.path, r.sha256.slice(0, 12)]));
   for (const d of receipt.dropped) out.line(`dropped ${d.id}: ${d.reason}`);
   if (!flagBool(args, 'dry-run')) out.line(`rollback with: okb apply --rollback ${receipt.id}`);
+  if (git) reportGit(out, config, git);
   return 0;
+}
+
+function reportGit(out: Output, config: OkbConfig, git: GitCommitResult): void {
+  if (git.committed) out.line(`git: committed ${git.sha} in the KB repository (${git.paths} file(s)); push when you want: git -C "${config.kb.root}" push`);
+  else if (config.git.autoCommit) out.line(`git: not committed — ${git.reason}`);
 }
 
 async function cmdMaintain(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
@@ -851,8 +877,83 @@ async function cmdWeekly(args: ParsedArgs, out: Output, mode: OutputMode): Promi
   out.line(`\nApplied this period: ${r.applied.receipts} receipt(s), ${r.applied.created.length} note(s) created, ${r.applied.updated.length} updated`);
   out.line(`\nRe-read now (created 1, 7, 30 or 90 days ago): ${r.toReview.length}`);
   for (const n of r.toReview) out.line(`  J+${n.milestone}: ${n.title} (${n.path})`);
+  out.line(`\nFocus: ${r.focus.exists ? `updated ${r.focus.ageDays} day(s) ago${r.focus.stale ? ' — still right? (okb focus)' : ''}` : 'none yet (okb focus init)'}`);
+  out.line(`Sessions journaled this period: ${r.sessions.count}`);
+  for (const s of r.sessions.next) out.line(`  ${s.at.slice(0, 10)} (${s.profile}) next: ${s.next.slice(0, 90)}`);
   out.line(`\nMaintenance: ${r.maintenance.errors} error(s), ${r.maintenance.warnings} warning(s)${Object.keys(r.maintenance.byCode).length ? ` — ${Object.entries(r.maintenance.byCode).map(([c, n]) => `${c}×${n}`).join(', ')}` : ''}`);
   out.line('\nNothing was written. The okb-weekly skill walks through this list with you.');
+  return 0;
+}
+
+async function cmdFocus(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  const sub = args.positionals[0] ?? 'show';
+  if (sub === 'init') {
+    const path = await initFocus(config);
+    if (mode === 'json') out.json({ ok: true, path });
+    else out.line(`focus note created: ${path}\nFill in 3 to 8 lines; Claude reads it at the start of every session.`);
+    return 0;
+  }
+  if (sub === 'set') {
+    const file = flagString(args, 'from-file');
+    const text = file ? await readFile(resolve(file), 'utf8') : args.positionals.slice(1).join(' ');
+    const result = await setFocus(config, text);
+    if (mode === 'json') out.json({ ok: true, ...result });
+    else out.line(`focus updated: ${result.path}${result.previous ? `\nprevious version kept in ${result.previous}` : ''}`);
+    return 0;
+  }
+  if (sub !== 'show') throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { hint: 'okb focus [show] [--context] | init | set "<text>"' });
+  const state = await readFocus(config);
+  if (flagBool(args, 'context')) {
+    const text = config.focus.sessionStart ? renderFocusContext(config, state) : '';
+    if (mode === 'json') out.json({ ok: true, context: text });
+    else if (text) out.line(text);
+    return 0;
+  }
+  if (mode === 'json') { out.json({ ok: true, ...state, journal: focusPaths(config).journal }); return 0; }
+  if (!state.exists) {
+    out.line(`no focus note yet (${state.path})\nCreate it with: okb focus init`);
+  } else {
+    out.line(`🎯 ${state.path} — updated ${state.ageDays} day(s) ago${state.stale ? ` (older than ${state.staleDays} days: still right?)` : ''}\n`);
+    out.line(state.text);
+  }
+  if (state.lastSession) {
+    const s = state.lastSession;
+    out.line(`\nLast session ${s.at.slice(0, 16).replace('T', ' ')} (${s.profile}): ${s.summary}${s.next ? `\nNext time: ${s.next}` : ''}`);
+  }
+  return 0;
+}
+
+async function cmdDone(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  const file = flagString(args, 'from-file');
+  const fromFile = file ? (JSON.parse(await readFile(resolve(file), 'utf8')) as Record<string, unknown>) : {};
+  const list = (key: string) => [...(Array.isArray(fromFile[key]) ? (fromFile[key] as unknown[]).map(String) : []), ...flagValues(args, key)];
+  const record = await recordSession(config, {
+    summary: flagString(args, 'summary') ?? (typeof fromFile.summary === 'string' ? fromFile.summary : ''),
+    did: list('did'),
+    decided: list('decided'),
+    keep: list('keep'),
+    ...((flagString(args, 'next') ?? fromFile.next) ? { next: String(flagString(args, 'next') ?? fromFile.next) } : {}),
+  });
+  if (mode === 'json') { out.json({ ok: true, ...record }); return 0; }
+  out.line(`session journaled in ${record.journal}`);
+  for (const item of record.captured) out.line(`captured ${item.id}: ${item.title}`);
+  if (record.captured.length) out.line('These wait in the private inbox (not the KB): okb inbox');
+  if (record.next) out.line(`Next time: ${record.next}`);
+  return 0;
+}
+
+async function cmdSkillify(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { config } = await effective(args);
+  const note = args.positionals[0];
+  if (!note) throw new OkbError('E_INVALID', 'usage: okb skillify <note.md> [--name n] [--out <dir>]');
+  const draft = await draftSkill(config, note, { ...(flagString(args, 'name') ? { name: flagString(args, 'name')! } : {}) });
+  const dir = flagString(args, 'out');
+  const path = dir ? await writeSkillDraft(config, draft, resolve(dir), { force: flagBool(args, 'force') }) : null;
+  if (mode === 'json') { out.json({ ok: true, ...draft, path }); return 0; }
+  if (path) out.line(`skill draft written: ${path} (${draft.counts.steps} step(s) from ${draft.note})\nReview every step with the user, then test it on a real case.`);
+  else out.line(`${draft.content}\n— draft only, nothing written. Write it with: okb skillify ${draft.note} --out <project>/.claude/skills`);
   return 0;
 }
 
@@ -862,10 +963,15 @@ async function cmdProfile(args: ParsedArgs, out: Output, mode: OutputMode): Prom
   const root = raw ? ((YAML.parse(raw) as { profiles?: unknown; activeProfile?: unknown }) ?? {}) : {};
   const installed = Array.isArray(root.profiles) ? root.profiles.map(String) : [];
   const active = typeof root.activeProfile === 'string' ? root.activeProfile : null;
-  const info = { profile: config.profile.id, kbRoot: config.kb.root, active, installed, explicit: config.profile.id !== active };
+  const focus = await readFocus(config);
+  const info = {
+    profile: config.profile.id, kbRoot: config.kb.root, active, installed, explicit: config.profile.id !== active,
+    focus: { path: focus.path, exists: focus.exists, ageDays: focus.ageDays, stale: focus.stale },
+  };
   if (mode === 'json') { out.json({ ok: true, ...info }); return 0; }
   out.line(`📚 ${config.profile.id} → ${config.kb.root}${info.explicit ? '  (chosen with --profile for this command)' : ''}`);
   out.line(`installed: ${installed.map((p) => (p === active ? `${p} (active)` : p)).join(', ') || '(none)'}`);
+  out.line(focus.exists ? `focus: ${focus.path} (updated ${focus.ageDays} day(s) ago)` : 'focus: none yet (okb focus init)');
   out.line('switch with: okb setup switch <profile>');
   return 0;
 }

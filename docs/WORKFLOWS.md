@@ -99,6 +99,45 @@ mémoire), et synthèse de `okb maintain`. La skill `okb-weekly` déroule ce rit
 `okb-learn` pose des questions courtes sur une note et corrige en montrant le
 passage cité, sans rien écrire par défaut.
 
+## Focus du moment et fin de session
+
+La **note de focus** dit à Claude sur quoi tu travailles maintenant : 3 à 8 lignes
+(ce que tu fais, ce que tu veux apprendre, la prochaine échéance, ce que Claude doit
+savoir). `okb focus init` la crée avec son mode d'emploi ; `okb focus` l'affiche avec
+son âge ; `okb focus set "…"` (ou `--from-file`) la remplace en gardant l'ancienne
+version dans l'état du profil. Par défaut elle vit dans l'état du profil ;
+`focus.file` peut la placer ailleurs, par exemple à la racine d'un coffre Obsidian,
+et plusieurs profils peuvent la partager.
+
+En fin de session, `/okb:done` (skill `okb-focus`) relit la conversation et appelle
+`okb done` : une entrée dans le **journal des sessions** (un fichier par mois :
+résumé, fait, décidé, prochaine fois) et une capture d'inbox par connaissance à
+garder (`--keep`). Rien n'entre dans la KB : les captures suivent le tri habituel.
+
+Au démarrage d'une session, le hook `SessionStart` du plugin donne à Claude la note
+de focus et la dernière « prochaine fois » (`okb focus --context`). C'est ainsi que
+la session suivante reprend là où l'autre s'est arrêtée. `okb weekly` demande si le
+focus est encore juste après `focus.staleDays` jours (14 par défaut).
+
+## Des process aux skills
+
+`okb skillify <note>` transforme une note `procedure`, `process` ou `automation` en
+brouillon de skill Claude Code : ses sections deviennent « Quand l'utiliser »,
+« Avant de commencer », des étapes numérotées, « Vérifier le résultat » et « Si ça
+ne marche pas », et le brouillon cite la note. Sans `--out`, il s'affiche
+seulement ; `--out <projet>/.claude/skills` écrit `<nom>/SKILL.md`. La skill
+`okb-skillify` le relit ensuite avec toi, une question à la fois (déclencheur, cas
+où ne pas l'utiliser, chaque étape, contrôle final), puis le fait tester sur un cas
+réel.
+
+## Historique Git d'une KB
+
+Si la KB est un dépôt Git, `git.autoCommit: true` dans le profil fait de chaque
+`okb apply` (et de chaque `--rollback`) un commit qui ne contient que les fichiers du
+reçu. Le message cite la proposition et le reçu. Rien n'est poussé : `git push`
+reste ton geste. Un `README.md` destiné à GitHub se place dans `.github/` : OKB
+ignore les dossiers cachés.
+
 ## Lire et entretenir
 
 `okb ask "question" --json` retourne des passages, chemins, lignes réelles,

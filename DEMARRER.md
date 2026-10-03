@@ -62,7 +62,21 @@ Vérifie les commandes `/okb:doctor`, `/okb:setup`, `/okb:ingest`, `/okb:ask`,
 depuis le terminal de Claude. Les skills sont sélectionnés par leurs descriptions ;
 les commandes sont des raccourcis explicites.
 
-## 4. Valider le comportement de Claude
+## 4. Au quotidien
+
+| Je veux… | Dans Claude |
+|---|---|
+| dire à Claude sur quoi je travaille en ce moment | `/okb:focus` (une fois, puis quand ça change) |
+| noter une idée au vol | `/okb:capture …` |
+| finir une session sans rien perdre | `/okb:done` |
+| faire le point de la semaine | `/okb:weekly` |
+| réviser une notion | `/okb:learn …` |
+| transformer une procédure en skill | `/okb:skillify …` |
+
+La note de focus et le journal des sessions restent hors de la KB : Claude les lit
+au démarrage d’une session pour reprendre là où tu t’étais arrêté.
+
+## 5. Valider le comportement de Claude
 
 Le code peut être testé ici ; ton fournisseur de modèle, tes autorisations et tes
 MCP nécessitent une validation dans ton environnement. Le protocole et les cas

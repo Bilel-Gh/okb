@@ -9,7 +9,7 @@
  * session.
  */
 
-export type SkillId = 'okb-setup' | 'okb-ingest' | 'okb-ask' | 'okb-review' | 'okb-maintain' | 'okb-revise' | 'okb-inbox' | 'okb-weekly' | 'okb-learn' | 'none';
+export type SkillId = 'okb-setup' | 'okb-ingest' | 'okb-ask' | 'okb-review' | 'okb-maintain' | 'okb-revise' | 'okb-inbox' | 'okb-weekly' | 'okb-learn' | 'okb-focus' | 'okb-skillify' | 'none';
 
 export type Signal = { readonly re: RegExp; readonly weight: 1 | 2 };
 
@@ -132,6 +132,27 @@ export const ROUTING_RULES: readonly RoutingRule[] = [
       weak(/\b(apprendre|learn|retenir|retain)\b/i),
     ],
     negative: [/\b(réécri|reformule|rewrite|restyle|style)\b/i, /\b(code|pull request|commit)\b/i],
+  },
+  {
+    skill: 'okb-focus',
+    when: 'closing a work session (journal + captures), or showing and updating the current focus note',
+    notWhen: 'a question from the KB, a new source or the weekly review',
+    positive: [
+      strong(/(^|\s)\/?done\b|\b(fin de (la )?session|on a fini|c['’]est fini pour aujourd['’]hui|wrap up|end (of )?(the )?session)\b/i),
+      strong(/\b(mon|ma|my|current|du moment)\s+(focus|priorités?|priorities)\b|\bfocus du moment\b/i),
+      weak(/\b(journal de session|session log|sur quoi je travaille|what i('| a)m working on)\b/i),
+    ],
+    negative: [/\b(inbox)\s+done\b/i, /\bfocus mode\b/i],
+  },
+  {
+    skill: 'okb-skillify',
+    when: 'turning a documented procedure or process into a Claude Code skill or slash command',
+    notWhen: 'writing a KB note, ingesting a source or editing the okb plugin itself',
+    positive: [
+      strong(/\b(skillify|en (un )?skill|into a (claude )?skill|(crée|créer|fais|make|create)[a-z]*\s+(un |a )?(skill|slash command|commande slash))\b/i),
+      weak(/\b(process|procédure|procedure|workflow)\b.*\b(skill|commande|command)\b/i),
+    ],
+    negative: [/\b(plugin okb|okb plugin)\b/i],
   },
 ];
 

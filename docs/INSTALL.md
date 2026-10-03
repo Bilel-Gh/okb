@@ -114,7 +114,7 @@ toutes les sessions, y compris l'application de bureau, ce dossier sert de catal
 
 ```bash
 claude plugin marketplace add /chemin/du/produit
-claude plugin install okb@okb-local
+claude plugin install okb@okb
 ```
 
 Claude Code copie alors le plugin dans son cache, sans le dossier `dist/` du produit. Le
@@ -122,11 +122,14 @@ script `plugin/bin/okb` cherche donc le moteur dans cet ordre : `dist/` voisin, 
 `~/.okb/bin/okb`, puis un `okb` sur le PATH. Crée le lanceur une fois :
 
 ```bash
-mkdir -p ~/.okb/bin && printf '#!/bin/sh\nexec /chemin/du/lanceur/okb "$@"\n' > ~/.okb/bin/okb && chmod +x ~/.okb/bin/okb
+mkdir -p ~/.okb/bin && printf '#!/bin/sh\nexec node /chemin/du/produit/dist/cli/index.js "$@"\n' > ~/.okb/bin/okb && chmod +x ~/.okb/bin/okb
 ```
 
-Après une modification du plugin à version égale : `claude plugin uninstall okb@okb-local`
-puis `claude plugin install okb@okb-local`. Une nouvelle session est nécessaire pour la
-charger. Le hook du plugin s'applique alors à toutes tes sessions Claude Code (il bloque
-seulement l'approbation de propositions par l'agent). `okb profile` dit quel profil et quelle
+Après une modification du plugin à version égale : `claude plugin uninstall okb@okb`
+puis `claude plugin install okb@okb`. Une nouvelle session est nécessaire pour la
+charger. Les deux hooks du plugin s'appliquent alors à toutes tes sessions Claude Code :
+l'un bloque seulement l'approbation de propositions par l'agent ; l'autre, au démarrage
+d'une session, donne à Claude ta note de focus et la dernière « prochaine fois » du journal
+(il ne dit rien tant qu'aucun focus ni journal n'existe ; `focus.sessionStart: false` dans
+le profil le coupe). `okb profile` dit quel profil et quelle
 KB les commandes utilisent ; chaque skill l'affiche en tête de sa première réponse.

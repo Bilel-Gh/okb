@@ -5,7 +5,7 @@ description: Enrich the user's OKB knowledge base from a VTT transcript, documen
 
 # Prepare a sourced knowledge change
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use.
+> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
 
 Use the installed `okb` CLI. If unavailable, report the installation error; never
 substitute direct writes to the knowledge bundle. No MCP is needed for local

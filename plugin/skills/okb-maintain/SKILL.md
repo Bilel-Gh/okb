@@ -5,7 +5,7 @@ description: Audit an OKB knowledge bundle, prepare navigation updates, move not
 
 # Maintain the bundle
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use.
+> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
 
 Run `okb maintain --json` and `okb links check --json`.
 Separate OKF conformance, configured product rules, and consistency findings.

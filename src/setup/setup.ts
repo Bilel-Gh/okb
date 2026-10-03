@@ -30,6 +30,10 @@ export type SetupAnswers = {
   readonly writingPreset?: string;
   /** Prior knowledge of the reader, merged over the existing one. */
   readonly reader?: Record<string, unknown>;
+  /** Focus note and session journal (`file`, `journal`, `staleDays`, `sessionStart`), merged. */
+  readonly focus?: Record<string, unknown>;
+  /** Git settings such as `autoCommit`, merged. */
+  readonly git?: Record<string, unknown>;
 };
 
 export type SetupResult = {
@@ -87,7 +91,7 @@ export async function runSetup(
   const existing = existingRaw ? ((YAML.parse(existingRaw) as Record<string, unknown>) ?? {}) : {};
   const created = existingRaw === null;
 
-  const managedKeys = ['profile', 'kb', 'conceptAssist', 'okf', 'orgConfig', 'writing', 'reader'];
+  const managedKeys = ['profile', 'kb', 'conceptAssist', 'okf', 'orgConfig', 'writing', 'reader', 'focus', 'git'];
   const preserved = Object.keys(existing).filter((k) => !managedKeys.includes(k));
 
   const next: Record<string, unknown> = {
@@ -140,6 +144,12 @@ export async function runSetup(
       : {}),
     ...(answers.reader !== undefined
       ? { reader: { ...(asRecord(existing.reader) ?? {}), ...(asRecord(answers.reader) ?? {}) } }
+      : {}),
+    ...(answers.focus !== undefined
+      ? { focus: { ...(asRecord(existing.focus) ?? {}), ...(asRecord(answers.focus) ?? {}) } }
+      : {}),
+    ...(answers.git !== undefined
+      ? { git: { ...(asRecord(existing.git) ?? {}), ...(asRecord(answers.git) ?? {}) } }
       : {}),
     ...(answers.orgConfig ? { orgConfig: resolve(expandHome(answers.orgConfig, env)) } : {}),
     ...(answers.teamConfig ? { teamConfig: resolve(expandHome(answers.teamConfig, env)) } : {}),

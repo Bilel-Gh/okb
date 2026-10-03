@@ -1,141 +1,194 @@
-# OKB — Open Knowledge Brain · 0.3.0
+# OKB — Open Knowledge Brain · 0.4.0
 
-A configurable local knowledge workflow for Claude Code and Obsidian. Claude
-reads and synthesises; the TypeScript core validates evidence references,
-prepares exact diffs, and applies authorised changes with recoverable receipts.
-The knowledge base is a separate directory of ordinary Markdown files.
+**A local second brain for Claude Code and Obsidian, where nothing enters your
+notes without your approval.**
 
-**Start in French:** [DEMARRER.md](DEMARRER.md).
+Claude reads your sources (meeting transcripts, documents, web pages, code) and
+writes the synthesis. A TypeScript core checks every sentence against an exact
+quotation of its source, prepares a reviewable diff, and applies it only after
+you approve, with a receipt you can roll back. The knowledge base stays a folder
+of plain Markdown files that you open in Obsidian and version with Git.
 
-## Install
+**Démarrer en français :** [DEMARRER.md](DEMARRER.md).
 
-Node **22.12+** and npm. From this source directory:
+```mermaid
+flowchart LR
+  S["Sources<br/>VTT · PDF · DOCX · HTML · Markdown · code"] --> C["Claude<br/>(plugin skills)"]
+  C -->|analysis dossier| K["okb core<br/>evidence · templates · links"]
+  K --> P["Proposal<br/>exact diff"]
+  P -->|you approve| A["Apply<br/>receipt · rollback"]
+  A --> B[("KB<br/>Markdown / OKF")]
+  B --> O["Obsidian · okb serve · okb ask"]
+```
+
+## Why
+
+AI assistants summarise well but make it easy to store claims nobody checked,
+and every session starts from zero. OKB keeps the useful part — Claude's reading
+and writing — and adds what a long-lived knowledge base needs:
+
+- **Traceability.** Every claim carries a verbatim quotation located in its
+  source; inferences are labelled as such; corrections and contradictions stay
+  visible.
+- **Human approval.** Claude prepares; only you approve (a plugin hook stops the
+  agent from approving its own proposals). Applies are transactional, with
+  backups and rollback.
+- **A shape that holds.** Note templates, a configurable writing style and
+  one-minute concept cards keep hundreds of notes consistent and readable.
+- **Memory between sessions.** A short focus note and a session journal, outside
+  the KB, let each session start where the last one stopped.
+
+## Features
+
+| | |
+|---|---|
+| **Ingest** | Transcripts, documents, pages and source code, alone or several per note; bounded extraction, nothing executed |
+| **Evidence** | Claims backed by exact quotes; teaching aids (explanation, analogy with its limits, Mermaid diagram, example) tied to the claims they rephrase |
+| **Templates** | Guide, concept, procedure, process, tool, automation, experience, decision, meeting — fixed sections, headings and order |
+| **Style** | Presets `standard`, `pedagogique`, `expert` plus eight knobs, reader level per domain; a style change never rewrites existing notes |
+| **Concept cards** | Definition in one sentence, analogy and its limit, how it works, example, diagram, pitfalls, quotation; automatic links with aliases |
+| **Review & apply** | Exact diffs, partial selection, signed approval, path policy, lock, receipts, rollback, optional Git commit per apply |
+| **Second-brain rituals** | Private inbox (`capture`), weekly review with spaced re-reading (J+1, 7, 30, 90), active recall (`learn`), focus note and end-of-session journal (`done`) |
+| **From process to skill** | `okb skillify` turns a procedure or process note into a Claude Code skill draft, refined with you and tested |
+| **Maintenance** | Broken links, ambiguous concepts, stale notes, style and template drift, secrets in notes, link-preserving moves |
+| **Local reader** | `okb serve`: notes, search, proposals and their exact previews in the browser, read-only |
+| **Safety** | Credentials refused everywhere (`E_SECRET`); organisation and team overlays can only narrow what a profile allows |
+
+## Quick start
+
+Node **22.12+**, npm, and [Claude Code](https://code.claude.com).
 
 ```bash
+git clone <this repository> okb && cd okb
 npm ci
 npm run build
-npm link
+npm link                      # puts `okb` on your PATH
 okb version
-claude plugin validate ./plugin
-claude --plugin-dir "$PWD/plugin"
 ```
 
-The plugin ships `bin/okb`, which Claude Code puts on the Bash tool's PATH while
-the plugin is enabled; it runs the CLI compiled beside the plugin, so `npm link`
-is only needed to use `okb` in your own terminal. A plugin copied without its
-package falls back to another `okb` on PATH.
-To install from a packed release instead: `npm install -g ./okb-0.3.0.tgz`.
-Do not run `npx okb` against an unverified public package of the same name.
-
-Configure an existing or separately created empty KB directory:
+Create a profile for an existing or empty KB folder:
 
 ```bash
-okb setup --profile me --kb-root /path/to/my-vault --concept-assist targeted \
-  --answer-language fr --locale fr-FR --human-actor human:me
+okb setup --profile notes --kb-root ~/Notes/kb-notes --concept-assist targeted \
+  --answer-language en --human-actor human:me --writing-preset standard
 okb doctor
-okb config show
 ```
 
-Setup writes the private profile, not the KB. No Git operation is performed.
-Concept assistance is explicitly chosen: off, targeted, or pedagogical.
+Install the Claude Code plugin for every session (terminal and desktop app):
+
+```bash
+claude plugin marketplace add "$PWD"
+claude plugin install okb@okb
+```
+
+Then, in Claude: `/okb:setup` for a guided setup (one question at a time),
+`/okb:ingest` with a file, `/okb:review`, and ask questions in plain language.
+For a one-off session without installing: `claude --plugin-dir "$PWD/plugin"`.
 
 ## Daily use
 
-| Intent | Workflow |
+| Intent | In Claude | In the terminal |
+|---|---|---|
+| Tell Claude what you work on now | `/okb:focus` | `okb focus init` · `okb focus set "…"` |
+| Import a transcript, document, page or code | `/okb:ingest` | `okb ingest …` (Claude writes the dossier) |
+| Find an answer in your notes | `/okb:ask` or just ask | `okb ask "…"` |
+| Review and apply a proposal | `/okb:review` · `/okb:apply` | `okb review <id> --diff` · `okb review <id> --approve` · `okb apply <id>` |
+| Jot something down, decide later | `/okb:capture …` | `okb capture "…"` |
+| Triage the inbox, one item at a time | `/okb:inbox` | `okb inbox` |
+| End a work session without losing anything | `/okb:done` | `okb done --summary "…" --keep "…" --next "…"` |
+| Weekly review | `/okb:weekly` | `okb weekly` |
+| Revise a note by active recall | `/okb:learn …` | — |
+| Turn a procedure into a skill | `/okb:skillify …` | `okb skillify <note> --out .claude/skills` |
+| Rewrite one note in another style | `/okb:revise` | `okb revise …` |
+| Audit, organise, move notes | `/okb:maintain` | `okb maintain` · `okb links move a b` · `okb nav` |
+| Which profile and KB am I using? | every skill starts with `📚 KB: <profile>` | `okb profile` · `okb setup switch <id>` |
+| Read in the browser | — | `okb serve` |
+
+Approval is always yours: run `okb review <id> --approve` yourself, in your
+terminal. Every apply prints the command that undoes it.
+
+## How it works
+
+A source follows: bounded extraction → analysis dossier written by Claude →
+search of the existing KB → proposal → independent evidence review (a subagent)
+→ human approval → transactional apply.
+
+- **The core never calls a language model.** It validates what Claude produced:
+  every evidence quote must exist in the normalised source, every aid must rest on
+  claims, every link must resolve, every note must follow its template.
+- **Proposals are content-addressed.** The approval signs the exact selection and
+  hash; apply recomputes both, checks file baselines, writes backups and the
+  expected output first, then the notes. Per-file writes are atomic; a group of
+  files is recoverable through its receipt.
+- **The KB is plain files.** Storage targets the [Open Knowledge Format 0.2](docs/OKF-CONFORMANCE.md):
+  YAML frontmatter, relative Markdown links with `.md`, unknown fields preserved.
+  Search is lexical (titles, aliases, headings, excerpts); no vector database.
+
+| Location | Holds |
 |---|---|
-| Import a transcript/document/code, alone or together | `okb-ingest` skill or `/okb:ingest` |
-| Find an answer in existing notes | `okb-ask` or `/okb:ask` |
-| Rewrite one note in another style | `okb-revise` or `/okb:revise` |
-| Review a proposed change | `okb-review` or `/okb:review` |
-| Apply an approved selection | `/okb:apply` |
-| Audit, organise or move notes | `okb-maintain` or `/okb:maintain` |
-| Change configuration | `okb-setup` or `/okb:setup` |
-| Inspect installation/context | `/okb:doctor` |
-| See which profile/KB is in use, switch | `okb profile` · `okb setup switch <id>` |
-| See or adjust the writing brief | `okb style [--set knob=value]` |
-| See the note templates | `okb template list` · `okb template show <id>` |
-| Read notes and exact proposal previews in a local browser | `okb serve --profile <id>` |
-| Check local source fingerprints on request | `okb maintain --check-sources` |
-| Jot something down now, decide later (private inbox, not the KB) | `/okb:capture` · `okb capture "<text>"` |
-| Triage the inbox into proposals, one item at a time | `okb-inbox` or `/okb:inbox` |
-| Weekly review: inbox, waiting proposals, notes to re-read, audit | `okb-weekly` or `/okb:weekly` · `okb weekly` |
-| Revise a note by active recall (short questions, cited feedback) | `okb-learn` or `/okb:learn` |
-
-Nothing credential-shaped (API keys, tokens, private keys, passwords in URLs or
-assignments) can enter a proposal, a capture or an applied note: OKB refuses with
-`E_SECRET` and a masked excerpt, and `okb maintain` reports `SECRET_IN_NOTE` in
-hand-written notes.
-
-Articles follow a configurable **writing style** (presets `standard`,
-`pedagogique`, `expert`, plus overrides), kept separate from the reader's prior
-knowledge, from concept assistance and from the fixed reliability rules. A
-style change never rewrites existing notes. See [style](docs/STYLE.md).
-
-Every note follows a **template** (guide, concept, procedure, experience,
-decision, meeting) that fixes its sections, their order and headings, so the
-bundle stays navigable as it grows; concept cards teach a notion in a minute
-(definition, analogy and its limit, how it works, example, diagram, pitfalls).
-See [templates](docs/TEMPLATES.md).
-
-A source follows: bounded extraction → source analysis → KB search → proposal →
-independent evidence review → human approval → transactional apply.
-The core does **not** call a language model or fine-tune one. Personal knowledge,
-aliases and configuration improve retrieval; this is not automatic model training.
-The no-dossier CLI fallback is a labelled **partial evidence preview**, never a
-complete semantic summary. See [analysis dossier](docs/WORKFLOWS.md).
-
-## Separation
-
-| Location | Responsibility |
-|---|---|
-| This repository | Shareable code, skills, fictitious tests, example settings |
-| Organisation/team overlays | Defaults plus policy ceilings |
-| `$OKB_HOME/profiles/<id>/profile.yaml` | Private preferences and KB location |
-| `kb.root` | Canonical notes, independently versionable and privately owned |
-| Profile `state/`, outside the KB | Source snapshots, analyses, proposals, approvals, receipts, backups |
+| This repository | Generic code, plugin, fictitious tests, example settings |
+| `~/.okb/profiles/<id>/profile.yaml` | Private preferences and the KB location |
+| `kb.root` | Your notes — a separate folder, versionable on its own |
+| Profile `state/`, outside the KB | Source snapshots, proposals, approvals, receipts, backups, inbox, journal |
 
 Preference order: defaults → organisation → team → profile → KB-local →
 environment → flags. Policies accumulate restrictions instead of following
-last-write-wins. This is a configuration boundary under one user account, not
-centrally enforced enterprise access control.
+last-write-wins.
 
-## Supported input and storage
+## Organising several knowledge bases
 
-VTT captions with timecodes/speakers; Markdown/text; static HTML or explicitly
-allowed public URLs; PDF text layers; DOCX body text; source and configuration
-files read as text with line ranges and top-level symbols (nothing executed).
-One article may synthesise several sources (`--with`). Scanned PDF, protected or
-JavaScript-only pages, and unsupported document parts are reported as absent.
-No audio transcription, OCR or browser automation is bundled.
+One Obsidian vault, one folder per KB, one profile per KB — same name everywhere:
 
-Storage targets Google's **Open Knowledge Format 0.2**, pinned to an exact
-specification revision. Generated internal links use standard relative Markdown
-with `.md`, computed from the containing file: `[Run](../flows/run.md)`.
-External references retain their URLs. Unknown YAML fields survive updates.
-
-## Validation and limits
-
-```bash
-npm run release:check
-npm audit
+```
+second-brain/            ← Obsidian vault
+├── 00 Home.md            hand-written, links every KB
+├── Focus.md              focus note shared by the profiles
+├── kb-work/              profile "work"   · Git repo kb-work
+└── kb-project-x/         profile "project-x" · Git repo kb-project-x
 ```
 
-The release gate runs TypeScript checks, regression tests, static plugin checks,
-and a clean packed installation with a complete fictitious workflow. The native
-Claude validator checks the plugin manifest separately. Native model routing and
-semantic quality require the supplied [Claude eval suite](docs/EVALUATION.md)
-in your own authenticated runtime; a passing keyword-router test does not prove
-Claude selected the correct skill.
+Separate KBs when sharing, confidentiality or reader level differ; otherwise one
+KB with folders, so notes link to each other. With `git.autoCommit: true`, each
+apply becomes one commit of exactly the files it wrote; pushing stays manual.
 
-Apply checks the recomputed proposal hash, exact approved selection, target
-baselines, path policy and structural changes. Backups and expected output are
-saved before KB writes. Local writers share a lock, and rollback refuses later
-edits. Per-file writes are atomic; a group of files is recoverable, **not** a
-single filesystem transaction. Arbitrary same-account shell access remains
-outside the approval mechanism's isolation guarantees.
+## Supported inputs
 
-Read [architecture](docs/ARCHITECTURE.md), [decisions](docs/DECISIONS.md), [style](docs/STYLE.md), [templates](docs/TEMPLATES.md), [installation](docs/INSTALL.md),
-[security](docs/SECURITY.md), [OKF conformance](docs/OKF-CONFORMANCE.md),
-[context](docs/CONTEXT.md) and release notes ([0.3.0](docs/RELEASE-0.3.0.md), [0.2.0](docs/RELEASE-0.2.0.md)).
-See also the [local reader](docs/LOCAL-READER.md), [independent diagnosis](docs/DIAGNOSTIC-2026-10.md)
-and [verified Claude contracts](docs/CLAUDE-COMPATIBILITY.md).
+VTT captions with timecodes and speakers; Markdown and text; static HTML or
+explicitly allowed public URLs; PDF text layers; DOCX body text; source and
+configuration files read as text with line ranges and top-level symbols
+(TypeScript, Python, SQL, Prisma, GraphQL, Protocol Buffers…). Scanned PDFs,
+JavaScript-only pages and unsupported document parts are reported as absent. No
+audio transcription, OCR or browser automation is bundled.
+
+## Quality
+
+```bash
+npm run release:check   # typecheck, tests, plugin checks, clean packed install with a fictitious workflow
+claude plugin validate ./plugin
+```
+
+280+ regression tests cover evidence validation, proposals, apply and
+rollback, concurrency, path policy, links, templates, style, secrets, inbox,
+weekly review, focus and journal, skill drafts and Git commits. Claude's own skill
+selection and writing quality are measured separately with the
+[evaluation suite](docs/EVALUATION.md), in your authenticated runtime.
+
+Limits, stated plainly: the approval hook is a best-effort guard inside Claude
+Code, not isolation from same-account shell access; search is lexical; a group of
+files is recoverable, not a single filesystem transaction.
+
+## Documentation
+
+[Architecture](docs/ARCHITECTURE.md) · [Decisions](docs/DECISIONS.md) ·
+[Workflows](docs/WORKFLOWS.md) · [Templates](docs/TEMPLATES.md) ·
+[Style](docs/STYLE.md) · [Installation](docs/INSTALL.md) ·
+[Security](docs/SECURITY.md) · [Context budget](docs/CONTEXT.md) ·
+[Local reader](docs/LOCAL-READER.md) · [OKF conformance](docs/OKF-CONFORMANCE.md) ·
+[Claude compatibility](docs/CLAUDE-COMPATIBILITY.md) · [Evaluation](docs/EVALUATION.md) ·
+Release notes: [0.4.0](docs/RELEASE-0.4.0.md), [0.3.0](docs/RELEASE-0.3.0.md), [0.2.0](docs/RELEASE-0.2.0.md).
+
+Most design documents are written in French.
+
+## License
+
+[MIT](LICENSE)

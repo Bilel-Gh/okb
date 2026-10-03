@@ -5,7 +5,7 @@ description: Run the weekly OKB review with the user — what waits in the inbox
 
 # Weekly review (about 20 minutes)
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use.
+> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
 
 Run `okb weekly --json` (add `--days N` for another period). It writes nothing.
 Walk through it in this order, one block at a time, waiting for the user:
@@ -19,9 +19,13 @@ Walk through it in this order, one block at a time, waiting for the user:
    just list the titles if the user is short on time.
 4. **Maintenance**: summarise errors and warnings by code; `SECRET_IN_NOTE` and
    broken links first. Offer `okb-maintain` for fixes.
-5. **Next week**: ask which one to three topics deserve attention and which
+5. **Focus and sessions**: `focus` says how old the focus note is; `sessions`
+   lists this period's journaled sessions and their open "next time". Ask whether
+   the focus is still right; if not, update it with the `okb-focus` workflow
+   (after the user agrees). No focus yet: offer `okb focus init`.
+6. **Next week**: ask which one to three topics deserve attention and which
    sources to capture. Keep the answer in the conversation unless the user asks
    for a note (then prepare it with `okb-ingest`, template `decision` or `guide`).
 
 End with a five-line recap. Do not create files, schedule tasks or change the
-profile during the review.
+profile during the review; the focus note changes only when the user agrees.

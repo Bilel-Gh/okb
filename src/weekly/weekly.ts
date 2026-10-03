@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import type { Receipt } from '../apply/apply.js';
 import type { OkbConfig } from '../config/schema.js';
 import { listInbox, type InboxItem } from '../inbox/inbox.js';
+import { readFocus, sessionsSince } from '../focus/focus.js';
 import { loadBundleFor } from '../kb/bundle.js';
 import { maintain } from '../maintain/maintain.js';
 import { listProposals } from '../proposal/store.js';
@@ -24,6 +25,9 @@ export type WeeklyReport = {
   /** Notes created N days ago for N in REVIEW_MILESTONES: re-reading them now fixes them in memory. */
   readonly toReview: readonly { path: string; title: string; ageDays: number; milestone: number }[];
   readonly maintenance: { readonly errors: number; readonly warnings: number; readonly byCode: Readonly<Record<string, number>> };
+  /** Is the compass still right? Sessions journaled this period and their open "next time". */
+  readonly focus: { readonly path: string; readonly exists: boolean; readonly ageDays: number | null; readonly stale: boolean };
+  readonly sessions: { readonly count: number; readonly next: readonly { at: string; profile: string; next: string }[] };
 };
 
 const dayMs = 86_400_000;
@@ -83,6 +87,9 @@ export async function weeklyReport(
     byCode[code!] = (byCode[code!] ?? 0) + 1;
   }
 
+  const focus = await readFocus(config, { now });
+  const sessions = (await sessionsSince(config, from)).filter((s) => Date.parse(s.at) <= now.getTime());
+
   return {
     period: { from: from.toISOString(), to: now.toISOString(), days: period },
     inbox: { open: inbox.length, oldestDays: inbox[0]?.ageDays ?? null, stale: inbox.filter((i) => i.ageDays >= inboxStale) },
@@ -90,6 +97,8 @@ export async function weeklyReport(
     applied: { receipts: inPeriod.receipts, created: [...inPeriod.created].sort(), updated: [...inPeriod.updated].sort() },
     toReview,
     maintenance: { errors, warnings, byCode },
+    focus: { path: focus.path, exists: focus.exists, ageDays: focus.ageDays, stale: focus.stale },
+    sessions: { count: sessions.length, next: sessions.filter((s) => s.next).slice(0, 5).map((s) => ({ at: s.at, profile: s.profile, next: s.next! })) },
   };
 }
 

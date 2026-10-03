@@ -11,13 +11,16 @@ okb template show experience         # sections, ordre, consignes
 okb template show concept --skeleton # squelette Markdown pour écrire à la main
 ```
 
-## Les six modèles fournis
+## Les neuf modèles fournis
 
 | Modèle | Pour | Sections (obligatoires en gras) |
 |---|---|---|
 | `guide` | comprendre un système, un flux, un mécanisme | **🎯 À quoi ça sert**, **🔍 Comment ça marche**, 💡 Exemple concret, 🗂️ Où regarder, 🚧 Limites et pièges |
 | `concept` | une notion en une minute (fiches de `concepts/`) | **🎯 En une phrase**, 🧭 Pour se le représenter, 🔍 Comment ça marche, 💡 Exemple, 🗺️ Schéma, ⚠️ À ne pas confondre, **📌 Ce que dit la source** |
 | `procedure` | refaire une tâche pas à pas | **🎯 Quand l’utiliser**, ✅ Avant de commencer, **🪜 Étapes**, 🔎 Vérifier le résultat, 🧯 Si ça ne marche pas |
+| `process` | une activité qui revient : la décrire, la prioriser, la déléguer | **🎯 Livrable produit**, **🔁 Fréquence et déclencheur**, 🧑‍💼 Qui s’en occupe, 📥 Entrées, **🪜 Étapes**, 🧰 Outils, ⚖️ Priorité : temps, pénibilité, impact, 🤖 Ce que l’IA peut en faire |
+| `tool` | une fiche par outil utilisé ou évalué | **🎯 À quoi il sert**, ✅ Quand le choisir, 🔌 Accès et connexion, **🛠️ Utilisation courante**, 💶 Coûts et limites, 🔐 Données et confidentialité, 🔁 Alternatives |
+| `automation` | un flux qui tourne seul (tâche planifiée, webhook, agent) | **🎯 Ce qu’elle fait**, **⏰ Déclencheur**, **🔀 Déroulé**, 🧰 Outils et accès, 🔎 Surveiller et vérifier, 🧯 En cas de panne, 🧑‍💼 Responsable et revue |
 | `experience` | un incident résolu, réutilisable | **🧩 Contexte**, 🚨 Symptômes, 🔍 Diagnostic, 🚫 Pistes écartées, **✅ Résolution**, **💡 À retenir**, 🎯 Quand réutiliser ce retour |
 | `decision` | un choix et ses raisons | **🧭 Contexte**, ⚖️ Options envisagées, **✅ Décision**, 📌 Conséquences, 🔁 Quand y revenir |
 | `meeting` | un transcript, une démo, un transfert de connaissances | **🎯 L’essentiel**, ✅ Décisions, 📋 Actions, 🗂️ Sujets abordés |

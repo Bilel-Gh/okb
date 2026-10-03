@@ -5,7 +5,7 @@ description: Help the user learn and retain a note or topic from their OKB knowl
 
 # Learn by recalling, not by re-reading
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use.
+> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
 
 Work only from the KB: find the note with `okb ask "<topic>" --json` or read the
 given note. Each fact you test must come from a claim of that note and its

@@ -3,13 +3,13 @@
 Trace courte pour reprendre le projet sans l’historique de conversation.
 Format : problème → décision → conséquence → condition de réexamen.
 
-## État au 3 octobre 2026 (version locale 0.3.0, non publiée)
+## État au 4 octobre 2026 (version 0.4.0)
 
 | Contrôle | Résultat |
 |---|---|
-| `npm run release:check` (Node 24.4) | 263 tests, plugin 23 composants, paquet installé proprement, lecteur local inclus |
-| `claude plugin validate ./plugin` (Claude Code 2.1.27 du poste) | Validation passée ; `--strict` absent de cette version |
-| Évaluations natives `claude plugin eval` | Non exécutées (11 cas prêts dont `revise-fr`) |
+| `npm run release:check` (Node 24.4) | voir `docs/RELEASE-0.4.0.md` : tests, plugin, paquet installé proprement |
+| `claude plugin validate ./plugin` (Claude Code du poste) | Validation passée |
+| Évaluations natives `claude plugin eval` | Non exécutées (cas prêts dans `plugin/evals/`) |
 
 ## D1 — Le style de rédaction devient un paramètre du produit
 
@@ -231,3 +231,76 @@ Le diagnostic et les contrats Claude consultés sont dans
   trompeur. `--resume` reste réservé aux applications interrompues.
 - **Schémas comme code.** `.prisma`, `.graphql`/`.gql` et `.proto` sont lus par
   l'adaptateur de code (version 3) ; `model`, `message` et `service` nomment les blocs.
+
+## D16 — Focus du moment et journal de session
+
+- **Problème.** Chaque session Claude repartait de zéro : rien ne disait sur quoi
+  l'utilisateur travaillait, ni où la session précédente s'était arrêtée. Les
+  méthodes de second cerveau répondent par un fichier de contexte lu en premier
+  et un rituel de fin de session.
+- **Décision.** Deux fichiers privés hors de la KB : la **note de focus**, écrite
+  par la personne (`okb focus init|set`, version précédente conservée dans
+  l'état), et le **journal des sessions**, un fichier par mois écrit par `okb done`
+  (résumé, fait, décidé, prochaine fois ; chaque `--keep` devient une capture de
+  l'inbox). Un hook `SessionStart` du plugin donne à Claude la note de focus et la
+  dernière « prochaine fois » (`okb focus --context`), en les marquant comme
+  données de l'utilisateur. `okb weekly` signale un focus de plus de
+  `focus.staleDays` jours et liste les sessions de la période. Skill `okb-focus`,
+  commandes `/okb:done` et `/okb:focus`.
+- **Conséquence.** La mémoire entre sessions ne passe pas par la KB : une
+  connaissance n'y entre toujours que par une proposition approuvée. Plusieurs
+  profils peuvent partager une même note de focus (`focus.file`). Le hook n'écrit
+  rien et se tait sans profil ni focus ; `focus.sessionStart: false` le coupe.
+- **Réexamen.** Si le texte injecté au démarrage devient trop long ou si
+  l'utilisateur veut un focus par projet.
+
+## D17 — Des process aux skills : `okb skillify`
+
+- **Problème.** Une procédure documentée dans la KB reste à recopier à la main pour
+  devenir un skill Claude, et un skill rempli par l'IA sans relecture reste générique.
+- **Décision.** `okb skillify <note>` produit un brouillon déterministe de
+  `SKILL.md` à partir des sections de la note (quand l'utiliser, avant de
+  commencer, étapes, vérifier, si ça ne marche pas), sans notes de bas de page ni
+  blocs de code, et cite la note. Sans `--out`, rien n'est écrit ; `--out` refuse
+  la KB elle-même et n'écrase rien sans `--force`. La skill `okb-skillify` affine
+  le brouillon avec la personne, une question à la fois, conseille un skill de
+  projet (`.claude/skills/`) plutôt qu'un skill global, puis le fait tester.
+- **Réexamen.** Si les notes sources ont souvent des étapes imbriquées : conserver
+  la hiérarchie au lieu d'une liste plate.
+
+## D18 — Modèles `process`, `tool` et `automation`
+
+- **Problème.** Les modèles couvraient l'explication et le dépannage, pas
+  l'organisation : décrire une activité qui revient, un outil, un flux automatisé.
+- **Décision.** `process` (livrable, fréquence et déclencheur, étapes, priorité
+  temps / pénibilité / impact, ce que l'IA peut en faire), `tool` (usage, accès,
+  coûts datés, données), `automation` (déclencheur, déroulé, surveillance, panne).
+  Une procédure explique comment faire ; un process décrit ce qui revient, pour le
+  prioriser et le déléguer.
+- **Réexamen.** Si une équipe impose ses propres rubriques : `.okb/templates/`.
+
+## D19 — Historique Git de la KB et dossiers cachés
+
+- **Problème.** `git.autoCommit` existait dans le schéma mais levait une erreur.
+  Une KB versionnée restait donc modifiée après chaque application, et un
+  `.github/README.md` était lu comme une note.
+- **Décision.** Avec `git.autoCommit: true`, chaque application et chaque
+  annulation committe exactement les fichiers du reçu (`git add` puis
+  `git commit --only`), avec l'identifiant de la proposition et du reçu dans le
+  message ; les autres modifications restent intactes, les hooks Git de
+  l'utilisateur s'exécutent, rien n'est jamais poussé. Un échec de commit ne
+  défait pas l'application : il est signalé. Les dossiers cachés (`.git`,
+  `.github`, `.obsidian`, `.okb`, `.trash`) ne contiennent jamais de notes.
+- **Réexamen.** Si l'on veut pousser automatiquement : il faudra une liste de
+  dépôts autorisés (`git.allowedRemotes`) et une confirmation explicite.
+
+## D20 — Configuration guidée et convention de nommage
+
+- **Problème.** La configuration posait toutes les questions d'un coup, et les noms
+  des KB (dossier, profil, dépôt) divergeaient vite quand on en a plusieurs.
+- **Décision.** La skill `okb-setup` pose une question à la fois, avec une
+  réponse recommandée, puis récapitule avant d'écrire. Elle recommande un seul nom
+  par KB : dossier `kb-<nom>`, profil `<nom>`, dépôt `kb-<nom>`, toutes les KB
+  dans un même coffre Obsidian. `okb setup --from` accepte aussi `focus` et `git`.
+- **Réexamen.** Si un utilisateur a besoin de plusieurs coffres séparés.
+

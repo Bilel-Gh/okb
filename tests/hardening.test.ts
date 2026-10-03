@@ -6,7 +6,7 @@ import { makeSandbox, type Sandbox, FIXTURE_SOURCES } from './helpers/sandbox.js
 import { runSetup } from '../src/setup/setup.js';
 import { loadConfig } from '../src/config/load.js';
 import { retainAcquired } from '../src/sources/retention.js';
-import { requireCleanGitTree } from '../src/apply/git.js';
+import { requireCleanGitTree, commitKbChanges } from '../src/apply/git.js';
 import { applyProposal, rollback } from '../src/apply/apply.js';
 import { grantApproval } from '../src/apply/approval.js';
 import { checkPathPolicy } from '../src/apply/guard.js';
@@ -289,10 +289,11 @@ describe('portability and acquisition', () => {
     expect(doc.blocks[0]!.text).toContain('private-marker'); // working evidence is intentionally unchanged
     await expect(retainAcquired({...config,sources:{...config.sources,retention:{...config.sources.retention,dir:'../escape'}}},acquired,doc)).rejects.toMatchObject({code:'E_FORBIDDEN_PATH'});
   });
-  it('does not pretend to enforce an unavailable clean-Git policy or create automatic commits', async () => {
+  it('does not pretend to enforce an unavailable clean-Git policy; autoCommit outside a repository commits nothing', async () => {
     const s=await box(); const c=await s.config();
     await expect(requireCleanGitTree({...c,git:{...c.git,requireCleanTree:true}})).rejects.toMatchObject({code:'E_CONFIG'});
-    await expect(requireCleanGitTree({...c,git:{...c.git,autoCommit:true}})).rejects.toMatchObject({code:'E_CONFIG'});
+    await expect(requireCleanGitTree({...c,git:{...c.git,autoCommit:true}})).resolves.toBeUndefined();
+    expect((await commitKbChanges({...c,git:{...c.git,autoCommit:true}},['a.md'],'m')).committed).toBe(false);
   });
   it('bounds streaming responses without trusting Content-Length', async () => {
     const s=await box(); const c=await s.config(); vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response('x'.repeat(100))));

@@ -168,6 +168,24 @@ describe('packaged CLI', () => {
     expect(info.kbRoot).toBe(s.vault);
   });
 
+  it('journals a session, then gives the focus and the next step to a new session', async () => {
+    const s = await makeSandbox({ profileId: 'alpha' });
+    sandboxes.push(s);
+    expect((await okb(['focus', '--context'], s.env)).stdout).toBe('');
+    expect((await okb(['focus', 'init'], s.env)).code).toBe(0);
+    const done = json<{ captured: { id: string }[]; next: string }>(await okb(
+      ['done', '--summary', 'Atelier fictif', '--did', 'Relu la note', '--keep', 'Une idée à garder.', '--keep', 'Une autre.', '--next', 'Écrire la procédure', '--json'], s.env));
+    expect(done.captured).toHaveLength(2);
+    expect(done.next).toBe('Écrire la procédure');
+    const context = (await okb(['focus', '--context'], s.env)).stdout;
+    expect(context).toContain('active profile "alpha"');
+    expect(context).toContain('next time: Écrire la procédure');
+    const info = json<{ focus: { exists: boolean } }>(await okb(['profile', '--json'], s.env));
+    expect(info.focus.exists).toBe(true);
+    const missing = await okb(['skillify', 'nope.md'], s.env);
+    expect(missing.code).not.toBe(0);
+  });
+
   it('generates a navigable index tree that resolves in every renderer', async () => {
     const s = await makeSandbox({ profileId: 'alpha' });
     sandboxes.push(s);

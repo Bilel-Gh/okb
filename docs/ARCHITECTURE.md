@@ -42,7 +42,11 @@ ne transforme une affirmation en fait techniquement vérifié.
 | `templates/` | modèles de notes (sections, ordre, titres, consignes), surcharges par KB |
 | `revise/` | révision du style d’une note : éléments protégés, frontmatter, proposition de remplacement |
 | `web/` | lecteur local sans mutations : notes, recherche, propositions exactes, style et audit |
-| `plugin/` | six skills, huit commandes, deux agents, un hook limité et `bin/okb` |
+| `security/` | détection des secrets (clés, jetons, identifiants) dans propositions, captures, focus et notes |
+| `inbox/`, `weekly/` | inbox privée hors KB, revue hebdomadaire en lecture seule avec relectures espacées |
+| `focus/` | note de focus et journal des sessions, hors KB ; contexte donné au démarrage d’une session |
+| `skillify/` | brouillon de skill Claude Code à partir d’une note procédure, process ou automatisation |
+| `plugin/` | onze skills, quinze commandes, deux agents, deux hooks (garde d’approbation, focus au démarrage) et `bin/okb` |
 
 ## Choix assumés
 
