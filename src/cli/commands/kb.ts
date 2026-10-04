@@ -1,4 +1,3 @@
-import { homedir } from 'node:os';
 import { loadConfig } from '../../config/load.js';
 import { languageName, t } from '../../i18n/index.js';
 import { archiveKb, foreignNotes, listKbs, readOwner, writeOwner } from '../../kb/registry.js';
@@ -6,10 +5,9 @@ import { switchProfile } from '../../setup/setup.js';
 import { OkbError } from '../../util/errors.js';
 import { flagBool } from '../args.js';
 import { choose, confirm } from '../ui/prompt.js';
-import { paint, sym } from '../ui/term.js';
+import { paint, sym, tilde } from '../ui/term.js';
 import { canAsk, effective, type Ctx } from './common.js';
 
-const tilde = (p: string) => (p.startsWith(homedir()) ? `~${p.slice(homedir().length)}` : p);
 
 /** `okb kb` — every KB, the active one starred; switch, archive, adopt. */
 export async function cmdKb(ctx: Ctx): Promise<number> {

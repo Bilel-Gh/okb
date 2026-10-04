@@ -16,6 +16,8 @@ okb explain E_STALE
 
 ou la rubrique **Aide** de l’application web.
 
+![Des erreurs qui disent quoi faire](../images/cli-errors.png)
+
 ## Les situations les plus courantes
 
 | Message | Ce que ça veut dire | Quoi faire |

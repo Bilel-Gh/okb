@@ -1,7 +1,7 @@
 import { formatDate, lang, languageName, relativeTime, t, tn } from '../../i18n/index.js';
 import { computeStatus, type Status } from '../../status/status.js';
 import { flagBool } from '../args.js';
-import { paint, sym } from '../ui/term.js';
+import { paint, sym, tilde } from '../ui/term.js';
 import { config, kbFlag, type Ctx } from './common.js';
 
 /** One line for status bars: `📚 atlas · 🎯 3 j · 📥 2 · ⏳ 1`. */
@@ -16,7 +16,7 @@ export function statusLine(s: Status): string {
 export function printStatus(ctx: Ctx, s: Status): void {
   const { out } = ctx;
   const k = kbFlag(ctx.args);
-  out.line(`${sym.kb()} ${paint.bold(s.name)}${s.name !== s.profile ? ` ${paint.dim(`(${s.profile})`)}` : ''}  ${paint.dim(s.kbRoot)}`);
+  out.line(`${sym.kb()} ${paint.bold(s.name)}${s.name !== s.profile ? ` ${paint.dim(`(${s.profile})`)}` : ''}  ${paint.dim(tilde(s.kbRoot))}`);
   out.line(paint.dim(`   ${tn('status.notes', s.notes, { concepts: s.concepts })} · ${t('status.writing', { lang: languageName(s.writingLanguage) })}`));
   const rows: string[][] = [];
   rows.push(['🎯', t('status.focus'), s.focus.exists

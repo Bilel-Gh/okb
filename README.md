@@ -21,6 +21,11 @@ of plain Markdown files that you open in Obsidian and version with Git.
 | **In the browser** | `okb serve` opens a local web app that does everything the terminal does: read, search, review and approve, undo, capture, focus, weekly review, settings, several KBs. |
 | **In the terminal** | `okb` alone opens a menu; every command asks what it needs, one question at a time, with a recommended answer. |
 
+<p>
+  <img src="docs/images/cli-status.png" alt="okb status in the terminal" width="49%">
+  <img src="docs/images/cli-errors.png" alt="Errors that say what to do" width="49%">
+</p>
+
 ```mermaid
 flowchart LR
   S["Sources<br/>VTT · PDF · DOCX · HTML · Markdown · code"] --> C["Claude<br/>(plugin skills)"]

@@ -43,6 +43,8 @@ async function smokeReader(bin, proposalId) {
 try {
   const packed=JSON.parse(run(npm,['pack','--json','--pack-destination',temp],{cwd:root}))[0];
   assert(!packed.files.some(f=>/^(?:\.dev|tests|src|node_modules)\//.test(f.path)));
+  // Sync tools (iCloud, Dropbox) leave "name 2.js" copies beside files they saw change.
+  assert(!packed.files.some(f=>/ \d+(?:\.[^/]*)?(?:\/|$)/.test(f.path)), 'conflict copies (" 2") in the package');
   run(npm,['install','--ignore-scripts','--no-audit','--no-fund','--omit=dev','--prefix',join(temp,'install'),join(temp,packed.filename)]);
   const bin=join(temp,'install/node_modules/okb/dist/cli/index.js');
   const cli=(args)=>JSON.parse(run(process.execPath,[bin,...args,'--json']));

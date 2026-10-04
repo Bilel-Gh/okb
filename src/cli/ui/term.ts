@@ -1,3 +1,5 @@
+import { homedir } from 'node:os';
+import { sep } from 'node:path';
 import pc from 'picocolors';
 
 /**
@@ -14,6 +16,12 @@ export function setColor(on: boolean): void {
   colorOn = on;
   c = pc.createColors(on);
 }
+/** A path for people: the home folder written `~`. */
+export function tilde(p: string): string {
+  const home = homedir();
+  return p === home ? '~' : p.startsWith(home + sep) ? `~${p.slice(home.length)}` : p;
+}
+
 export function colorEnabled(): boolean {
   return colorOn;
 }

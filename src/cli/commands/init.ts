@@ -1,4 +1,3 @@
-import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { expandHome } from '../../config/load.js';
 import { lang, languageName, setLanguage, systemLanguage, t, WRITING_LANGUAGES, type Lang } from '../../i18n/index.js';
@@ -8,10 +7,9 @@ import { checkFolder, defaultAnswers, okbVaults, runWizard, suggestedRoot, wizar
 import { OkbError } from '../../util/errors.js';
 import { flagBool, flagString } from '../args.js';
 import { choose, confirm, input, intro, note, outro, spin, step } from '../ui/prompt.js';
-import { banner, paint, sym } from '../ui/term.js';
+import { banner, paint, sym, tilde } from '../ui/term.js';
 import { canAsk, type Ctx } from './common.js';
 
-const tilde = (p: string) => (p.startsWith(homedir()) ? `~${p.slice(homedir().length)}` : p);
 
 async function askLocation(ctx: WizardContext, name: string, current: string): Promise<{ root: string; adopt: boolean }> {
   const { id } = kbNames(name);

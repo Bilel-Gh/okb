@@ -96,6 +96,8 @@ okb focus set "…"          # la réécrire
 | quand tu veux | réviser une notion | `/okb:learn` ou « Réviser » dans la page |
 | de temps en temps | liens cassés, notes anciennes, doublons | `okb maintain` |
 
+![okb status dans le terminal](../images/cli-status.png)
+
 ## Toutes les commandes
 
 `okb help` les liste par usage ; `okb help <commande>` donne des exemples.
