@@ -118,6 +118,56 @@ export const ROUTES: Record<string, Handler> = {
   'GET /api/i18n': async () => ({ lang: lang(), messages: catalog() }),
 
   /* ---------- reading ---------- */
+  /** The repositories documented in this KB, with where each stands. */
+  'GET /api/repos': async (ctx, q) => {
+    const config = await kbConfig(ctx, q.get('kb'));
+    const { listRepos } = await import('../repo/registry.js');
+    const { repoContext } = await import('../repo/notes.js');
+    const { repoStatus } = await import('../repo/status.js');
+    const { loadMap } = await import('../repo/state.js');
+    const bundle = await loadBundleFor(config);
+    const repos = (await listRepos(ctx.env)).filter((r) => r.kb === config.profile.id);
+    const out = [];
+    for (const repo of repos) {
+      const rctx = await repoContext(config, repo);
+      const [status, map] = await Promise.all([repoStatus(rctx, { bundle }), loadMap(rctx.paths)]);
+      out.push({ ...repo, description: map?.repo.description ?? null, stack: map?.stack.slice(0, 5).map((x) => x.label) ?? [], status });
+    }
+    return { repos: out, kbConfidential: config.kb.confidential };
+  },
+  'GET /api/repo': async (ctx, q) => {
+    const config = await kbConfig(ctx, q.get('kb'));
+    const { findRepo } = await import('../repo/registry.js');
+    const { repoContext } = await import('../repo/notes.js');
+    const { repoStatus, freshness } = await import('../repo/status.js');
+    const { loadMap } = await import('../repo/state.js');
+    const { questionById } = await import('../repo/questions.js');
+    const { askWho, riskText, landscapeNote } = await import('../repo/generated.js');
+    const { compact } = await import('../cli/commands/repo.js');
+    const { notePath, PACK } = await import('../repo/pack.js');
+    const repo = await findRepo(q.get('id') ?? '', ctx.env);
+    if (!repo || repo.kb !== config.profile.id) throw new OkbError('E_NOT_FOUND', 'repository not found in this KB', { key: 'repoUnknown', params: { id: q.get('id') ?? '' } });
+    const rctx = await repoContext(config, repo);
+    const bundle = await loadBundleFor(config);
+    const [status, map, fresh] = await Promise.all([repoStatus(rctx, { bundle }), loadMap(rctx.paths), freshness(rctx, { bundle })]);
+    const writing = config.writing.language ?? config.profile.answer.language;
+    const questions = status.questions.map((v) => {
+      const def = questionById(v.id)!;
+      const hint = map?.questions.find((x) => x.id === v.id);
+      const files = v.looked?.length ? v.looked : hint?.hints.map((x) => x.file) ?? [];
+      return { ...v, text: pick(def.text, writing), why: v.why ?? pick(def.why, writing), target: notePath(repo.id, def.note, writing), askWho: v.askWho ?? (map ? askWho(map, files, writing) : null), hints: hint?.hints.slice(0, 4) ?? [] };
+    });
+    const landscape = await landscapeNote(config).catch(() => null);
+    const mermaid = landscape && landscape.repos.length > 1 ? /```mermaid\n([\s\S]*?)```/.exec(landscape.content)?.[1] ?? null : null;
+    const home = ctx.env.HOME ?? '';
+    return {
+      repo: { ...repo, displayPath: home && repo.path.startsWith(`${home}/`) ? `~${repo.path.slice(home.length)}` : repo.path }, status, freshness: fresh, questions,
+      map: map ? compact(map) : null,
+      risks: map ? map.risks.map((r) => ({ kind: r.kind, text: riskText(r, writing) })) : [],
+      pack: PACK.map((p) => ({ kind: p.kind, emoji: p.emoji, path: notePath(repo.id, p.kind, writing), title: bundle.byPath.get(notePath(repo.id, p.kind, writing))?.title ?? null })),
+      landscape: mermaid,
+    };
+  },
   'GET /api/status': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
     const s = await computeStatus(config);
@@ -389,6 +439,45 @@ export const ROUTES: Record<string, Handler> = {
     const doc = await extractSource(await acquire(source, config), config);
     const item = await capture(config, { text: `${t('web.source.captureText', { source })}\n\n${doc.blocks.slice(0, 6).map((x) => x.text).join('\n\n').slice(0, 3000)}`, title: doc.source.title ?? source, source, tags: ['source'] });
     return { ok: true, item: { ...item, path: undefined }, blocks: doc.blocks.length, support: doc.source.support, claude: `/okb:ingest ${source}` };
+  },
+  'POST /api/repos/scan': async (ctx, _q, b) => {
+    const config = await kbConfig(ctx, b.kb);
+    const { findRepo } = await import('../repo/registry.js');
+    const { scanAndStore } = await import('../repo/scan.js');
+    const repo = await findRepo(str(b.id, 'id', 120), ctx.env);
+    if (!repo || repo.kb !== config.profile.id) throw new OkbError('E_NOT_FOUND', 'repository not found in this KB', { key: 'repoUnknown', params: { id: String(b.id) } });
+    const { map } = await scanAndStore(config, repo);
+    return { ok: true, head: map.repo.head, files: map.files.total };
+  },
+  'POST /api/repos/answer': async (ctx, _q, b) => {
+    const config = await kbConfig(ctx, b.kb);
+    const { findRepo } = await import('../repo/registry.js');
+    const { recordAnswer, repoContext } = await import('../repo/notes.js');
+    const repo = await findRepo(str(b.id, 'id', 120), ctx.env);
+    if (!repo || repo.kb !== config.profile.id) throw new OkbError('E_NOT_FOUND', 'repository not found in this KB', { key: 'repoUnknown', params: { id: String(b.id) } });
+    const by = typeof b.by === 'string' && b.by.trim() ? b.by.trim().slice(0, 80) : config.profile.humanActor.replace(/^human:/, '');
+    const result = await recordAnswer(await repoContext(config, repo), { ...(typeof b.question === 'string' && b.question ? { question: b.question } : {}), text: str(b.text, 'text', 8000), by });
+    return { ok: true, question: result.question };
+  },
+  'POST /api/repos/questions': async (ctx, _q, b) => {
+    const config = await kbConfig(ctx, b.kb);
+    const { findRepo } = await import('../repo/registry.js');
+    const { repoContext } = await import('../repo/notes.js');
+    const { proposeQuestionsNote } = await import('../repo/generated.js');
+    const repo = await findRepo(str(b.id, 'id', 120), ctx.env);
+    if (!repo || repo.kb !== config.profile.id) throw new OkbError('E_NOT_FOUND', 'repository not found in this KB', { key: 'repoUnknown', params: { id: String(b.id) } });
+    const proposal = await proposeQuestionsNote(await repoContext(config, repo));
+    if (!proposal.changes.length) return { ok: true, proposalId: null };
+    await saveProposal(config, proposal);
+    return { ok: true, proposalId: proposal.id };
+  },
+  'POST /api/repos/landscape': async (ctx, _q, b) => {
+    const config = await kbConfig(ctx, b.kb);
+    const { proposeLandscape } = await import('../repo/generated.js');
+    const proposal = await proposeLandscape(config);
+    if (!proposal?.changes.length) return { ok: true, proposalId: null };
+    await saveProposal(config, proposal);
+    return { ok: true, proposalId: proposal.id };
   },
   'POST /api/update': async () => {
     const steps: { step: string; ok: boolean; detail?: string }[] = [];

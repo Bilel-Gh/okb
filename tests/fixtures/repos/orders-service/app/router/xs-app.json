@@ -1,0 +1,7 @@
+{
+  "authenticationMethod": "route",
+  "routes": [
+    { "source": "^/orders/(.*)$", "target": "/orders/$1", "destination": "srv-api", "authenticationType": "xsuaa" },
+    { "source": "^(.*)$", "target": "$1", "service": "html5-apps-repo-rt" }
+  ]
+}

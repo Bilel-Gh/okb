@@ -46,7 +46,8 @@ ne transforme une affirmation en fait techniquement vérifié.
 | `inbox/`, `weekly/` | inbox privée hors KB, revue hebdomadaire en lecture seule avec relectures espacées |
 | `focus/` | note de focus et journal des sessions, hors KB ; contexte donné au démarrage d’une session |
 | `skillify/` | brouillon de skill Claude Code à partir d’une note procédure, process ou automatisation |
-| `plugin/` | onze skills, quinze commandes, deux agents, deux hooks (garde d’approbation, focus au démarrage) et `bin/okb` |
+| `repo/` | repos de code : carte déterministe, plan de lecture, 25 questions d’onboarding, dossier v3 cité à la ligne, fraîcheur Git, ticket, paysage multi-repos, confidentialité (voir [REPOS.md](REPOS.md)) |
+| `plugin/` | quatorze skills, dix-neuf commandes, trois agents, trois hooks (garde d’approbation, focus et repo au démarrage, intentions) et `bin/okb` |
 
 ## Choix assumés
 

@@ -1,0 +1,11 @@
+{
+  "xsappname": "orders-service",
+  "scopes": [
+    { "name": "$XSAPPNAME.OrderManager", "description": "Manage orders and customers" },
+    { "name": "$XSAPPNAME.Viewer", "description": "Read orders" }
+  ],
+  "role-templates": [
+    { "name": "OrderManager", "scope-references": ["$XSAPPNAME.OrderManager"] },
+    { "name": "Viewer", "scope-references": ["$XSAPPNAME.Viewer"] }
+  ]
+}

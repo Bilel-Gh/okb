@@ -1,0 +1,11 @@
+{
+  "_version": "1.59.0",
+  "sap.app": {
+    "id": "acme.orders.ui",
+    "type": "application",
+    "title": "{{appTitle}}",
+    "dataSources": {
+      "mainService": { "uri": "/orders/", "type": "OData", "settings": { "odataVersion": "4.0" } }
+    }
+  }
+}

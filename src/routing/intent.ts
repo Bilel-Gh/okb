@@ -15,7 +15,7 @@ import { resolve } from 'node:path';
  */
 export type IntentId =
   | 'done' | 'ingest' | 'ask' | 'capture' | 'inbox' | 'focus' | 'weekly' | 'learn' | 'review'
-  | 'undo' | 'maintain' | 'revise' | 'skillify' | 'setup' | 'switch' | 'status' | 'serve';
+  | 'undo' | 'maintain' | 'revise' | 'skillify' | 'setup' | 'switch' | 'status' | 'serve' | 'onboard' | 'ticket';
 
 type Rule = {
   readonly id: IntentId;
@@ -29,6 +29,23 @@ type Rule = {
 const W = String.raw`(?:^|[\s,.;:!?«"'(])`;
 
 export const INTENT_RULES: readonly Rule[] = [
+  { id: 'onboard', command: '/okb:onboard', okbOnly: false, patterns: [
+    /\b(je )?(d[ée]couvre|arrive sur|commence sur|d[ée]bute sur|reprends?)\b.{0,25}\b(ce |le |un |nouveau )?(repo|d[ée]p[ôo]t|projet|code ?base|composant|microservice|service)\b/i,
+    /\b(onboarde?[-\s]?moi|onboarding)\b.{0,30}\b(repo|d[ée]p[ôo]t|projet|code|composant|service)\b/i,
+    /\b(explique|pr[ée]sente|fais)[-\s]?(moi )?(le |ce |un )?(tour|fonctionnement|architecture)?\s*(de |du )?(ce |le )?(repo|d[ée]p[ôo]t|projet|code ?base|composant)\b/i,
+    /\b(aide|aider)[-\s]?(moi )?[àa] (comprendre|d[ée]marrer sur|prendre en main) (ce |le |un )?(repo|d[ée]p[ôo]t|projet|code ?base|code|composant)\b/i,
+    /\bi('| a)m (new to|joining|starting on|discovering) (this|the|a) (repo|repository|codebase|project|service)\b/i,
+    /\b(onboard me|get me started|help me (understand|get started (on|with))) (on |with )?(this|the) (repo|repository|codebase|project)\b/i,
+    /\b(explain|walk me through) (this|the) (repo|repository|codebase)\b/i,
+  ], not: [/\b(cr[ée]e|initialise|clone)[-\s]?(moi )?(un |le )?(nouveau )?(repo|d[ée]p[ôo]t)\b/i, /\b(create|init|clone) (a |the )?(new )?(repo|repository)\b/i] },
+  { id: 'ticket', command: '/okb:ticket', okbOnly: false, patterns: [
+    /\b(j['’]ai|on a) (fini|termin[ée]|boucl[ée]|livr[ée]|merg[ée]) (le |mon |ce |la |ma )?(ticket|story|user story|bug|fix|feature|t[âa]che|issue|pr|pull request)\b/i,
+    /\b(ticket|story|bug|feature|issue|pr) (fini|termin[ée]|boucl[ée]|livr[ée]|merg[ée])\b/i,
+    /\b(ajoute|mets|enregistre|retiens)\b.{0,30}\b(dans |à )?(la )?kb (du|de ce) (repo|d[ée]p[ôo]t|projet)\b/i,
+    /\bi('| ha)ve (finished|completed|closed|merged) (the |my |this )?(ticket|story|bug|fix|feature|issue|pr|pull request)\b/i,
+    /\b(ticket|issue|story) (is )?(done|finished|merged)\b/i,
+    /\b(update|add (this|it) to) the (repo|repository|codebase) (kb|knowledge base)\b/i,
+  ] },
   { id: 'done', command: '/okb:done', okbOnly: true, patterns: [
     /(^|\s)\/done\b/i,
     /\bfin de (la )?session\b/i,
@@ -230,6 +247,8 @@ export function renderOffer(s: IntentSuggestion, lang: 'fr' | 'en'): string {
     switch: ['changer de KB active', 'switch the active KB'],
     serve: ['ouvrir l’application web OKB', 'open the OKB web app'],
     status: ['montrer où en est ton second cerveau', 'show where your second brain stands'],
+    onboard: ['te faire découvrir ce repo et lui créer sa KB (notes sourcées dans le code)', 'onboard you on this repository and build its KB (notes cited from the code)'],
+    ticket: ['enrichir la KB de ce repo avec ce ticket', 'enrich this repository’s KB with this ticket'],
   };
   const what = label[s.intent][lang === 'fr' ? 0 : 1];
   const lines = [

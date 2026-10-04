@@ -253,6 +253,8 @@ export type RenderContext = {
   readonly titleOf?: (path: BundlePath) => string | undefined;
   /** Template the dossier follows; role sections take its headings. */
   readonly template?: NoteTemplate;
+  /** Replaces the generic opening notice (e.g. "written from the code at commit …"). */
+  readonly notice?: string;
 };
 
 export function renderAnalysis(a: SourceAnalysis, input: NormalizedDoc | readonly NormalizedDoc[], context: RenderContext = {}): string {
@@ -274,7 +276,7 @@ export function renderAnalysis(a: SourceAnalysis, input: NormalizedDoc | readonl
   }
   const refs = (ids: readonly string[]) => ids.map((id) => `[^${labelOf.get(id)}]`).join('');
 
-  const lines = style ? [`> ${mark(LANDMARKS.notice)}${t.notice}`, ''] : ['> Source rapportée ; les déductions sont signalées. Aucune vérification technique automatique.', ''];
+  const lines = style ? [`> ${mark(LANDMARKS.notice)}${context.notice ?? t.notice}`, ''] : ['> Source rapportée ; les déductions sont signalées. Aucune vérification technique automatique.', ''];
 
   const related = analysisRelated(a);
   const link = (r: Related) => {

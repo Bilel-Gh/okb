@@ -33,6 +33,10 @@ const CASES: readonly { request: string; expect: SkillId; why: string }[] = [
   { request: 'Mets à jour mon focus : je prépare le sprint Orion', expect: 'okb-focus', why: 'update the focus note' },
   { request: 'Transforme cette procédure de déploiement en skill', expect: 'okb-skillify', why: 'procedure to skill' },
   { request: "Où j'en suis avec mon second cerveau ?", expect: 'okb-guide', why: 'dashboard' },
+  { request: 'Je découvre ce repo, aide-moi à démarrer dessus', expect: 'okb-onboard', why: 'repository onboarding' },
+  { request: "I'm new to this codebase, get me started on this repo", expect: 'okb-onboard', why: 'repository onboarding (en)' },
+  { request: "J'ai fini mon ticket, ajoute ce qu'on a appris à la KB du repo", expect: 'okb-repo-learn', why: 'after a ticket' },
+  { request: 'Crée un nouveau repo GitHub pour ce projet', expect: 'none', why: 'creating a repository is not onboarding' },
 
   // negative — the skill must stay out of the way
   { request: 'Just summarise this article for me, do not save anything', expect: 'none', why: 'summary only' },
@@ -78,7 +82,7 @@ describe('plugin descriptions', () => {
       // A command delegates; it must not restate a procedure.
       expect(body.split('\n').filter((l) => l.trim()).length).toBeLessThan(12);
       if (command !== 'doctor.md') {
-        expect(body).toMatch(/okb-(setup|ingest|ask|review|maintain|revise|inbox|weekly|learn|focus|skillify|guide)` skill/);
+        expect(body).toMatch(/okb-(setup|ingest|ask|review|maintain|revise|inbox|weekly|learn|focus|skillify|guide|onboard|repo-learn)` skill/);
       }
     }
   });

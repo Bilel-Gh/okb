@@ -30,7 +30,7 @@ import { detectCorrections, type Correction } from './corrections.js';
 
 export type IngestTarget =
   | { readonly mode: 'append'; readonly path: BundlePath; readonly heading: string }
-  | { readonly mode: 'create'; readonly path: BundlePath; readonly title: string; readonly description?: string; readonly type?: string };
+  | { readonly mode: 'create'; readonly path: BundlePath; readonly title: string; readonly description?: string; readonly type?: string; readonly tags?: readonly string[]; readonly xOkb?: Readonly<Record<string, unknown>> };
 
 export type IngestOptions = {
   readonly target: IngestTarget;
@@ -44,6 +44,12 @@ export type IngestOptions = {
   readonly linkInto?: readonly BundlePath[];
   /** Notes created by other prepared proposals this one builds on (path → content). */
   readonly pending?: { readonly files: ReadonlyMap<BundlePath, string>; readonly proposalIds: readonly string[] };
+  /** Keys merged into the target's `x_okb` when appending (e.g. the repository commit a section was written at). */
+  readonly xOkbPatch?: Readonly<Record<string, unknown>>;
+  /** Extra review notes from the caller (e.g. evidence located at other lines than declared). */
+  readonly notes?: readonly string[];
+  /** Opening notice of the rendered note, instead of the generic one. */
+  readonly notice?: string;
 };
 
 export type IngestReport = {
@@ -93,7 +99,7 @@ export async function prepareProposal(
   const skipped: { reason: string; detail: string }[] = [];
   const evidence: Evidence[] = [];
   const changes: Change[] = [];
-  const notes: string[] = [];
+  const notes: string[] = [...(options.notes ?? [])];
   const baseline: Record<string, string | null> = {};
 
   const citeId = sourceCiteId(doc);
@@ -139,7 +145,7 @@ export async function prepareProposal(
     : analysis;
   const articleMarkdown =
     renderable
-      ? renderAnalysis(renderable, docs, { fromPath: options.target.path, titleOf: (p) => bundle.byPath.get(p)?.title, ...(noteTemplate ? { template: noteTemplate } : {}) })
+      ? renderAnalysis(renderable, docs, { fromPath: options.target.path, titleOf: (p) => bundle.byPath.get(p)?.title, ...(noteTemplate ? { template: noteTemplate } : {}), ...(options.notice ? { notice: options.notice } : {}) })
       : options.sectionMarkdown ?? renderEvidenceDigest(doc, citeId, corrections);
   if (analysis?.version === 2) {
     const configured = config.writing.language ?? config.profile.answer.language;
@@ -229,7 +235,7 @@ export async function prepareProposal(
       dependsOn: [],
       category: 'article',
       appendSection: { heading: options.target.heading, markdown: articleMarkdown },
-      patchFrontmatter: { patch: { sources: mergeSources(targetDoc?.data.sources, docs, analysis), status: 'draft', ...(targetDoc && verifiedList(targetDoc.data).length ? { verified: [], x_okb: { ...(targetDoc.data.x_okb as Record<string,unknown> ?? {}), prior_verified: [...((targetDoc.data.x_okb as any)?.prior_verified ?? []), ...verifiedList(targetDoc.data)] } } : {}) } },
+      patchFrontmatter: { patch: appendPatch(targetDoc?.data, docs, analysis, options.xOkbPatch) },
     });
   }
 
@@ -532,11 +538,11 @@ function renderNewDocument(
   const frontmatter = `---\n${YAML.stringify({
     type: target.type ?? template?.okfType ?? 'Reference', title: target.title,
     description: target.description ?? `Notes extraites de ${doc.source.title ?? 'la source'}.`,
-    tags: ['ingested'], status: 'draft', generated: { by: config.okf.machineActor, at: new Date().toISOString() },
+    tags: target.tags ? [...target.tags] : ['ingested'], status: 'draft', generated: { by: config.okf.machineActor, at: new Date().toISOString() },
     sources: mergeSources([], docs, analysis),
     // The style a note was written in, so a later style change can list notes
     // worth revising instead of silently rewriting the whole bundle.
-    x_okb: { v: 1, ...(template ? { template: template.id } : {}), ...(style ? { writing: { preset: style.preset, language: style.language } } : {}), ...(prereqs.length ? { prereqs: [...prereqs] } : {}) },
+    x_okb: { v: 1, ...(template ? { template: template.id } : {}), ...(style ? { writing: { preset: style.preset, language: style.language } } : {}), ...(prereqs.length ? { prereqs: [...prereqs] } : {}), ...(target.xOkb ?? {}) },
   }, { lineWidth: 0 })}---`;
 
   return `${frontmatter}\n\n${markdown.replace(/\s*$/, '')}\n`;
@@ -590,6 +596,26 @@ function firstDefinitionLine(body: string): string | null {
 }
 
 export { asBundlePath };
+
+/**
+ * Frontmatter changes that come with an appended section: the new sources, the
+ * note back to draft, a previous verification set aside (it covered other text),
+ * and caller keys merged into `x_okb`.
+ */
+function appendPatch(data: Record<string, unknown> | undefined, docs: readonly NormalizedDoc[], analysis: SourceAnalysis | undefined, xOkbPatch: Readonly<Record<string, unknown>> | undefined): Record<string, unknown> {
+  const patch: Record<string, unknown> = { sources: mergeSources(data?.sources, docs, analysis), status: 'draft' };
+  const current = (data?.x_okb && typeof data.x_okb === 'object' ? data.x_okb : {}) as Record<string, unknown>;
+  const verified = data ? verifiedList(data) : [];
+  if (verified.length || xOkbPatch) {
+    patch.x_okb = {
+      ...current,
+      ...(verified.length ? { prior_verified: [...((current.prior_verified as unknown[] | undefined) ?? []), ...verified] } : {}),
+      ...(xOkbPatch ?? {}),
+    };
+  }
+  if (verified.length) patch.verified = [];
+  return patch;
+}
 
 function mergeSources(existing: unknown, docs: readonly NormalizedDoc[], analysis?: SourceAnalysis): Record<string, unknown>[] {
   const owner = new Map<string, NormalizedDoc>(docs.flatMap((d) => d.blocks.map((b) => [b.id, d] as const)));

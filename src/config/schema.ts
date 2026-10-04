@@ -69,6 +69,12 @@ const kbSchema = z
       .default(['standard', 'github', 'obsidian']),
     /** Every new note must follow a note template (`okb template list`). */
     requireTemplate: z.boolean().default(false),
+    /**
+     * Knowledge that must stay on this machine (company code, client work): no
+     * web connector, no GitHub repository from the wizard, and `okb doctor`
+     * warns when the folder is synchronised by a cloud or the KB has a remote.
+     */
+    confidential: z.boolean().default(false),
     /** Treat links to not-yet-written documents as warnings, per OKF §6.1. */
     brokenTargetsAre: z.enum(['error', 'warning']).default('warning'),
   })
@@ -78,7 +84,7 @@ const okfSchema = z
   .object({
     version: z.literal('0.2').default('0.2'),
     /** Actor recorded in `generated.by` for machine-authored content. */
-    machineActor: z.string().default('okb/0.5'),
+    machineActor: z.string().default('okb/0.6'),
     productRules: z
       .object({
         requiredFields: z

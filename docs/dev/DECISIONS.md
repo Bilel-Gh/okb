@@ -3,11 +3,11 @@
 Trace courte pour reprendre le projet sans l’historique de conversation.
 Format : problème → décision → conséquence → condition de réexamen.
 
-## État au 4 octobre 2026 (version 0.5.0)
+## État au 4 octobre 2026 (version 0.6.0)
 
 | Contrôle | Résultat |
 |---|---|
-| `npm run release:check` (Node 24.4) | voir [RELEASE-0.5.0.md](../releases/RELEASE-0.5.0.md) : tests, plugin, paquet installé proprement |
+| `npm run release:check` (Node 24.4) | voir [RELEASE-0.6.0.md](../releases/RELEASE-0.6.0.md) : tests, plugin, paquet installé proprement |
 | `claude plugin validate ./plugin` (Claude Code du poste) | Validation passée |
 | Évaluations natives `claude plugin eval` | Non exécutées (cas prêts dans `plugin/evals/`) |
 
@@ -382,3 +382,23 @@ Le diagnostic et les contrats Claude consultés sont dans
 - **Réexamen.** Si le dépôt devient public : publier sur npm (`npm install -g okb`)
   et adapter le guide.
 
+## D28 — Une KB pour chaque repo de code
+
+- **Problème.** Arriver sur un repo d’entreprise sans rien en savoir : lire le code
+  « au hasard » donne un résumé qui oublie l’important, et ce qu’on apprend ensuite
+  (tickets, réponses d’un senior) se perd. Le dossier v2 exigeait de relire chaque
+  bloc de chaque source : impraticable sur des centaines de fichiers.
+- **Décision.** `okb repo` : carte déterministe (aucune IA, aucune exécution),
+  plan de lecture par niveaux sous budget, 25 questions d’onboarding fixes,
+  agents de lecture par zone dont chaque citation est vérifiée, dossier v3 cité
+  `fichier:lignes` converti en v2 (même rendu, même revue, même approbation),
+  schémas dont chaque boîte pointe vers un chemin réel, fraîcheur par commit,
+  enrichissement après ticket, paysage multi-repos. Les réponses humaines sont des
+  sources datées, jamais un prérequis. KB de travail `kb.confidential` par défaut.
+  Une commande lancée dans un repo documenté vise sa KB. Voir [REPOS.md](REPOS.md).
+- **Conséquence.** La lecture prioritaire et la couverture sont mesurées et
+  affichées ; l’inconnu reste visible avec à qui demander. Rien n’est écrit dans le
+  repo de l’entreprise.
+- **Réexamen.** Si une équipe veut partager sa KB : export dans `docs/` du repo, sur
+  demande explicite. Si la détection par motifs rate trop de cas sur un écosystème :
+  ajouter un détecteur dédié plutôt que des règles générales.

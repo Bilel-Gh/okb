@@ -39,6 +39,7 @@ const HANDLERS: Record<string, Handler> = {
   weekly: cmdWeekly,
   serve: cmdServe,
   kb: cmdKb,
+  repo: (c) => import('./commands/repo.js').then((m) => m.cmdRepo(c)),
   settings: (c) => (c.args.positionals[0] === 'raw' || flagBool(c.args, 'defaults') ? legacy.cmdConfig(c.args, c.out, c.mode) : cmdSettings(c)),
   doctor: cmdDoctor,
   maintain: cmdMaintain,

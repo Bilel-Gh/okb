@@ -69,6 +69,12 @@ export async function acquireFile(path: string, maxBytes = 20_000_000): Promise<
 }
 
 export async function acquireUrl(url: string, config: OkbConfig): Promise<Acquired> {
+  if (config.kb.confidential) {
+    throw new OkbError('E_UNSUPPORTED', 'this KB is confidential: OKB does not read web pages for it', {
+      detail: { url },
+      hint: 'Save the page as a file you are allowed to keep, then import the file.',
+    });
+  }
   if (!config.connectors.web.enabled) {
     throw new OkbError('E_UNSUPPORTED', 'the web connector is disabled in this configuration', {
       detail: { url },
@@ -93,7 +99,7 @@ export async function acquireUrl(url: string, config: OkbConfig): Promise<Acquir
       throw new OkbError('E_FORBIDDEN_PATH', `URL or redirect is outside the configured domain allow-list: ${host}`);
     }
     let response: Response;
-    try { response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(30_000), headers: { 'user-agent': 'okb/0.5' } }); }
+    try { response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(30_000), headers: { 'user-agent': 'okb/0.6' } }); }
     catch (cause) { throw new OkbError('E_EXTRACTION', 'page could not be fetched; no content assumed', { cause }); }
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location');

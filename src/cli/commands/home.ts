@@ -7,6 +7,7 @@ import { choose } from '../ui/prompt.js';
 import { banner, paint } from '../ui/term.js';
 import { canAsk, effective, type Ctx, type Handler } from './common.js';
 import { printStatus } from './status.js';
+import { repoForDir } from '../../repo/registry.js';
 
 /**
  * `okb` with nothing after it: the front door. First time, the setup wizard;
@@ -33,11 +34,13 @@ export async function cmdHome(ctx: Ctx, dispatch: (name: string) => Handler | un
   printStatus({ ...ctx, out }, status);
   if (!canAsk(ctx)) { out.line(paint.dim(t('help.more'))); return 0; }
 
+  const here = await repoForDir(process.cwd()).catch(() => null);
   for (;;) {
     const options: { value: string; label: string; hint?: string; recommended?: boolean }[] = [];
     if (status.pending.length) options.push({ value: 'review', label: t('home.menu.review'), hint: tn('status.pendingCount', status.pending.length), recommended: true });
     options.push({ value: 'ask', label: t('home.menu.ask'), recommended: !status.pending.length });
     options.push({ value: 'capture', label: t('home.menu.capture') });
+    if (here) options.push({ value: 'repo', label: t('home.menu.repo', { name: here.repo.name }) });
     if (status.inbox.open) options.push({ value: 'inbox', label: t('home.menu.inbox'), hint: String(status.inbox.open) });
     options.push({ value: 'focus', label: status.focus.exists ? t('home.menu.focus') : t('home.menu.focusCreate'), ...(status.focus.stale ? { hint: t('home.menu.focusStale') } : {}) });
     options.push({ value: 'done', label: t('home.menu.done') });
@@ -56,7 +59,7 @@ export async function cmdHome(ctx: Ctx, dispatch: (name: string) => Handler | un
     if (!handler) return 0;
     const next: Ctx = { ...ctx, args: parseArgs([...sub, ...passthrough(ctx)]) };
     const code = await handler(next);
-    if (['serve', 'review', 'kb', 'settings'].includes(choice)) return code;
+    if (['serve', 'review', 'kb', 'settings', 'repo'].includes(choice)) return code;
     out.line();
   }
 }

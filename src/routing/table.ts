@@ -9,7 +9,7 @@
  * session.
  */
 
-export type SkillId = 'okb-setup' | 'okb-ingest' | 'okb-ask' | 'okb-review' | 'okb-maintain' | 'okb-revise' | 'okb-inbox' | 'okb-weekly' | 'okb-learn' | 'okb-focus' | 'okb-skillify' | 'okb-guide' | 'none';
+export type SkillId = 'okb-setup' | 'okb-ingest' | 'okb-ask' | 'okb-review' | 'okb-maintain' | 'okb-revise' | 'okb-inbox' | 'okb-weekly' | 'okb-learn' | 'okb-focus' | 'okb-skillify' | 'okb-guide' | 'okb-onboard' | 'okb-repo-learn' | 'none';
 
 export type Signal = { readonly re: RegExp; readonly weight: 1 | 2 };
 
@@ -33,12 +33,12 @@ export const ROUTING_RULES: readonly RoutingRule[] = [
     when: 'installing, reconfiguring, switching profile, moving the bundle, changing the assist level',
     notWhen: 'adding content, retrieving content, diagnosing an installation failure',
     positive: [
-      strong(/\b(install|installer|set ?up|configure|configurer|reconfigur|onboard)\b/i),
+      strong(/\b(install|installer|set ?up|configure|configurer|reconfigur)\b/i),
       strong(/\b(concept assist|aide aux concepts|niveau d['’]aide)\b/i),
       strong(/\b(profil|profile)s?\b.*\b(switch|change|changer|créer|create|new|nouveau)\b/i),
       weak(/\b(kb|vault|bundle|base)\b.*\b(path|chemin|emplacement|location)\b/i),
     ],
-    negative: [/\bdoctor\b/i, /\badapter\b/i],
+    negative: [/\bdoctor\b/i, /\badapter\b/i, /\b(repo|repository|dépôt|codebase)\b/i],
   },
   {
     skill: 'okb-ingest',
@@ -153,6 +153,28 @@ export const ROUTING_RULES: readonly RoutingRule[] = [
       weak(/\b(process|procédure|procedure|workflow)\b.*\b(skill|commande|command)\b/i),
     ],
     negative: [/\b(plugin okb|okb plugin)\b/i],
+  },
+  {
+    skill: 'okb-onboard',
+    when: 'discovering, joining or getting started on a code repository; refreshing its KB after the code changed',
+    notWhen: 'a one-off question about some code, editing code, or creating a new repository',
+    positive: [
+      strong(/\b(d[ée]couvre|arrive sur|commence sur|onboard(e|ing)?[-\s]?(moi)?|prendre en main|new to|joining|starting on|get (me )?started on)\b.{0,30}\b(repo|repository|d[ée]p[ôo]t|projet|project|codebase|composant|service)\b/i),
+      strong(/\b(kb|base de connaissances?|knowledge base|doc(umentation)?) (du|de ce|of (this|the)) (repo|repository|d[ée]p[ôo]t|projet|codebase)\b/i),
+      weak(/\b(architecture|comment (il|ce repo) marche|how (this|the) (repo|codebase) works)\b/i),
+    ],
+    negative: [/\b(cr[ée]e|create|init|clone)[a-z]*\s+(un |a |le |the )?(nouveau |new )?(repo|repository|d[ée]p[ôo]t)\b/i, /\b(ticket|story|bug)\b.{0,20}\b(fini|termin|done|finished|merg)/i],
+  },
+  {
+    skill: 'okb-repo-learn',
+    when: 'a ticket or a piece of work on a documented repository is done, or something learned about it should be kept',
+    notWhen: 'writing code, reviewing a pull request, or a repository not documented yet',
+    positive: [
+      strong(/\b(fini|termin[ée]|boucl[ée]|livr[ée]|merg[ée]|finished|completed|done with|merged)\b.{0,20}\b(ticket|story|bug|fix|feature|issue|pr|pull request|t[âa]che)\b/i),
+      strong(/\b(ticket|story|issue)\b.{0,15}\b(fini|termin[ée]|done|finished|merg)/i),
+      strong(/\b(kb|base) (du|de ce|of (this|the)) (repo|repository|d[ée]p[ôo]t|projet)\b.{0,40}\b(ajoute|enrichi|mets? à jour|update|add)\b|\b(ajoute|enrichi[rs]?|mets? à jour|update|add)\b.{0,40}\b(kb|base) (du|de ce|of (this|the)) (repo|repository|d[ée]p[ôo]t|projet)\b/i),
+    ],
+    negative: [/\breview (this|the) (pull request|pr|code)\b/i],
   },
   {
     skill: 'okb-guide',

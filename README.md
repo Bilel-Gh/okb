@@ -1,4 +1,4 @@
-# OKB — Open Knowledge Brain · 0.5.0
+# OKB — Open Knowledge Brain · 0.6.0
 
 **A local second brain for Claude Code and Obsidian, where nothing enters your
 notes without your approval.**
@@ -35,6 +35,36 @@ flowchart LR
   A --> B[("KB<br/>Markdown / OKF")]
   B --> O["Obsidian · web app · okb ask"]
 ```
+
+## A knowledge base for every code repository you work on
+
+New on a repository and know nothing about it? In Claude Code, inside the
+repository, type `/okb:onboard` (or just say “I'm new to this repo”):
+
+1. **A deterministic map in seconds** (`okb repo scan`, no AI, nothing executed):
+   - stack and modules;
+   - what the repository exposes and what it calls (services, routes, events,
+     destinations, bindings, URLs, databases);
+   - configuration, commands, CI, who changed what;
+   - where the README disagrees with the code.
+2. **A full reading**: Claude reads the docs, reading agents cover each area of
+   the code, and the main flows are followed end to end. Every fact is checked
+   word for word against the file it cites.
+3. **25 onboarding questions**, each answered with `file:line` evidence or left
+   visibly unknown with whom to ask. Seniors can answer them at any time.
+4. **Seven notes in `repos/<id>/`**, approved like any proposal:
+   - understand it in 10 minutes;
+   - getting started;
+   - architecture, with diagrams whose every box is tied to a real path;
+   - code map;
+   - interfaces;
+   - delivery;
+   - open questions.
+
+After each ticket, `/okb:ticket` adds what you learned (a ticket note, “to change X
+→ this file” entries, traps). `okb repo update` tells which notes the code moved
+under. Company code goes into a **confidential KB** that stays on your machine.
+→ [Guide (FR)](docs/guide/repos.md) · [Design](docs/dev/REPOS.md)
 
 ## Why
 
@@ -91,6 +121,8 @@ okb doctor     # check everything; --fix repairs what it can
 | End a work session without losing anything | “ok, end of session” | Focus & journal | `okb done` |
 | Weekly review with spaced re-reading | “weekly review” | Weekly review | `okb weekly` |
 | Revise by active recall | “quiz me on this note” | Revise | `/okb:learn` |
+| Get started on a code repository | “I'm new to this repo” · `/okb:onboard` | Repositories | `okb repo add` · `okb repo status` |
+| Feed the repository's KB after a ticket | “I finished my ticket” · `/okb:ticket` | Repositories | `okb repo ticket` · `okb repo update` |
 | Turn a procedure into a Claude skill | “turn this procedure into a skill” | Procedures → skills | `okb skillify` |
 | Check and repair the KB | “check my KB” | Health · Diagnostics | `okb maintain` · `okb doctor` |
 | Settings, languages, several KBs | — | Settings · KB switcher | `okb settings` · `okb kb` · `okb new` |
@@ -103,7 +135,8 @@ okb doctor     # check everything; --fix repairs what it can
 |---|---|
 | **Ingest** | Transcripts, documents, pages and source code, alone or several per note; bounded extraction, nothing executed |
 | **Evidence** | Claims backed by exact quotes; teaching aids (explanation, analogy with its limits, Mermaid diagram, example) tied to the claims they rephrase |
-| **Templates** | Guide, concept, procedure, process, tool, automation, experience, decision, meeting — fixed sections, headings and order |
+| **Code repositories** | Deterministic map, reading plan, 25 onboarding questions, notes cited at the line, diagrams tied to real paths, freshness against Git, ticket follow-up, multi-repository landscape, confidential KBs |
+| **Templates** | Guide, concept, procedure, process, tool, automation, experience, decision, meeting, and seven repository templates — fixed sections, headings and order |
 | **Style** | Presets `standard`, `pedagogique`, `expert` plus eight knobs and a reader level; a style change never rewrites existing notes |
 | **Languages** | Interface in French or English (automatic by default); notes written in French, English, Spanish, German, Italian or Portuguese, per KB |
 | **Review & apply** | Exact diffs, partial selection, signed approval, path policy, lock, receipts, undo, optional Git commit per apply |
@@ -191,7 +224,7 @@ filesystem transaction.
   [templates](docs/dev/TEMPLATES.md) · [style](docs/dev/STYLE.md) ·
   [installation details](docs/dev/INSTALL.md) · [context budget](docs/dev/CONTEXT.md) ·
   [Claude compatibility](docs/dev/CLAUDE-COMPATIBILITY.md) · [evaluation](docs/dev/EVALUATION.md)
-- **Release notes:** [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
+- **Release notes:** [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
   [0.4.0](docs/releases/RELEASE-0.4.0.md) · [0.3.0](docs/releases/RELEASE-0.3.0.md) ·
   [0.2.0](docs/releases/RELEASE-0.2.0.md)
 

@@ -18,10 +18,12 @@ Tu peux tout faire de trois façons, au choix :
 1. [Installer OKB](installer.md) — en 5 minutes, sans toucher à tes réglages Claude.
 2. [Au quotidien](au-quotidien.md) — capturer, importer une source, relire,
    finir une session, revue de la semaine.
-3. [L’application web](application-web.md) — tout ce que fait le terminal, en clics.
-4. [Réglages](reglages.md) — langues, style d’écriture, plusieurs KB, cohabitation
+3. [Une KB pour chaque repo de code](repos.md) — être onboardé sur un repo inconnu,
+   puis enrichir sa KB après chaque ticket.
+4. [L’application web](application-web.md) — tout ce que fait le terminal, en clics.
+5. [Réglages](reglages.md) — langues, style d’écriture, plusieurs KB, cohabitation
    avec d’autres outils.
-5. [Dépannage](depannage.md) — comprendre une erreur et la corriger.
+6. [Dépannage](depannage.md) — comprendre une erreur et la corriger.
 
 Les documents techniques (architecture, décisions, sécurité) sont dans
 [docs/dev](../dev/).

@@ -199,6 +199,10 @@ export async function cmdStyle(args: ParsedArgs, out: Output, mode: OutputMode):
  * Notes that other prepared proposals will create. A new proposal may link to
  * them; applying it alone, before them, is refused by the broken-link check.
  */
+export async function pendingCreationsFor(config: EffectiveConfig['config'], after: readonly string[]) {
+  return pendingCreations(config, after);
+}
+
 async function pendingCreations(config: EffectiveConfig['config'], after: readonly string[]) {
   if (after.length === 0) return null;
   const proposals = after.length === 1 && after[0] === 'prepared'

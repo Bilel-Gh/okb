@@ -21,11 +21,11 @@ type Row = { name: string; status: 'ok' | 'warn' | 'fail' | 'unknown'; detail: s
 
 const SECTION: Record<string, 'okb' | 'kb' | 'claude'> = {
   node: 'okb', 'okb-command': 'okb', sources: 'okb', 'okf-spec-pin': 'okb',
-  configuration: 'kb', 'kb.root': 'kb', 'kb-owner': 'kb', state: 'kb', focus: 'kb', 'kb-git': 'kb',
+  configuration: 'kb', 'kb.root': 'kb', 'kb-owner': 'kb', state: 'kb', focus: 'kb', 'kb-git': 'kb', 'kb-private': 'kb', repos: 'kb',
   'claude-plugin': 'claude', plugin: 'claude', runtime: 'claude', mcp: 'claude',
 };
 
-const ORDER = ['node', 'okb-command', 'sources', 'okf-spec-pin', 'kb.root', 'kb-owner', 'focus', 'kb-git', 'configuration', 'state', 'claude-plugin', 'plugin', 'runtime', 'mcp'];
+const ORDER = ['node', 'okb-command', 'sources', 'okf-spec-pin', 'kb.root', 'kb-owner', 'kb-private', 'focus', 'kb-git', 'repos', 'configuration', 'state', 'claude-plugin', 'plugin', 'runtime', 'mcp'];
 
 /** The doctor's rows for people: grouped, in plain words, each warning with what to do. */
 function doctorSections(rows: readonly Row[], config: OkbConfig | null, fixing: boolean): { title: string; items: CheckItem[] }[] {
@@ -116,6 +116,22 @@ export async function cmdDoctor(ctx: Ctx): Promise<number> {
       ? { name: 'kb-git', status: git.dirty || (git.ahead ?? 0) > 0 ? 'warn' : 'ok', detail: git.dirty ? tn('status.gitDirty', git.dirty) : (git.ahead ?? 0) > 0 ? tn('status.gitAhead', git.ahead!) : t('status.gitClean'),
         ...(git.dirty ? { hint: t('doctor.hint.commit', { root: tilde(cfg.kb.root) }) } : (git.ahead ?? 0) > 0 ? { hint: `git -C ${tilde(cfg.kb.root)} push` } : {}) }
       : { name: 'kb-git', status: 'unknown', detail: t('doctor.noGit') });
+    const { listRepos } = await import('../../repo/registry.js');
+    const repos = (await listRepos()).filter((r) => r.kb === cfg.profile.id);
+    if (repos.length) {
+      const missing = repos.filter((r) => !existsSync(r.path));
+      rows.push(missing.length
+        ? { name: 'repos', status: 'warn', detail: t('doctor.repos.missing', { names: missing.map((r) => r.name).join(', ') }), hint: t('doctor.hint.repos') }
+        : { name: 'repos', status: 'ok', detail: tn('doctor.repos.ok', repos.length, { names: repos.slice(0, 4).map((r) => r.name).join(', ') }) });
+    }
+    if (cfg.kb.confidential) {
+      const { cloudSyncedFolder, kbRemotes } = await import('../../repo/confidential.js');
+      const synced = cloudSyncedFolder(cfg.kb.root);
+      const remotes = git.repo ? await kbRemotes(cfg.kb.root) : [];
+      rows.push(synced || remotes.length
+        ? { name: 'kb-private', status: 'warn', detail: synced ? t('doctor.private.synced', { where: synced }) : t('doctor.private.remote', { remote: remotes[0]! }), hint: t('doctor.hint.private') }
+        : { name: 'kb-private', status: 'ok', detail: t('doctor.private.ok') });
+    }
   }
   const failing = rows.filter((r) => r.status === 'fail').length;
 

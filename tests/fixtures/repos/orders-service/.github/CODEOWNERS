@@ -1,0 +1,4 @@
+# Orders team owns everything; the platform team owns deployment.
+*               @acme/orders-team
+/mta.yaml       @acme/platform-team
+/.github/       @acme/platform-team

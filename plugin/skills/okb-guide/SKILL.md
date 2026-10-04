@@ -11,6 +11,8 @@ description: Show where the user's OKB second brain stands and what they can do 
 > ✍️ **Format.** Short sections, a table for lists, quotations as `>` blocks with `path:line`, and a last line « ➡️ Prochaine étape : … ». OKB refuses secrets (`E_SECRET`): offer a placeholder such as `<API_KEY>`.
 
 1. Run `okb status --json` (and `okb kb --json` when the user has several KBs).
+   Inside a code repository, also `okb repo status --json`: show its notes,
+   coverage and open questions, and offer `/okb:onboard` or `/okb:ticket`.
 2. Show a five-line dashboard: the KB and its number of notes; the focus (age,
    stale or missing); the last session's « next time »; the inbox; the proposals
    waiting (number, title). Mention the web app (`okb serve`) once.
@@ -24,5 +26,7 @@ description: Show where the user's OKB second brain stands and what they can do 
 When the user asks « what can OKB do? », answer in six lines at most: import a
 source into reliable, sourced notes (nothing enters without their approval),
 find answers with quotations, capture and sort ideas, keep a focus and a session
-journal Claude reads, weekly review and revision, turn a procedure into a skill.
+journal Claude reads, weekly review and revision, turn a procedure into a skill,
+and give each code repository they work on its own KB (`/okb:onboard` to get
+started on it, `/okb:ticket` after each ticket).
 Then offer the guided tour: `okb tour` (a throwaway KB, nothing touched).
