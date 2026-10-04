@@ -8,10 +8,10 @@ structurées (modèles), et chaque notion importante a sa fiche pédagogique.
 
 - **Style de rédaction** (`writing`, `reader`) : trois profils de départ et huit
   réglages, ajustables pour une seule demande ; règles de fiabilité non
-  modifiables. `okb style` affiche le brief. Voir [STYLE.md](STYLE.md).
+  modifiables. `okb style` affiche le brief. Voir [STYLE.md](../dev/STYLE.md).
 - **Modèles de notes** : guide, concept, procédure, retour d’expérience, décision,
   réunion. Le CLI impose sections, ordre et titres ; une KB peut les adapter dans
-  `.okb/templates/`. `okb template list|show`. Voir [TEMPLATES.md](TEMPLATES.md).
+  `.okb/templates/`. `okb template list|show`. Voir [TEMPLATES.md](../dev/TEMPLATES.md).
 - **Fiches concepts pédagogiques** : définition en une phrase, analogie et sa
   limite, fonctionnement, exemple, schéma, confusions à éviter, extraits exacts ;
   alias pour que les pluriels et traductions renvoient à la fiche.

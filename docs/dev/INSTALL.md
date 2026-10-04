@@ -29,7 +29,7 @@ okb setup --profile moi --kb-root /chemin/vers/notes --concept-assist targeted \
 okb doctor --profile moi
 ```
 
-Ou copier [onboarding.yaml](../examples/onboarding.yaml), le compléter hors du
+Ou copier [onboarding.yaml](../../examples/onboarding.yaml), le compléter hors du
 dépôt et utiliser `okb setup --from /chemin/prive/onboarding.yaml`.
 Les options explicites priment sur ce fichier. Le niveau d’aide aux concepts est
 obligatoire au premier setup. La skill le demande une fois si aucun choix n’a été
@@ -70,8 +70,8 @@ Un fichier déclaré absent bloque la configuration au lieu d’effacer la polit
 Une KB-local `.okb/kb.yaml` ne peut pas rediriger la racine, l’identité ou l’état.
 Les politiques de toutes les couches s’intersectent ; les exclusions s’additionnent.
 
-Exemples génériques : [org-policy.yaml](../examples/org-policy.yaml) et
-[team.yaml](../examples/team.yaml). `okb config show --json` indique les couches,
+Exemples génériques : [org-policy.yaml](../../examples/org-policy.yaml) et
+[team.yaml](../../examples/team.yaml). `okb config show --json` indique les couches,
 valeurs effectives, restrictions appliquées et clés inconnues conservées mais inactives.
 `okb config show --defaults` présente le schéma complet ; ce n’est pas le format
 simplifié de `setup --from`.

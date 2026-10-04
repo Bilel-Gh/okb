@@ -9,7 +9,7 @@
    `okb style --json` donne le brief de rédaction (avec ajustements ponctuels).
 4. `okb ingest /chemin/source.vtt --run <runId> [--with autre-source]… --template --json`
    crée un modèle de dossier v2 (sources, style) dans l’état privé. Claude le remplit selon
-   [le contrat d’analyse](../plugin/skills/okb-ingest/references/analysis-dossier.md).
+   [le contrat d’analyse](../../plugin/skills/okb-ingest/references/analysis-dossier.md).
 5. Préparer, sans modifier la KB :
 
 ```bash
@@ -159,10 +159,11 @@ empreinte identique ne prouve pas que les connaissances restent vraies. Une
 source secondaire doit disposer de son extraction enregistrée ou d’une archive
 pour être retrouvée. Sans `--check-sources`, les fichiers d’origine ne sont pas lus.
 
-`okb serve` permet de lire les notes, de rechercher et de parcourir les contenus
-proposés dans un navigateur local. Aucun bouton ne signe une approbation :
-l’interface affiche les commandes à exécuter soi-même. Voir
-[LOCAL-READER.md](LOCAL-READER.md).
+`okb serve` ouvre l’application web locale : tout ce que fait le terminal
+(lire, chercher, relire, approuver, appliquer, annuler, capturer, focus, fin de
+session, revue, réglages, KB). Approuver depuis la page exige la présence de la
+personne (dialogue natif macOS ou question dans le terminal de `okb serve`) ;
+sinon la page affiche la commande à lancer soi-même. Voir [WEB-APP.md](WEB-APP.md).
 
 ## Reprendre ou annuler
 

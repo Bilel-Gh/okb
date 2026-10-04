@@ -42,4 +42,4 @@ claude plugin marketplace add /chemin/du/produit
 claude plugin install okb@okb
 ```
 
-Voir [DECISIONS.md](DECISIONS.md), D16 à D20.
+Voir [DECISIONS.md](../dev/DECISIONS.md), D16 à D20.

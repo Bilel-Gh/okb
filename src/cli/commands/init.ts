@@ -69,7 +69,8 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
   const first = options.first && wctx.kbs.length === 0;
 
   if (!canAsk(ctx)) {
-    const name = flagString(args, 'name') ?? args.positionals[0];
+    // --yes means "the recommended answers", the name included.
+    const name = flagString(args, 'name') ?? args.positionals[0] ?? (flagBool(args, 'yes', false) ? t('wiz.name.default') : undefined);
     if (!name) throw new OkbError('E_INVALID', 'okb init needs a name when it cannot ask: okb init --yes --name <name> [--dir <folder>]', { key: 'initNeedsName' });
     const ui = (flagString(args, 'lang') as Lang | undefined) ?? 'auto';
     // --folder and --kb-root (the 0.3 name) mean --dir: a folder given must never be silently ignored.

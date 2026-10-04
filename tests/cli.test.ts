@@ -55,6 +55,18 @@ describe('packaged CLI', () => {
     expect(run.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
+  it('changes a setting written as key=value or as key value', async () => {
+    const s = await makeSandbox({ profileId: 'alpha' });
+    sandboxes.push(s);
+    expect((await okb(['settings', 'set', 'writing.preset=expert'], s.env)).code).toBe(0);
+    expect((await okb(['settings', 'set', 'profile.displayName', 'Acme Robotics'], s.env)).code).toBe(0);
+    const profile = await readFile(resolve(s.home, 'profiles', 'alpha', 'profile.yaml'), 'utf8');
+    expect(profile).toContain('preset: expert');
+    expect(profile).toContain('displayName: Acme Robotics');
+    const bad = await okb(['settings', 'set', 'writing.preset'], s.env);
+    expect(bad.code).not.toBe(0);
+  });
+
   it('fails clearly when no profile is installed, and succeeds after setup', async () => {
     const s = await makeSandbox({ profileId: 'alpha' });
     sandboxes.push(s);

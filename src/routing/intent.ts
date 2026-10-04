@@ -52,6 +52,7 @@ export const INTENT_RULES: readonly Rule[] = [
     /\b(à|a) garder pour plus tard\b|\bpour plus tard\s*:/i,
     /\b(jot|note|save|keep|capture) (this|that|it) (down|for later)\b/i,
     /\bremember this for later\b|\bsave this idea\b/i,
+    /\b(note|jot down|save) (this|that)\s*:/i,
   ], not: [/\bcapture d['’][ée]cran\b|\bscreenshot\b/i] },
   { id: 'inbox', command: '/okb:inbox', okbOnly: false, patterns: [
     /\b(trie[rz]?|vide[rz]?|range[rz]?|traite[rz]?)\b.{0,15}\b(mon |l['’]|ma )?inbox\b/i,
@@ -90,7 +91,7 @@ export const INTENT_RULES: readonly Rule[] = [
   ], not: [/\b(code|fonction|function|mail|e-?mail|message|commit)\b/i] },
   { id: 'skillify', command: '/okb:skillify', okbOnly: true, patterns: [
     /\b(transforme|change|fais)[-\s]?(ce|cette|ma|en)?\s*(process|proc[ée]dure|m[ée]thode)?\s*(en|un) skill\b/i,
-    /\bskillify\b|\b(turn|make) (this|my|the) (process|procedure|method) into a skill\b/i,
+    /\bskillify\b|\b(turn|make) (this|my|the) (process|procedure|method)( note)? (into )?a skill\b/i,
   ] },
   { id: 'setup', command: '/okb:setup', okbOnly: true, patterns: [
     /\b(cr[ée]e|ajoute|configure)[-\s]?(moi )?(une )?(nouvelle )?(kb|base de connaissances?)\b/i,

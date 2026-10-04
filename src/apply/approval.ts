@@ -30,7 +30,7 @@ export type Approval = {
  * Honest limit: the key lives on the same filesystem. Anything able to run
  * arbitrary shell commands as this user can read it and forge an approval. The
  * mechanism that discourages an agent from doing so is the plugin's PreToolUse
- * hook (a best-effort string matcher), not this file. See docs/SECURITY.md.
+ * hook (a best-effort string matcher), not this file. See docs/dev/SECURITY.md.
  */
 async function approvalSecret(config: OkbConfig): Promise<string> {
   const file = statePaths(config).secretFile;

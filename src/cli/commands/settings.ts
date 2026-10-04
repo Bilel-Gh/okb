@@ -57,7 +57,9 @@ export async function cmdSettings(ctx: Ctx): Promise<number> {
   }
 
   if (sub === 'set') {
-    const pairs = args.positionals.slice(1);
+    let pairs = args.positionals.slice(1);
+    // `okb settings set key value` reads like a sentence: accept it for a single setting.
+    if (pairs.length === 2 && !pairs[0]!.includes('=') && !pairs[1]!.includes('=')) pairs = [`${pairs[0]}=${pairs[1]}`];
     if (!pairs.length) throw new OkbError('E_INVALID', 'usage: okb settings set key=value', { key: 'usage', params: { usage: 'okb settings set <key>=<value>' } });
     const changed: { key: string; value: unknown }[] = [];
     for (const pair of pairs) {

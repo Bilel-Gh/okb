@@ -1,6 +1,6 @@
 {
   "name": "okb",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Open Knowledge Brain: ingest sources, search with evidence, and propose reviewed changes to an OKF knowledge bundle.",
   "keywords": [
     "knowledge-base",

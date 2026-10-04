@@ -3,11 +3,11 @@
 Trace courte pour reprendre le projet sans l’historique de conversation.
 Format : problème → décision → conséquence → condition de réexamen.
 
-## État au 4 octobre 2026 (version 0.4.0)
+## État au 4 octobre 2026 (version 0.5.0)
 
 | Contrôle | Résultat |
 |---|---|
-| `npm run release:check` (Node 24.4) | voir `docs/RELEASE-0.4.0.md` : tests, plugin, paquet installé proprement |
+| `npm run release:check` (Node 24.4) | voir [RELEASE-0.5.0.md](../releases/RELEASE-0.5.0.md) : tests, plugin, paquet installé proprement |
 | `claude plugin validate ./plugin` (Claude Code du poste) | Validation passée |
 | Évaluations natives `claude plugin eval` | Non exécutées (cas prêts dans `plugin/evals/`) |
 
@@ -303,4 +303,82 @@ Le diagnostic et les contrats Claude consultés sont dans
   par KB : dossier `kb-<nom>`, profil `<nom>`, dépôt `kb-<nom>`, toutes les KB
   dans un même coffre Obsidian. `okb setup --from` accepte aussi `focus` et `git`.
 - **Réexamen.** Si un utilisateur a besoin de plusieurs coffres séparés.
+
+## D21 — Une interface pour des personnes, pas pour des développeurs
+
+- **Problème.** `okb setup --profile notes --kb-root … --concept-assist …` exigeait
+  de connaître le modèle interne ; les erreurs étaient des codes en anglais.
+- **Décision.** `okb init` / `okb new` : un assistant d’une question à la fois
+  (@clack/prompts), réponse recommandée marquée ★, récapitulatif avant d’écrire.
+  `okb` seul ouvre un menu. Chaque erreur porte une clé (`err.<clé>.title|why|fix`)
+  et un code expliqué par `okb explain`. Questions seulement sur un vrai terminal,
+  jamais en `--json`, `--yes`, CI ou depuis le plugin (`OKB_NO_INTERACTIVE`).
+- **Conséquence.** `okb setup` et les commandes historiques restent pour les scripts
+  et la compatibilité, rangées dans « avancé ».
+- **Réexamen.** Si un usage non interactif courant manque d’un drapeau.
+
+## D22 — Deux langues indépendantes
+
+- **Décision.** `ui.language` (auto/fr/en, toutes les KB) pour l’interface ;
+  `writing.language` par KB pour la rédaction. Catalogues EN/FR typés : une clé
+  absente en français casse la compilation. La sortie `--json` reste en anglais
+  (contrat stable pour les outils).
+- **Réexamen.** Si une troisième langue d’interface est demandée.
+
+## D23 — Reconnaître une demande en langage naturel, proposer sans agir
+
+- **Problème.** Personne ne connaît les commandes par cœur ; « ok fin de session »
+  devait suffire.
+- **Décision.** Un hook `UserPromptSubmit` appelle `okb route --suggest` ; si le
+  message ressemble à une tâche OKB, Claude reçoit une *offre* et la présente avec
+  un bouton. Règles volontairement prudentes : « undo that » ou « capture d’écran »
+  ne déclenchent rien (contexte de code). `routing.suggest: false` coupe tout.
+- **Réexamen.** Quand les évaluations natives mesurent la sélection des skills : les
+  règles pourront être réduites.
+
+## D24 — Cohabiter avec les autres outils de connaissance
+
+- **Problème.** Un agent support peut avoir sa propre KB qu’il cherche et enrichit ;
+  OKB ne doit jamais y écrire ni répondre à sa place.
+- **Décision.** Marqueur `.okb/owner.yaml` : OKB n’écrit que dans ses KB (créées ou
+  adoptées explicitement) ; un dossier contenant des notes d’un autre outil est
+  refusé ; deux KB ne se chevauchent jamais. Les plugins et serveurs MCP installés
+  (et `routing.otherKnowledgeTools`) sont détectés : « la KB support » ne déclenche
+  pas OKB, « ma KB » ambiguë déclenche une question. L’assistant ne propose comme
+  emplacement que les coffres qui contiennent déjà une KB OKB.
+- **Réexamen.** Si la détection d’outils produit trop de questions inutiles.
+
+## D25 — Application web complète, approbation par présence humaine
+
+- **Problème.** Le lecteur 0.3 était en lecture seule ; il fallait une vraie
+  alternative au terminal sans affaiblir l’approbation humaine.
+- **Décision.** `okb serve` sert une application sans framework (`web/`) et une API
+  JSON (`src/web/api.ts`) : jeton par session pour toute écriture, Host exact,
+  même origine, CSP stricte, Markdown assaini. Approuver depuis la page exige une
+  confirmation que l’agent ne peut pas donner : dialogue natif macOS, sinon question
+  dans le terminal de `okb serve`, sinon la commande à lancer. Le hook refuse les
+  appels scriptés à l’endpoint et les clics scriptés sur le dialogue. La
+  configuration est relue à chaque requête.
+- **Conséquence.** Limite assumée : un logiciel qui contrôle souris et clavier
+  pourrait cliquer à la place de la personne (même limite que le terminal).
+- **Réexamen.** Si OKB doit tourner sur un serveur partagé : il faudrait une vraie
+  authentification, hors périmètre.
+
+## D26 — Le plugin dans l’interface de Claude Code
+
+- **Décision.** Un module de hooks (`plugin/hooks/okb-ui.tsx`) ajoute une entrée de
+  barre d’état (`📚 kb · 🎯 focus · 📥 inbox · ⏳ à relire`), la commande `/okb`
+  (panneau avec raccourcis qui remplissent le prompt) et une notification quand une
+  proposition arrive. Les choix des skills passent par des boutons (AskUserQuestion).
+- **Réexamen.** Selon l’évolution de l’API des modules de Claude Code.
+
+## D27 — Installation et documentation pour les personnes
+
+- **Décision.** `scripts/install.sh` vérifie Node, compile dans le dossier du
+  produit puis lance `okb init` ; `okb update` met à jour moteur et plugin ;
+  `okb doctor --fix` répare plugin, commande `okb`, marqueur et focus. La
+  documentation sépare le guide utilisateur (`docs/guide/`, en français) de la
+  documentation technique (`docs/dev/`) ; captures d’écran faites sur la KB fictive.
+- **Réexamen.** Si le dépôt devient public : publier sur npm (`npm install -g okb`)
+  et adapter le guide.
 
