@@ -41,7 +41,16 @@ export const paint = {
   added: (s: string) => c.green(s),
   removed: (s: string) => c.red(s),
   code: (s: string) => c.cyan(s),
+  /** A KB or note name the person chose: bold, in the brand colour. */
+  name: (s: string) => (colorOn ? `\x1b[1m\x1b[38;5;36m${s}\x1b[39m\x1b[22m` : s),
+  /** A file or folder, home written `~`. */
+  path: (s: string) => c.cyan(tilde(s)),
 };
+
+/** Yes in green, no dimmed: a recap reads at a glance. */
+export function yesNo(value: boolean, yes: string, no: string): string {
+  return value ? paint.ok(yes) : paint.dim(no);
+}
 
 export const sym = {
   ok: () => paint.ok('✔'),
@@ -174,4 +183,85 @@ export function diffLine(line: string): string {
   if (line.startsWith('+')) return paint.added(line);
   if (line.startsWith('-')) return paint.removed(line);
   return line;
+}
+
+export type CheckStatus = 'ok' | 'warn' | 'fail' | 'unknown';
+export type CheckItem = { status: CheckStatus; label: string; detail: string; tone?: 'path' | 'plain'; hint?: string };
+
+function wrapPlain(text: string, max: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (let word of text.split(/\s+/).filter(Boolean)) {
+    while (word.length > max) { if (line) { lines.push(line); line = ''; } lines.push(word.slice(0, max)); word = word.slice(max); }
+    if (!line) line = word;
+    else if (width(`${line} ${word}`) <= max) line += ` ${word}`;
+    else { lines.push(line); line = word; }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [''];
+}
+
+/**
+ * A checklist in sections: one line per check, its detail beside it (or under
+ * it on a narrow terminal), and the fix under anything that needs attention.
+ */
+export function checklist(sections: readonly { title: string; items: readonly CheckItem[] }[]): string {
+  const cols = columns();
+  const all = sections.flatMap((s) => s.items);
+  const labelW = Math.min(26, Math.max(...all.map((i) => width(i.label))));
+  const pad = 4 + labelW + 2;
+  const narrow = cols - pad < 28;
+  const detailW = narrow ? cols - 6 : cols - pad;
+  const icon: Record<CheckStatus, string> = { ok: sym.ok(), warn: sym.warn(), fail: sym.err(), unknown: paint.dim('○') };
+  const color = (i: CheckItem) => (s: string) =>
+    i.status === 'warn' ? paint.warn(s) : i.status === 'fail' ? paint.err(s) : i.status === 'unknown' ? paint.dim(s) : i.tone === 'path' ? paint.code(s) : paint.dim(s);
+  const out: string[] = [];
+  for (const section of sections) {
+    if (!section.items.length) continue;
+    out.push('', paint.bold(section.title));
+    for (const item of section.items) {
+      const label = item.status === 'ok' || item.status === 'unknown' ? item.label : paint.bold(item.label);
+      const lines = wrapPlain(item.detail, detailW).map(color(item));
+      if (narrow) {
+        out.push(`  ${icon[item.status]} ${label}`);
+        for (const l of lines) if (l) out.push(`      ${l}`);
+      } else {
+        out.push(`  ${icon[item.status]} ${label}${' '.repeat(Math.max(1, labelW - width(item.label) + 2))}${lines[0]}`);
+        for (const l of lines.slice(1)) out.push(`${' '.repeat(pad)}${l}`);
+      }
+      if (item.hint && item.status !== 'ok') {
+        for (const [n, l] of wrapPlain(item.hint, detailW - 2).entries()) out.push(`${' '.repeat(narrow ? 6 : pad)}${paint.dim(n ? `  ${l}` : `→ ${l}`)}`);
+      }
+    }
+  }
+  return out.join('\n');
+}
+
+/**
+ * Labelled values in sections, aligned across all sections, without boxes:
+ * `Label   value   meta`. On a narrow terminal the value goes under its label.
+ */
+export function fieldList(sections: readonly { title: string; rows: readonly (readonly [string, string, string?])[] }[]): string {
+  const cols = columns();
+  const labelW = Math.min(Math.max(24, Math.min(48, Math.floor(cols * 0.42))), Math.max(...sections.flatMap((s) => s.rows.map((r) => width(r[0])))));
+  const valueW = Math.max(...sections.flatMap((s) => s.rows.map((r) => width(r[1]))));
+  const narrow = 2 + labelW + 2 + Math.min(valueW, 30) > cols;
+  const out: string[] = [];
+  for (const s of sections) {
+    if (!s.rows.length) continue;
+    out.push('', paint.bold(s.title));
+    for (const [label, value, meta] of s.rows) {
+      const l = width(label) > labelW ? truncate(label, labelW) : label;
+      if (narrow) {
+        out.push(`  ${l}`, `    ${value}${meta ? `  ${paint.dim(meta)}` : ''}`);
+        continue;
+      }
+      const room = cols - (2 + labelW + 2);
+      // The meta column starts at one place for every row, or is left out when it would not fit.
+      const showMeta = meta && valueW + 2 + width(meta) <= room;
+      out.push(`  ${l}${' '.repeat(labelW - width(l) + 2)}${value}${showMeta ? `${' '.repeat(valueW - width(value) + 2)}${paint.dim(meta!)}` : ''}`);
+      if (meta && !showMeta) out.push(`${' '.repeat(2 + labelW + 2)}${paint.dim(meta)}`);
+    }
+  }
+  return out.join('\n');
 }

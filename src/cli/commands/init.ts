@@ -7,7 +7,7 @@ import { checkFolder, defaultAnswers, okbVaults, runWizard, suggestedRoot, wizar
 import { OkbError } from '../../util/errors.js';
 import { flagBool, flagString } from '../args.js';
 import { choose, confirm, input, intro, note, outro, spin, step } from '../ui/prompt.js';
-import { banner, paint, sym, tilde } from '../ui/term.js';
+import { banner, paint, sym, tilde, yesNo } from '../ui/term.js';
 import { canAsk, type Ctx } from './common.js';
 
 
@@ -22,7 +22,7 @@ async function askLocation(ctx: WizardContext, name: string, current: string): P
       if (p !== suggested) options.push({ value: p, label: tilde(p), hint: t('wiz.where.vault'), recommended: false });
     }
     options.push({ value: '__other', label: t('wiz.where.other'), hint: '', recommended: false });
-    let root = await choose(t('wiz.where.q'), options, current || suggested);
+    let root = await choose(t('wiz.where.q', { name: paint.name(name) }), options, current || suggested);
     if (root === '__other') root = resolve(expandHome(await input(t('wiz.where.path'), { placeholder: tilde(suggested), validate: (v) => (v.trim() ? undefined : t('wiz.required')) })));
     const check = await checkFolder(root, id);
     if (check.state === 'overlap') { step.err(t('err.kbOverlap.why', { other: check.with, root })); continue; }
@@ -39,25 +39,31 @@ async function askLocation(ctx: WizardContext, name: string, current: string): P
 
 function recap(a: WizardAnswers, ctx: WizardContext): string {
   const { id, folder } = kbNames(a.name);
-  const yes = (b: boolean) => (b ? t('ui.yes') : t('ui.no'));
+  const yes = (b: boolean) => yesNo(b, t('ui.yes'), t('ui.no'));
   const rows: [string, string][] = [
-    [t('wiz.recap.kb'), `${a.name} ${paint.dim(`(${folder} · ${id})`)}`],
-    [t('wiz.recap.folder'), tilde(a.root)],
-    [t('wiz.recap.uiLang'), a.uiLanguage === 'auto' ? `${t('wiz.lang.auto')} (${languageName(systemLanguage())})` : languageName(a.uiLanguage)],
+    [t('wiz.recap.kb'), `${paint.name(a.name)} ${paint.dim(`(${folder} · ${id})`)}`],
+    [t('wiz.recap.folder'), paint.path(a.root)],
+    [t('wiz.recap.uiLang'), a.uiLanguage === 'auto' ? `${t('wiz.lang.auto')} ${paint.dim(`(${languageName(systemLanguage())})`)}` : languageName(a.uiLanguage)],
     [t('wiz.recap.writingLang'), languageName(a.writingLanguage)],
-    [t('wiz.recap.style'), `${t(`settings.opt.writing.preset.${a.preset}`)} · ${t(`settings.opt.reader.level.${a.readerLevel}`)}`],
+    [t('wiz.recap.style'), `${t(`settings.opt.writing.preset.${a.preset}`)} ${paint.dim('·')} ${t(`settings.opt.reader.level.${a.readerLevel}`)}`],
     [t('wiz.recap.help'), t(`settings.opt.conceptAssist.level.${a.conceptAssist}`)],
-    [t('wiz.recap.focus'), t(`wiz.focus.${a.focus}`)],
-    [t('wiz.recap.git'), a.git ? `${t('ui.yes')}${a.github ? ` · ${t('wiz.recap.github')}` : ''}` : t('ui.no')],
+    [t('wiz.recap.focus'), a.focus === 'later' ? paint.dim(t(`wiz.focus.${a.focus}`)) : t(`wiz.focus.${a.focus}`)],
+    [t('wiz.recap.git'), a.git ? `${paint.ok(t('ui.yes'))}${a.github ? paint.dim(` · ${t('wiz.recap.github')}`) : ''}` : paint.dim(t('ui.no'))],
   ];
-  if (ctx.claude.cli) rows.push([t('wiz.recap.plugin'), ctx.claude.installed && !a.plugin ? t('wiz.recap.pluginThere') : yes(a.plugin)]);
-  rows.push([t('wiz.recap.launcher'), ctx.launcher.onPath ? t('wiz.recap.launcherThere') : a.launcher ? tilde(resolve(a.launcher, 'okb')) : t('ui.no')]);
+  if (ctx.claude.cli) rows.push([t('wiz.recap.plugin'), ctx.claude.installed && !a.plugin ? paint.dim(t('wiz.recap.pluginThere')) : yes(a.plugin)]);
+  rows.push([t('wiz.recap.launcher'), ctx.launcher.onPath ? paint.dim(t('wiz.recap.launcherThere')) : a.launcher ? paint.path(resolve(a.launcher, 'okb')) : paint.dim(t('ui.no'))]);
   const w = Math.max(...rows.map((r) => r[0].length));
   return rows.map(([k, v]) => `${paint.dim(k.padEnd(w))}  ${v}`).join('\n');
 }
 
-function stepLabel(r: StepResult): string {
-  return t(`wiz.step.${r.step}`) + (r.detail ? paint.dim(`  ${tilde(r.detail)}`) : '');
+/** One line per step that ran: ✔ label, then the folder or value it concerns. */
+function stepLines(results: readonly StepResult[]): string {
+  const w = Math.max(...results.map((r) => t(`wiz.step.${r.step}`).length));
+  return results.map((r) => {
+    const label = t(`wiz.step.${r.step}`).padEnd(w);
+    const detail = r.detail ? (r.detail.startsWith('/') ? paint.path(r.detail) : paint.dim(r.detail)) : '';
+    return r.ok ? `${sym.ok()} ${label}  ${detail}`.trimEnd() : `${sym.warn()} ${paint.warn(label)}  ${paint.dim(t('wiz.stepFailed'))}`;
+  }).join('\n');
 }
 
 /** `okb init` (first time) and `okb new` (another KB): the guided setup. */
@@ -88,13 +94,14 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
     const results: StepResult[] = [];
     const created = await runWizard(answers, (r) => results.push(r));
     if (ctx.mode === 'json') { out.json({ ok: true, ...created, steps: results }); return 0; }
-    for (const r of results) (r.ok ? out.ok(stepLabel(r)) : out.warn(stepLabel(r)));
+    out.ok(t('wiz.done', { name: paint.name(answers.name) }));
+    out.line(stepLines(results).split('\n').map((l) => `  ${l}`).join('\n'));
     out.next([`okb status --kb ${created.id}`]);
     return 0;
   }
 
   out.line(banner(await productVersion(), t('wiz.banner')));
-  intro(first ? t('wiz.intro.first') : t('wiz.intro.new'));
+  intro(paint.bold(first ? t('wiz.intro.first') : t('wiz.intro.new')));
 
   let uiLanguage: Lang | 'auto' = 'auto';
   if (first) {
@@ -126,7 +133,7 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
     },
   });
   const names = kbNames(name);
-  step.info(t('wiz.name.derived', { folder: names.folder, id: names.id }));
+  step.info(t('wiz.name.derived', { folder: paint.code(names.folder), id: paint.code(names.id) }));
 
   const answers = defaultAnswers(wctx, name, lang());
   answers.uiLanguage = uiLanguage;
@@ -179,19 +186,19 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
   let created: { id: string; root: string };
   try {
     created = await runWizard(answers, (r) => results.push(r));
-    s.done(t('wiz.done'));
+    s.done(paint.ok(t('wiz.configured')));
   } catch (e) {
     s.fail(t('wiz.failed'));
     throw e;
   }
-  for (const r of results) (r.ok ? step.ok(stepLabel(r)) : step.warn(`${stepLabel(r)} — ${t('wiz.stepFailed')}`));
+  note(stepLines(results), t('wiz.doneTitle'));
   const next = [
-    `${sym.arrow()} ${t('wiz.next.claude')}`,
+    `${sym.arrow()} ${t('wiz.next.claude', { cmd: paint.code('/okb:ingest') })}`,
     `${sym.arrow()} ${paint.code('okb status')}  ${paint.dim(t('wiz.next.status'))}`,
-    `${sym.arrow()} ${paint.code('okb serve')}  ${paint.dim(t('wiz.next.reader'))}`,
+    `${sym.arrow()} ${paint.code('okb serve')}   ${paint.dim(t('wiz.next.reader'))}`,
   ];
-  if (results.some((r) => r.step === 'plugin' && r.ok)) next.unshift(`${sym.arrow()} ${t('wiz.next.newSession')}`);
+  if (results.some((r) => r.step === 'plugin' && r.ok)) next.unshift(`${paint.warn('!')} ${paint.bold(t('wiz.next.newSession'))}`);
   note(next.join('\n'), t('ui.nextSteps'));
-  outro(t('wiz.outro', { name, id: created.id }));
+  outro(t('wiz.outro', { name: paint.name(name), id: created.id }));
   return 0;
 }

@@ -1,20 +1,78 @@
+import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { doctor, measureContext } from '../../doctor/doctor.js';
+import type { OkbConfig } from '../../config/schema.js';
 import { has, t, tn } from '../../i18n/index.js';
 import { readFocus, initFocus } from '../../focus/focus.js';
 import { readOwner, writeOwner, foreignNotes } from '../../kb/registry.js';
-import { claudeState, installClaudePlugin, installLauncher, launcherState, productVersion, updateProduct } from '../../integrations/system.js';
+import { claudeState, installClaudePlugin, installLauncher, launcherState, PRODUCT_ROOT, productVersion, updateProduct } from '../../integrations/system.js';
 import { maintain } from '../../maintain/maintain.js';
 import { health, gitState } from '../../status/status.js';
 import { OkbError } from '../../util/errors.js';
 import { paginate } from '../../util/context-meter.js';
 import { flagBool, flagString } from '../args.js';
 import { confirm, spin } from '../ui/prompt.js';
-import { paint, sym, tilde } from '../ui/term.js';
+import { banner, checklist, paint, sym, tilde, type CheckItem } from '../ui/term.js';
 import { canAsk, effective, kbFlag, type Ctx } from './common.js';
 
 type Fix = { label: string; run: () => Promise<string> };
-type Row = { name: string; status: 'ok' | 'warn' | 'fail' | 'unknown'; detail: string; fix?: Fix };
+type Row = { name: string; status: 'ok' | 'warn' | 'fail' | 'unknown'; detail: string; fix?: Fix; hint?: string };
+
+const SECTION: Record<string, 'okb' | 'kb' | 'claude'> = {
+  node: 'okb', 'okb-command': 'okb', sources: 'okb', 'okf-spec-pin': 'okb',
+  configuration: 'kb', 'kb.root': 'kb', 'kb-owner': 'kb', state: 'kb', focus: 'kb', 'kb-git': 'kb',
+  'claude-plugin': 'claude', plugin: 'claude', runtime: 'claude', mcp: 'claude',
+};
+
+const ORDER = ['node', 'okb-command', 'sources', 'okf-spec-pin', 'kb.root', 'kb-owner', 'focus', 'kb-git', 'configuration', 'state', 'claude-plugin', 'plugin', 'runtime', 'mcp'];
+
+/** The doctor's rows for people: grouped, in plain words, each warning with what to do. */
+function doctorSections(rows: readonly Row[], config: OkbConfig | null, fixing: boolean): { title: string; items: CheckItem[] }[] {
+  // The three source readers become one line unless one of them is broken.
+  const readers = rows.filter((r) => r.name.startsWith('adapter:'));
+  const merged: Row[] = rows.filter((r) => !r.name.startsWith('adapter:'));
+  const brokenReaders = readers.filter((r) => r.status !== 'ok');
+  merged.splice(1, 0, brokenReaders.length
+    ? { name: 'sources', status: 'fail', detail: brokenReaders.map((r) => r.detail).join(' · ') }
+    : { name: 'sources', status: 'ok', detail: t('doctor.detail.sources') });
+  const fixHint = fixing ? undefined : t('doctor.hint.fix');
+  const item = (r: Row): CheckItem => {
+    const label = has(`doctor.check.${r.name}`) ? t(`doctor.check.${r.name}`) : r.name;
+    const base = { status: r.status, label };
+    switch (r.name) {
+      case 'kb.root':
+        return { ...base, detail: r.status === 'ok' ? tilde(r.detail) : r.detail, tone: 'path' };
+      case 'okb-command':
+        return { ...base, detail: r.status === 'ok' ? tilde(r.detail) : r.detail, tone: 'path', ...(r.fix ? { hint: fixHint } : { hint: existsSync(resolve(homedir(), '.okb', 'bin', 'okb')) ? t('doctor.hint.launcherManual') : t('doctor.hint.launcherNode', { path: tilde(resolve(PRODUCT_ROOT, 'dist', 'cli', 'index.js')) }) }) };
+      case 'state':
+        return { ...base, detail: tilde(r.detail.replace(/ is (not )?writable( yet)?$/, '')), tone: 'path' };
+      case 'focus':
+        return { ...base, detail: r.status === 'ok' ? tilde(r.detail) : r.detail, tone: 'path', ...(r.fix ? { hint: fixHint } : {}) };
+      case 'configuration':
+        return { ...base, detail: config ? t('doctor.detail.configuration', { id: config.profile.id }) : r.detail, ...(config ? {} : { hint: 'okb init' }) };
+      case 'okf-spec-pin':
+        return { ...base, detail: r.status === 'ok' ? t('doctor.detail.okf', { rev: r.detail.replace('pinned to ', '').slice(0, 7) }) : r.detail };
+      case 'plugin':
+        return { ...base, detail: r.status === 'ok' ? t('doctor.detail.pluginFiles') : r.detail };
+      case 'runtime':
+        return { ...base, detail: r.status === 'ok' ? t('doctor.detail.runtimeIn') : t('doctor.detail.runtimeOut') };
+      case 'mcp':
+        return { ...base, detail: r.detail.startsWith('no MCP') ? t('doctor.detail.mcpNone') : r.detail.replace('configured: ', '') };
+      case 'claude-plugin':
+        return { ...base, detail: r.detail, ...(r.status === 'warn' ? { hint: fixing ? undefined : t('doctor.hint.plugin') } : {}) };
+      default:
+        return { ...base, detail: r.detail, ...(r.hint ? { hint: r.hint } : r.fix ? { hint: fixHint } : {}) };
+    }
+  };
+  const kbName = config ? config.profile.displayName || config.profile.id : '';
+  const titles = { okb: t('doctor.section.okb'), kb: config ? t('doctor.section.kb', { name: kbName }) : t('doctor.section.kbNone'), claude: t('doctor.section.claude') };
+  const order = (name: string) => { const i = ORDER.indexOf(name); return i < 0 ? ORDER.length : i; };
+  return (['okb', 'kb', 'claude'] as const).map((sec) => ({
+    title: titles[sec],
+    items: merged.filter((r) => (SECTION[r.name] ?? 'okb') === sec).sort((a, b) => order(a.name) - order(b.name)).map(item),
+  }));
+}
 
 /** `okb doctor [--fix]` — a checklist, and a repair offered for each problem it can solve. */
 export async function cmdDoctor(ctx: Ctx): Promise<number> {
@@ -39,7 +97,7 @@ export async function cmdDoctor(ctx: Ctx): Promise<number> {
   const launcher = await launcherState();
   rows.push(launcher.onPath
     ? { name: 'okb-command', status: 'ok', detail: launcher.onPath }
-    : { name: 'okb-command', status: 'warn', detail: t('doctor.noLauncher'), ...(launcher.candidates[0] ? { fix: { label: t('doctor.fix.launcher', { dir: launcher.candidates[0] }), run: async () => t('doctor.fixed.launcher', { path: await installLauncher(launcher.candidates[0]!) }) } } : {}) });
+    : { name: 'okb-command', status: 'warn', detail: t('doctor.noLauncher'), ...(launcher.candidates[0] ? { fix: { label: t('doctor.fix.launcher', { dir: paint.path(launcher.candidates[0]) }), run: async () => t('doctor.fixed.launcher', { path: paint.path(await installLauncher(launcher.candidates[0]!)) }) } } : {}) });
   if (config) {
     const cfg = config;
     const owner = await readOwner(cfg.kb.root);
@@ -47,7 +105,7 @@ export async function cmdDoctor(ctx: Ctx): Promise<number> {
     else if (owner) rows.push({ name: 'kb-owner', status: 'fail', detail: t('err.kbOtherOwner.why', { owner, root: cfg.kb.root }) });
     else {
       const foreign = await foreignNotes(cfg.kb.root, 1);
-      rows.push({ name: 'kb-owner', status: 'warn', detail: foreign.length ? t('doctor.ownerForeign') : t('doctor.ownerMissing'), ...(foreign.length ? {} : { fix: { label: t('doctor.fix.owner', { root: tilde(cfg.kb.root), kb: cfg.profile.displayName || cfg.profile.id }), run: async () => { await writeOwner(cfg.kb.root, cfg.profile.id); return t('doctor.fixed.owner', { root: tilde(cfg.kb.root), kb: cfg.profile.displayName || cfg.profile.id }); } } }) });
+      rows.push({ name: 'kb-owner', status: 'warn', detail: foreign.length ? t('doctor.ownerForeign') : t('doctor.ownerMissing'), ...(foreign.length ? {} : { fix: { label: t('doctor.fix.owner', { root: paint.path(cfg.kb.root), kb: paint.name(cfg.profile.displayName || cfg.profile.id) }), run: async () => { await writeOwner(cfg.kb.root, cfg.profile.id); return t('doctor.fixed.owner', { root: paint.path(cfg.kb.root), kb: paint.name(cfg.profile.displayName || cfg.profile.id) }); } } }) });
     }
     const focus = await readFocus(cfg);
     rows.push(focus.exists
@@ -55,7 +113,8 @@ export async function cmdDoctor(ctx: Ctx): Promise<number> {
       : { name: 'focus', status: 'warn', detail: t('focus.none'), fix: { label: t('doctor.fix.focus'), run: async () => t('focus.created', { path: await initFocus(cfg) }) } });
     const git = await gitState(cfg.kb.root);
     rows.push(git.repo
-      ? { name: 'kb-git', status: git.dirty || (git.ahead ?? 0) > 0 ? 'warn' : 'ok', detail: git.dirty ? tn('status.gitDirty', git.dirty) : (git.ahead ?? 0) > 0 ? tn('status.gitAhead', git.ahead!) : t('status.gitClean') }
+      ? { name: 'kb-git', status: git.dirty || (git.ahead ?? 0) > 0 ? 'warn' : 'ok', detail: git.dirty ? tn('status.gitDirty', git.dirty) : (git.ahead ?? 0) > 0 ? tn('status.gitAhead', git.ahead!) : t('status.gitClean'),
+        ...(git.dirty ? { hint: t('doctor.hint.commit', { root: tilde(cfg.kb.root) }) } : (git.ahead ?? 0) > 0 ? { hint: `git -C ${tilde(cfg.kb.root)} push` } : {}) }
       : { name: 'kb-git', status: 'unknown', detail: t('doctor.noGit') });
   }
   const failing = rows.filter((r) => r.status === 'fail').length;
@@ -64,20 +123,24 @@ export async function cmdDoctor(ctx: Ctx): Promise<number> {
     out.json({ ...report, checks: rows.map(({ fix, ...r }) => ({ ...r, fixable: Boolean(fix) })), ok: report.ok && failing === 0 });
     return report.ok && failing === 0 ? 0 : 1;
   }
-  const icon = { ok: sym.ok(), warn: sym.warn(), fail: sym.err(), unknown: paint.dim('○') };
-  out.grid(rows.map((r) => [icon[r.status], has(`doctor.check.${r.name}`) ? t(`doctor.check.${r.name}`) : r.name, r.detail]), ['', t('doctor.col.check'), t('doctor.col.detail')]);
+  const fixing = flagBool(args, 'fix') && canAsk(ctx);
+  out.line(banner(version, t('doctor.banner')).replace(/\n$/, ''));
+  out.line(checklist(doctorSections(rows, config, fixing)));
+  out.line();
   const fixable = rows.filter((r) => r.fix && r.status !== 'ok');
-  if (fixable.length) {
-    if (flagBool(args, 'fix') && canAsk(ctx)) {
-      for (const r of fixable) {
-        if (!(await confirm(r.fix!.label, true))) continue;
-        const s = spin(r.fix!.label);
-        try { const msg = await r.fix!.run(); s.done(msg); } catch (e) { s.fail(`${t('doctor.fixFailed')}: ${(e as Error).message}`); }
-      }
-    } else {
-      out.next([`okb doctor --fix${kbFlag(args)}`]);
+  const attention = rows.filter((r) => r.status === 'warn' || r.status === 'fail').length;
+  if (fixable.length && fixing) {
+    let done = 0;
+    for (const r of fixable) {
+      if (!(await confirm(r.fix!.label, true))) continue;
+      const s = spin(r.fix!.label);
+      try { const msg = await r.fix!.run(); s.done(paint.ok(msg)); done++; } catch (e) { s.fail(`${t('doctor.fixFailed')}: ${(e as Error).message}`); }
     }
-  } else if (!failing && report.ok) out.ok(t('doctor.allGood'));
+    if (done) out.ok(tn('doctor.fixedCount', done));
+  } else if (attention) {
+    out.warn(tn('doctor.attention', attention));
+    if (fixable.length) out.next([`okb doctor --fix${kbFlag(args)}`]);
+  } else if (report.ok) out.ok(paint.bold(t('doctor.allGood')));
   if (flagBool(args, 'verbose')) {
     out.heading(t('doctor.support'));
     out.grid(report.support.map((s) => [s.kind, s.enabled ? sym.ok() : sym.err(), s.notes]));

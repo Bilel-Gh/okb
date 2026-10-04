@@ -3,7 +3,7 @@ import { readSettings, SETTINGS, writeSetting, type SettingDef, type SettingGrou
 import { OkbError } from '../../util/errors.js';
 import { flagBool } from '../args.js';
 import { choose, confirm, input } from '../ui/prompt.js';
-import { paint, sym } from '../ui/term.js';
+import { fieldList, paint, sym } from '../ui/term.js';
 import { canAsk, effective, type Ctx } from './common.js';
 
 const GROUPS: readonly SettingGroup[] = ['language', 'writing', 'help', 'memory', 'history', 'assistant', 'advanced'];
@@ -17,6 +17,16 @@ export function displayValue(def: SettingDef, value: unknown): string {
   const optKey = `settings.opt.${def.key}.${String(value)}`;
   if (def.type === 'choice' && has(optKey)) return t(optKey);
   return String(value) || t('settings.none');
+}
+
+/** The same value, coloured: yes in green, no dimmed, paths in cyan, names in bold. */
+function coloredValue(def: SettingDef, value: unknown): string {
+  const text = displayValue(def, value);
+  if (def.type === 'bool') return value ? paint.ok(text) : paint.dim(text);
+  if (def.key === 'focus.file' || def.key === 'focus.journal') return value ? paint.path(String(value)) : paint.dim(text);
+  if (def.key === 'profile.displayName') return paint.name(text);
+  if (def.type === 'list' && !(value as string[]).length) return paint.dim(text);
+  return paint.bold(text);
 }
 
 async function editOne(id: string, sv: SettingValue): Promise<unknown> {
@@ -46,12 +56,11 @@ export async function cmdSettings(ctx: Ctx): Promise<number> {
   if (sub === 'show' || sub === 'list') {
     const values = await readSettings(id);
     if (ctx.mode === 'json') { out.json({ ok: true, kb: id, settings: values.map((v) => ({ key: v.def.key, value: v.value, default: v.isDefault, scope: v.def.scope })) }); return 0; }
-    out.line(`${sym.kb()} ${paint.bold(config.profile.displayName || id)}`);
-    for (const g of GROUPS) {
-      if (g === 'advanced' && !flagBool(args, 'all')) continue;
-      out.heading(t(`settings.group.${g}`));
-      out.grid(values.filter((v) => v.def.group === g).map((v) => [t(`settings.label.${v.def.key}`), displayValue(v.def, v.value) + (v.isDefault ? paint.dim(` · ${t('settings.default')}`) : ''), paint.dim(v.def.key)]));
-    }
+    out.line(`${sym.kb()} ${paint.name(config.profile.displayName || id)}  ${paint.dim(t('settings.title'))}`);
+    out.line(fieldList(GROUPS.filter((g) => g !== 'advanced' || flagBool(args, 'all')).map((g) => ({
+      title: t(`settings.group.${g}`),
+      rows: values.filter((v) => v.def.group === g).map((v) => [t(`settings.label.${v.def.key}`), coloredValue(v.def, v.value) + (v.isDefault ? paint.dim(` · ${t('settings.default')}`) : ''), v.def.key] as const),
+    }))));
     out.next([`okb settings set <${t('settings.key')}>=<${t('settings.value')}>`, ...(flagBool(args, 'all') ? [] : ['okb settings show --all'])]);
     return 0;
   }

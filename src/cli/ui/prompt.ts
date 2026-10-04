@@ -1,6 +1,7 @@
 import * as clack from '@clack/prompts';
 import { t } from '../../i18n/index.js';
 import { Cancelled } from '../../util/errors.js';
+import { sym } from './term.js';
 
 /**
  * Questions with choices, for people at a terminal. Never for an agent: Claude's
@@ -40,7 +41,7 @@ export async function choose<V>(message: string, choices: readonly Choice<V>[], 
   const first = initial ?? choices.find((c) => c.recommended)?.value ?? choices[0]?.value;
   const options = choices.map((c) => ({
     value: c.value,
-    label: c.recommended ? `${c.label}  ★` : c.label,
+    label: c.recommended ? `${c.label}  ${sym.star()}` : c.label,
     ...(c.hint ? { hint: c.hint } : {}),
   }));
   return check<V>(await clack.select<V>({ message, options: options as never, initialValue: first }));

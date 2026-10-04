@@ -88,7 +88,7 @@ async function wizard(mount, first) {
               : c.state === 'okb' ? noteBox('info', t('wiz.where.existing'))
                 : noteBox('ok', c.state === 'new' ? t('web.wizard.folderNew') : t('web.wizard.folderEmpty')));
       };
-      body.append(h('div', { class: 'field' }, h('label', null, t('wiz.where.q')),
+      body.append(h('div', { class: 'field' }, h('label', null, t('wiz.where.q', { name: a.name })),
         h('div', { class: 'stack', style: { gap: '8px' } }, opts.map((p, i) => choice(a.root === p, p.replace(/^\/Users\/[^/]+/, '~'), i === 0 ? t(ctx.kbs.length || ctx.vaults.some((v) => v.kbs.length) ? 'wiz.where.suggested' : 'wiz.where.fresh') : t('wiz.where.vault'), () => { a.root = p; custom.value = ''; draw(); }, i === 0)),
           h('div', { class: 'field' }, h('label', { class: 'small muted' }, t('wiz.where.other')), custom))), status);
       custom.addEventListener('change', () => { if (custom.value.trim()) { a.root = custom.value.trim(); draw(); } });

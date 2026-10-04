@@ -42,3 +42,25 @@ describe('interface catalogue', () => {
     expect(t('nope.unknown')).toBe('nope.unknown');
   });
 });
+
+describe('terminal layouts for people', () => {
+  it('lists checks in sections, with the fix under what needs attention only', async () => {
+    const { checklist, fieldList } = await import('../src/cli/ui/term.js');
+    const text = checklist([
+      { title: 'OKB', items: [
+        { status: 'ok', label: 'Node.js', detail: 'v24', hint: 'never shown' },
+        { status: 'warn', label: 'Commande « okb »', detail: 'pas disponible partout', hint: 'okb doctor --fix' },
+      ] },
+      { title: 'Vide', items: [] },
+    ]);
+    expect(text).toContain('OKB');
+    expect(text).toMatch(/✔ Node\.js +v24/);
+    expect(text).toContain('→ okb doctor --fix');
+    expect(text).not.toContain('never shown');
+    expect(text).not.toContain('Vide');
+    expect(text).not.toMatch(/\x1b\[/);
+    const fields = fieldList([{ title: 'Langues', rows: [['Langue d’OKB', 'Français', 'ui.language'], ['Rédaction', 'Anglais', 'writing.language']] }]);
+    const [a, b] = fields.split('\n').filter((l) => l.includes('.language'));
+    expect(a!.indexOf('ui.language')).toBe(b!.indexOf('writing.language'));
+  });
+});
