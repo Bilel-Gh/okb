@@ -109,7 +109,9 @@ ticket.
   `okb maintain` signale les notes sans catégorie.
 - **Graphe** dans l'application web (page Graphe) :
   - **thèmes détectés** automatiquement (méthode de Louvain), avec un halo et un
-    nom chacun ; disposition en deux niveaux, calculée avant l'affichage ;
+    nom chacun : celui du guide qui explique le thème, sinon du tag que ses notes
+    partagent. La liste des thèmes montre les notes de chacun ; disposition en deux
+    niveaux, calculée avant l'affichage ;
   - titres placés sans chevauchement ;
   - notes et liens, couleur par catégorie, taille selon les liens ;
   - zoom, déplacement, voisinage d'une note, filtres par catégorie et par zone ;

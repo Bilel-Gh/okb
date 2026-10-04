@@ -1447,4 +1447,8 @@ export const FR: Record<keyof typeof EN, string> = {
   "web.graph.themes": "Thèmes détectés",
   "web.graph.themesClear": "Tes notes forment des thèmes nets (modularité {q}). Clique sur un thème pour le cadrer.",
   "web.graph.themesMixed": "Les thèmes se mélangent beaucoup (modularité {q}) : beaucoup de liens les traversent.",
+  "web.graph.themesIntro": "Des groupes de notes très liées entre elles, trouvés à partir de tes liens. Chacun porte le nom du guide qui l’explique, ou du tag que ses notes partagent.",
+  "web.graph.themeMore": "et {n} autres",
+  "web.graph.themeByNote": "Nommé d’après la note « {title} »",
+  "web.graph.themeByTag": "Nommé d’après le tag #{tag}, que portent presque toutes ses notes",
 };

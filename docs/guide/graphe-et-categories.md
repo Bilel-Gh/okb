@@ -86,8 +86,9 @@ Dans l'application web (`okb serve`), page **Graphe** :
 
 - **les notes sont regroupées par thème**, détecté tout seul à partir des liens
   (méthode de Louvain : des groupes de notes bien plus liées entre elles qu'avec
-  le reste). Chaque thème a un halo et un nom, celui de sa note la plus reliée.
-  La liste « Thèmes détectés » permet de cadrer un thème d'un clic ;
+  le reste). En général, un thème réunit un guide et les concepts qu'il explique.
+  Chaque thème a un halo et un nom (voir plus bas). La liste « Thèmes détectés »
+  montre les notes de chaque thème et le cadre d'un clic ;
 - **chaque point est une note**, coloré par catégorie, plus gros quand la note
   est très reliée ;
 - **chaque trait est un lien** d'une note vers une autre ; les pointillés
@@ -105,6 +106,26 @@ Dans l'application web (`okb serve`), page **Graphe** :
   d'abord, les autres apparaissent en zoomant ; survoler une note affiche ses
   voisines ;
 - **la recherche** allume les notes trouvées et va sur celle que tu choisis.
+
+### Le nom des thèmes
+
+Personne ne nomme les thèmes : OKB prend, dans l'ordre :
+
+1. **le guide qui explique le thème**, s'il est relié à au moins la moitié de ses
+   notes (un guide, un parcours, une procédure ou un process). Exemple : « Le
+   cycle d'une affaire » pour Affaire, Devis, Avenant et REX ;
+2. sinon **un tag** que portent la plupart de ses notes, et presque aucune autre.
+   Exemple : « Second cerveau » pour le tag `second-cerveau` ;
+3. sinon un guide relié à au moins un quart du thème ;
+4. sinon la note la plus centrale du thème.
+
+Une page d'accueil reliée à tous les thèmes ne donne son nom à aucun. Le nom garde
+l'essentiel du titre : sans emoji ni sous-titre (« La finance d'une affaire : du
+coût réel… » devient « La finance d'une affaire »). Survoler un thème dans la liste
+dit d'où vient son nom.
+
+Pour qu'un thème porte un meilleur nom, écris (ou fais écrire) le guide qui
+l'explique : c'est aussi la note qui manque à qui découvre le sujet.
 
 Sous chaque note, le **graphe local** montre ses voisins. Les listes **« Cité
 par »** et **« Liens vers »** donnent les liens exacts, lus dans le texte des

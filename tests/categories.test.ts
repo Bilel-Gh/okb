@@ -8,6 +8,7 @@ import { BUILTIN_CATEGORIES, categorise, loadCategories, mergeCategories } from 
 import { loadBundleFor } from '../src/kb/bundle.js';
 import { buildGraph, neighbours } from '../src/kb/graph.js';
 import { louvain } from '../src/kb/communities.js';
+import { humaniseTag, nameTheme, themeTitle, type ThemeNote } from '../src/kb/themes.js';
 import { maintain } from '../src/maintain/maintain.js';
 import { saveProposal } from '../src/proposal/store.js';
 import { suggestIntent } from '../src/routing/intent.js';
@@ -150,14 +151,63 @@ describe('note categories', () => {
     expect(louvain(['x', 'y'], []).list).toEqual([]);
   });
 
-  it('name each theme after its most linked note', async () => {
+  it('name each theme after a note of the theme, without emoji or subtitle', async () => {
     const { config } = await env();
     const graph = buildGraph(await loadBundleFor(config), await loadCategories(config), await loadTemplates(config));
     expect(graph.communities.length).toBeGreaterThan(0);
     expect(graph.communities.reduce((n, c) => n + c.size, 0)).toBe(graph.nodes.filter((n) => n.community >= 0).length);
-    const first = graph.communities[0]!;
-    expect(graph.nodes.find((n) => n.id === first.hub)!.community).toBe(first.id);
-    expect(first.label).toBe(graph.nodes.find((n) => n.id === first.hub)!.title);
+    for (const c of graph.communities) {
+      expect(graph.nodes.find((n) => n.id === c.hub)!.community).toBe(c.id);
+      if (c.namedBy === 'note') expect(c.label).toBe(themeTitle(graph.nodes.find((n) => n.id === c.hub)!.title));
+    }
+  });
+
+  it('name a theme after the guide that explains it, not its busiest concept or the home page', () => {
+    const note = (id: string, title: string, category: string, tags: string[] = []): ThemeNote => ({ id, title, category, tags });
+    const links = new Map<string, Set<string>>();
+    const link = (a: string, b: string) => {
+      for (const [x, y] of [[a, b], [b, a]] as const) links.set(x, (links.get(x) ?? new Set()).add(y));
+    };
+    // A finance theme: the guide explains four concepts; "affaire" is the busiest
+    // note but links everywhere; the home page links to every theme of the KB.
+    const finance = [
+      note('guides/finance.md', '💶 La finance d’une affaire : du coût réel à l’estimation finale', 'guide'),
+      note('concepts/eac.md', 'EAC', 'concept'), note('concepts/eaf.md', 'EAF', 'concept'),
+      note('concepts/cbs.md', 'CBS', 'concept'), note('concepts/affaire.md', 'Affaire', 'concept'),
+      note('accueil.md', '🏠 Argo : accueil et parcours de lecture', 'guide'),
+    ];
+    for (const c of ['eac', 'eaf', 'cbs', 'affaire']) link('guides/finance.md', `concepts/${c}.md`);
+    link('concepts/eac.md', 'concepts/eaf.md');
+    link('concepts/eac.md', 'concepts/cbs.md');
+    for (const c of ['eac', 'eaf', 'cbs', 'affaire']) link('concepts/affaire.md', `concepts/${c}.md`);
+    for (let i = 0; i < 8; i++) { link('concepts/affaire.md', `elsewhere/${i}.md`); link('accueil.md', `elsewhere/${i}.md`); }
+    for (const c of ['eac', 'affaire']) link('accueil.md', `concepts/${c}.md`);
+    link('accueil.md', 'guides/finance.md');
+    const named = nameTheme(finance, links, new Map());
+    expect(named).toEqual({ hub: 'guides/finance.md', label: 'La finance d’une affaire', namedBy: 'note' });
+
+    // Only concepts, nearly all tagged alike and the tag used nowhere else: the tag names it.
+    const brain = [
+      note('concepts/inbox.md', 'Inbox', 'concept', ['concept', 'second-cerveau']),
+      note('concepts/capture.md', 'Capture', 'concept', ['concept', 'second-cerveau']),
+      note('concepts/ipcra.md', 'IPCRA', 'concept', ['concept', 'second-cerveau']),
+      note('concepts/zettel.md', 'Zettelkasten', 'concept', ['concept', 'apprentissage']),
+      note('guides/retenir.md', 'Apprendre et retenir', 'guide', ['ingested']),
+    ];
+    for (const [a, b] of [['inbox', 'capture'], ['capture', 'ipcra'], ['ipcra', 'inbox'], ['zettel', 'ipcra']]) link(`concepts/${a}.md`, `concepts/${b}.md`);
+    link('guides/retenir.md', 'concepts/zettel.md');
+    const tags = new Map([['concept', 40], ['second-cerveau', 3], ['apprentissage', 2], ['ingested', 30]]);
+    const byTag = nameTheme(brain, links, tags);
+    expect(byTag).toMatchObject({ label: 'Second cerveau', namedBy: 'tag', tag: 'second-cerveau', hub: 'concepts/ipcra.md' });
+  });
+
+  it('turn titles and tags into short, readable theme names', () => {
+    expect(themeTitle('🔄 Le cycle d’une affaire, de l’opportunité au REX')).toBe('Le cycle d’une affaire');
+    expect(themeTitle('🔐 Approuver, appliquer, annuler : les garde-fous de la KB')).toBe('Approuver, appliquer, annuler');
+    expect(themeTitle('Argo : accueil et parcours de lecture')).toBe('Argo : accueil et parcours de lecture');
+    expect(themeTitle('Devis, avenants et factures')).toBe('Devis, avenants et factures');
+    expect(humaniseTag('securite-ia', [{ id: 'a', title: 'Sécurité des données et IA', category: 'guide', tags: [] }])).toBe('Sécurité IA');
+    expect(humaniseTag('second-cerveau')).toBe('Second cerveau');
   });
 
   it('offer the graph from plain words', () => {

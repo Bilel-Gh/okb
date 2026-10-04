@@ -26,12 +26,21 @@ function seed(id) {
 }
 
 const dark = () => document.documentElement.dataset.theme === 'dark';
-/** "🧩 Les briques de Claude Code : outils, skills…" → "Les briques de Claude Code". */
+/**
+ * "🧩 Les briques de Claude Code : outils, skills…" → "Les briques de Claude Code";
+ * "Le cycle d’une affaire, de l’opportunité au REX" → "Le cycle d’une affaire".
+ * Same rule as the theme names (src/kb/themes.ts).
+ */
 export function shortTitle(title, max = 32) {
   let t = String(title).replace(/^[^\p{L}\p{N}«"(]+/u, '').trim();
   const cut = t.search(/\s[:—–|]\s|\s-\s/);
   if (cut >= 8) t = t.slice(0, cut);
-  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+  const comma = t.indexOf(', ');
+  if (comma >= 12 && t.slice(0, comma).split(/\s+/).length >= 3) t = t.slice(0, comma);
+  t = t.trim();
+  if (t.length <= max) return t;
+  const space = t.lastIndexOf(' ', max - 1);
+  return `${t.slice(0, space > max / 2 ? space : max - 1).trimEnd()}…`;
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -64,7 +73,7 @@ export class GraphView {
     this.allEdges = data.edges;
     this.filter = { hidden: new Set(), area: null, orphans: true, focus: null, depth: 1, query: '' };
     this.options = { labels: 'auto', groupBy: this.mini ? 'none' : 'theme', arrows: false };
-    this.themes = new Map((data.communities ?? []).map((c) => [c.id, { ...c, label: shortTitle(c.label, 28) }]));
+    this.themes = new Map((data.communities ?? []).map((c) => [c.id, { ...c, label: shortTitle(c.label, 40) }]));
     this.transform = { k: 1, x: 0, y: 0 };
     this.hover = null;
     this.selected = null;
@@ -505,9 +514,11 @@ export class GraphView {
     for (const g of halos) {
       const label = this.groupLabel(g.key);
       if (!label) continue;
-      const sx = g.x * k + x, sy = (g.y - g.r) * k + y - 4;
       const textOut = `${label} · ${g.size}`;
       const w = ctx.measureText(textOut).width;
+      // Kept inside the frame: a theme at the edge still shows its whole name.
+      const sx = Math.min(Math.max(g.x * k + x, w / 2 + 8), this.w - w / 2 - 8);
+      const sy = Math.max((g.y - g.r) * k + y - 4, 20);
       const box = { x0: sx - w / 2 - 4, x1: sx + w / 2 + 4, y0: sy - 16, y1: sy + 2 };
       if (boxes.some((b) => b.x0 < box.x1 && b.x1 > box.x0 && b.y0 < box.y1 && b.y1 > box.y0)) continue;
       boxes.push(box);

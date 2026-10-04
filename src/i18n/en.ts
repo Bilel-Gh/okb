@@ -1445,4 +1445,8 @@ export const EN = {
   "web.graph.themes": "Detected themes",
   "web.graph.themesClear": "Notes form clear themes (modularity {q}). Click one to frame it.",
   "web.graph.themesMixed": "Themes overlap a lot (modularity {q}): many links cross them.",
+  "web.graph.themesIntro": "Groups of notes far more linked to each other than to the rest, found from your links. Each is named after the guide that explains it, or the tag its notes share.",
+  "web.graph.themeMore": "and {n} more",
+  "web.graph.themeByNote": "Named after the note “{title}”",
+  "web.graph.themeByTag": "Named after the tag #{tag}, carried by nearly all its notes",
 } as const;

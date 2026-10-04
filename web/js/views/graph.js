@@ -1,7 +1,7 @@
 // #/graph — every note and every link, coloured by category: find your way in a growing KB.
 import { state, h, t, tn, get, icon, empty, loading, clear, catChip, catColor, catDot, localiseCategory, cmdBox } from '../core.js';
 import { setTitle, go } from '../main.js';
-import { GraphView } from '../graph.js';
+import { GraphView, shortTitle } from '../graph.js';
 
 const PREFS = 'okb-graph-prefs-v2';
 function loadPrefs() {
@@ -51,7 +51,8 @@ export async function render({ mount, query }) {
   const themes = h('div', { class: 'graph-legend' });
   const side = h('div', { class: 'graph-side' },
     h('div', { class: 'card' }, h('div', { class: 'nav-label', style: { paddingTop: 0 } }, t('web.graph.legend')), legend, h('div', { class: 'hr' }), stats),
-    data.communities?.length ? h('div', { class: 'card' }, h('div', { class: 'nav-label', style: { paddingTop: 0 } }, t('web.graph.themes')), themes,
+    data.communities?.length ? h('div', { class: 'card' }, h('div', { class: 'nav-label', style: { paddingTop: 0 } }, t('web.graph.themes')),
+      h('div', { class: 'small muted', style: { marginBottom: '8px' } }, t('web.graph.themesIntro')), themes,
       h('div', { class: 'small muted', style: { marginTop: '8px' } }, t(data.modularity >= 0.3 ? 'web.graph.themesClear' : 'web.graph.themesMixed', { q: String(data.modularity).replace('.', state.lang === 'fr' ? ',' : '.') }))) : null,
     panel);
   mount.append(h('div', { class: 'graph-page' }, h('div', { class: 'graph-main' }, toolbar, stage), side));
@@ -157,11 +158,19 @@ export async function render({ mount, query }) {
   orphans.addEventListener('change', () => { view.setFilter({ orphans: orphans.checked }); persist(); drawStats(); });
   nav.addEventListener('change', async () => { prefs.nav = nav.checked; persist(); go(`#/graph?r=${Date.now()}`); });
 
-  // Detected themes: click one to frame it and light it up.
+  // Detected themes, each with what it holds: click one to frame it and light it up.
   for (const c of (data.communities ?? []).slice(0, 12)) {
-    const ids = data.nodes.filter((n) => n.community === c.id).map((n) => n.id);
-    themes.append(h('button', { class: 'legend-item', title: c.label, onclick: () => { view.focusGroup(ids); showPanel(byId.get(c.hub)); } },
-      h('span', { class: 'theme-dot' }), h('span', { class: 'grow' }, c.label.length > 34 ? `${c.label.slice(0, 33)}…` : c.label), h('span', { class: 'muted small' }, String(c.size))));
+    const members = data.nodes.filter((n) => n.community === c.id);
+    const shown = members
+      .filter((n) => c.namedBy === 'tag' || n.id !== c.hub)
+      .sort((a, b) => (b.in + b.out) - (a.in + a.out) || a.title.localeCompare(b.title))
+      .map((n) => shortTitle(n.title, 60));
+    const preview = shown.length > 4 ? `${shown.slice(0, 4).join(', ')} ${t('web.graph.themeMore', { n: String(shown.length - 4) })}` : shown.join(', ');
+    const why = c.namedBy === 'tag' ? t('web.graph.themeByTag', { tag: c.tag ?? '' }) : t('web.graph.themeByNote', { title: byId.get(c.hub)?.title ?? c.label });
+    themes.append(h('button', { class: 'legend-item theme-item', title: why, onclick: () => { view.focusGroup(members.map((n) => n.id)); showPanel(byId.get(c.hub)); } },
+      h('span', { class: 'theme-dot' }),
+      h('span', { class: 'grow theme-text' }, h('span', { class: 'theme-name' }, c.label), preview ? h('span', { class: 'theme-members' }, preview) : null),
+      h('span', { class: 'muted small' }, String(c.size))));
   }
 
   drawLegend();

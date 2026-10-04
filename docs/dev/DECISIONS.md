@@ -425,4 +425,14 @@ Le diagnostic et les contrats Claude consultés sont dans
   degré, liens internes courts et forts, liens entre thèmes longs et faibles) ; notes
   sans lien sur un anneau extérieur ; calcul avant affichage. Titres placés sans
   chevauchement (les plus reliés d’abord, les points comme obstacles).
+- **Nom des thèmes (ajout).** Le nom de la note la plus reliée donnait des thèmes
+  peu clairs (« Affaire », « Cockpit ») ou tronqués. Un thème prend désormais le nom
+  de la note qui l’explique (`src/kb/themes.ts`) : une note explicative (guide,
+  parcours, procédure, process) reliée à au moins la moitié du thème, choisie par
+  couverture × part de ses liens restés dans le thème (une page d’accueil reliée
+  partout perd) ; sinon un tag porté par 60 % du thème et à 80 % seulement par lui ;
+  sinon une note explicative reliée à un quart du thème ; sinon la note la plus
+  centrale. Titre réduit à son sujet (sans emoji, sans sous-titre). La résolution de
+  Louvain reste à 1 : des valeurs plus hautes découpaient mieux une KB et moins bien
+  une autre, sans règle stable.
 

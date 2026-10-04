@@ -5,6 +5,7 @@ import type { NoteTemplate } from '../templates/builtin.js';
 import type { BundlePath } from '../util/paths.js';
 import type { Bundle } from './bundle.js';
 import { louvain } from './communities.js';
+import { nameTheme } from './themes.js';
 
 /**
  * The KB as a graph: one node per note, one edge per link a note makes to
@@ -43,8 +44,19 @@ export type KbGraph = {
   readonly areas: readonly { readonly id: string; readonly count: number }[];
   /** Links to notes that do not exist (yet). */
   readonly unresolved: number;
-  /** Detected themes, largest first, each named after its most linked note. */
-  readonly communities: readonly { readonly id: number; readonly size: number; readonly hub: BundlePath; readonly label: string }[];
+  /**
+   * Detected themes, largest first. Each is named after the guide that explains
+   * it, else a tag its notes share, else its most central note (see themes.ts).
+   */
+  readonly communities: readonly {
+    readonly id: number;
+    readonly size: number;
+    /** The note that names or anchors the theme. */
+    readonly hub: BundlePath;
+    readonly label: string;
+    readonly namedBy: 'note' | 'tag';
+    readonly tag?: string;
+  }[];
   /** How well the themes separate (Louvain modularity, 0 to 1; above ~0.3 the themes are real). */
   readonly modularity: number;
 };
@@ -98,10 +110,18 @@ export function buildGraph(bundle: Bundle, categories: readonly Category[], temp
   const ordered = [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
   const found = louvain(ordered.map((n) => n.id), edges.map((e) => ({ source: e.source, target: e.target })));
   const list: GraphNode[] = ordered.map((n) => ({ ...n, in: inCount.get(n.id) ?? 0, out: outCount.get(n.id) ?? 0, community: found.of.get(n.id) ?? -1 }));
-  const degree = (id: string) => (inCount.get(id) ?? 0) + (outCount.get(id) ?? 0);
+  const linked = new Map<string, Set<string>>();
+  for (const e of edges) {
+    if (!linked.has(e.source)) linked.set(e.source, new Set());
+    if (!linked.has(e.target)) linked.set(e.target, new Set());
+    linked.get(e.source)!.add(e.target);
+    linked.get(e.target)!.add(e.source);
+  }
+  const tagCounts = new Map<string, number>();
+  for (const n of list) for (const t of new Set(n.tags)) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
   const communities = found.list.map((c) => {
-    const hub = [...c.members].sort((a, b) => degree(b) - degree(a) || a.localeCompare(b))[0]! as BundlePath;
-    return { id: c.id, size: c.members.length, hub, label: nodes.get(hub)?.title ?? hub };
+    const name = nameTheme(c.members.map((id) => nodes.get(id as BundlePath)!), linked, tagCounts);
+    return { id: c.id, size: c.members.length, ...name, hub: name.hub as BundlePath };
   });
   const counts = new Map<string, number>();
   for (const n of list) counts.set(n.category, (counts.get(n.category) ?? 0) + 1);
