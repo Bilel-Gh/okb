@@ -29,7 +29,7 @@ export type EffectiveConfig = {
 };
 
 /** Keys a layer file may carry that are not part of the configuration itself. */
-const LAYER_META_KEYS = new Set(['activeProfile', 'profiles', 'orgConfig', 'teamConfig', '$schema']);
+const LAYER_META_KEYS = new Set(['activeProfile', 'profiles', 'orgConfig', 'teamConfig', '$schema', 'ui']);
 
 export type ClampRecord = {
   readonly path: string;
@@ -138,8 +138,9 @@ export async function loadConfig(options: LoadOptions = {}): Promise<EffectiveCo
   const profileLayer = await readYamlLayer('profile', profilePath);
   if (!profileLayer) {
     throw new OkbError('E_CONFIG', `profile "${activeProfile}" is not installed`, {
+      key: activeProfile === 'default' && !rootLayer ? 'noKbYet' : 'kbUnknown', params: { id: activeProfile },
       detail: { expected: profilePath, home },
-      hint: 'Run `okb setup --profile <id> --kb-root <path>` to create it.',
+      hint: 'Run `okb init` (guided) or `okb setup --profile <id> --kb-root <path>` to create it.',
     });
   }
 

@@ -260,6 +260,18 @@ const focusSchema = z
   })
   .strict();
 
+/**
+ * Natural-language suggestions: when a message looks like an OKB task, the plugin
+ * offers the matching command. Only an offer; other knowledge tools named here
+ * (a support agent's KB, a wiki) are never touched and make OKB ask first.
+ */
+const routingSchema = z
+  .object({
+    suggest: z.boolean().default(true),
+    otherKnowledgeTools: z.array(z.string()).default([]),
+  })
+  .strict();
+
 const gitSchema = z
   .object({
     enabled: z.boolean().default(true),
@@ -308,6 +320,7 @@ export const configSchema = z
     context: contextSchema.default({}),
     git: gitSchema.default({}),
     focus: focusSchema.default({}),
+    routing: routingSchema.default({}),
     policy: policySchema.default({}),
     /** Root of operational state: proposals, runs, caches, logs. Never inside the KB. */
     stateHome: z.string().default(''),

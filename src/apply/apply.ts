@@ -14,6 +14,7 @@ import { assertId, assertInsideRoot, bundlePathToAbsolute, type BundlePath } fro
 import { approvalPath, requireApproval, verifyApproval, type Approval } from './approval.js';
 import { assertGuard, checkPathPolicy, guardApply } from './guard.js';
 import { requireCleanGitTree } from './git.js';
+import { assertWritableKb } from '../kb/registry.js';
 import { withBundleLock } from './lock.js';
 
 export type ApplyResult = { readonly path: BundlePath; readonly action: 'created' | 'updated' | 'deleted' | 'skipped'; readonly sha256: string };
@@ -33,10 +34,11 @@ const hashOf = (text: string | null) => text === null ? null : sha256(text);
 
 export async function applyProposal(config: OkbConfig, proposal: Proposal, options: ApplyOptions = {}): Promise<Receipt> {
   assertProposal(proposal);
-  if (proposal.status === 'superseded') throw new OkbError('E_CONFLICT', 'this proposal was discarded or superseded; prepare a new proposal');
-  if (proposal.profileId !== config.profile.id || resolve(proposal.kbRoot) !== resolve(config.kb.root)) throw new OkbError('E_CONFLICT', 'proposal belongs to a different bundle or profile');
+  if (proposal.status === 'superseded') throw new OkbError('E_CONFLICT', 'this proposal was discarded or superseded; prepare a new proposal', { key: 'supersededProposal' });
+  if (proposal.profileId !== config.profile.id || resolve(proposal.kbRoot) !== resolve(config.kb.root)) throw new OkbError('E_CONFLICT', 'proposal belongs to a different bundle or profile', { key: 'proposalOtherKb', params: { profile: proposal.profileId } });
   await assertStateOutsideKb(config);
   if (!config.changes.keepBackups) throw new OkbError('E_CONFIG', 'transactional apply requires changes.keepBackups: true');
+  if (!options.dryRun) await assertWritableKb(config);
   return withBundleLock(config.kb.root, async () => {
     const grant = await readJsonIfExists<Approval>(approvalPath(config, proposal.id));
     const requested = options.only ?? grant?.selection ?? proposal.changes.map(c => c.id);
@@ -50,14 +52,15 @@ export async function applyProposal(config: OkbConfig, proposal: Proposal, optio
     const id = `rcpt-${proposal.id}`;
     const file = receiptPath(config, id);
     let receipt = await readJsonIfExists<Receipt>(file);
-    if (receipt?.rolledBack) throw new OkbError('E_CONFLICT', 'this proposal was rolled back; prepare a new proposal');
+    if (receipt?.rolledBack) throw new OkbError('E_CONFLICT', 'this proposal was rolled back; prepare a new proposal', { key: 'rolledBackProposal' });
     if (receipt) {
       if (!options.resume && receipt.complete) {
         throw new OkbError('E_CONFLICT', `this proposal is already applied (receipt ${id}); nothing was written`, {
+          key: 'alreadyApplied', params: { when: receipt.appliedAt },
           hint: `Nothing to do. To undo it: okb apply --rollback ${id}`,
         });
       }
-      if (!options.resume) throw new OkbError('E_CONFLICT', 'this apply was interrupted; use --resume or roll back its receipt', { hint: `okb apply ${proposal.id} --resume, or okb apply --rollback ${id}` });
+      if (!options.resume) throw new OkbError('E_CONFLICT', 'this apply was interrupted; use --resume or roll back its receipt', { key: 'applyInterrupted', params: { id: proposal.id, receipt: id }, hint: `okb apply ${proposal.id} --resume, or okb apply --rollback ${id}` });
       if (receipt.proposalContentHash !== proposal.contentHash || JSON.stringify(receipt.selection) !== JSON.stringify(accepted)) throw new OkbError('E_CONFLICT', 'resume must use the same proposal and exact selection');
       await validateReceiptTargets(config, receipt, 'resume');
       // Untouched notes may have moved or disappeared since the interruption.
@@ -86,7 +89,7 @@ export async function applyProposal(config: OkbConfig, proposal: Proposal, optio
         // An external editor does not participate in the OKB lock. Preserve an
         // edit that happened after guardApply, rather than silently treating it
         // as the new baseline for the already-approved replacement.
-        if (hashOf(before) !== proposal.baseline[path]) throw new OkbError('E_STALE', `file changed during preparation for apply: ${path}`, { hint: 'Nothing was written. Prepare the proposal again against the current file.' });
+        if (hashOf(before) !== proposal.baseline[path]) throw new OkbError('E_STALE', `file changed during preparation for apply: ${path}`, { key: 'staleFile', params: { path }, hint: 'Nothing was written. Prepare the proposal again against the current file.' });
         const deletion = pathChanges.some(c => c.kind === 'delete-document');
         if (deletion && (pathChanges.length !== 1 || before === null)) throw new OkbError('E_CONFLICT', 'a deletion must target one existing file');
         const after = deletion ? null : materializeFile(path, before, pathChanges);
@@ -136,8 +139,8 @@ export async function applyProposal(config: OkbConfig, proposal: Proposal, optio
 
 export async function loadReceipt(config: OkbConfig, id: string): Promise<Receipt> {
   const receipt = await readJsonIfExists<Receipt>(receiptPath(config, id));
-  if (!receipt) throw new OkbError('E_NOT_FOUND', `no receipt "${id}"`);
-  if (receipt.id !== id || receipt.profileId !== config.profile.id || resolve(receipt.kbRoot) !== resolve(config.kb.root)) throw new OkbError('E_CONFLICT', 'receipt belongs to another profile or bundle');
+  if (!receipt) throw new OkbError('E_NOT_FOUND', `no receipt "${id}"`, { key: 'receiptUnknown', params: { id } });
+  if (receipt.id !== id || receipt.profileId !== config.profile.id || resolve(receipt.kbRoot) !== resolve(config.kb.root)) throw new OkbError('E_CONFLICT', 'receipt belongs to another profile or bundle', { key: 'receiptOtherKb', params: { id } });
   assertId(receipt.proposalId);
   return receipt;
 }
@@ -153,7 +156,7 @@ async function validateReceiptTargets(config: OkbConfig, receipt: Receipt, mode:
   for (const r of receipt.results) {
     const abs = await safeTarget(config, r.path);
     const current = hashOf(await readTextIfExists(abs));
-    if (current !== (r.sha256 || null) && current !== receipt.beforeHashes[r.path]) throw new OkbError('E_CONFLICT', `cannot ${mode}: ${r.path} has a later edit; nothing overwritten`);
+    if (current !== (r.sha256 || null) && current !== receipt.beforeHashes[r.path]) throw new OkbError('E_CONFLICT', `cannot ${mode}: ${r.path} has a later edit; nothing overwritten`, { key: 'laterEdit', params: { path: r.path } });
     if (mode === 'resume' && r.sha256) {
       const next = await readTextIfExists(resolve(statePaths(config).backups, receipt.proposalId, `${sha256(r.path)}.next`));
       if (next === null || sha256(next) !== r.sha256) throw new OkbError('E_IO', `staged content missing or changed for ${r.path}`);

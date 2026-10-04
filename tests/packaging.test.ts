@@ -104,10 +104,16 @@ describe('shareable package', () => {
     expect(pkg.bin.okb).toBe('dist/cli/index.js');
     expect(pkg.engines.node).toMatch(/>=22/);
     expect(Object.keys(pkg.dependencies).sort()).toEqual([
+      '@clack/prompts',
       'mammoth',
+      'mermaid',
       'node-html-parser',
+      'picocolors',
+      'rehype-sanitize',
+      'rehype-stringify',
       'remark-gfm',
       'remark-parse',
+      'remark-rehype',
       'unified',
       'unist-util-visit',
       'unpdf',

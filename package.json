@@ -1,7 +1,7 @@
 {
   "name": "okb",
   "version": "0.4.0",
-  "description": "Open Knowledge Brain \u2014 a local, profile-driven second brain that ingests sources and proposes reviewed, traceable changes to an OKF knowledge bundle.",
+  "description": "Open Knowledge Brain — a local, profile-driven second brain that ingests sources and proposes reviewed, traceable changes to an OKF knowledge bundle.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -33,10 +33,16 @@
     "release:check": "npm run check && npm run validate:plugin && npm run smoke:package"
   },
   "dependencies": {
+    "@clack/prompts": "^1.8.1",
     "mammoth": "^1.8.0",
+    "mermaid": "^12.1.0",
     "node-html-parser": "^6.1.13",
+    "picocolors": "^1.1.1",
+    "rehype-sanitize": "^6.0.0",
+    "rehype-stringify": "^10.0.1",
     "remark-gfm": "^4.0.0",
     "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
     "unpdf": "1.8.1",

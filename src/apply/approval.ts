@@ -136,6 +136,7 @@ export async function verifyApproval(
 export function requireApproval(check: ApprovalCheck): Approval {
   if (check.ok) return check.approval;
   throw new OkbError(check.code, check.reason, {
+    key: check.code === 'E_NOT_APPROVED' ? 'notApproved' : 'approvalMismatch',
     hint: 'Approval is bound to the exact proposal content and change selection.',
   });
 }

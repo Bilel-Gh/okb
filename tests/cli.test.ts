@@ -205,7 +205,7 @@ describe('packaged CLI', () => {
     expect(again.stderr).toContain('already applied');
     const shown = await okb(['review', planned.proposalId], s.env);
     expect(shown.code).toBe(0);
-    expect(shown.stdout).toContain(`undo with: okb apply --rollback rcpt-${planned.proposalId}`);
+    expect(shown.stdout).toContain('Already applied');
     expect((await okb(['apply', planned.proposalId], s.env)).stderr).toContain('already applied');
     const concepts = await readFile(resolve(s.vault, 'concepts', 'index.md'), 'utf8');
     expect(concepts).toContain('* [Dispatcher](dispatcher.md)');
@@ -325,7 +325,7 @@ describe('packaged CLI', () => {
     await expect(access(approval)).resolves.toBeUndefined();
     const discarded = await okb(['review', prepared.proposalId, '--discard', '--json'], s.env);
     expect(json<{ discarded: string }>(discarded).discarded).toBe(prepared.proposalId);
-    const list = json<{ proposals: { id: string; status: string }[] }>(await okb(['review', '--list', '--json'], s.env));
+    const list = json<{ proposals: { id: string; status: string }[] }>(await okb(['review', '--list', '--all', '--json'], s.env));
     expect(list.proposals.find((p) => p.id === prepared.proposalId)?.status).toBe('superseded');
     expect((await okb(['review', prepared.proposalId, '--discard', '--json'], s.env)).code).not.toBe(0);
     await expect(access(approval)).rejects.toThrow();

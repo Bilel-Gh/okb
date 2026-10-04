@@ -1,5 +1,7 @@
 import { resolve } from 'node:path';
+import { stat } from 'node:fs/promises';
 import YAML from 'yaml';
+import { readOwner, writeOwner } from '../kb/registry.js';
 import type { ConceptAssistLevel } from '../config/schema.js';
 import { configSchema, CONCEPT_ASSIST_LEVELS } from '../config/schema.js';
 import { expandHome, okbHome } from '../config/load.js';
@@ -172,6 +174,14 @@ export async function runSetup(
       { lineWidth: 0 },
     ),
   );
+
+  // Setting up a profile on a folder is the person handing that folder to OKB:
+  // mark it, unless another profile already owns it (then apply refuses).
+  const kbRoot = resolve(expandHome(answers.kbRoot, env));
+  if (await stat(kbRoot).then((s) => s.isDirectory(), () => false)) {
+    const owner = await readOwner(kbRoot);
+    if (owner === null) await writeOwner(kbRoot, answers.profileId);
+  }
 
   return { home, profilePath, rootConfigPath, created, preserved };
 }
