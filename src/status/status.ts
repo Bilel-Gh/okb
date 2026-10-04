@@ -3,6 +3,8 @@ import { readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import type { Receipt } from '../apply/apply.js';
+import { BUILTIN_CATEGORIES, categorise, loadCategories, templateCategories } from '../categories/categories.js';
+import { loadTemplates } from '../templates/registry.js';
 import type { OkbConfig } from '../config/schema.js';
 import { readFocus, type LastSession } from '../focus/focus.js';
 import { listInbox } from '../inbox/inbox.js';
@@ -177,6 +179,8 @@ export type Status = {
   readonly writingLanguage: string;
   readonly notes: number;
   readonly concepts: number;
+  /** Notes per category (src/categories), in category order, empty ones left out. */
+  readonly categories: readonly { readonly id: string; readonly emoji: string; readonly ansi: number; readonly label: string; readonly count: number }[];
   readonly focus: { readonly exists: boolean; readonly path: string; readonly ageDays: number | null; readonly stale: boolean };
   readonly lastSession: LastSession | null;
   readonly inbox: { readonly open: number; readonly oldestDays: number | null };
@@ -193,6 +197,14 @@ export async function computeStatus(config: OkbConfig, options: { bundle?: Bundl
   const bundle = options.bundle ?? (await loadBundleFor(config));
   const conceptsPrefix = `${config.kb.layout.concepts}/`;
   const notes = bundle.entries.filter((e) => !e.reserved && !e.path.endsWith('index.md'));
+  const [cats, templates] = await Promise.all([loadCategories(config).catch(() => [...BUILTIN_CATEGORIES]), loadTemplates(config).catch(() => [])]);
+  const byTemplate = templateCategories(templates);
+  const perCategory = new Map<string, number>();
+  for (const e of notes) {
+    const { category } = categorise({ path: e.path, type: e.type, template: e.ext.template, explicit: (e.ext as { category?: unknown }).category }, cats, byTemplate);
+    perCategory.set(category, (perCategory.get(category) ?? 0) + 1);
+  }
+  const language = config.writing.language ?? config.profile.answer.language;
   const [focus, inbox, summaries, applied, report, git, owner] = await Promise.all([
     readFocus(config, { now }), listInbox(config, { now }), proposalSummaries(config), receipts(config),
     options.light ? Promise.resolve(null) : maintain(config, { bundle, now }),
@@ -218,6 +230,7 @@ export async function computeStatus(config: OkbConfig, options: { bundle?: Bundl
     writingLanguage: config.profile.answer.language,
     notes: notes.length,
     concepts: notes.filter((e) => e.path.startsWith(conceptsPrefix)).length,
+    categories: cats.filter((c) => perCategory.get(c.id)).map((c) => ({ id: c.id, emoji: c.emoji, ansi: c.ansi, label: language.startsWith('fr') ? c.label.fr : c.label.en, count: perCategory.get(c.id)! })),
     focus: { exists: focus.exists, path: focus.path, ageDays: focus.ageDays, stale: focus.stale },
     lastSession: focus.lastSession,
     inbox: { open: inbox.length, oldestDays: inbox[0]?.ageDays ?? null },

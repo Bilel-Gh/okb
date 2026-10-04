@@ -105,6 +105,7 @@ describe('shareable package', () => {
     expect(pkg.engines.node).toMatch(/>=22/);
     expect(Object.keys(pkg.dependencies).sort()).toEqual([
       '@clack/prompts',
+      'd3-force',
       'mammoth',
       'mermaid',
       'node-html-parser',

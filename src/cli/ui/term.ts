@@ -45,6 +45,8 @@ export const paint = {
   name: (s: string) => (colorOn ? `\x1b[1m\x1b[38;5;36m${s}\x1b[39m\x1b[22m` : s),
   /** A file or folder, home written `~`. */
   path: (s: string) => c.cyan(tilde(s)),
+  /** A 256-colour foreground (note categories). */
+  ansi: (code: number, s: string) => (colorOn ? `\x1b[38;5;${code}m${s}\x1b[39m` : s),
 };
 
 /** Yes in green, no dimmed: a recap reads at a glance. */

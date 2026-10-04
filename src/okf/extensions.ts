@@ -37,6 +37,8 @@ export type OkbExtension = {
   linked?: string[];
   /** Note template the note follows (`okb template list`). */
   template?: string;
+  /** Category chosen by hand; otherwise derived from the template, type or folder (src/categories). */
+  category?: string;
   /** Style the prose was last written in; lets maintenance list notes worth revising. */
   writing?: { preset: string; language: string };
   /** Verification events that covered an earlier version of the text. */

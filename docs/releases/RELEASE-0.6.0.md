@@ -93,6 +93,29 @@ ticket.
 - **Sept modèles de notes** : `repo-overview`, `repo-start`, `repo-architecture`,
   `repo-interfaces`, `repo-delivery`, `repo-codemap`, `repo-ticket`.
 
+## Le graphe et les catégories
+
+- **Neuf catégories de notes**, chacune avec sa couleur et son emoji, partout :
+  graphe, liste des notes (pastilles et filtre), lecture, recherche, relecture
+  des propositions, page d'accueil, terminal (`okb status`, `okb categories`,
+  `okb template list` groupé).
+- La catégorie vient du modèle de la note, de son type ou de son dossier. Rien
+  n'est écrit dans les notes. Pour en changer, `okb categories set <note>
+  <catégorie>` ou la pastille de la note dans l'appli web prépare une
+  proposition.
+- **Trois nouveaux modèles** : `tutorial` (tuto), `client-case` (cas client),
+  `path` (parcours).
+- Catégories propres à une KB dans `.okb/categories.yaml`.
+  `okb maintain` signale les notes sans catégorie.
+- **Graphe** dans l'application web (page Graphe) :
+  - notes et liens, couleur par catégorie, taille selon les liens ;
+  - zoom, déplacement, voisinage d'une note, filtres par catégorie et par zone ;
+  - regroupement, recherche.
+- **Graphe local** sous chaque note, avec les rétroliens et les liens sortants
+  exacts.
+- **Page Catégories** : ce qu'on range dans chacune, ses modèles, les notes sans
+  catégorie.
+
 ## Vérification
 
 Voir le tableau de [DECISIONS.md](../dev/DECISIONS.md) (D28). Tests sur un repo

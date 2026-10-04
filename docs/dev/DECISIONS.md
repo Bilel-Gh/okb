@@ -402,3 +402,20 @@ Le diagnostic et les contrats Claude consultés sont dans
 - **Réexamen.** Si une équipe veut partager sa KB : export dans `docs/` du repo, sur
   demande explicite. Si la détection par motifs rate trop de cas sur un écosystème :
   ajouter un détecteur dédié plutôt que des règles générales.
+
+## D29 — Catégories de notes et graphe
+
+- **Problème.** Une KB qui grandit devient illisible sans repères visuels ; Obsidian
+  donnait un graphe, mais sans connaître les types de notes d’OKB.
+- **Décision.** Neuf catégories fixes (concept, comprendre, faire, process et outils,
+  cas et retours, décisions, réunions et sources, parcours, autres), une couleur et un
+  emoji chacune, partout (graphe, notes, recherche, relecture, terminal). La catégorie
+  est **déduite** (choix explicite `x_okb.category`, puis modèle, type, dossier) : rien
+  n’est écrit dans les notes, et renommer ou recolorer ne réécrit rien. Surcharges par
+  KB dans `.okb/categories.yaml`. Changer la catégorie d’une note passe par une
+  proposition. Nouveaux modèles `tutorial`, `client-case`, `path`. Graphe calculé à
+  partir des liens Markdown analysés (pas de recherche de texte), affiché en canvas avec
+  d3-force (déjà présent via Mermaid, déclaré en dépendance directe).
+- **Conséquence.** Les rétroliens deviennent exacts. Obsidian est facultatif.
+- **Réexamen.** Au-delà de quelques milliers de notes : rendu WebGL ou agrégation par zone.
+

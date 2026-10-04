@@ -76,7 +76,7 @@ describe('note templates', () => {
   it('ships six templates, each with required landmarks, and a skeleton for hand-written notes', async () => {
     const { config } = await setup();
     const all = await loadTemplates(config);
-    expect(all.map((t) => t.id)).toEqual(['guide', 'concept', 'procedure', 'process', 'tool', 'automation', 'experience', 'decision', 'meeting', 'repo-overview', 'repo-architecture', 'repo-start', 'repo-interfaces', 'repo-delivery', 'repo-codemap', 'repo-ticket']);
+    expect(all.map((t) => t.id)).toEqual(['guide', 'concept', 'procedure', 'process', 'tool', 'automation', 'experience', 'decision', 'meeting', 'tutorial', 'client-case', 'path', 'repo-overview', 'repo-architecture', 'repo-start', 'repo-interfaces', 'repo-delivery', 'repo-codemap', 'repo-ticket']);
     for (const t of all) expect(t.sections.some((s) => s.required)).toBe(true);
     const skeleton = renderSkeleton(await getTemplate(config, 'experience'), 'fr', true);
     expect(skeleton).toContain('## 🧩 Contexte');

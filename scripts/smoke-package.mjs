@@ -29,7 +29,7 @@ async function smokeReader(bin, proposalId) {
     const page = await fetch(url);
     assert.equal(page.status, 200);
     assert((await page.text()).includes('/js/main.js'));
-    for (const asset of ['/js/main.js', '/js/core.js', '/js/views/review.js', '/app.css', '/favicon.svg', '/vendor/mermaid.js']) assert.equal((await fetch(`${url}${asset}`)).status, 200, asset);
+    for (const asset of ['/js/main.js', '/js/core.js', '/js/views/review.js', '/app.css', '/favicon.svg', '/vendor/mermaid.js', '/vendor/d3-force.js', '/js/graph.js']) assert.equal((await fetch(`${url}${asset}`)).status, 200, asset);
     assert.equal((await fetch(`${url}/api/capture`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"text":"x"}' })).status, 403);
     assert((await (await fetch(`${url}/api/status`)).json()).name);
     assert((await (await fetch(`${url}/api/search?q=dispatcher`)).json()).hits.length > 0);

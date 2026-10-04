@@ -40,6 +40,8 @@ ne transforme une affirmation en fait techniquement vérifié.
 | `nav/`, `migrate/`, `maintain/` | opérations d’entretien utilisant le même contrat de proposition |
 | `style/` | préréglages, résolution par couches et demande ponctuelle, brief de rédaction, libellés fixes |
 | `templates/` | modèles de notes (sections, ordre, titres, consignes), surcharges par KB |
+| `categories/` | catégories de notes (couleur, emoji, modèles, types, dossiers), déduites sans rien écrire ; surcharges `.okb/categories.yaml` ; changement par proposition |
+| `kb/graph.ts` | le graphe de la KB : nœuds, liens exacts (Markdown analysé), prérequis, rétroliens, comptes par catégorie |
 | `revise/` | révision du style d’une note : éléments protégés, frontmatter, proposition de remplacement |
 | `web/` | lecteur local sans mutations : notes, recherche, propositions exactes, style et audit |
 | `security/` | détection des secrets (clés, jetons, identifiants) dans propositions, captures, focus et notes |

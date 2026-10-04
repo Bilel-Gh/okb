@@ -21,9 +21,11 @@ Tu peux tout faire de trois façons, au choix :
 3. [Une KB pour chaque repo de code](repos.md) — être onboardé sur un repo inconnu,
    puis enrichir sa KB après chaque ticket.
 4. [L’application web](application-web.md) — tout ce que fait le terminal, en clics.
-5. [Réglages](reglages.md) — langues, style d’écriture, plusieurs KB, cohabitation
+5. [Le graphe et les catégories](graphe-et-categories.md) — voir toutes tes notes
+   et leurs liens, une couleur par type de note, et à quoi sert encore Obsidian.
+6. [Réglages](reglages.md) — langues, style d’écriture, plusieurs KB, cohabitation
    avec d’autres outils.
-6. [Dépannage](depannage.md) — comprendre une erreur et la corriger.
+7. [Dépannage](depannage.md) — comprendre une erreur et la corriger.
 
 Les documents techniques (architecture, décisions, sécurité) sont dans
 [docs/dev](../dev/).

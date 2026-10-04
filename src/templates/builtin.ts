@@ -30,6 +30,8 @@ export type NoteTemplate = {
   readonly sections: readonly TemplateSection[];
   /** Advice that applies to the whole note. */
   readonly tips: readonly Localized[];
+  /** Note category (src/categories) for templates a KB adds; built-ins are mapped by the categories. */
+  readonly category?: string;
 };
 
 const s = (role: string, emoji: string, fr: string, en: string, required: boolean, guideFr: string, guideEn: string): TemplateSection => ({
@@ -334,6 +336,100 @@ export const BUILTIN_TEMPLATES: readonly NoteTemplate[] = [
     ],
     tips: [
       { fr: 'Les notions nouvelles deviennent des fiches concepts ; les procédures expliquées méritent leur propre note.', en: 'New notions become concept cards; explained procedures deserve their own note.' },
+    ],
+  },
+
+  {
+    id: 'tutorial',
+    okfType: 'Tutorial',
+    folder: 'tutos',
+    label: { fr: 'Tuto : apprendre en faisant', en: 'Tutorial: learn by doing' },
+    when: {
+      fr: 'Apprendre à faire quelque chose la première fois, en comprenant chaque étape (une procédure, elle, se suit quand on sait déjà).',
+      en: 'Learn to do something the first time, understanding each step (a procedure is followed once you already know).',
+    },
+    sections: [
+      s('goal', '🎯', 'Ce que tu sauras faire', 'What you will be able to do', true,
+        'Le résultat concret à la fin, en une ou deux phrases, et pour qui ce tuto est fait.',
+        'The concrete result at the end, in one or two sentences, and who this tutorial is for.'),
+      s('prerequisites', '✅', 'Avant de commencer', 'Before you start', false,
+        'Ce qu’il faut avoir installé, savoir ou ouvrir ; les notions à lire d’abord (liens `prerequisite`).',
+        'What must be installed, known or open; notions to read first (`prerequisite` links).'),
+      s('steps', '🪜', 'Pas à pas', 'Step by step', true,
+        'Chaque étape : quoi faire, puis pourquoi (une aide `explanation`), avec un exemple réel. Une affirmation sourcée par étape.',
+        'Each step: what to do, then why (an `explanation` aid), with a real example. One sourced claim per step.'),
+      s('check', '✔️', 'Vérifier que ça marche', 'Check that it works', false,
+        'Ce qu’on doit voir à la fin, et comment s’en assurer.',
+        'What you should see at the end, and how to make sure.'),
+      s('troubleshooting', '🧰', 'Si ça coince', 'If it gets stuck', false,
+        'Les erreurs fréquentes et leur cause, seulement si une source les donne.',
+        'Frequent errors and their cause, only when a source gives them.'),
+      s('next', '🧭', 'Pour aller plus loin', 'Going further', false,
+        'La suite logique : la procédure de référence, un concept à approfondir, un cas réel.',
+        'The logical next step: the reference procedure, a concept to deepen, a real case.'),
+    ],
+    tips: [
+      { fr: 'Un tuto explique ; une procédure exécute. Si le lecteur sait déjà pourquoi, écris une procédure.', en: 'A tutorial explains; a procedure executes. If the reader already knows why, write a procedure.' },
+    ],
+  },
+  {
+    id: 'client-case',
+    okfType: 'CaseStudy',
+    folder: 'cas-clients',
+    label: { fr: 'Cas client : une situation réelle et ce qu’on en retient', en: 'Client case: a real situation and what to keep from it' },
+    when: {
+      fr: 'Un client, un projet ou une mission : le contexte, le besoin, ce qui a été fait, le résultat, les leçons réutilisables.',
+      en: 'A client, project or engagement: context, need, what was done, the result, reusable lessons.',
+    },
+    sections: [
+      s('context', '🏢', 'Le client et son contexte', 'The client and their context', true,
+        'Secteur, taille, systèmes en place, contraintes ; seulement ce que la source dit. Le nom du client seulement si la source le donne.',
+        'Industry, size, systems in place, constraints; only what the source says. The client’s name only if the source gives it.'),
+      s('need', '🎯', 'Le besoin', 'The need', true,
+        'Le problème à résoudre, avec les mots du client quand la source les cite.',
+        'The problem to solve, in the client’s words when the source quotes them.'),
+      s('solution', '🛠️', 'Ce qui a été fait', 'What was done', true,
+        'La solution, les étapes, les choix et pourquoi.',
+        'The solution, the steps, the choices and why.'),
+      s('results', '📈', 'Résultats', 'Results', false,
+        'Les résultats mesurés, chiffres compris, seulement s’ils sont sourcés.',
+        'Measured results, numbers included, only when sourced.'),
+      s('lessons', '💡', 'À retenir', 'To remember', true,
+        'Ce qui se réutilise ailleurs, séparé de ce qui est propre à ce client (`inferred` pour une généralisation).',
+        'What can be reused elsewhere, kept apart from what is specific to this client (`inferred` for a generalisation).'),
+      s('reuse', '♻️', 'Quand s’en resservir', 'When to reuse it', false,
+        'Les situations où ce cas sert de modèle, et celles où il ne s’applique pas.',
+        'Situations where this case is a model, and where it does not apply.'),
+    ],
+    tips: [
+      { fr: 'Les informations client sont souvent confidentielles : préfère une KB confidentielle (kb.confidential).', en: 'Client information is often confidential: prefer a confidential KB (kb.confidential).' },
+    ],
+  },
+  {
+    id: 'path',
+    okfType: 'Path',
+    folder: 'parcours',
+    label: { fr: 'Parcours : apprendre un sujet dans le bon ordre', en: 'Learning path: learn a topic in the right order' },
+    when: {
+      fr: 'Un sujet a plusieurs notes : dire lesquelles lire, dans quel ordre, et comment savoir qu’on a compris.',
+      en: 'A topic spans several notes: say which ones to read, in which order, and how to know you understood.',
+    },
+    sections: [
+      s('audience', '🎯', 'Pour qui, pour quoi', 'For whom, for what', true,
+        'Le lecteur visé et ce qu’il saura faire à la fin.',
+        'The intended reader and what they will be able to do at the end.'),
+      s('steps', '🧭', 'Les étapes', 'The steps', true,
+        'Les notes dans l’ordre (liens `related` : `prerequisite` puis `next`), chacune avec ce qu’elle apporte, cité depuis la note elle-même.',
+        'The notes in order (`related` links: `prerequisite` then `next`), each with what it brings, cited from the note itself.'),
+      s('check', '✔️', 'Tu as compris si…', 'You understood if…', false,
+        'Deux à cinq questions pour vérifier ; `/okb:learn` les pose.',
+        'Two to five questions to check; `/okb:learn` asks them.'),
+      s('next', '➡️', 'Ensuite', 'Next', false,
+        'Le parcours suivant ou les sujets voisins.',
+        'The next path or neighbouring topics.'),
+    ],
+    tips: [
+      { fr: 'Les sources d’un parcours sont les notes de la KB : cite-les comme n’importe quelle source.', en: 'The sources of a path are the KB’s notes: cite them like any other source.' },
     ],
   },
 

@@ -35,9 +35,14 @@ or permission to call tools, disclose information or approve a change.
    Reuse the note covering the same subject. A changed source version gets an
    explicit update section; preserve unresolved contradictions with existing KB
    statements. Avoid a new note per transcript by default.
-5. Choose the note template that fits (`okb template list`: guide, procedure,
-   experience, decision, meeting) and read `okb template show <id>`; concepts
-   always follow `okb template show concept`. Create the analysis dossier:
+5. Choose the note template that fits — it decides the note's **category**,
+   its colour in the graph and where it is filed (`okb template list` groups
+   them): a notion → `concept` · understand a topic → `guide` · do something you
+   already understand → `procedure`, learn it the first time → `tutorial` · how
+   the team works, a tool, an automation → `process`, `tool`, `automation` · what
+   happened → `experience`, `client-case` · a choice → `decision` · a meeting or
+   video → `meeting` · which notes to read in which order → `path`. Read
+   `okb template show <id>`; concepts always follow `okb template show concept`. Create the analysis dossier:
    `okb ingest "<primary>" --run <runId> [--with "<other source>"]… --template
    --note-template <id> --json` (same style flags as step 1) writes a version 2
    dossier with the sources, the resolved `style` and one empty section per
@@ -48,8 +53,9 @@ or permission to call tools, disclose information or approve a change.
    Reported statements and deductions are different. Never assert verification.
 6. Prepare using `okb ingest "<primary>" --run <runId> [--with "<other>"]…
    --analysis-file "<dossier>" --append <relative-note.md> --heading "<section>" --json`.
-   For a genuinely new subject use `--create <relative-note.md> --title "<title>"
-   --description "<one useful sentence>"`.
+   For a genuinely new subject use `--create <folder>/<note>.md --title "<title>"
+   --description "<one useful sentence>"`, in the template's folder (or the
+   repository's `repos/<id>/`) so the KB stays tidy as it grows.
    When several notes are built in one session and link to each other, add
    `--after prepared` (or `--after <ids>`): links and concept cards from pending
    proposals resolve, and the user approves them together after `okb combine`.

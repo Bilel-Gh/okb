@@ -124,10 +124,13 @@ okb doctor     # check everything; --fix repairs what it can
 | Get started on a code repository | “I'm new to this repo” · `/okb:onboard` | Repositories | `okb repo add` · `okb repo status` |
 | Feed the repository's KB after a ticket | “I finished my ticket” · `/okb:ticket` | Repositories | `okb repo ticket` · `okb repo update` |
 | Turn a procedure into a Claude skill | “turn this procedure into a skill” | Procedures → skills | `okb skillify` |
+| See all notes and how they connect | “show me my graph” | Graph | `okb categories` |
 | Check and repair the KB | “check my KB” | Health · Diagnostics | `okb maintain` · `okb doctor` |
 | Settings, languages, several KBs | — | Settings · KB switcher | `okb settings` · `okb kb` · `okb new` |
 
 ![Reviewing a proposal in the web app](docs/images/web-review.png)
+
+![The graph: every note and link, coloured by kind](docs/images/web-graph.png)
 
 ## Features
 
@@ -135,8 +138,9 @@ okb doctor     # check everything; --fix repairs what it can
 |---|---|
 | **Ingest** | Transcripts, documents, pages and source code, alone or several per note; bounded extraction, nothing executed |
 | **Evidence** | Claims backed by exact quotes; teaching aids (explanation, analogy with its limits, Mermaid diagram, example) tied to the claims they rephrase |
+| **Graph & categories** | Every note and link in a living graph, coloured by kind (concepts, guides, how-tos, processes, cases, decisions, meetings, learning paths); local graph under each note; exact backlinks; categories per KB in `.okb/categories.yaml` |
 | **Code repositories** | Deterministic map, reading plan, 25 onboarding questions, notes cited at the line, diagrams tied to real paths, freshness against Git, ticket follow-up, multi-repository landscape, confidential KBs |
-| **Templates** | Guide, concept, procedure, process, tool, automation, experience, decision, meeting, and seven repository templates — fixed sections, headings and order |
+| **Templates** | Guide, concept, procedure, tutorial, process, tool, automation, experience, client case, decision, meeting, learning path, and seven repository templates — fixed sections, headings and order |
 | **Style** | Presets `standard`, `pedagogique`, `expert` plus eight knobs and a reader level; a style change never rewrites existing notes |
 | **Languages** | Interface in French or English (automatic by default); notes written in French, English, Spanish, German, Italian or Portuguese, per KB |
 | **Review & apply** | Exact diffs, partial selection, signed approval, path policy, lock, receipts, undo, optional Git commit per apply |

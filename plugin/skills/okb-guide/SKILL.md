@@ -13,9 +13,10 @@ description: Show where the user's OKB second brain stands and what they can do 
 1. Run `okb status --json` (and `okb kb --json` when the user has several KBs).
    Inside a code repository, also `okb repo status --json`: show its notes,
    coverage and open questions, and offer `/okb:onboard` or `/okb:ticket`.
-2. Show a five-line dashboard: the KB and its number of notes; the focus (age,
+2. Show a five-line dashboard: the KB and its number of notes per category
+   (`categories` in the status); the focus (age,
    stale or missing); the last session's « next time »; the inbox; the proposals
-   waiting (number, title). Mention the web app (`okb serve`) once.
+   waiting (number, title). Mention the web app (`okb serve`) once: its graph shows every note and link, coloured by category.
 3. Offer the two or three actions that make sense now, as buttons, the most
    useful first: proposals waiting → review them; no focus → write it; inbox not
    empty → sort it; end of the day → end the session; Monday → weekly review;

@@ -124,6 +124,7 @@ export async function maintain(
   if (options.checkSources) issues.push(...(await checkSourceFreshness(config, bundle)));
   issues.push(...duplicateSurfaces(bundle));
   issues.push(...orphans(bundle));
+  issues.push(...(await uncategorized(config, bundle)));
   issues.push(...secretsInNotes(bundle));
 
   const summary: Record<string, number> = {};
@@ -194,6 +195,23 @@ function duplicateSurfaces(bundle: Bundle): MaintainIssue[] {
       message: `"${surface}" resolves to ${paths.length} documents: ${paths.join(', ')}`,
       hint: 'Declare x_okb.senses on each, or rename one; links to this term are suppressed meanwhile.',
     });
+  }
+  return out;
+}
+
+/** Notes no template, type, folder or explicit choice puts in a category: they fall in "other". */
+async function uncategorized(config: OkbConfig, bundle: Bundle): Promise<MaintainIssue[]> {
+  const { categorise, loadCategories, templateCategories } = await import('../categories/categories.js');
+  const { loadTemplates } = await import('../templates/registry.js');
+  const [categories, templates] = await Promise.all([loadCategories(config).catch(() => null), loadTemplates(config).catch(() => [])]);
+  if (!categories) return [];
+  const byTemplate = templateCategories(templates);
+  const out: MaintainIssue[] = [];
+  for (const entry of bundle.entries) {
+    if (entry.reserved) continue;
+    const { category } = categorise({ path: entry.path, type: entry.type, template: entry.ext.template, explicit: (entry.ext as { category?: unknown }).category }, categories, byTemplate);
+    if (category !== 'other') continue;
+    out.push({ code: 'NO_CATEGORY', level: 'info', path: entry.path, message: 'no template, type or folder gives this note a category', hint: `okb categories set ${entry.path} <category>` });
   }
   return out;
 }

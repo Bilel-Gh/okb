@@ -1,4 +1,4 @@
-import { h, t, get, icon, empty, loading, TYPE_ICON } from '../core.js';
+import { h, t, get, icon, empty, loading, TYPE_ICON, categories, catDot, catOf } from '../core.js';
 import { setTitle, go } from '../main.js';
 
 function highlight(text, words) {
@@ -26,10 +26,11 @@ export async function render({ query, mount }) {
   if (!r.hits.length) { results.append(empty('🤔', t('ask.none'), t('ask.noneTip'))); return; }
   const words = q.split(/\s+/).filter((w) => w.length > 2);
   results.append(h('div', { class: 'muted small' }, t('ask.found', { n: r.hits.length, query: q })));
+  const cats = await categories().catch(() => []);
   for (const hit of r.hits) {
     const ev = r.evidence.filter((e) => e.path === hit.path).slice(0, 3);
     results.append(h('div', { class: 'card hover', onclick: () => go(`#/note/${encodeURIComponent(hit.path)}`) },
-      h('div', { class: 'row' }, h('span', null, TYPE_ICON[hit.type] ?? '📄'), h('b', null, hit.title), h('span', { class: 'mono muted' }, hit.path)),
+      h('div', { class: 'row' }, cats.length ? catDot(catOf(cats, hit.noteCategory), 10) : h('span', null, TYPE_ICON[hit.type] ?? '📄'), h('b', null, hit.title), h('span', { class: 'mono muted' }, hit.path)),
       hit.description ? h('div', { class: 'muted', style: { marginTop: '4px' } }, hit.description) : null,
       ev.length ? h('div', { class: 'stack', style: { marginTop: '10px', gap: '6px' } }, ev.map((e) => h('div', { class: 'small', style: { borderLeft: '3px solid var(--brand)', paddingLeft: '10px', color: 'var(--text-2)' } },
         highlight(e.quote.replace(/\s+/g, ' ').slice(0, 280), words), h('span', { class: 'muted' }, ` · l.${e.line}`)))) : null));

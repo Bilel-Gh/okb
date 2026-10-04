@@ -1,0 +1,143 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { applyProposal } from '../src/apply/apply.js';
+import { grantApproval } from '../src/apply/approval.js';
+import { proposeCategory } from '../src/categories/assign.js';
+import { BUILTIN_CATEGORIES, categorise, loadCategories, mergeCategories } from '../src/categories/categories.js';
+import { loadBundleFor } from '../src/kb/bundle.js';
+import { buildGraph, neighbours } from '../src/kb/graph.js';
+import { maintain } from '../src/maintain/maintain.js';
+import { saveProposal } from '../src/proposal/store.js';
+import { suggestIntent } from '../src/routing/intent.js';
+import { computeStatus } from '../src/status/status.js';
+import { loadTemplates } from '../src/templates/registry.js';
+import { serve } from '../src/web/serve.js';
+import { makeSandbox, type Sandbox } from './helpers/sandbox.js';
+
+const sandboxes: Sandbox[] = [];
+const closers: (() => Promise<void>)[] = [];
+afterEach(async () => {
+  for (const c of closers.splice(0)) await c();
+  await Promise.all(sandboxes.splice(0).map((s) => s.cleanup()));
+});
+
+async function env() {
+  const s = await makeSandbox({ profileId: 'acme' });
+  sandboxes.push(s);
+  return { s, config: await s.config() };
+}
+
+describe('note categories', () => {
+  it('decide from an explicit choice, then the template, the type, the folder', () => {
+    const cats = [...BUILTIN_CATEGORIES];
+    expect(categorise({ path: 'x/a.md', template: 'tutorial', type: 'Concept', explicit: 'decision' }, cats)).toEqual({ category: 'decision', via: 'explicit' });
+    expect(categorise({ path: 'x/a.md', template: 'tutorial', type: 'Concept' }, cats)).toEqual({ category: 'howto', via: 'template' });
+    expect(categorise({ path: 'x/a.md', template: 'repo-ticket' }, cats)).toEqual({ category: 'case', via: 'template' });
+    expect(categorise({ path: 'x/a.md', type: 'runbook' }, cats)).toEqual({ category: 'howto', via: 'type' });
+    expect(categorise({ path: 'cas-clients/energie.md' }, cats)).toEqual({ category: 'case', via: 'folder' });
+    expect(categorise({ path: 'brouillons/idee.md', type: 'Note' }, cats)).toEqual({ category: 'other', via: 'none' });
+    expect(categorise({ path: 'a.md', explicit: 'nope', template: 'path' }, cats).category).toBe('path');
+    const ids = cats.map((c) => c.id);
+    expect(ids).toEqual(['concept', 'guide', 'howto', 'process', 'case', 'decision', 'source', 'path', 'other']);
+    expect(new Set(cats.map((c) => c.color)).size).toBe(cats.length);
+  });
+
+  it('let a KB rename, recolour, add categories and move templates', async () => {
+    const { s, config } = await env();
+    await mkdir(resolve(s.vault, '.okb'), { recursive: true });
+    await writeFile(resolve(s.vault, '.okb', 'categories.yaml'), [
+      'categories:',
+      '  - id: case',
+      '    label: { fr: Incidents, en: Incidents }',
+      '    color: "#b45309"',
+      '  - id: client',
+      '    label: { fr: Clients, en: Clients }',
+      '    emoji: "🏢"',
+      '    templates: [client-case]',
+      '    folders: [clients]',
+      '',
+    ].join('\n'));
+    const cats = await loadCategories(config);
+    expect(cats.map((c) => c.id)).toEqual(['concept', 'guide', 'howto', 'process', 'case', 'decision', 'source', 'path', 'client', 'other']);
+    expect(cats.find((c) => c.id === 'case')).toMatchObject({ label: { fr: 'Incidents' }, color: '#b45309', templates: ['experience', 'repo-ticket'] });
+    expect(categorise({ path: 'a.md', template: 'client-case' }, cats).category).toBe('client');
+    expect(categorise({ path: 'clients/x.md' }, cats).category).toBe('client');
+    await writeFile(resolve(s.vault, '.okb', 'categories.yaml'), 'categories: [{ id: Bad }]\n');
+    await expect(loadCategories(config)).rejects.toMatchObject({ code: 'E_CONFIG' });
+    expect(mergeCategories(BUILTIN_CATEGORIES, [])).toHaveLength(BUILTIN_CATEGORIES.length);
+  });
+
+  it('draw the KB as a graph of exact links, with prerequisites and counts', async () => {
+    const { config } = await env();
+    const bundle = await loadBundleFor(config);
+    const graph = buildGraph(bundle, await loadCategories(config), await loadTemplates(config));
+    expect(graph.nodes.map((n) => n.id)).toEqual(['architecture/fleet-overview.md', 'concepts/dispatcher.md', 'concepts/idempotence.md', 'concepts/telemetry-channel.md', 'flows/run-a-delivery-job.md', 'reference/glossary.md']);
+    expect(graph.edges).toHaveLength(11);
+    expect(graph.edges.filter((e) => e.kind === 'prereq').map((e) => `${e.source}>${e.target}`).sort()).toEqual(['concepts/dispatcher.md>concepts/idempotence.md', 'flows/run-a-delivery-job.md>concepts/dispatcher.md', 'flows/run-a-delivery-job.md>concepts/idempotence.md']);
+    const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+    expect(byId.get('concepts/dispatcher.md')).toMatchObject({ category: 'concept', in: 4, out: 3, folder: 'concepts', area: 'concepts' });
+    expect(byId.get('architecture/fleet-overview.md')!.category).toBe('guide');
+    expect(byId.get('flows/run-a-delivery-job.md')!.category).toBe('howto');
+    expect(graph.categories.find((c) => c.id === 'concept')!.count).toBe(3);
+    const { incoming, outgoing } = neighbours(graph, 'concepts/idempotence.md');
+    expect(incoming.map((n) => n.id).sort()).toEqual(['concepts/dispatcher.md', 'flows/run-a-delivery-job.md', 'reference/glossary.md']);
+    expect(outgoing.map((n) => n.id)).toEqual(['concepts/dispatcher.md']);
+    const withNav = buildGraph(bundle, await loadCategories(config), [], { includeNav: true });
+    expect(withNav.nodes.some((n) => n.id === 'index.md')).toBe(true);
+    const status = await computeStatus(config, { light: true });
+    expect(status.categories.map((c) => [c.id, c.count])).toEqual([['concept', 3], ['guide', 2], ['howto', 1]]);
+  });
+
+  it('move a note to another category through a proposal the person approves', async () => {
+    const { s, config } = await env();
+    await writeFile(resolve(s.vault, 'idee.md'), '---\ntype: Note\ntitle: Idée\ndescription: x\nstatus: draft\ngenerated: { by: "human:testuser", at: 2026-01-01T00:00:00Z }\n---\n\nUne idée.\n');
+    expect((await maintain(config)).issues.filter((i) => i.code === 'NO_CATEGORY').map((i) => i.path)).toEqual(['idee.md']);
+    const proposal = await proposeCategory(config, 'idee.md', 'decision');
+    expect(proposal.changes).toHaveLength(1);
+    expect(proposal.changes[0]).toMatchObject({ kind: 'patch-frontmatter', label: 'category of idee.md: other → decision' });
+    expect(await readFile(resolve(s.vault, 'idee.md'), 'utf8')).not.toContain('category');
+    await saveProposal(config, proposal);
+    await grantApproval(config, proposal, ['c-category'], 'human:testuser');
+    await applyProposal(config, proposal);
+    const text = await readFile(resolve(s.vault, 'idee.md'), 'utf8');
+    expect(text).toMatch(/x_okb:\n {2}v: 1\n {2}category: decision/);
+    expect(text).toContain('Une idée.');
+    expect((await maintain(config)).issues.some((i) => i.code === 'NO_CATEGORY')).toBe(false);
+    await expect(proposeCategory(config, 'idee.md', 'decision')).rejects.toMatchObject({ key: 'categorySame' });
+    await expect(proposeCategory(config, 'idee.md', 'nope')).rejects.toMatchObject({ key: 'categoryUnknown' });
+    await expect(proposeCategory(config, 'absent.md', 'guide')).rejects.toMatchObject({ key: 'noteUnknown' });
+    expect((await proposeCategory(config, 'idee.md', 'auto')).changes[0]!.label).toBe('category of idee.md: back to automatic');
+  });
+
+  it('serve the graph, the categories and exact backlinks to the web app', async () => {
+    const { s, config } = await env();
+    const { server, url } = await serve(config, { port: 0, env: s.env });
+    closers.push(() => new Promise<void>((done) => { server.closeAllConnections(); server.close(() => done()); }));
+    const graph = await (await fetch(`${url}/api/graph`)).json();
+    expect(graph.nodes).toHaveLength(6);
+    expect(graph.categories[0]).toMatchObject({ id: 'concept', count: 3, emoji: '💡' });
+    const note = await (await fetch(`${url}/api/note?path=concepts/idempotence.md`)).json();
+    expect(note.category).toBe('concept');
+    expect(note.backlinks.map((b: { path: string }) => b.path).sort()).toEqual(['concepts/dispatcher.md', 'flows/run-a-delivery-job.md', 'reference/glossary.md']);
+    expect(note.outlinks).toEqual([{ path: 'concepts/dispatcher.md', title: 'Dispatcher', category: 'concept' }]);
+    const notes = await (await fetch(`${url}/api/notes`)).json();
+    expect(notes.notes.find((n: { path: string }) => n.path === 'flows/run-a-delivery-job.md').category).toBe('howto');
+    const cats = await (await fetch(`${url}/api/categories`)).json();
+    expect(cats.categories.find((c: { id: string }) => c.id === 'howto').templates.map((t: { id: string }) => t.id)).toEqual(['procedure', 'tutorial', 'repo-start', 'repo-delivery']);
+    for (const asset of ['/vendor/d3-force.js', '/js/graph.js', '/js/views/graph.js', '/js/views/categories.js']) {
+      const r = await fetch(`${url}${asset}`);
+      expect(r.status, asset).toBe(200);
+      expect(r.headers.get('content-type')).toContain('javascript');
+    }
+    expect(await (await fetch(`${url}/vendor/d3-force.js`)).text()).toContain('forceSimulation');
+    const token = ((await (await fetch(`${url}/api/session`)).json()) as { token: string }).token;
+    const set = await fetch(`${url}/api/categories/set`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-OKB-Token': token }, body: JSON.stringify({ path: 'reference/glossary.md', category: 'concept' }) });
+    expect((await set.json()).proposalId).toMatch(/^p-/);
+  });
+
+  it('offer the graph from plain words', () => {
+    expect(suggestIntent('montre-moi le graphe de ma kb', { kbs: [], otherTools: [] })?.command).toBe('okb serve');
+    expect(suggestIntent('show me my knowledge graph', { kbs: [], otherTools: [] })?.command).toBe('okb serve');
+  });
+});

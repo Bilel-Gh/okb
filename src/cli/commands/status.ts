@@ -18,6 +18,7 @@ export function printStatus(ctx: Ctx, s: Status): void {
   const k = kbFlag(ctx.args);
   out.line(`${sym.kb()} ${paint.bold(s.name)}${s.name !== s.profile ? ` ${paint.dim(`(${s.profile})`)}` : ''}  ${paint.dim(tilde(s.kbRoot))}`);
   out.line(paint.dim(`   ${tn('status.notes', s.notes, { concepts: s.concepts })} · ${t('status.writing', { lang: languageName(s.writingLanguage) })}`));
+  if (s.categories.length > 1) out.line(`   ${s.categories.map((c) => `${paint.ansi(c.ansi, '●')} ${c.emoji} ${c.count}`).join(paint.dim('  '))}`);
   const rows: string[][] = [];
   rows.push(['🎯', t('status.focus'), s.focus.exists
     ? (s.focus.stale ? paint.warn(t('status.focusStale', { age: s.focus.ageDays ?? 0 })) : t('status.focusFresh', { age: relativeTime(new Date(Date.now() - (s.focus.ageDays ?? 0) * 86_400_000)) }))

@@ -21,6 +21,21 @@ import { MUTATING, routeFor, type ApiContext } from './api.js';
 const WEB_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
 const TYPES: Record<string, string> = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.json': 'application/json', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2' };
 
+/** d3-force and the three modules it needs, as browser globals (`window.d3`), in load order. */
+function forcePaths(): string[] | null {
+  try {
+    const require = createRequire(import.meta.url);
+    // d3 packages export only their entry point: find each package folder from it.
+    return ['d3-dispatch', 'd3-quadtree', 'd3-timer', 'd3-force'].map((name) => {
+      const entry = require.resolve(name);
+      const root = entry.slice(0, entry.lastIndexOf(`${sep}node_modules${sep}${name}${sep}`) + `${sep}node_modules${sep}${name}`.length);
+      return resolve(root, 'dist', `${name}.min.js`);
+    });
+  } catch {
+    return null;
+  }
+}
+
 function mermaidPath(): string | null {
   try { return createRequire(import.meta.url).resolve('mermaid/dist/mermaid.min.js'); } catch { return null; }
 }
@@ -47,6 +62,7 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   if (!Number.isSafeInteger(port) || port < 0 || port > 65535) throw new OkbError('E_INVALID', 'port must be between 0 and 65535');
   const ctx: ApiContext = { env: options.env ?? process.env, defaultConfig: config, token: randomBytes(24).toString('hex') };
   const mermaid = mermaidPath();
+  const force = forcePaths();
   let origin = '';
 
   const server = createServer(async (req, res) => {
@@ -83,6 +99,11 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
         return;
       }
       if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); json({ error: 'GET only.' }, 405); return; }
+      if (url.pathname === '/vendor/d3-force.js' && force) {
+        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'max-age=86400' });
+        res.end((await Promise.all(force.map((f) => readFile(f, 'utf8')))).join(';\n'));
+        return;
+      }
       if (url.pathname === '/vendor/mermaid.js' && mermaid) {
         res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'max-age=86400' });
         res.end(await readFile(mermaid));

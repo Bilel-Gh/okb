@@ -42,6 +42,7 @@ export const COMMANDS: readonly CommandInfo[] = [
   { name: 'skillify', group: 'care', usage: 'okb skillify [note] [--out dir]', examples: ['okb skillify', 'okb skillify procedures/deployer.md --out .claude/skills'] },
   { name: 'update', group: 'care', usage: 'okb update', examples: ['okb update'] },
   { name: 'explain', group: 'care', usage: 'okb explain <code>', examples: ['okb explain E_STALE', 'okb explain LINK_BROKEN_TARGET'] },
+  { name: 'categories', group: 'care', aliases: ['categorie', 'catégories'], usage: 'okb categories [set <note> <category|auto>]', subcommands: ['set'], examples: ['okb categories', 'okb categories set brouillons/idees.md guide'] },
   { name: 'glossary', group: 'care', aliases: ['glossaire'], usage: 'okb glossary [term]', examples: ['okb glossary', 'okb glossary reçu'] },
   { name: 'ingest', group: 'advanced', usage: 'okb ingest <source> --create <path> --analysis-file <dossier.json>', examples: ['okb ingest notes.vtt --extract-only'] },
   { name: 'apply', group: 'advanced', usage: 'okb apply <proposal> [--only a,b] [--rollback <receipt>]', examples: ['okb apply 1'] },

@@ -1,4 +1,4 @@
-import { state, h, t, has, langName, get, post, icon, badge, empty, loading, noteBox, cmdBox, toast, errorToast, confirmDialog, TYPE_ICON } from '../core.js';
+import { state, h, t, has, langName, get, post, icon, badge, empty, loading, noteBox, cmdBox, toast, errorToast, confirmDialog, TYPE_ICON, catDot, catColor, localiseCategory } from '../core.js';
 import { setTitle, go, refreshStatus } from '../main.js';
 
 export async function render(r) {
@@ -88,10 +88,17 @@ async function templates({ mount }) {
       return h('span', { class: 'badge', title: `${k}: ${v}` }, h('span', { class: 'muted' }, `${key} · `), value);
     })),
     h('details', { style: { marginTop: '12px' } }, h('summary', { style: { cursor: 'pointer', fontWeight: 600 } }, t('web.templates.brief')), h('pre', { class: 'mono', style: { whiteSpace: 'pre-wrap', background: 'var(--surface-2)', padding: '12px', borderRadius: '10px' } }, r.brief))));
-  mount.append(h('div', { class: 'grid cols-2' }, r.templates.map((tp) => h('div', { class: 'card' },
-    h('div', { class: 'row' }, h('b', null, tp.label), h('span', { class: 'spacer' }), h('span', { class: 'mono muted small' }, `${tp.folder}/`)),
-    h('div', { class: 'muted small', style: { margin: '4px 0 10px' } }, tp.when),
-    h('div', { class: 'stack', style: { gap: '4px' } }, tp.sections.map((s) => h('div', { class: 'small', title: s.guide }, `${s.emoji} ${s.heading}`, s.required ? h('span', { class: 'star' }, ' *') : null)))))));
+  // Templates grouped by the category of the notes they produce.
+  const cats = (r.categories ?? []).map(localiseCategory);
+  for (const c of cats) {
+    const items = r.templates.filter((tp) => tp.category === c.id);
+    if (!items.length) continue;
+    mount.append(h('div', { class: 'row', style: { margin: '22px 0 10px', gap: '10px' } }, catDot(c, 12), h('h2', { style: { margin: 0, fontSize: '17px' } }, `${c.emoji} ${c.name}`), h('span', { class: 'muted small' }, c.about)),
+      h('div', { class: 'grid cols-2' }, items.map((tp) => h('div', { class: 'card', style: { borderLeft: `3px solid ${catColor(c)}` } },
+        h('div', { class: 'row' }, h('b', null, tp.label), h('span', { class: 'spacer' }), h('code', { class: 'small' }, tp.id), h('span', { class: 'mono muted small' }, `${tp.folder}/`)),
+        h('div', { class: 'muted small', style: { margin: '4px 0 10px' } }, tp.when),
+        h('div', { class: 'stack', style: { gap: '4px' } }, tp.sections.map((s) => h('div', { class: 'small', title: s.guide }, `${s.emoji} ${s.heading}`, s.required ? h('span', { class: 'star' }, ' *') : null)))))));
+  }
 }
 
 /* ---------- doctor ---------- */

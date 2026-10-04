@@ -6,6 +6,8 @@ const VIEWS = {
   notes: () => import('./views/notes.js'),
   note: () => import('./views/notes.js'),
   repos: () => import('./views/repos.js'),
+  graph: () => import('./views/graph.js'),
+  categories: () => import('./views/categories.js'),
   repo: () => import('./views/repos.js'),
   search: () => import('./views/search.js'),
   review: () => import('./views/review.js'),
@@ -27,7 +29,7 @@ const VIEWS = {
 };
 
 const NAV = [
-  ['space', [['home', 'home'], ['notes', 'notes'], ['repos', 'repo'], ['search', 'search']]],
+  ['space', [['home', 'home'], ['notes', 'notes'], ['graph', 'graph'], ['repos', 'repo'], ['search', 'search']]],
   ['work', [['review', 'review'], ['inbox', 'inbox'], ['focus', 'focus']]],
   ['rhythm', [['weekly', 'weekly'], ['learn', 'learn']]],
   ['care', [['health', 'health'], ['history', 'history'], ['source', 'source'], ['skills', 'skill'], ['templates', 'template']]],
@@ -94,7 +96,7 @@ function renderSidebar() {
   const kb = state.session.kbs.find((k) => k.id === state.kb) ?? { name: state.kb, id: state.kb };
   const counts = { review: s?.pending?.length ?? 0, inbox: s?.inbox?.open ?? 0 };
   const { view } = parseRoute();
-  const activeView = view === 'note' ? 'notes' : view === 'proposal' ? 'review' : view === 'repo' ? 'repos' : view;
+  const activeView = view === 'note' ? 'notes' : view === 'proposal' ? 'review' : view === 'repo' ? 'repos' : view === 'categories' ? 'graph' : view;
   const nav = NAV.map(([group, items]) => h('div', { class: 'nav-group' },
     h('div', { class: 'nav-label' }, t(`web.nav.group.${group}`)),
     items.map(([id, ico]) => h('a', { class: `nav-item${activeView === id ? ' active' : ''}`, href: `#/${id === 'home' ? '' : id}` },

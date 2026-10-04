@@ -28,6 +28,7 @@ const templateSchema = z.object({
     guide: localized,
   }).strict()).min(1),
   tips: z.array(localized).default([]),
+  category: z.string().regex(/^[a-z][a-z0-9-]*$/).optional(),
 }).strict().superRefine((t, context) => {
   const seen = new Set<string>();
   for (const [i, section] of t.sections.entries()) {

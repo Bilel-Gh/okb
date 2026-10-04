@@ -246,11 +246,23 @@ export async function cmdTemplate(args: ParsedArgs, out: Output, mode: OutputMod
   const sub = args.positionals[0] ?? 'list';
   if (sub === 'list') {
     const all = await loadTemplates(config);
+    const { loadCategories, templateCategories } = await import('../../categories/categories.js');
+    const categories = await loadCategories(config);
+    const byTemplate = templateCategories(all);
+    const categoryOf = (id: string) => byTemplate.get(id) ?? categories.find((c) => c.templates.includes(id))?.id ?? 'other';
     if (mode === 'json') {
-      out.json({ ok: true, required: config.kb.requireTemplate, templates: all.map((t) => ({ id: t.id, okfType: t.okfType, folder: t.folder, label: pick(t.label, language), when: pick(t.when, language), roles: t.sections.map((s) => ({ role: s.role, required: s.required })) })) });
+      out.json({ ok: true, required: config.kb.requireTemplate, templates: all.map((t) => ({ id: t.id, category: categoryOf(t.id), okfType: t.okfType, folder: t.folder, label: pick(t.label, language), when: pick(t.when, language), roles: t.sections.map((s) => ({ role: s.role, required: s.required })) })) });
       return 0;
     }
-    for (const t of all) out.line(`${t.id.padEnd(11)} ${pick(t.label, language)} — ${pick(t.when, language)}`);
+    // Grouped by the kind of note each template produces, in the category colours.
+    const { paint } = await import('../ui/term.js');
+    for (const c of categories) {
+      const items = all.filter((t) => categoryOf(t.id) === c.id);
+      if (!items.length) continue;
+      out.line(`${paint.ansi(c.ansi, '●')} ${c.emoji} ${paint.bold(pick(c.label, language))}`);
+      for (const t of items) out.line(`   ${paint.code(t.id.padEnd(18))} ${pick(t.label, language)}`);
+      out.line();
+    }
     return 0;
   }
   if (sub === 'show') {

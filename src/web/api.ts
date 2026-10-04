@@ -13,6 +13,9 @@ import { FR } from '../i18n/fr.js';
 import { has, lang, t } from '../i18n/index.js';
 import { capture, listInbox, settleInboxItem } from '../inbox/inbox.js';
 import { loadBundleFor } from '../kb/bundle.js';
+import { buildGraph, neighbours } from '../kb/graph.js';
+import { categorise, loadCategories, templateCategories } from '../categories/categories.js';
+import { parseOkf } from '../okf/document.js';
 import { archiveKb, foreignNotes, listKbs, readOwner, writeOwner } from '../kb/registry.js';
 import { claudeState, installClaudePlugin, installLauncher, launcherState, obsidianInstalled, obsidianUrl, openExternal, productVersion, updateProduct } from '../integrations/system.js';
 import { maintain } from '../maintain/maintain.js';
@@ -79,11 +82,12 @@ async function proposalDetail(config: OkbConfig, id: string) {
     const text = bundle.snapshot.files.get(path);
     if ((text === undefined ? null : sha256(text)) !== proposal.baseline[path]) throw new OkbError('E_STALE', 'The KB changed while loading the preview.', { key: 'staleFile', params: { path } });
   }
+  const cx = await categoryContext(config);
   const files = guard.ok && !done && proposal.status === 'prepared' ? await Promise.all([...groupChangesByPath(proposal.changes)].map(async ([path, changes]) => {
     const before = bundle.snapshot.files.get(path) ?? null;
     const after = materializeFile(path, before, changes);
     const diff = unifiedDiff(before ?? '', after, { path });
-    return { path, created: before === null, after, html: await renderMarkdown(after, path), diff: diff.text, stats: diff.stats, changeIds: changes.map((c) => c.id), category: changes[0]!.category };
+    return { path, created: before === null, after, html: await renderMarkdown(after, path), diff: diff.text, stats: diff.stats, changeIds: changes.map((c) => c.id), category: changes[0]!.category, noteCategory: categoryOfText(path, after, cx) };
   })) : [];
   const number = (await proposalSummaries(config)).find((p) => p.id === proposal.id)?.number ?? null;
   return {
@@ -91,22 +95,26 @@ async function proposalDetail(config: OkbConfig, id: string) {
     notes: proposal.notes, contradictions: proposal.contradictions, guard, files,
     evidence: proposal.evidence.slice(0, 300).map((e) => ({ id: e.id, quote: e.quote, locator: e.locator, kind: e.claimKind })),
     changes: proposal.changes.map((c) => ({ id: c.id, path: c.path, label: c.label, category: c.category, dependsOn: c.dependsOn })),
+    categories: cx.categories,
     approvalCommand: `okb review ${number ?? proposal.id}${config.profile.id !== '' ? ` --kb ${config.profile.id}` : ''}`,
   };
 }
 
-async function backlinks(config: OkbConfig, path: string) {
-  const bundle = await loadBundleFor(config);
-  const out: { path: string; title: string }[] = [];
-  const name = path.split('/').pop()!;
-  for (const [file, text] of bundle.snapshot.files) {
-    if (file === path || !file.endsWith('.md')) continue;
-    if (text.includes(`${name})`) || text.includes(`${name}#`)) {
-      const entry = bundle.byPath.get(asBundlePath(file));
-      if (entry) out.push({ path: file, title: entry.title });
-    }
+/** The KB's categories and its templates, the inputs of every category decision. */
+async function categoryContext(config: OkbConfig) {
+  const [categories, templates] = await Promise.all([loadCategories(config), loadTemplates(config)]);
+  return { categories, templates, byTemplate: templateCategories(templates) };
+}
+
+/** Category of a note's text (for proposals: the note as it will be written). */
+function categoryOfText(path: string, text: string, cx: Awaited<ReturnType<typeof categoryContext>>): string {
+  try {
+    const doc = parseOkf(path, text);
+    const ext = (doc.data.x_okb ?? {}) as { template?: unknown; category?: unknown };
+    return categorise({ path, type: doc.data.type, template: ext.template, explicit: ext.category }, cx.categories, cx.byTemplate).category;
+  } catch {
+    return 'other';
   }
-  return out.slice(0, 40);
 }
 
 export const ROUTES: Record<string, Handler> = {
@@ -175,20 +183,49 @@ export const ROUTES: Record<string, Handler> = {
   },
   'GET /api/notes': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
-    const bundle = await loadBundleFor(config);
-    return { root: config.kb.root, notes: bundle.entries.filter((e) => !e.reserved || e.path === 'index.md').map((e) => ({ path: e.path, title: e.title, description: e.description, type: e.type, status: e.status })) };
+    const [bundle, cx] = await Promise.all([loadBundleFor(config), categoryContext(config)]);
+    const category = (e: { path: string; type: string; ext: { template?: unknown; category?: unknown } }) => categorise({ path: e.path, type: e.type, template: e.ext.template, explicit: e.ext.category }, cx.categories, cx.byTemplate).category;
+    return {
+      root: config.kb.root,
+      categories: cx.categories,
+      notes: bundle.entries.filter((e) => !e.reserved || e.path === 'index.md').map((e) => ({ path: e.path, title: e.title, description: e.description, type: e.type, status: e.status, category: e.reserved ? 'other' : category(e) })),
+    };
+  },
+  /** Every note and every link between notes, coloured by category: the graph view. */
+  'GET /api/graph': async (ctx, q) => {
+    const config = await kbConfig(ctx, q.get('kb'));
+    const [bundle, cx] = await Promise.all([loadBundleFor(config), categoryContext(config)]);
+    return buildGraph(bundle, cx.categories, cx.templates, { includeNav: q.get('nav') === '1' });
+  },
+  'GET /api/categories': async (ctx, q) => {
+    const config = await kbConfig(ctx, q.get('kb'));
+    const [bundle, cx] = await Promise.all([loadBundleFor(config), categoryContext(config)]);
+    const graph = buildGraph(bundle, cx.categories, cx.templates);
+    const writing = config.writing.language ?? config.profile.answer.language;
+    return {
+      categories: graph.categories.map((c) => ({
+        ...c,
+        templates: cx.templates.filter((t) => (cx.byTemplate.get(t.id) ?? cx.categories.find((x) => x.templates.includes(t.id))?.id) === c.id).map((t) => ({ id: t.id, label: pick(t.label, writing), folder: t.folder })),
+      })),
+      uncategorized: graph.nodes.filter((n) => n.category === 'other').map((n) => ({ path: n.id, title: n.title })).slice(0, 50),
+    };
   },
   'GET /api/note': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
     const path = asBundlePath(q.get('path') ?? '');
-    const bundle = await loadBundleFor(config);
+    const [bundle, cx] = await Promise.all([loadBundleFor(config), categoryContext(config)]);
     const doc = bundle.docs.get(path);
     const entry = bundle.byPath.get(path);
     if (!doc || !entry) throw new OkbError('E_NOT_FOUND', 'Note not found in this bundle.');
+    const graph = buildGraph(bundle, cx.categories, cx.templates, { includeNav: entry.reserved });
+    const { incoming, outgoing } = neighbours(graph, path);
+    const pickNode = (n: { id: string; title: string; category: string }) => ({ path: n.id, title: n.title, category: n.category });
     return {
       path, title: entry.title, type: entry.type, status: entry.status, description: entry.description,
+      category: graph.nodes.find((n) => n.id === path)?.category ?? 'other',
       sources: Array.isArray((doc.data as { sources?: unknown[] }).sources) ? (doc.data as { sources: unknown[] }).sources.length : 0,
-      html: await renderMarkdown(doc.raw, path), raw: doc.raw, backlinks: await backlinks(config, path),
+      html: await renderMarkdown(doc.raw, path), raw: doc.raw,
+      backlinks: incoming.map(pickNode).slice(0, 60), outlinks: outgoing.map(pickNode).slice(0, 60),
       obsidian: obsidianUrl(resolve(config.kb.root, path)),
     };
   },
@@ -196,7 +233,12 @@ export const ROUTES: Record<string, Handler> = {
     const config = await kbConfig(ctx, q.get('kb'));
     const query = (q.get('q') ?? '').trim();
     if (!query || query.length > 500) throw new OkbError('E_INVALID', 'Enter a question of 1–500 characters.');
-    return ask(config, query, { limit: 20 });
+    const [result, bundle, cx] = await Promise.all([ask(config, query, { limit: 20 }), loadBundleFor(config), categoryContext(config)]);
+    const withCategory = (path: string) => {
+      const e = bundle.byPath.get(asBundlePath(path));
+      return e ? categorise({ path, type: e.type, template: e.ext.template, explicit: (e.ext as { category?: unknown }).category }, cx.categories, cx.byTemplate).category : 'other';
+    };
+    return { ...result, hits: result.hits.map((h) => ({ ...h, noteCategory: withCategory(h.path) })) };
   },
   'GET /api/proposals': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
@@ -241,8 +283,10 @@ export const ROUTES: Record<string, Handler> = {
     const config = await kbConfig(ctx, q.get('kb'));
     const language = config.profile.answer.language;
     const style = resolveStyle(config);
+    const cx = await categoryContext(config);
     return {
-      templates: (await loadTemplates(config)).map((tp) => ({ id: tp.id, label: pick(tp.label, language), when: pick(tp.when, language), folder: tp.folder, sections: tp.sections.map((s) => ({ emoji: s.emoji, heading: pick(s.heading, language), required: s.required, guide: pick(s.guide, language) })) })),
+      categories: cx.categories,
+      templates: cx.templates.map((tp) => ({ id: tp.id, category: cx.byTemplate.get(tp.id) ?? cx.categories.find((c) => c.templates.includes(tp.id))?.id ?? 'other', label: pick(tp.label, language), when: pick(tp.when, language), folder: tp.folder, sections: tp.sections.map((s) => ({ emoji: s.emoji, heading: pick(s.heading, language), required: s.required, guide: pick(s.guide, language) })) })),
       style: style.style, reader: style.reader, conceptAssist: style.conceptAssist, brief: renderBrief(style),
     };
   },
@@ -439,6 +483,13 @@ export const ROUTES: Record<string, Handler> = {
     const doc = await extractSource(await acquire(source, config), config);
     const item = await capture(config, { text: `${t('web.source.captureText', { source })}\n\n${doc.blocks.slice(0, 6).map((x) => x.text).join('\n\n').slice(0, 3000)}`, title: doc.source.title ?? source, source, tags: ['source'] });
     return { ok: true, item: { ...item, path: undefined }, blocks: doc.blocks.length, support: doc.source.support, claude: `/okb:ingest ${source}` };
+  },
+  'POST /api/categories/set': async (ctx, _q, b) => {
+    const config = await kbConfig(ctx, b.kb);
+    const { proposeCategory } = await import('../categories/assign.js');
+    const proposal = await proposeCategory(config, str(b.path, 'path', 500), str(b.category, 'category', 60));
+    await saveProposal(config, proposal);
+    return { ok: true, proposalId: proposal.id };
   },
   'POST /api/repos/scan': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);

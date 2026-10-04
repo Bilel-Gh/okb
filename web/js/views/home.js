@@ -1,4 +1,4 @@
-import { state, h, t, tn, get, post, icon, rel, fmtDate, langName, toast, errorToast, loading, cmdBox } from '../core.js';
+import { state, h, t, tn, get, post, icon, rel, fmtDate, langName, toast, errorToast, loading, cmdBox, categories, catColor, catDot } from '../core.js';
 import { setTitle, refreshStatus, go } from '../main.js';
 
 function tile(label, value, hint, ico, onClick, tone) {
@@ -38,6 +38,18 @@ export async function render({ mount }) {
   quick.addEventListener('keydown', (e) => { if (e.key === 'Enter') quickBtn.click(); });
 
   const h1 = s.health;
+  // The shape of the KB: how many notes of each kind, one click to the graph.
+  const kbShape = h('div', { class: 'card hover', role: 'button', tabindex: '0', onclick: () => go('#/graph') },
+    h('div', { class: 'card-head' }, icon('graph', 17), h('h2', null, t('web.home.shape')), h('span', { class: 'spacer' }), h('span', { class: 'btn sm' }, t('web.graph.see'))),
+    loading(1));
+  categories().then((cats) => {
+    const used = cats.filter((c) => c.count);
+    const total = used.reduce((n, c) => n + c.count, 0);
+    if (!total) { kbShape.remove(); return; }
+    kbShape.lastChild.replaceWith(h('div', { class: 'stack', style: { gap: '10px' } },
+      h('div', { class: 'cat-bar' }, used.map((c) => h('span', { title: `${c.name} : ${c.count}`, style: { width: `${(c.count / total) * 100}%`, background: catColor(c) } }))),
+      h('div', { class: 'row small', style: { gap: '14px', flexWrap: 'wrap' } }, used.map((c) => h('span', { class: 'row', style: { gap: '6px' } }, catDot(c, 9), `${c.emoji} ${c.name}`, h('b', null, String(c.count)))))));
+  }).catch(() => kbShape.remove());
   mount.append(
     h('div', { class: 'hero' },
       h('div', { class: 'muted small' }, greeting()),
@@ -68,6 +80,8 @@ export async function render({ mount }) {
             s.lastSession.next ? h('div', { class: 'note-box ok' }, icon('right', 16), h('div', null, h('b', null, t('focus.nextTime')), ' ', s.lastSession.next)) : null,
             h('div', { class: 'row' }, h('a', { class: 'btn sm', href: '#/focus?done=1' }, t('web.home.endSession')), h('a', { class: 'btn sm ghost', href: '#/focus' }, t('web.home.journal'))))
           : h('div', { class: 'stack' }, h('div', { class: 'muted' }, t('web.home.noSession')), h('div', null, h('a', { class: 'btn sm', href: '#/focus?done=1' }, t('web.home.endSession')))))),
+    h('div', { style: { height: '16px' } }),
+    kbShape,
     h('div', { style: { height: '16px' } }),
     h('div', { class: 'card' },
       h('div', { class: 'card-head' }, icon('inbox', 17), h('h2', null, t('web.home.captureTitle'))),

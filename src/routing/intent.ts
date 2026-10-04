@@ -121,6 +121,7 @@ export const INTENT_RULES: readonly Rule[] = [
   { id: 'serve', command: 'okb serve', okbOnly: true, patterns: [
     /\b(ouvre|lance|montre)[-\s]?(moi )?(le lecteur|l['’]interface web|l['’]appli(cation)? web|ma kb dans le navigateur)\b/i,
     /\bopen (the )?okb (web app|reader)\b|\bshow my kb in the browser\b/i,
+    /\b(ouvre|montre|affiche)[-\s]?(moi )?(le |mon )?graphe (de |des )?(ma kb|mes notes|ma base|mon second cerveau)\b|\b(show|open) (me )?(the |my )?(kb |knowledge )?graph( of my notes)?\b/i,
   ] },
   { id: 'status', command: '/okb:menu', okbOnly: true, patterns: [
     /\bo[ùu] (j['’]en suis|en est) (avec )?(okb|mon second cerveau|ma kb)\b/i,
@@ -245,7 +246,7 @@ export function renderOffer(s: IntentSuggestion, lang: 'fr' | 'en'): string {
     skillify: ['transformer cette procédure en skill', 'turn this procedure into a skill'],
     setup: ['configurer une KB', 'set up a KB'],
     switch: ['changer de KB active', 'switch the active KB'],
-    serve: ['ouvrir l’application web OKB', 'open the OKB web app'],
+    serve: ['ouvrir l’application web OKB (notes, graphe, relecture)', 'open the OKB web app (notes, graph, review)'],
     status: ['montrer où en est ton second cerveau', 'show where your second brain stands'],
     onboard: ['te faire découvrir ce repo et lui créer sa KB (notes sourcées dans le code)', 'onboard you on this repository and build its KB (notes cited from the code)'],
     ticket: ['enrichir la KB de ce repo avec ce ticket', 'enrich this repository’s KB with this ticket'],

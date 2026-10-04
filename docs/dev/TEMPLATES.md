@@ -11,7 +11,7 @@ okb template show experience         # sections, ordre, consignes
 okb template show concept --skeleton # squelette Markdown pour écrire à la main
 ```
 
-## Les neuf modèles fournis
+## Les modèles fournis
 
 | Modèle | Pour | Sections (obligatoires en gras) |
 |---|---|---|
@@ -24,6 +24,14 @@ okb template show concept --skeleton # squelette Markdown pour écrire à la mai
 | `experience` | un incident résolu, réutilisable | **🧩 Contexte**, 🚨 Symptômes, 🔍 Diagnostic, 🚫 Pistes écartées, **✅ Résolution**, **💡 À retenir**, 🎯 Quand réutiliser ce retour |
 | `decision` | un choix et ses raisons | **🧭 Contexte**, ⚖️ Options envisagées, **✅ Décision**, 📌 Conséquences, 🔁 Quand y revenir |
 | `meeting` | un transcript, une démo, un transfert de connaissances | **🎯 L’essentiel**, ✅ Décisions, 📋 Actions, 🗂️ Sujets abordés |
+| `tutorial` | apprendre à faire une chose la première fois | **🎯 Ce que tu sauras faire**, ✅ Avant de commencer, **🪜 Pas à pas**, ✔️ Vérifier que ça marche, 🧰 Si ça coince, 🧭 Pour aller plus loin |
+| `client-case` | un client, un projet, une mission | **🏢 Le client et son contexte**, **🎯 Le besoin**, **🛠️ Ce qui a été fait**, 📈 Résultats, **💡 À retenir**, ♻️ Quand s’en resservir |
+| `path` | un parcours de lecture vers d’autres notes | **🎯 Pour qui, pour quoi**, **🧭 Les étapes**, ✔️ Tu as compris si…, ➡️ Ensuite |
+
+S’y ajoutent les sept modèles des repos de code (`repo-*`, voir [REPOS.md](REPOS.md)).
+Chaque modèle place ses notes dans une **catégorie** (couleur du graphe, filtres) :
+voir [le guide](../guide/graphe-et-categories.md). Un modèle propre à une KB peut
+déclarer `category: <id>`.
 
 Le produit ajoute toujours, quand il y a lieu : l’avertissement de provenance,
 « À lire avant », « Corrections et exceptions », « Questions ouvertes », « Pour

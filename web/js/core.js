@@ -99,6 +99,7 @@ export function langName(code) {
 /* ---------- icons (stroke, 18px) ---------- */
 const P = {
   home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/>',
+  graph: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><circle cx="19" cy="17" r="1.6"/><path d="M8.3 7.1 15.6 7M7.2 8.2l3.6 7.6M16.7 9.1l-3.6 6.7M14.5 18.1l3-.6"/>',
   repo: '<path d="M21 7.5 12 3 3 7.5v9L12 21l9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/>',
   notes: '<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5A2.5 2.5 0 0 1 6.5 19H20v3H6.5"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
@@ -209,3 +210,31 @@ export function loading(lines = 4) {
   return h('div', { class: 'stack' }, Array.from({ length: lines }, (_, i) => h('div', { class: 'skeleton', style: { width: `${90 - i * 12}%` } })));
 }
 export const TYPE_ICON = { Guide: '📘', Concept: '💡', Runbook: '🪜', Process: '🔁', Tool: '🧰', Automation: '🤖', Experience: '🧯', Decision: '⚖️', Meeting: '🗣️' };
+
+/* ---------- note categories (colour, emoji, name), the same everywhere ---------- */
+const catCache = new Map();
+/** The KB's categories, localised: `name` (plural), `one` (singular), `about`. */
+export async function categories() {
+  const key = state.kb ?? '';
+  if (!catCache.has(key)) catCache.set(key, get('/api/categories').then((r) => r.categories.map(localiseCategory)).catch((e) => { catCache.delete(key); throw e; }));
+  return catCache.get(key);
+}
+export function localiseCategory(c) {
+  const fr = state.lang === 'fr';
+  return { ...c, name: fr ? c.label.fr : c.label.en, one: fr ? c.singular.fr : c.singular.en, about: fr ? c.description.fr : c.description.en };
+}
+export function catColor(c) {
+  if (!c) return 'var(--muted)';
+  return document.documentElement.dataset.theme === 'dark' ? c.colorDark : c.color;
+}
+export function catDot(c, size = 9) {
+  return h('span', { class: 'cat-dot', style: { width: `${size}px`, height: `${size}px`, background: catColor(c) }, title: c?.name ?? '' });
+}
+/** A coloured chip: dot, emoji, name. */
+export function catChip(c, extra) {
+  if (!c) return null;
+  return h('span', { class: 'cat-chip', style: { '--cat': catColor(c) }, title: c.about ?? '' }, catDot(c, 8), `${c.emoji} ${c.one ?? c.name}`, extra ?? null);
+}
+export function catOf(list, id) {
+  return list.find((c) => c.id === id) ?? list.find((c) => c.id === 'other');
+}

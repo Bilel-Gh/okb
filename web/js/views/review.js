@@ -1,4 +1,4 @@
-import { state, h, t, tn, get, post, icon, rel, fmtDate, badge, empty, loading, noteBox, cmdBox, toast, errorToast, confirmDialog } from '../core.js';
+import { state, h, t, tn, get, post, icon, rel, fmtDate, badge, empty, loading, noteBox, cmdBox, toast, errorToast, confirmDialog, catDot, catChip, catOf, localiseCategory } from '../core.js';
 import { setTitle, go, refreshStatus } from '../main.js';
 import { enhance } from './notes.js';
 
@@ -73,6 +73,7 @@ async function detail({ arg, mount }) {
   const counter = h('span', { class: 'muted small' });
   const updateCounter = () => { counter.textContent = tn('review.selectionNow', selected.size); };
   const filesBox = h('div', { class: 'stack', style: { gap: '8px' } });
+  const cats = (p.categories ?? []).map(localiseCategory);
   for (const f of p.files) {
     const check = h('input', { type: 'checkbox', class: 'check', checked: true, title: t('web.review.keepFile'), onclick: (e) => e.stopPropagation(), onchange: (e) => { for (const id of f.changeIds) e.target.checked ? selected.add(id) : selected.delete(id); updateCounter(); } });
     const body = h('div', { class: 'file-body', style: { display: 'none' } });
@@ -85,7 +86,8 @@ async function detail({ arg, mount }) {
       else { const art = h('article', { class: 'reader card flat', html: f.html }); body.append(art); await enhance(art); }
     };
     const row = h('div', { class: 'file-row', onclick: () => { const open = body.style.display === 'none'; body.style.display = open ? 'block' : 'none'; row.classList.toggle('open', open); if (open) renderBody(); } },
-      check, h('span', null, f.category === 'concept-card' ? '💡' : f.category === 'article' ? '📘' : '📄'), h('span', { class: 'path' }, f.path),
+      check, cats.length && f.noteCategory ? catDot(catOf(cats, f.noteCategory), 10) : h('span', null, f.category === 'concept-card' ? '💡' : f.category === 'article' ? '📘' : '📄'), h('span', { class: 'path' }, f.path),
+      cats.length && f.noteCategory && f.created ? catChip(catOf(cats, f.noteCategory)) : null,
       badge(f.created ? t('review.new') : t('review.changed'), f.created ? 'ok' : 'info'),
       h('span', { class: 'plus' }, `+${f.stats.added}`), h('span', { class: 'minus' }, `−${f.stats.removed}`), icon('chevron', 16));
     filesBox.append(h('div', null, row, body));
