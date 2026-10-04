@@ -1,0 +1,34 @@
+{
+  "source": "sources/atelier-lyon-gerland.vtt",
+  "prompt": "Enrichis ma KB avec ce transcript de réunion : {source}. Je ne suis pas disponible pour répondre : ne me pose aucune question, fais toi-même les choix recommandés. Prépare la ou les propositions sans les approuver, fais-les relire par le relecteur de preuves, puis résume-moi le résultat.",
+  "facts": [
+    { "id": "ouverture", "label": "Ouverture le 3 novembre", "all": ["3 novembre"] },
+    { "id": "robots", "label": "12 robots, puis 20 en janvier", "all": ["12 robots", "20 robots|20 en janvier|janvier[^.\\n]{0,60}20"] },
+    { "id": "budget", "label": "Budget 180 000 € (140 000 robots, 40 000 aménagement)", "all": ["180[  .]?000|180 ?k", "140[  .]?000|140 ?k", "40[  .]?000|40 ?k"] },
+    { "id": "client", "label": "Pilote Boulangeries Morel, ~40 livraisons par jour", "all": ["Morel", "40 livraisons"] },
+    { "id": "fenetre", "label": "Fenêtre de livraison : créneau de 45 minutes", "all": ["fenêtre de livraison", "45 min"] },
+    { "id": "objectif", "label": "Objectif 95 % à l'heure", "all": ["95[  ]?(%|pour ?cent)"] },
+    { "id": "cout", "label": "Coût 3,20 € par livraison, objectif 2,80 €", "all": ["3[,.]20", "2[,.]80"] },
+    { "id": "grafana", "label": "Tableau de bord du coût par livraison dans Grafana", "all": ["Grafana"] },
+    { "id": "garibaldi", "label": "Limite de 25 kg rue Garibaldi", "all": ["Garibaldi", "25 ?(kg|kilos)"] },
+    { "id": "relances", "label": "5 tentatives, attente exponentielle 2-4-8-16-32 s", "all": ["(5|cinq) tentatives", "exponenti", "2[^\\n]{0,12}4[^\\n]{0,12}8[^\\n]{0,12}16[^\\n]{0,12}32"] },
+    { "id": "relances-raison", "label": "Raison : coupures réseau du parking", "all": ["coupure"] },
+    { "id": "drx", "label": "DRX est un courtier de files", "all": ["courtier de files"] },
+    { "id": "procedure", "label": "Redémarrage à froid en 5 étapes", "all": ["suspend", "vid(er|e) la file|export", "redémarr", "télémétrie", "réactiv|réinject"] },
+    { "id": "procedure-qui", "label": "Seul le superviseur de permanence lance la procédure", "all": ["superviseur"] },
+    { "id": "doublons", "label": "Doublons après redémarrage à froid (exception à l'idempotence)", "all": ["doublon", "idempoten"] },
+    { "id": "correctif", "label": "Correctif : identifiant du job dans la table des reçus", "all": ["identifiant du job|id(entifiant)? de job|job_id|identifiant de job"] },
+    { "id": "autonomie", "label": "Autonomie 6 h en charge (correction tardive)", "all": ["6 ?h(eures)?"] },
+    { "id": "recharge", "label": "Recharge de 11 h à midi", "all": ["11 ?h"] },
+    { "id": "rlq", "label": "RLQ mentionné comme inconnu", "all": ["RLQ"] },
+    { "id": "technicien", "label": "Technicien partagé mardi et jeudi", "all": ["mardi", "jeudi"] },
+    { "id": "quai", "label": "Quai exclu le mercredi", "all": ["quai", "mercredi"] },
+    { "id": "actions", "label": "Actions : procédure avant le 15 octobre, point le 13 octobre", "all": ["15 octobre", "13 octobre"] }
+  ],
+  "forbidden": [
+    { "id": "autonomie-8h", "label": "8 h d'autonomie présentées comme un fait", "sentence": ["8 ?h(eures)?"], "with": ["autonomie|tienn|journée complète"], "unless": ["vide|corrig|trompé|erreur|annonc|initial|d'abord|au départ|pas 8|non 8|et non|plutôt que"] },
+    { "id": "rlq-invente", "label": "Un sens inventé pour RLQ", "sentence": ["RLQ ?(\\(|:|=|signifie|veut dire)[^)\\n]{0,4}[A-Z][a-z]+ [A-Z]"], "with": [], "unless": [] },
+    { "id": "relances-3", "label": "L'ancienne règle des 3 relances présentée comme actuelle", "sentence": ["(3|trois) (tentatives|relances)|relance trois fois"], "with": [], "unless": ["aujourd|actuel|avant|ancien|passe|remplac|au lieu|jusqu|désormais|à la place|plus que|ne couvr|insuffis|ancienne"] },
+    { "id": "drx-pipeline", "label": "DRX décrit comme un pipeline", "sentence": ["DRX"], "with": ["pipeline"], "unless": ["pas|plutôt|confond|n'est|non"] }
+  ]
+}

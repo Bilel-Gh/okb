@@ -1,0 +1,214 @@
+WEBVTT - Acme Robotics, atelier d'ouverture du dépôt Lyon-Gerland (réunion fictive, corpus de test)
+
+00:00:03.000 --> 00:00:19.000
+<v Dana>Bonjour à tous. On a une demi-heure pour caler l'ouverture du dépôt de Lyon-Gerland. Je vous rappelle le contexte : c'est notre deuxième dépôt après Villeurbanne, et le premier où on livre des commerçants le matin.
+
+00:00:19.000 --> 00:00:34.000
+<v Dana>L'ouverture est fixée au 3 novembre. On démarre avec 12 robots, et on monte à 20 robots en janvier si le pilote se passe bien.
+
+00:00:34.000 --> 00:00:48.000
+<v Malik>Pour le budget, on a validé 180 000 euros pour l'ouverture. Ça se découpe en 140 000 euros de robots et 40 000 euros d'aménagement du local.
+
+00:00:48.000 --> 00:01:05.000
+<v Malik>Les 140 000 couvrent les 12 premiers robots. Les huit suivants seront sur le budget de l'année prochaine, donc ne les comptez pas ici.
+
+00:01:05.000 --> 00:01:22.000
+<v Léa>Côté client, le pilote se fait avec les Boulangeries Morel. Elles ont sept boutiques dans le septième arrondissement, et on parle d'environ 40 livraisons par jour, surtout entre 6 heures et 9 heures.
+
+00:01:22.000 --> 00:01:40.000
+<v Léa>Ce qu'elles veulent avant tout, c'est savoir quand la farine et les sachets arrivent. Elles se moquent un peu de la vitesse, ce qui compte c'est que le créneau annoncé soit tenu.
+
+00:01:40.000 --> 00:01:58.000
+<v Dana>C'est exactement pour ça qu'on parle de fenêtre de livraison. Pour ceux qui n'étaient pas là la dernière fois : la fenêtre de livraison, c'est le créneau de 45 minutes qu'on promet au client pour une livraison.
+
+00:01:58.000 --> 00:02:12.000
+<v Dana>Si le robot arrive dans les 45 minutes, la livraison est à l'heure. S'il arrive après, elle compte comme en retard dans notre engagement de service, même si elle arrive dix minutes après.
+
+00:02:12.000 --> 00:02:25.000
+<v Priya>Et le dispatcher calcule cette fenêtre au moment où il affecte le job, pas au moment où la commande est passée. C'est important pour la suite.
+
+00:02:25.000 --> 00:02:38.000
+<v Léa>D'accord. Donc pour Morel on s'engage sur une fenêtre de 45 minutes, et on vise 95 pour cent de livraisons à l'heure pendant le pilote.
+
+00:02:38.000 --> 00:02:52.000
+<v Dana>Oui, 95 pour cent, c'est l'objectif du pilote. On regardera le chiffre chaque lundi.
+
+00:02:52.000 --> 00:03:10.000
+<v Malik>Je voudrais qu'on parle du coût par livraison. Aujourd'hui, à Villeurbanne, on est à 3,20 euros en moyenne par livraison, tout compris : énergie, maintenance, amortissement des robots et supervision.
+
+00:03:10.000 --> 00:03:26.000
+<v Malik>L'objectif pour Lyon-Gerland, c'est 2,80 euros par livraison à la fin du pilote. On compte surtout sur des tournées plus denses le matin.
+
+00:03:26.000 --> 00:03:41.000
+<v Priya>2,80, c'est faisable si on évite les trajets à vide. Le dispatcher actuel renvoie le robot au dépôt entre deux jobs, et c'est là qu'on perd.
+
+00:03:41.000 --> 00:03:55.000
+<v Malik>Je préparerai un tableau de bord du coût par livraison dans Grafana, pour qu'on suive ça au jour le jour. Je l'aurai pour l'ouverture.
+
+00:03:55.000 --> 00:04:12.000
+<v Dana>Parfait. Passons aux robots eux-mêmes. Sur l'autonomie, les nouveaux modèles tiennent 8 heures, donc une journée complète sans recharge, ça simplifie beaucoup le planning.
+
+00:04:12.000 --> 00:04:28.000
+<v Priya>Pour le terrain, on a un point d'attention : la rue Garibaldi. La pente est forte sur à peu près 200 mètres, et les robots chargés à plus de 25 kilos n'arrivent pas à la monter sans ralentir énormément.
+
+00:04:28.000 --> 00:04:44.000
+<v Priya>On a fait trois essais la semaine dernière. Au-dessus de 25 kilos, le robot passe sous 2 kilomètres heure et le moteur chauffe. Au-dessous, aucun souci.
+
+00:04:44.000 --> 00:04:58.000
+<v Dana>Alors on fixe une limite de charge de 25 kilos pour les livraisons qui passent par la rue Garibaldi. Au-delà, le dispatcher doit choisir un autre itinéraire ou découper la commande.
+
+00:04:58.000 --> 00:05:10.000
+<v Léa>Ça concerne deux boutiques Morel sur les sept. Je les préviendrai que les grosses commandes de farine pourront arriver en deux fois.
+
+00:05:10.000 --> 00:05:27.000
+<v Priya>Maintenant le sujet qui me tient à cœur : les relances. Aujourd'hui, quand un robot ne confirme pas la prise d'un job, le dispatcher relance trois fois, à une seconde d'intervalle, puis il abandonne et remet le job dans la file.
+
+00:05:27.000 --> 00:05:45.000
+<v Priya>Le problème, c'est qu'à Villeurbanne on voit des coupures réseau de dix à vingt secondes dans le parking souterrain. Trois relances en trois secondes, ça ne couvre pas du tout ces coupures, et on perd des jobs pour rien.
+
+00:05:45.000 --> 00:06:02.000
+<v Priya>Ma proposition : passer à cinq tentatives avec une attente exponentielle. On attend 2 secondes, puis 4, puis 8, puis 16, puis 32. Ça couvre environ une minute de coupure au total.
+
+00:06:02.000 --> 00:06:16.000
+<v Malik>Est-ce que ça ne retarde pas les livraisons ? Si on attend une minute à chaque fois, la fenêtre de 45 minutes va en souffrir.
+
+00:06:16.000 --> 00:06:34.000
+<v Priya>Non, parce que l'attente ne bloque que le job concerné, pas le robot ni les autres jobs. Et dans 90 pour cent des cas, la confirmation arrive dès la deuxième tentative. On l'a mesuré sur deux semaines.
+
+00:06:34.000 --> 00:06:48.000
+<v Dana>Je valide. On passe à cinq tentatives avec attente exponentielle, 2, 4, 8, 16 et 32 secondes. C'est décidé pour Lyon-Gerland dès l'ouverture, et on l'étendra à Villeurbanne si tout va bien.
+
+00:06:48.000 --> 00:07:02.000
+<v Priya>Je note que c'est une décision de Dana du jour, avec comme raison les coupures réseau du parking. Je mettrai la configuration à jour.
+
+00:07:02.000 --> 00:07:18.000
+<v Malik>Une question bête : DRX, c'est toujours le pipeline qui transporte les jobs jusqu'aux robots ?
+
+00:07:18.000 --> 00:07:36.000
+<v Priya>Pas vraiment un pipeline. DRX, c'est notre courtier de files : il reçoit les jobs du dépôt, les range dans des files par secteur, et le dispatcher vient les y chercher. Il ne transforme rien, il range et il distribue.
+
+00:07:36.000 --> 00:07:48.000
+<v Malik>D'accord, un courtier de files. Merci, je confondais.
+
+00:07:48.000 --> 00:08:05.000
+<v Dana>Ce qui nous amène au gros sujet de la journée : le redémarrage à froid du dépôt. On l'a vécu deux fois à Villeurbanne ce trimestre, et les deux fois ça s'est mal passé parce que personne n'avait la procédure sous les yeux.
+
+00:08:05.000 --> 00:08:20.000
+<v Priya>Je propose qu'on fixe la procédure maintenant, et je la mettrai au propre. Il y a cinq étapes, dans cet ordre, et l'ordre compte.
+
+00:08:20.000 --> 00:08:36.000
+<v Priya>Étape un : suspendre le dispatcher, pour qu'il n'affecte plus aucun job pendant l'opération. Il garde les robots en route, il n'en envoie simplement pas de nouveaux.
+
+00:08:36.000 --> 00:08:52.000
+<v Priya>Étape deux : vider la file DRX du dépôt. Les jobs en attente sont exportés dans un fichier, pour pouvoir les réinjecter après. On ne les supprime jamais sans export.
+
+00:08:52.000 --> 00:09:06.000
+<v Priya>Étape trois : redémarrer le dépôt lui-même. Compter environ quatre minutes avant qu'il réponde à nouveau.
+
+00:09:06.000 --> 00:09:22.000
+<v Priya>Étape quatre : vérifier le canal de télémétrie. Chaque robot doit avoir renvoyé au moins un message de position depuis le redémarrage. Si un robot reste muet, on l'appelle ou on va le chercher.
+
+00:09:22.000 --> 00:09:36.000
+<v Priya>Étape cinq : réactiver le dispatcher, et seulement à ce moment-là réinjecter les jobs exportés à l'étape deux.
+
+00:09:36.000 --> 00:09:52.000
+<v Dana>Et qui a le droit de lancer ça ? Je ne veux pas que n'importe qui redémarre un dépôt à six heures du matin.
+
+00:09:52.000 --> 00:10:06.000
+<v Priya>Le superviseur de permanence uniquement. Et il prévient le canal d'astreinte avant l'étape un.
+
+00:10:06.000 --> 00:10:24.000
+<v Priya>Il y a un piège qu'il faut connaître. Après un redémarrage à froid, le dépôt rejoue les jobs qu'il n'avait pas vu confirmés. Normalement l'idempotence nous protège : rejouer un job ne change pas le résultat.
+
+00:10:24.000 --> 00:10:42.000
+<v Priya>Sauf que là, il y a une exception. Le dépôt rejoue avec un nouvel identifiant de message, donc pour le dispatcher c'est un nouveau job. Résultat : des livraisons en double. On a eu quatorze doublons la dernière fois.
+
+00:10:42.000 --> 00:10:58.000
+<v Dana>Quatorze, c'est beaucoup. Comment on corrige ?
+
+00:10:58.000 --> 00:11:16.000
+<v Priya>On ajoute l'identifiant du job, et plus seulement celui du message, dans la table des reçus. Avant d'affecter un job, le dispatcher vérifie que ce job n'a pas déjà un reçu. C'est prévu pour la version de la mi-novembre.
+
+00:11:16.000 --> 00:11:30.000
+<v Dana>Donc d'ici là, après un redémarrage à froid, on contrôle les doublons à la main. Priya, tu l'ajoutes à la procédure comme étape de vérification.
+
+00:11:30.000 --> 00:11:42.000
+<v Priya>Oui, je l'ajoute après l'étape cinq, en attendant le correctif.
+
+00:11:42.000 --> 00:11:58.000
+<v Malik>Sur le tableau de bord Grafana, il y a un compteur RLQ qui grimpe tous les matins. Quelqu'un sait ce que c'est ?
+
+00:11:58.000 --> 00:12:12.000
+<v Priya>Aucune idée, honnêtement. Il était là avant moi. Je ne sais pas ce que RLQ veut dire.
+
+00:12:12.000 --> 00:12:24.000
+<v Dana>Moi non plus. Ne l'utilisons pas tant qu'on ne sait pas ce qu'il mesure. Je demanderai à l'équipe de Villeurbanne.
+
+00:12:24.000 --> 00:12:40.000
+<v Léa>Je reviens au client. Pour Morel, la première semaine, est-ce qu'on livre aussi le samedi ? Trois boutiques sur sept sont ouvertes le samedi matin.
+
+00:12:40.000 --> 00:12:54.000
+<v Dana>Pas la première semaine. On commence du lundi au vendredi, et on ajoute le samedi à partir de la deuxième semaine si le taux de livraisons à l'heure est au-dessus de 95 pour cent.
+
+00:12:54.000 --> 00:13:10.000
+<v Léa>Très bien. Je les appelle cette semaine pour caler les créneaux de chaque boutique. Elles veulent aussi un contact unique en cas de problème.
+
+00:13:10.000 --> 00:13:22.000
+<v Dana>Le contact unique, ce sera toi, Léa, pendant tout le pilote.
+
+00:13:22.000 --> 00:13:38.000
+<v Malik>Pour revenir à la maintenance : est-ce qu'on a prévu un technicien sur place à Lyon-Gerland, ou on le partage avec Villeurbanne ?
+
+00:13:38.000 --> 00:13:54.000
+<v Dana>Partagé au début. Un technicien passe à Lyon-Gerland deux matinées par semaine, le mardi et le jeudi. On réévalue en janvier, quand on passera à 20 robots.
+
+00:13:54.000 --> 00:14:12.000
+<v Priya>Sur la supervision, les robots de Lyon-Gerland remonteront dans la même console que Villeurbanne, avec un filtre par dépôt. Pas de nouvel outil à apprendre pour les superviseurs.
+
+00:14:12.000 --> 00:14:30.000
+<v Dana>Bien. Est-ce qu'on a oublié quelque chose sur les itinéraires ? À part Garibaldi, il y a le marché du quai le mercredi et le dimanche, où les trottoirs sont encombrés jusqu'à midi.
+
+00:14:30.000 --> 00:14:46.000
+<v Priya>Le dispatcher peut exclure une zone selon le jour. Je déclare le quai comme zone exclue le mercredi et le dimanche, de 6 heures à midi.
+
+00:14:46.000 --> 00:15:02.000
+<v Léa>Le dimanche on ne livre pas de toute façon, mais le mercredi ça compte : deux boutiques sont juste derrière le quai.
+
+00:15:02.000 --> 00:15:18.000
+<v Priya>Alors pour ces deux boutiques le mercredi, le robot passera par la rue parallèle. Ça ajoute trois à quatre minutes, ça reste dans la fenêtre de 45 minutes.
+
+00:15:18.000 --> 00:15:34.000
+<v Malik>Côté coûts, trois minutes de plus sur deux boutiques un jour par semaine, c'est négligeable. Ça ne change pas l'objectif de 2,80 euros.
+
+00:15:34.000 --> 00:15:52.000
+<v Dana>Récapitulons les actions avant de finir. Priya met à jour la procédure de redémarrage à froid, avec l'étape de contrôle des doublons, avant le 15 octobre.
+
+00:15:52.000 --> 00:16:06.000
+<v Dana>Priya applique aussi la nouvelle politique de relances, cinq tentatives avec attente exponentielle, pour l'ouverture.
+
+00:16:06.000 --> 00:16:20.000
+<v Dana>Malik prépare le tableau de bord du coût par livraison dans Grafana pour l'ouverture du 3 novembre.
+
+00:16:20.000 --> 00:16:34.000
+<v Dana>Léa appelle les Boulangeries Morel cette semaine pour caler les créneaux, et reste leur contact unique pendant le pilote.
+
+00:16:34.000 --> 00:16:46.000
+<v Dana>Et moi je demande à Villeurbanne ce que mesure le compteur RLQ.
+
+00:16:46.000 --> 00:17:04.000
+<v Priya>Dana, une précision sur ce que tu as dit tout à l'heure sur l'autonomie. Les 8 heures, c'est à vide. Avec une charge complète, les nouveaux modèles tiennent 6 heures, pas 8. On l'a vérifié pendant les essais de Garibaldi.
+
+00:17:04.000 --> 00:17:20.000
+<v Dana>Ah oui, tu as raison, je me suis trompée. Donc 6 heures en charge. Ça veut dire qu'on ne tient pas une journée complète sans recharge : il faut une recharge à la mi-journée.
+
+00:17:20.000 --> 00:17:34.000
+<v Priya>Exactement. Je propose une recharge entre 11 heures et midi, quand il y a le moins de livraisons. Ça ne touche pas le créneau du matin des boulangeries.
+
+00:17:34.000 --> 00:17:46.000
+<v Dana>D'accord pour la recharge de 11 heures à midi. Corrigez vos notes : l'autonomie à retenir, c'est 6 heures en charge.
+
+00:17:46.000 --> 00:18:02.000
+<v Malik>Ça change un peu mon calcul d'énergie, mais pas de beaucoup. Je mettrai à jour le coût par livraison dans le tableau de bord.
+
+00:18:02.000 --> 00:18:16.000
+<v Dana>Merci à tous. Prochain point le lundi 13 octobre, même heure, pour vérifier que la procédure et les relances sont prêtes.

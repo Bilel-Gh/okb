@@ -41,6 +41,9 @@ const HANDLERS: Record<string, Handler> = {
   kb: cmdKb,
   categories: (c) => import('./commands/categories.js').then((m) => m.cmdCategories(c)),
   repo: (c) => import('./commands/repo.js').then((m) => m.cmdRepo(c)),
+  usage: (c) => import('./commands/usage.js').then((m) => m.cmdUsage(c)),
+  report: (c) => import('./commands/usage.js').then((m) => m.cmdReport(c)),
+  feedback: (c) => import('./commands/usage.js').then((m) => m.cmdFeedback(c)),
   settings: (c) => (c.args.positionals[0] === 'raw' || flagBool(c.args, 'defaults') ? legacy.cmdConfig(c.args, c.out, c.mode) : cmdSettings(c)),
   doctor: cmdDoctor,
   maintain: cmdMaintain,
@@ -189,6 +192,8 @@ async function main(argv: readonly string[]): Promise<number> {
   setVerbosity(flagBool(args, 'quiet') ? 'quiet' : flagBool(args, 'verbose') ? 'verbose' : 'normal');
   const out = new Output(mode);
   const ctx: Ctx = { args, out, mode };
+  const started = Date.now();
+  const log = (ok: boolean, code?: string) => logEvent(args, ok, code, Date.now() - started);
   try {
     await versionCheck(out);
     if (flagBool(args, 'help') && args.command !== 'help' && args.command !== 'home') return commandHelp(ctx, args.command);
@@ -203,11 +208,25 @@ async function main(argv: readonly string[]): Promise<number> {
     }
     const code = await handler(ctx);
     out.flush();
+    await log(code === 0);
     return code;
   } catch (error) {
     out.flush();
+    await log(false, error instanceof OkbError ? error.code : 'E_INTERNAL');
     return reportError(error, mode);
   }
+}
+
+/** One line per command in the usage log: never its arguments, which can be private. */
+async function logEvent(args: ReturnType<typeof parseArgs>, ok: boolean, code: string | undefined, ms: number): Promise<void> {
+  // A web server runs until stopped: its duration says nothing.
+  if (args.command === '__complete' || args.command === 'completion' || findCommand(args.command)?.name === 'serve') return;
+  const info = findCommand(args.command);
+  const first = args.positionals[0];
+  const sub = info?.subcommands?.includes(first ?? '') ? first : undefined;
+  const kb = flagString(args, 'kb') ?? flagString(args, 'profile');
+  const { recordEvent, invokedBy } = await import('../usage/events.js');
+  await recordEvent({ at: new Date().toISOString(), command: info?.name ?? args.command, ...(sub ? { sub } : {}), ok, ...(code ? { code } : {}), ms, ...(kb ? { kb } : {}), by: invokedBy() });
 }
 
 export { main };

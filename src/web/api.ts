@@ -489,6 +489,26 @@ export const ROUTES: Record<string, Handler> = {
     const item = await capture(config, { text: `${t('web.source.captureText', { source })}\n\n${doc.blocks.slice(0, 6).map((x) => x.text).join('\n\n').slice(0, 3000)}`, title: doc.source.title ?? source, source, tags: ['source'] });
     return { ok: true, item: { ...item, path: undefined }, blocks: doc.blocks.length, support: doc.source.support, claude: `/okb:ingest ${source}` };
   },
+  /** What OKB costs and how its work holds up: read from local logs and proposals, no model call. */
+  'GET /api/usage': async (ctx, q) => {
+    const { collectUsage } = await import('../usage/collect.js');
+    const days = Math.min(365, Math.max(1, Number(q.get('days') ?? 30) || 30));
+    return { ...(await collectUsage({ days, env: ctx.env })), days };
+  },
+  'GET /api/usage/report': async (ctx, q) => {
+    const { collectUsage } = await import('../usage/collect.js');
+    const { renderReport } = await import('../usage/report.js');
+    const days = Math.min(365, Math.max(1, Number(q.get('days') ?? 30) || 30));
+    const data = await collectUsage({ days, env: ctx.env });
+    return { markdown: renderReport({ ...data, version: await productVersion(), withPaths: q.get('paths') === '1' }) };
+  },
+  'POST /api/feedback': async (ctx, _q, b) => {
+    const { addFeedback } = await import('../usage/events.js');
+    const text = str(b.text, 'text', 2000).trim();
+    if (!text) throw new OkbError('E_INVALID', 'empty feedback', { key: 'usage', params: { usage: 'okb feedback "…"' } });
+    await addFeedback({ at: new Date().toISOString(), text, where: 'web', ...(typeof b.kb === 'string' && b.kb ? { kb: b.kb } : {}) }, ctx.env);
+    return { ok: true };
+  },
   'POST /api/categories/set': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);
     const { proposeCategory } = await import('../categories/assign.js');

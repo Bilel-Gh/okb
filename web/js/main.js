@@ -18,6 +18,7 @@ const VIEWS = {
   weekly: () => import('./views/weekly.js'),
   learn: () => import('./views/learn.js'),
   health: () => import('./views/health.js'),
+  usage: () => import('./views/usage.js'),
   source: () => import('./views/tools.js'),
   skills: () => import('./views/tools.js'),
   templates: () => import('./views/tools.js'),
@@ -32,7 +33,7 @@ const NAV = [
   ['space', [['home', 'home'], ['notes', 'notes'], ['graph', 'graph'], ['repos', 'repo'], ['search', 'search']]],
   ['work', [['review', 'review'], ['inbox', 'inbox'], ['focus', 'focus']]],
   ['rhythm', [['weekly', 'weekly'], ['learn', 'learn']]],
-  ['care', [['health', 'health'], ['history', 'history'], ['source', 'source'], ['skills', 'skill'], ['templates', 'template']]],
+  ['care', [['health', 'health'], ['usage', 'usage'], ['history', 'history'], ['source', 'source'], ['skills', 'skill'], ['templates', 'template']]],
 ];
 
 let shell, contentEl, titleEl;

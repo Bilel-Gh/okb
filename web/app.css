@@ -406,3 +406,19 @@ h3 { font-size: 14px; font-weight: 650; margin: 0 0 6px; }
   .action-bar { margin: 20px -16px -80px; padding: 12px 16px; }
 }
 @media print { .sidebar, .topbar, .action-bar { display: none; } .shell { display: block; } }
+
+/* Usage page */
+.usage-tile { display: flex; flex-direction: column; gap: 4px; }
+.usage-big { font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
+.usage-chart { width: 100%; height: auto; display: block; }
+.usage-chart .bar-okb { fill: var(--accent); }
+.usage-chart .bar-other { fill: color-mix(in srgb, var(--muted) 35%, transparent); }
+.usage-chart .axis { fill: var(--muted); font-size: 11px; }
+.usage-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.usage-swatch.okb { background: var(--accent); }
+.usage-swatch.other { background: color-mix(in srgb, var(--muted) 35%, transparent); }
+.usage-bar { display: inline-block; width: 110px; height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; vertical-align: middle; }
+.usage-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.usage-leads { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.usage-report { max-height: 360px; overflow: auto; white-space: pre-wrap; font-size: 12px; background: var(--surface-2); padding: 12px; border-radius: 10px; margin-top: 10px; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }

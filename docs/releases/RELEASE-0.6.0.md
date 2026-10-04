@@ -93,43 +93,6 @@ ticket.
 - **Sept modèles de notes** : `repo-overview`, `repo-start`, `repo-architecture`,
   `repo-interfaces`, `repo-delivery`, `repo-codemap`, `repo-ticket`.
 
-## Le graphe et les catégories
-
-- **Neuf catégories de notes**, chacune avec sa couleur et son emoji, partout :
-  graphe, liste des notes (pastilles et filtre), lecture, recherche, relecture
-  des propositions, page d'accueil, terminal (`okb status`, `okb categories`,
-  `okb template list` groupé).
-- La catégorie vient du modèle de la note, de son type ou de son dossier. Rien
-  n'est écrit dans les notes. Pour en changer, `okb categories set <note>
-  <catégorie>` ou la pastille de la note dans l'appli web prépare une
-  proposition.
-- **Trois nouveaux modèles** : `tutorial` (tuto), `client-case` (cas client),
-  `path` (parcours).
-- Catégories propres à une KB dans `.okb/categories.yaml`.
-  `okb maintain` signale les notes sans catégorie.
-- **Graphe** dans l'application web (page Graphe) :
-  - **thèmes détectés** automatiquement (méthode de Louvain), avec un halo et un
-    nom chacun : celui du guide qui explique le thème, sinon du tag que ses notes
-    partagent. La liste des thèmes montre les notes de chacun ; disposition en deux
-    niveaux, calculée avant l'affichage ;
-  - titres placés sans chevauchement ;
-  - notes et liens, couleur par catégorie, taille selon les liens ;
-  - zoom, déplacement, voisinage d'une note, filtres par catégorie et par zone ;
-  - regroupement, recherche.
-- **Graphe local** sous chaque note, avec les rétroliens et les liens sortants
-  exacts.
-- **Page Catégories** : ce qu'on range dans chacune, ses modèles, les notes sans
-  catégorie.
-
-## Application web après une mise à jour
-
-- Une application web lancée avant une mise à jour garde la page qui correspond
-  à son code. Elle affiche un bandeau qui invite à relancer `okb serve`.
-- Un nouveau `okb serve` arrête l'ancienne version quand il le peut. Sinon, il
-  s'ouvre à côté et explique quoi faire.
-- `okb update` prévient quand l'application tourne encore avec l'ancienne
-  version.
-
 ## Vérification
 
 Voir le tableau de [DECISIONS.md](../dev/DECISIONS.md) (D28). Tests sur un repo

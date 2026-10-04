@@ -23,9 +23,11 @@ Tu peux tout faire de trois façons, au choix :
 4. [L’application web](application-web.md) — tout ce que fait le terminal, en clics.
 5. [Le graphe et les catégories](graphe-et-categories.md) — voir toutes tes notes
    et leurs liens, une couleur par type de note, et à quoi sert encore Obsidian.
-6. [Réglages](reglages.md) — langues, style d’écriture, plusieurs KB, cohabitation
+6. [Utilisation, coûts et rapport](utilisation-et-couts.md) — ce que coûte OKB,
+   si son travail te convient, et le rapport qui sert à l’améliorer.
+7. [Réglages](reglages.md) — langues, style d’écriture, plusieurs KB, cohabitation
    avec d’autres outils.
-7. [Dépannage](depannage.md) — comprendre une erreur et la corriger.
+8. [Dépannage](depannage.md) — comprendre une erreur et la corriger.
 
 Les documents techniques (architecture, décisions, sécurité) sont dans
 [docs/dev](../dev/).

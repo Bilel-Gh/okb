@@ -99,6 +99,7 @@ export function langName(code) {
 /* ---------- icons (stroke, 18px) ---------- */
 const P = {
   home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/>',
+  usage: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   graph: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><circle cx="19" cy="17" r="1.6"/><path d="M8.3 7.1 15.6 7M7.2 8.2l3.6 7.6M16.7 9.1l-3.6 6.7M14.5 18.1l3-.6"/>',
   repo: '<path d="M21 7.5 12 3 3 7.5v9L12 21l9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/>',
   notes: '<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5A2.5 2.5 0 0 1 6.5 19H20v3H6.5"/>',

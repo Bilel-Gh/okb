@@ -1,0 +1,28 @@
+{
+  "repo": "../fixtures/repos/orders-service",
+  "prompt": "Je viens d'arriver dans l'équipe et je ne connais pas ce repo ({repo}). Fais-moi découvrir ce repo et crée sa base de connaissances dans ma KB « bench ». Je ne suis pas disponible pour répondre : ne me pose aucune question, fais toi-même les choix recommandés. Prépare la ou les propositions sans les approuver, puis résume-moi le résultat.",
+  "facts": [
+    { "id": "role", "label": "Gestion des commandes de la boutique Acme", "all": ["commande|order"] },
+    { "id": "odata", "label": "Service OData V4 sur /orders", "all": ["OData", "/orders"] },
+    { "id": "admin", "label": "API d'administration sur /admin", "all": ["/admin"] },
+    { "id": "s4", "label": "API business partner S/4HANA via la destination S4_BP", "all": ["S4_BP", "business ?partner|API_BUSINESS_PARTNER"] },
+    { "id": "event", "label": "Événement OrderCancelled vers Event Mesh", "all": ["OrderCancelled", "Event Mesh"] },
+    { "id": "start", "label": "Démarrer : npm ci, npm run seed, cds watch sur le port 4004", "all": ["cds watch", "4004"] },
+    { "id": "prereq", "label": "Node.js 20 et le CLI CAP", "all": ["Node(\\.js)? ?20", "cds-dk"] },
+    { "id": "sqlite", "label": "Base SQLite en mémoire en local", "all": ["SQLite"] },
+    { "id": "tests", "label": "Tests : npm test", "all": ["npm test"] },
+    { "id": "deploy", "label": "La CI déploie main en dev ; la prod par l'équipe plateforme avec cf deploy", "all": ["cf deploy", "plateforme|platform"] },
+    { "id": "owners", "label": "Propriétaires : orders-team, platform-team", "all": ["orders-team", "platform-team"] },
+    { "id": "maxitems", "label": "ORDER_MAX_ITEMS, 50 articles au plus", "all": ["ORDER_MAX_ITEMS", "50"] },
+    { "id": "credit", "label": "Contrôle de crédit avant création (erreur 409)", "all": ["cr[ée]dit", "409"] },
+    { "id": "cancel", "label": "Une commande expédiée ne peut pas être annulée", "all": ["exp[ée]di|shipped|SHIPPED"] },
+    { "id": "pricing", "label": "Total calculé par computeTotal (arrondi @acme/pricing-rules)", "all": ["computeTotal|pricing"] },
+    { "id": "adr", "label": "CAP choisi en 2024 à la place d'Express (ADR 0001)", "all": ["Express", "ADR|0001|2024"] },
+    { "id": "risk", "label": "Les appels business partner ne sont pas mis en cache", "all": ["cache"] },
+    { "id": "auth", "label": "Connexion via l'approuter et XSUAA", "all": ["XSUAA", "approuter|application router|routeur"] },
+    { "id": "env", "label": "Variables NOTIFY_URL et ORDER_MAX_ITEMS", "all": ["NOTIFY_URL"] }
+  ],
+  "forbidden": [
+    { "id": "cancel-shipped", "label": "Dire qu'on peut annuler une commande expédiée", "sentence": ["annul|cancel"], "with": ["exp[ée]di|shipped"], "unless": ["ne |pas|impossible|cannot|refus|409|sauf|except|non"] }
+  ]
+}

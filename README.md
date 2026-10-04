@@ -1,4 +1,4 @@
-# OKB — Open Knowledge Brain · 0.6.0
+# OKB — Open Knowledge Brain · 0.7.0
 
 **A local second brain for Claude Code and Obsidian, where nothing enters your
 notes without your approval.**
@@ -65,6 +65,20 @@ After each ticket, `/okb:ticket` adds what you learned (a ticket note, “to cha
 → this file” entries, traps). `okb repo update` tells which notes the code moved
 under. Company code goes into a **confidential KB** that stays on your machine.
 → [Guide (FR)](docs/guide/repos.md) · [Design](docs/dev/REPOS.md)
+
+## Know what it costs, and whether it writes what you want
+
+`okb usage` and the web app's **Usage** page read the logs Claude Code already
+keeps on your machine. They show:
+- what each OKB task costs (an import, an onboarding, a question), by model and
+  subagent;
+- what fills the context;
+- how proposals fare: changes dropped at review, notes edited by hand afterwards.
+
+Showing them spends no token. `okb feedback "…"` notes a problem when it happens.
+`okb report` puts it all in one page, without your notes' text, to hand to Claude
+to improve OKB.
+→ [Guide (FR)](docs/guide/utilisation-et-couts.md) · [Cost and quality](docs/dev/COSTS.md)
 
 ## Why
 
@@ -226,9 +240,9 @@ filesystem transaction.
   [decisions](docs/dev/DECISIONS.md) · [workflows](docs/dev/WORKFLOWS.md) ·
   [web app](docs/dev/WEB-APP.md) · [security](docs/dev/SECURITY.md) ·
   [templates](docs/dev/TEMPLATES.md) · [style](docs/dev/STYLE.md) ·
-  [installation details](docs/dev/INSTALL.md) · [context budget](docs/dev/CONTEXT.md) ·
+  [installation details](docs/dev/INSTALL.md) · [context budget](docs/dev/CONTEXT.md) · [cost and quality](docs/dev/COSTS.md) ·
   [Claude compatibility](docs/dev/CLAUDE-COMPATIBILITY.md) · [evaluation](docs/dev/EVALUATION.md)
-- **Release notes:** [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
+- **Release notes:** [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
   [0.4.0](docs/releases/RELEASE-0.4.0.md) · [0.3.0](docs/releases/RELEASE-0.3.0.md) ·
   [0.2.0](docs/releases/RELEASE-0.2.0.md)
 

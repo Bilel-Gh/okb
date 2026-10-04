@@ -3,11 +3,11 @@
 Trace courte pour reprendre le projet sans l’historique de conversation.
 Format : problème → décision → conséquence → condition de réexamen.
 
-## État au 4 octobre 2026 (version 0.6.0)
+## État au 4 octobre 2026 (version 0.7.0)
 
 | Contrôle | Résultat |
 |---|---|
-| `npm run release:check` (Node 24.4) | voir [RELEASE-0.6.0.md](../releases/RELEASE-0.6.0.md) : tests, plugin, paquet installé proprement |
+| `npm run release:check` (Node 24.4) | voir [RELEASE-0.7.0.md](../releases/RELEASE-0.7.0.md) : tests, plugin, paquet installé proprement |
 | `claude plugin validate ./plugin` (Claude Code du poste) | Validation passée |
 | Évaluations natives `claude plugin eval` | Non exécutées (cas prêts dans `plugin/evals/`) |
 
@@ -435,4 +435,30 @@ Le diagnostic et les contrats Claude consultés sont dans
   centrale. Titre réduit à son sujet (sans emoji, sans sous-titre). La résolution de
   Louvain reste à 1 : des valeurs plus hautes découpaient mieux une KB et moins bien
   une autre, sans règle stable.
+
+## D30 — Utilisation, coûts et boucle d'amélioration
+
+- **Problème.** On ne savait ni ce que coûte OKB, ni si sa rédaction convient,
+  donc on optimisait à l'aveugle. Un suivi qui dépense des tokens à chaque
+  session coûterait plus qu'il ne rapporte.
+- **Décision.** Tout est lu dans des fichiers locaux, sans modèle :
+  - les journaux de Claude Code, découpés en tâches OKB : chaque réponse comptée
+    une fois, sous-agents rattachés, développement d'OKB exclu, prix publics
+    datés ;
+  - les propositions et leurs reçus : changements écartés, annulations, délai de
+    relecture, notes retouchées à la main ;
+  - un journal d'une ligne par commande `okb`, sans arguments ;
+  - les retours de la personne (`okb feedback`).
+
+  `okb usage`, la page Utilisation et `okb report` les montrent, sans texte de
+  note. Le JSON des commandes est compact quand Claude le lit. Un banc d'essai
+  hors `release:check` (`scripts/bench.mjs`) mesure coût et qualité d'un vrai
+  workflow sur des cas fictifs aux faits connus.
+- **Conséquence.** Une optimisation (modèle des sous-agents, sortie raccourcie)
+  se décide sur des chiffres : coût, faits retrouvés, erreurs, jugement à
+  l'aveugle. La rédaction reste sur le modèle principal. Voir
+  [COSTS.md](COSTS.md).
+- **Réexamen.** Si Claude Code change le format de ses journaux, le lecteur
+  (`src/usage/claude-logs.ts`) ignore ce qu'il ne comprend pas : les chiffres
+  baissent, sans plantage.
 

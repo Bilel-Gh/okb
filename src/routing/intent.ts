@@ -15,7 +15,8 @@ import { resolve } from 'node:path';
  */
 export type IntentId =
   | 'done' | 'ingest' | 'ask' | 'capture' | 'inbox' | 'focus' | 'weekly' | 'learn' | 'review'
-  | 'undo' | 'maintain' | 'revise' | 'skillify' | 'setup' | 'switch' | 'status' | 'serve' | 'onboard' | 'ticket';
+  | 'undo' | 'maintain' | 'revise' | 'skillify' | 'setup' | 'switch' | 'status' | 'serve' | 'onboard' | 'ticket'
+  | 'usage' | 'feedback';
 
 type Rule = {
   readonly id: IntentId;
@@ -122,6 +123,15 @@ export const INTENT_RULES: readonly Rule[] = [
     /\b(ouvre|lance|montre)[-\s]?(moi )?(le lecteur|l['’]interface web|l['’]appli(cation)? web|ma kb dans le navigateur)\b/i,
     /\bopen (the )?okb (web app|reader)\b|\bshow my kb in the browser\b/i,
     /\b(ouvre|montre|affiche)[-\s]?(moi )?(le |mon )?graphe (de |des )?(ma kb|mes notes|ma base|mon second cerveau)\b|\b(show|open) (me )?(the |my )?(kb |knowledge )?graph( of my notes)?\b/i,
+  ] },
+  { id: 'usage', command: 'okb usage', okbOnly: true, patterns: [
+    /\b(combien (me )?co[uû]te|co[uû]ts? d['’]|consommation (de tokens )?d['’]|utilisation d['’]|tokens? (consomm[ée]s? )?par) ?(okb|mon second cerveau)\b/i,
+    /\bcombien de tokens? (consomme|utilise|d[ée]pense) (okb|mon second cerveau)\b/i,
+    /\bokb (usage|costs?|stats)\b|\bhow much (does|did) okb cost\b|\bmy okb (usage|costs?)\b|\btokens? (used|spent) by okb\b/i,
+  ] },
+  { id: 'feedback', command: 'okb feedback', okbOnly: true, patterns: [
+    /\b(note|signale|remonte|garde)[-\s]?(un |ce |le |mon )?(retour|bug|probl[eè]me|souci|id[ée]e)( d['’]am[ée]lioration)? (sur|pour|à|dans|concernant) okb\b/i,
+    /\bokb (feedback|bug report)\b|\b(report|log|note) (a |this |the )?(bug|problem|issue|idea|feedback) (to|for|about|on) okb\b/i,
   ] },
   { id: 'status', command: '/okb:menu', okbOnly: true, patterns: [
     /\bo[ùu] (j['’]en suis|en est) (avec )?(okb|mon second cerveau|ma kb)\b/i,
@@ -250,6 +260,8 @@ export function renderOffer(s: IntentSuggestion, lang: 'fr' | 'en'): string {
     status: ['montrer où en est ton second cerveau', 'show where your second brain stands'],
     onboard: ['te faire découvrir ce repo et lui créer sa KB (notes sourcées dans le code)', 'onboard you on this repository and build its KB (notes cited from the code)'],
     ticket: ['enrichir la KB de ce repo avec ce ticket', 'enrich this repository’s KB with this ticket'],
+    usage: ['montrer ce que coûte OKB (lu dans les journaux locaux, sans dépenser de token)', 'show what OKB costs (read from local logs, no token spent)'],
+    feedback: ['noter ce retour pour le rapport d’amélioration d’OKB (okb feedback "…")', 'note this remark for OKB’s improvement report (okb feedback "…")'],
   };
   const what = label[s.intent][lang === 'fr' ? 0 : 1];
   const lines = [
