@@ -10,7 +10,7 @@ import { OkbError } from '../../util/errors.js';
 import { paginate } from '../../util/context-meter.js';
 import { flagBool, flagString } from '../args.js';
 import { confirm, spin } from '../ui/prompt.js';
-import { paint, sym } from '../ui/term.js';
+import { paint, sym, tilde } from '../ui/term.js';
 import { canAsk, effective, kbFlag, type Ctx } from './common.js';
 
 type Fix = { label: string; run: () => Promise<string> };
@@ -47,7 +47,7 @@ export async function cmdDoctor(ctx: Ctx): Promise<number> {
     else if (owner) rows.push({ name: 'kb-owner', status: 'fail', detail: t('err.kbOtherOwner.why', { owner, root: cfg.kb.root }) });
     else {
       const foreign = await foreignNotes(cfg.kb.root, 1);
-      rows.push({ name: 'kb-owner', status: 'warn', detail: foreign.length ? t('doctor.ownerForeign') : t('doctor.ownerMissing'), ...(foreign.length ? {} : { fix: { label: t('doctor.fix.owner'), run: async () => { await writeOwner(cfg.kb.root, cfg.profile.id); return t('doctor.fixed.owner'); } } }) });
+      rows.push({ name: 'kb-owner', status: 'warn', detail: foreign.length ? t('doctor.ownerForeign') : t('doctor.ownerMissing'), ...(foreign.length ? {} : { fix: { label: t('doctor.fix.owner', { root: tilde(cfg.kb.root), kb: cfg.profile.displayName || cfg.profile.id }), run: async () => { await writeOwner(cfg.kb.root, cfg.profile.id); return t('doctor.fixed.owner', { root: tilde(cfg.kb.root), kb: cfg.profile.displayName || cfg.profile.id }); } } }) });
     }
     const focus = await readFocus(cfg);
     rows.push(focus.exists
