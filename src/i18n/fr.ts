@@ -167,6 +167,9 @@ export const FR: Record<keyof typeof EN, string> = {
   'err.templateRequired.title': "Cette note doit suivre un modèle",
   'err.templateRequired.why': "Cette KB demande que chaque nouvelle note suive un modèle (les mêmes sections pour toutes les notes d’un type). Un extrait brut n’en suit aucun.",
   'err.templateRequired.fix': "Laisse Claude écrire la note (il choisit le modèle), ou désactive « Chaque note suit un modèle » dans les réglages.",
+  'err.portInUse.title': "Le port {port} est déjà utilisé",
+  'err.portInUse.why': "Un autre programme écoute déjà sur ce port de ton ordinateur.",
+  'err.portInUse.fix': "Choisis-en un autre : okb serve --port {next}",
   'err.secret.title': 'Un secret a été refusé',
   'err.secret.why': 'Le contenu ({what}) ressemble à un mot de passe ou à une clé ({where}). OKB ne garde jamais de secret.',
   'err.secret.fix': 'Remplace-le par un repère comme <API_KEY>. Si c’est une vraie clé, révoque-la.',
@@ -710,6 +713,8 @@ export const FR: Record<keyof typeof EN, string> = {
   'context.workflows': 'Par workflow (chargé à l’usage)',
   'context.agents': 'Par sous-agent (chargé seulement chez lui)',
   'version.mismatch': 'Le plugin Claude est en version {plugin} mais OKB en {engine} : lance okb update (ou okb doctor --fix).',
+  'serve.already': "OKB est déjà ouvert : {url}",
+  'serve.otherPort': "Le port {port} est pris par un autre programme : OKB utilise le {next}.",
   'serve.ready': 'Application web OKB : {url}',
   'serve.stop': 'Arrête-la avec Ctrl+C. Elle ne tourne que sur cet ordinateur.',
 

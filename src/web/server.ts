@@ -115,8 +115,10 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   server.requestTimeout = 180_000;
   server.headersTimeout = 10_000;
   await new Promise<void>((done, reject) => {
-    server.once('error', reject);
-    server.listen(port, '127.0.0.1', () => { server.off('error', reject); done(); });
+    server.once('error', (e: NodeJS.ErrnoException) => reject(e.code === 'EADDRINUSE'
+      ? new OkbError('E_CONFLICT', `port ${port} is already in use`, { key: 'portInUse', params: { port, next: port + 1 } })
+      : e));
+    server.listen(port, '127.0.0.1', () => { server.removeAllListeners('error'); done(); });
   });
   const address = server.address();
   if (!address || typeof address === 'string') throw new OkbError('E_IO', 'cannot determine local reader address');

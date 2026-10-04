@@ -165,6 +165,9 @@ export const EN = {
   'err.templateRequired.title': "This note needs a template",
   'err.templateRequired.why': "This KB asks every new note to follow a template (same sections for every note of a kind). A raw extract follows none.",
   'err.templateRequired.fix': "Let Claude write the note (it picks the template), or turn off \"Every note follows a template\" in the settings.",
+  'err.portInUse.title': "Port {port} is already in use",
+  'err.portInUse.why': "Another program already listens on this port of your computer.",
+  'err.portInUse.fix': "Pick another one: okb serve --port {next}",
   'err.secret.title': 'A secret was refused',
   'err.secret.why': 'The {what} contains something that looks like a password or a key ({where}). OKB never stores secrets.',
   'err.secret.fix': 'Replace it with a placeholder such as <API_KEY>. If it is a real key, revoke it.',
@@ -708,6 +711,8 @@ export const EN = {
   'context.workflows': 'Per workflow (loaded when used)',
   'context.agents': 'Per subagent (loaded inside it only)',
   'version.mismatch': 'The Claude plugin is version {plugin} but OKB is {engine}: run okb update (or okb doctor --fix).',
+  'serve.already': "OKB is already open: {url}",
+  'serve.otherPort': "Port {port} is taken by another program: OKB uses {next}.",
   'serve.ready': 'OKB web app: {url}',
   'serve.stop': 'Stop it with Ctrl+C. It runs on this computer only.',
 

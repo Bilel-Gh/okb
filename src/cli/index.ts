@@ -73,6 +73,17 @@ export function dispatch(name: string): Handler | undefined {
 }
 
 /** `okb serve` — the local web app, opened in the browser. */
+/** Is the OKB web app (this version's API) already answering on this port? */
+async function okbAnswersOn(port: number): Promise<boolean> {
+  try {
+    const r = await fetch(`http://127.0.0.1:${port}/api/session`, { signal: AbortSignal.timeout(1500) });
+    const body = (await r.json()) as { token?: unknown; version?: unknown };
+    return r.ok && typeof body.token === 'string' && typeof body.version === 'string';
+  } catch {
+    return false;
+  }
+}
+
 async function cmdServe(ctx: Ctx): Promise<number> {
   // Before the first KB exists, the web app opens on its setup wizard.
   const config = await effective(ctx.args).then((r) => r.config, (e: unknown) => {
@@ -80,13 +91,34 @@ async function cmdServe(ctx: Ctx): Promise<number> {
     throw e;
   });
   const { serve } = await import('../web/serve.js');
-  const { server, url } = await serve(config, { port: flagNumber(ctx.args, 'port') });
+  const asked = flagNumber(ctx.args, 'port');
+  const open = flagBool(ctx.args, 'open', ctx.mode === 'text') && !process.env.CI;
+  let started: Awaited<ReturnType<typeof serve>> | null = null;
+  let skipped: number | null = null;
+  // The default port: if OKB already runs there, open it; if another program holds it, take the next free one.
+  for (let port = asked ?? 4317; !started; port++) {
+    try {
+      started = await serve(config, { port });
+    } catch (e) {
+      if (!(e instanceof OkbError && e.key === 'portInUse') || asked !== undefined || port >= 4326) throw e;
+      if (await okbAnswersOn(port)) {
+        const url = `http://127.0.0.1:${port}`;
+        if (ctx.mode === 'json') ctx.out.json({ ok: true, url, alreadyRunning: true });
+        else ctx.out.ok(t('serve.already', { url: paint.bold(url) }));
+        if (open) await openExternal(url);
+        return 0;
+      }
+      skipped ??= port;
+    }
+  }
+  const { server, url } = started;
+  if (skipped !== null && ctx.mode === 'text') ctx.out.info(t('serve.otherPort', { port: skipped, next: new URL(url).port }));
   if (ctx.mode === 'json') ctx.out.json({ ok: true, url, profile: config?.profile.id ?? null });
   else {
     ctx.out.ok(t('serve.ready', { url: paint.bold(url) }));
     ctx.out.line(paint.dim(`  ${t('serve.stop')}`));
   }
-  if (flagBool(ctx.args, 'open', ctx.mode === 'text') && !process.env.CI) await openExternal(url);
+  if (open) await openExternal(url);
   await new Promise<void>((done) => {
     const stop = () => { server.closeAllConnections(); server.close(() => done()); };
     process.once('SIGINT', stop);

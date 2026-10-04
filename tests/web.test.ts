@@ -146,6 +146,12 @@ describe('OKB web app', () => {
     expect((await fetch(`${url}/..%2f..%2fpackage.json`)).status).toBe(404);
   });
 
+  it('reports a busy port as a clear conflict, not a crash', async () => {
+    const { config, url } = await app();
+    const port = Number(new URL(url).port);
+    await expect(serve(config, { port })).rejects.toMatchObject({ code: 'E_CONFLICT', key: 'portInUse', params: { port, next: port + 1 } });
+  });
+
   it('serves its own assets only, with a restrictive content policy, and scripts that parse', async () => {
     const { url } = await app();
     const page = await fetch(url);
