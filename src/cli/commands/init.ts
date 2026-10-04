@@ -4,7 +4,7 @@ import { expandHome } from '../../config/load.js';
 import { lang, languageName, setLanguage, systemLanguage, t, WRITING_LANGUAGES, type Lang } from '../../i18n/index.js';
 import { kbNames, listKbs } from '../../kb/registry.js';
 import { productVersion } from '../../integrations/system.js';
-import { checkFolder, defaultAnswers, runWizard, suggestedRoot, wizardContext, type StepResult, type WizardAnswers, type WizardContext } from '../../setup/wizard.js';
+import { checkFolder, defaultAnswers, okbVaults, runWizard, suggestedRoot, wizardContext, type StepResult, type WizardAnswers, type WizardContext } from '../../setup/wizard.js';
 import { OkbError } from '../../util/errors.js';
 import { flagBool, flagString } from '../args.js';
 import { choose, confirm, input, intro, note, outro, spin, step } from '../ui/prompt.js';
@@ -17,8 +17,9 @@ async function askLocation(ctx: WizardContext, name: string, current: string): P
   const { id } = kbNames(name);
   for (;;) {
     const suggested = suggestedRoot(ctx, name, lang());
-    const options = [{ value: suggested, label: tilde(suggested), hint: t('wiz.where.suggested'), recommended: true }];
-    for (const v of ctx.vaults.slice(0, 3)) {
+    const fresh = !ctx.kbs.length && !ctx.vaults.some((v) => v.kbs.length);
+    const options = [{ value: suggested, label: tilde(suggested), hint: t(fresh ? 'wiz.where.fresh' : 'wiz.where.suggested'), recommended: true }];
+    for (const v of okbVaults(ctx).slice(0, 3)) {
       const p = resolve(v.path, kbNames(name).folder);
       if (p !== suggested) options.push({ value: p, label: tilde(p), hint: t('wiz.where.vault'), recommended: false });
     }
@@ -71,10 +72,12 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
     const name = flagString(args, 'name') ?? args.positionals[0];
     if (!name) throw new OkbError('E_INVALID', 'okb init needs a name when it cannot ask: okb init --yes --name <name> [--dir <folder>]', { key: 'initNeedsName' });
     const ui = (flagString(args, 'lang') as Lang | undefined) ?? 'auto';
+    // --folder and --kb-root (the 0.3 name) mean --dir: a folder given must never be silently ignored.
+    const dir = flagString(args, 'dir') ?? flagString(args, 'folder') ?? flagString(args, 'kb-root');
     const answers: WizardAnswers = {
       ...defaultAnswers(wctx, name, ui === 'auto' ? systemLanguage() : ui),
       uiLanguage: ui,
-      ...(flagString(args, 'dir') ? { root: resolve(expandHome(flagString(args, 'dir')!)) } : {}),
+      ...(dir ? { root: resolve(expandHome(dir)) } : {}),
       ...(flagString(args, 'writing-lang') ? { writingLanguage: flagString(args, 'writing-lang')! } : {}),
       ...(flagString(args, 'preset') ? { preset: flagString(args, 'preset') as WizardAnswers['preset'] } : {}),
       git: flagBool(args, 'git', wctx.git),

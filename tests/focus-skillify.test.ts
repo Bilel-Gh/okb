@@ -45,11 +45,11 @@ describe('focus note', () => {
     const { box } = { box: boxes[0]! };
     const file = resolve(box.dir, 'Focus.md');
     const shared = { ...config, focus: { ...config.focus, file } };
-    const first = await setFocus(shared, '- Sprint Carina : écran budget');
+    const first = await setFocus(shared, '- Sprint Orion : écran budget');
     expect(first.previous).toBeNull();
-    const second = await setFocus(shared, '- Sprint Vela : courbe S');
-    expect(await readFile(second.previous!, 'utf8')).toContain('Sprint Carina');
-    expect(await readFile(file, 'utf8')).toMatch(/^---\ntitle: Focus du moment[\s\S]*# 🎯 Focus du moment\n\n- Sprint Vela/);
+    const second = await setFocus(shared, '- Sprint Lyra : courbe S');
+    expect(await readFile(second.previous!, 'utf8')).toContain('Sprint Orion');
+    expect(await readFile(file, 'utf8')).toMatch(/^---\ntitle: Focus du moment[\s\S]*# 🎯 Focus du moment\n\n- Sprint Lyra/);
     await expect(setFocus(shared, 'api_key = "Zq8Wm3Rt9Lp2Xv6Kd4Hs7Bn1"')).rejects.toMatchObject({ code: 'E_SECRET' });
     const old = new Date(Date.now() - 20 * day);
     await utimes(file, old, old);
@@ -90,9 +90,9 @@ describe('okb done (session journal)', () => {
     expect(inbox).toHaveLength(1);
     expect(inbox[0]).toMatchObject({ source: 'session 2026-10-04 (done)', tags: ['session'] });
 
-    await recordSession(config, { summary: 'Deuxième session', next: 'Relire la fiche EAF', now: new Date('2026-10-05T09:00:00Z') });
+    await recordSession(config, { summary: 'Deuxième session', next: 'Relire la fiche idempotence', now: new Date('2026-10-05T09:00:00Z') });
     const last = await readLastSession(config);
-    expect(last).toMatchObject({ profile: 'done', summary: 'Deuxième session', next: 'Relire la fiche EAF' });
+    expect(last).toMatchObject({ profile: 'done', summary: 'Deuxième session', next: 'Relire la fiche idempotence' });
     expect((await sessionsSince(config, new Date('2026-10-04T00:00:00Z'))).map((s) => s.summary)).toEqual(['Deuxième session', 'Fusion des KB et convention de nommage']);
     expect((await sessionsSince(config, new Date('2026-10-04T00:00:00Z')))[1]!.next).toBe('Approuver la proposition de kb-ia --> puis pousser');
   });

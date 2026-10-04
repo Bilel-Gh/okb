@@ -30,7 +30,7 @@ const CASES: readonly { request: string; expect: SkillId; why: string }[] = [
   { request: 'On fait la revue de la semaine de mon second cerveau ?', expect: 'okb-weekly', why: 'weekly ritual' },
   { request: "Interroge-moi sur la fiche idempotence", expect: 'okb-learn', why: 'active recall' },
   { request: "On a fini pour aujourd'hui, fais le /done", expect: 'okb-focus', why: 'end of session' },
-  { request: 'Mets à jour mon focus : je prépare le sprint Carina', expect: 'okb-focus', why: 'update the focus note' },
+  { request: 'Mets à jour mon focus : je prépare le sprint Orion', expect: 'okb-focus', why: 'update the focus note' },
   { request: 'Transforme cette procédure de déploiement en skill', expect: 'okb-skillify', why: 'procedure to skill' },
   { request: "Où j'en suis avec mon second cerveau ?", expect: 'okb-guide', why: 'dashboard' },
 

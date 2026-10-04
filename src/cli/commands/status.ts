@@ -4,7 +4,7 @@ import { flagBool } from '../args.js';
 import { paint, sym } from '../ui/term.js';
 import { config, kbFlag, type Ctx } from './common.js';
 
-/** One line for status bars: `📚 argo · 🎯 3 j · 📥 2 · ⏳ 1`. */
+/** One line for status bars: `📚 atlas · 🎯 3 j · 📥 2 · ⏳ 1`. */
 export function statusLine(s: Status): string {
   const parts = [`📚 ${s.profile}`];
   if (s.focus.exists) parts.push(`🎯 ${s.focus.ageDays ?? 0}${t('ui.daysShort')}${s.focus.stale ? '!' : ''}`);

@@ -13,6 +13,7 @@
   "files": [
     "dist",
     "plugin",
+    "web",
     "docs",
     "README.md",
     "LICENSE",

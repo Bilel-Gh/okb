@@ -83,7 +83,7 @@ The file may carry `writing:` (preset plus knobs to override, see
 ## Switching, other KBs, other tools
 
 - Switch the active KB: `okb kb switch <id>` (the user may simply say « passe sur
-  la KB argo »). One command for another KB: add `--kb <id>`.
+  la KB atlas »). One command for another KB: add `--kb <id>`.
 - Several KBs live as sibling folders of one Obsidian vault, each with its own
   settings. A folder belongs to one KB only (OKB marks it in `.okb/owner.yaml`).
 - Another tool or agent with its own knowledge base (a support agent, a wiki):

@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { applyProposal, rollback } from '../../apply/apply.js';
@@ -38,77 +38,84 @@ Triage happens once a day: keep, file or drop each item.
 `,
 };
 
+export type TourStep = { readonly n: number; readonly title: string; readonly body: string; readonly detail: string };
+
 /**
- * `okb tour` (alias `okb demo`): the whole loop on a throwaway KB in a temporary
- * folder — capture, a source becomes a proposal, approve and apply, search,
- * undo, end of session — then everything is deleted. The person's KBs and
- * settings are never read or touched.
+ * The whole OKB loop on a throwaway KB in a temporary folder — capture, a source
+ * becomes a proposal, approve and apply, search, undo, end of session — then
+ * everything is deleted. The person's KBs and settings are never read or touched.
+ * `pause` returns false to stop early.
  */
-export async function cmdTour(ctx: Ctx): Promise<number> {
-  const { out } = ctx;
-  const live = canAsk(ctx);
+export async function tourScenario(options: { step: (s: TourStep) => void; pause: (question: string) => Promise<boolean> }): Promise<void> {
   const l = lang();
   const dir = await mkdtemp(resolve(tmpdir(), 'okb-tour-'));
   const env: NodeJS.ProcessEnv = { ...process.env, OKB_HOME: resolve(dir, 'home') };
   const kb = resolve(dir, 'kb');
-  const pause = async (q: string) => { if (live && !(await confirm(q, true))) throw new Error('stop'); };
-  const say = (title: string, body: string) => (live ? note(body, title) : out.line(`\n${paint.bold(title)}\n${body}`));
   try {
-    if (live) intro(t('tour.intro'));
-    say(t('tour.s0.title'), t('tour.s0.body'));
-    await pause(t('tour.continue'));
-
-    const s = spin(t('tour.preparing'));
-    await import('node:fs/promises').then((fs) => fs.mkdir(kb, { recursive: true }));
+    options.step({ n: 0, title: t('tour.s0.title'), body: t('tour.s0.body'), detail: '' });
+    if (!(await options.pause(t('tour.continue')))) return;
+    await mkdir(kb, { recursive: true });
     await runSetup({ profileId: 'demo', kbRoot: kb, conceptAssist: 'targeted', humanActor: 'human:demo', answerLanguage: l, displayName: 'Demo' }, { env });
     const { config } = await loadConfig({ env, profileId: 'demo' });
     await ensureState(statePaths(config));
-    s.done(t('tour.ready'));
 
-    // 1. Capture
     const item = await capture(config, { text: t('tour.captureText'), source: 'okb tour' });
-    say(`1 · ${t('tour.s1.title')}`, `${t('tour.s1.body')}\n\n  📥 ${item.title}\n\n${paint.dim(`okb capture "…"  ·  okb inbox (${(await listInbox(config)).length})`)}`);
-    await pause(t('tour.continue'));
+    options.step({ n: 1, title: t('tour.s1.title'), body: t('tour.s1.body'), detail: `📥 ${item.title}\nokb capture "…"  ·  okb inbox (${(await listInbox(config)).length})` });
+    if (!(await options.pause(t('tour.continue')))) return;
 
-    // 2. A source becomes a proposal
     const source = resolve(dir, 'atelier.md');
     await writeFile(source, SOURCE[l]);
     const doc = await extractSource(await acquire(source, config), config);
     const report = await prepareProposal(config, [doc], { target: { mode: 'create', path: asBundlePath('guides/capture.md'), title: t('tour.noteTitle') } });
     await saveProposal(config, report.proposal);
     const sum = summarize(report.proposal, 1);
-    say(`2 · ${t('tour.s2.title')}`, `${t('tour.s2.body')}\n\n  ⏳ #1 ${sum.title} · ${sum.files} ${t('tour.files')}\n\n${paint.dim('okb review 1')}`);
-    await pause(t('tour.s2.q'));
+    options.step({ n: 2, title: t('tour.s2.title'), body: t('tour.s2.body'), detail: `⏳ #1 ${sum.title} · ${sum.files} ${t('tour.files')}\nokb review 1` });
+    if (!(await options.pause(t('tour.s2.q')))) return;
 
-    // 3. Approve and apply
     await grantApproval(config, report.proposal, report.proposal.changes.map((c) => c.id), 'human:demo');
     const receipt = await applyProposal(config, report.proposal);
-    say(`3 · ${t('tour.s3.title')}`, `${t('tour.s3.body')}\n\n  ✔ ${receipt.results.length} ${t('tour.files')} → ${paint.dim(kb)}`);
-    await pause(t('tour.continue'));
+    options.step({ n: 3, title: t('tour.s3.title'), body: t('tour.s3.body'), detail: `✔ ${receipt.results.length} ${t('tour.files')}` });
+    if (!(await options.pause(t('tour.continue')))) return;
 
-    // 4. Search
-    const found = await ask(config, l === 'fr' ? 'inbox' : 'inbox', { limit: 3 });
+    const found = await ask(config, 'inbox', { limit: 3 });
     const quote = found.evidence[0]?.quote.replace(/\s+/g, ' ').slice(0, 120) ?? '';
-    say(`4 · ${t('tour.s4.title')}`, `${t('tour.s4.body')}\n\n  🔎 okb ask "inbox"\n  ${found.hits[0]?.title ?? '—'}\n  │ ${quote}`);
-    await pause(t('tour.continue'));
+    options.step({ n: 4, title: t('tour.s4.title'), body: t('tour.s4.body'), detail: `🔎 okb ask "inbox"\n${found.hits[0]?.title ?? '—'}\n│ ${quote}` });
+    if (!(await options.pause(t('tour.continue')))) return;
 
-    // 5. Undo
     const restored = await rollback(config, receipt.id);
-    say(`5 · ${t('tour.s5.title')}`, `${t('tour.s5.body')}\n\n  ↩ okb undo → ${restored.length} ${t('tour.files')}`);
-    await pause(t('tour.continue'));
+    options.step({ n: 5, title: t('tour.s5.title'), body: t('tour.s5.body'), detail: `↩ okb undo → ${restored.length} ${t('tour.files')}` });
+    if (!(await options.pause(t('tour.continue')))) return;
 
-    // 6. End of session
     await recordSession(config, { summary: t('tour.sessionSummary'), next: t('tour.sessionNext') });
-    say(`6 · ${t('tour.s6.title')}`, `${t('tour.s6.body')}\n\n  📓 ${t('tour.sessionNext')}`);
-
-    if (live) outro(t('tour.outro'));
-    else out.line(`\n${t('tour.outro')}`);
-    return 0;
-  } catch (e) {
-    if ((e as Error).message === 'stop') { if (live) outro(t('tour.stopped')); return 0; }
-    throw e;
+    options.step({ n: 6, title: t('tour.s6.title'), body: t('tour.s6.body'), detail: `📓 ${t('tour.sessionNext')}` });
   } finally {
     await rm(dir, { recursive: true, force: true });
-    if (!live && ctx.mode === 'text') out.line(paint.dim(t('tour.cleaned')));
   }
+}
+
+/** `okb tour` (alias `okb demo`). */
+export async function cmdTour(ctx: Ctx): Promise<number> {
+  const { out } = ctx;
+  const live = canAsk(ctx);
+  let stopped = false;
+  if (live) intro(t('tour.intro'));
+  const s = live ? spin(t('tour.preparing')) : null;
+  s?.done(t('tour.ready'));
+  await tourScenario({
+    step: (st) => {
+      const title = st.n ? `${st.n} · ${st.title}` : st.title;
+      const body = st.detail ? `${st.body}\n\n${st.detail}` : st.body;
+      if (live) note(body, title);
+      else out.line(`\n${paint.bold(title)}\n${body}`);
+    },
+    pause: async (q) => {
+      if (!live) return true;
+      const go = await confirm(q, true);
+      if (!go) stopped = true;
+      return go;
+    },
+  });
+  if (live) outro(stopped ? t('tour.stopped') : t('tour.outro'));
+  else out.line(`\n${t('tour.outro')}\n${paint.dim(t('tour.cleaned'))}`);
+  return 0;
 }

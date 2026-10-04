@@ -205,15 +205,26 @@ export async function obsidianVaults(env: NodeJS.ProcessEnv = process.env): Prom
 }
 
 /** `kb-<name>` folders already present in a vault. */
-export async function kbFoldersIn(vault: string): Promise<string[]> {
+/**
+ * OKB's own KB folders in a vault: registered with OKB or carrying its owner
+ * marker. A folder merely named `kb-…` may belong to another tool and is not one.
+ */
+export async function kbFoldersIn(vault: string, knownRoots: readonly string[] = []): Promise<string[]> {
   try {
-    return (await readdir(vault, { withFileTypes: true })).filter((d) => d.isDirectory() && d.name.startsWith('kb-')).map((d) => d.name).sort();
+    const dirs = (await readdir(vault, { withFileTypes: true })).filter((d) => d.isDirectory() && !d.name.startsWith('.'));
+    const known = new Set(knownRoots.map((r) => resolve(r)));
+    const mine = await Promise.all(dirs.map(async (d) => {
+      const root = resolve(vault, d.name);
+      if (known.has(root)) return d.name;
+      return (await readOwner(root)) ? d.name : null;
+    }));
+    return mine.filter((n): n is string => n !== null).sort();
   } catch {
     return [];
   }
 }
 
-/** The naming convention: "Argo Pilotage" → id `argo-pilotage`, folder `kb-argo-pilotage`. */
+/** The naming convention: "Atlas Pilotage" → id `atlas-pilotage`, folder `kb-atlas-pilotage`. */
 export function kbNames(name: string): { id: string; folder: string; display: string } {
   const id = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/^kb-/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'notes';
   return { id, folder: `kb-${id}`, display: name.trim() || id };

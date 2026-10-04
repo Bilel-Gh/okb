@@ -76,6 +76,7 @@ export async function prepareProposal(
   if (config.kb.requireTemplate && options.target.mode === 'create' && !noteTemplate) {
     throw new OkbError('E_INVALID', 'this knowledge bundle requires every new note to follow a template', {
       hint: 'Write a version 2 dossier with "template" (okb template list), so every note of a kind has the same sections.',
+      key: 'templateRequired',
     });
   }
   const conceptTemplate = analysis?.version === 2 && analysis.concepts.length ? await getTemplate(config, 'concept') : undefined;

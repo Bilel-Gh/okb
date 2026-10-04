@@ -4,13 +4,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { applyProposal } from '../src/apply/apply.js';
 import { grantApproval } from '../src/apply/approval.js';
 import { loadConfig } from '../src/config/load.js';
-import { checkOwnership, foreignNotes, kbNames, listKbs, overlappingKb, readOwner } from '../src/kb/registry.js';
+import { checkOwnership, foreignNotes, kbFoldersIn, kbNames, listKbs, overlappingKb, readOwner } from '../src/kb/registry.js';
 import { proposeFiles } from '../src/proposal/files.js';
 import { saveProposal } from '../src/proposal/store.js';
 import { loadBundleFor } from '../src/kb/bundle.js';
 import { suggestIntent } from '../src/routing/intent.js';
 import { readSettings, writeSetting } from '../src/settings/settings.js';
-import { runWizard, defaultAnswers, wizardContext, checkFolder } from '../src/setup/wizard.js';
+import { runWizard, defaultAnswers, wizardContext, checkFolder, okbVaults, suggestedRoot } from '../src/setup/wizard.js';
 import { computeStatus, proposalSummaries, resolveProposalRef } from '../src/status/status.js';
 import { makeSandbox, writeFixture, type Sandbox } from './helpers/sandbox.js';
 
@@ -18,7 +18,7 @@ const boxes: Sandbox[] = [];
 afterEach(async () => { await Promise.all(boxes.splice(0).map((s) => s.cleanup())); });
 async function box(id = 'alpha') { const s = await makeSandbox({ profileId: id }); boxes.push(s); return s; }
 
-const KBS = [{ id: 'argo', name: 'Argo' }, { id: 'ia', name: 'IA et second cerveau' }];
+const KBS = [{ id: 'atlas', name: 'Atlas' }, { id: 'ia', name: 'IA et second cerveau' }];
 
 describe('natural-language offers', () => {
   const cases: [string, string | null, string?][] = [
@@ -27,12 +27,12 @@ describe('natural-language offers', () => {
     ["that's all for today", 'done'],
     ["lis ce transcript de la réunion d'hier", 'ingest'],
     ['Read this transcript and add it to my notes', 'ingest'],
-    ['note ça : relancer Erwan sur le budget', 'capture'],
-    ['mets à jour mon focus : sprint Carina', 'focus'],
+    ['note ça : relancer Sam sur le budget', 'capture'],
+    ['mets à jour mon focus : sprint Orion', 'focus'],
     ['on fait la revue de la semaine ?', 'weekly'],
-    ['interroge-moi sur la fiche EAF', 'learn'],
+    ['interroge-moi sur la fiche idempotence', 'learn'],
     ['transforme cette procédure en skill', 'skillify'],
-    ["que dit ma kb argo sur l'EAF ?", 'ask', 'argo'],
+    ["que dit ma kb atlas sur l'idempotence ?", 'ask', 'atlas'],
     ['corrige ce bug dans le parser', null],
     ["fais une capture d'écran de la page", null],
     ['/okb:done', null],
@@ -48,7 +48,7 @@ describe('natural-language offers', () => {
 
   it('leaves requests that name another knowledge tool alone, and asks when it could be either', () => {
     expect(suggestIntent('cherche dans support-kb le ticket 42', { kbs: KBS, otherTools: ['support-kb'] })).toBeNull();
-    const generic = suggestIntent('cherche dans ma kb le mot EAF', { kbs: KBS, otherTools: ['support-kb'] });
+    const generic = suggestIntent('cherche dans ma kb le mot idempotence', { kbs: KBS, otherTools: ['support-kb'] });
     expect(generic).toMatchObject({ intent: 'ask', mode: 'ask-which' });
     const named = suggestIntent('cherche dans la KB support le ticket 42', { kbs: KBS, otherTools: [] });
     expect(named).toMatchObject({ mode: 'ask-which', otherTools: ['support'] });
@@ -104,7 +104,7 @@ describe('ownership: OKB writes only in its own folder', () => {
     const s = await box();
     expect((await overlappingKb(resolve(s.vault, 'sub'), null, s.env))?.id).toBe('alpha');
     expect(await overlappingKb(resolve(s.dir, 'elsewhere'), null, s.env)).toBeNull();
-    expect(kbNames('Argo Pilotage')).toEqual({ id: 'argo-pilotage', folder: 'kb-argo-pilotage', display: 'Argo Pilotage' });
+    expect(kbNames('Atlas Pilotage')).toEqual({ id: 'atlas-pilotage', folder: 'kb-atlas-pilotage', display: 'Atlas Pilotage' });
   });
 });
 
@@ -125,6 +125,18 @@ describe('setup wizard model', () => {
     expect((await checkFolder(root, 'notes-perso', s.env)).state).toBe('okb');
     expect((await checkFolder(root, 'other', s.env)).state).toBe('overlap');
     await expect(runWizard({ ...answers, name: 'Notes perso' }, () => undefined, s.env)).resolves.toBeDefined();
+  });
+
+  it('never suggests a vault OKB has no KB in, nor a folder merely named kb-…', async () => {
+    const s = await box();
+    const base = await wizardContext(s.env, { github: false });
+    await writeFixture(resolve(s.dir, 'shared', 'kb-support', 'faq.md'), '# FAQ\n');
+    const ctx = { ...base, kbs: [], vaults: [{ path: resolve(s.dir, 'shared'), open: true, kbs: await kbFoldersIn(resolve(s.dir, 'shared')) }] };
+    expect(ctx.vaults[0]!.kbs).toEqual([]);
+    expect(okbVaults(ctx)).toEqual([]);
+    expect(suggestedRoot(ctx, 'Notes', 'en')).not.toContain(resolve(s.dir, 'shared'));
+    const mine = { ...ctx, vaults: [{ ...ctx.vaults[0]!, kbs: ['kb-reader'] }] };
+    expect(suggestedRoot(mine, 'Notes', 'en')).toBe(resolve(s.dir, 'shared', 'kb-notes'));
   });
 
   it('refuses a foreign folder unless adoption is explicit', async () => {

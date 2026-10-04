@@ -74,10 +74,14 @@ export function dispatch(name: string): Handler | undefined {
 
 /** `okb serve` — the local web app, opened in the browser. */
 async function cmdServe(ctx: Ctx): Promise<number> {
-  const { config } = await effective(ctx.args);
+  // Before the first KB exists, the web app opens on its setup wizard.
+  const config = await effective(ctx.args).then((r) => r.config, (e: unknown) => {
+    if (e instanceof OkbError && e.key === 'noKbYet') return null;
+    throw e;
+  });
   const { serve } = await import('../web/serve.js');
   const { server, url } = await serve(config, { port: flagNumber(ctx.args, 'port') });
-  if (ctx.mode === 'json') ctx.out.json({ ok: true, url, profile: config.profile.id });
+  if (ctx.mode === 'json') ctx.out.json({ ok: true, url, profile: config?.profile.id ?? null });
   else {
     ctx.out.ok(t('serve.ready', { url: paint.bold(url) }));
     ctx.out.line(paint.dim(`  ${t('serve.stop')}`));

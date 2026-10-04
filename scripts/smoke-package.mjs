@@ -28,9 +28,10 @@ async function smokeReader(bin, proposalId) {
     });
     const page = await fetch(url);
     assert.equal(page.status, 200);
-    assert((await page.text()).includes('Mon deuxième cerveau'));
-    assert.equal((await fetch(`${url}/app.js`)).status, 200);
-    assert.equal((await fetch(`${url}/style.css`)).status, 200);
+    assert((await page.text()).includes('/js/main.js'));
+    for (const asset of ['/js/main.js', '/js/core.js', '/js/views/review.js', '/app.css', '/favicon.svg', '/vendor/mermaid.js']) assert.equal((await fetch(`${url}${asset}`)).status, 200, asset);
+    assert.equal((await fetch(`${url}/api/capture`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"text":"x"}' })).status, 403);
+    assert((await (await fetch(`${url}/api/status`)).json()).name);
     assert((await (await fetch(`${url}/api/search?q=dispatcher`)).json()).hits.length > 0);
     const preview = await (await fetch(`${url}/api/proposal?id=${proposalId}`)).json();
     assert(preview.guard.ok && preview.files.some(file => file.after.includes('DRX')));

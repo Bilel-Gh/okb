@@ -88,7 +88,7 @@ description: Ce sur quoi je travaille en ce moment. Claude le lit au début de c
 > [!tip]- Mode d'emploi (clique pour déplier)
 > **À quoi ça sert.** Claude lit cette note au début de chaque session et avant de répondre
 > depuis tes KB. Il s'en sert pour choisir ses exemples, ses priorités et les notes à te
-> proposer : « je prépare le sprint Carina » change la réponse à « explique-moi l'EAF ».
+> proposer : « je prépare le sprint Orion » change la réponse à « explique-moi l'idempotence ».
 > **Comment l'écrire.** 3 à 8 lignes, en style télégraphique. C'est une boussole, pas un journal :
 > le journal des sessions est écrit par \`/okb:done\`.
 > **Quand la mettre à jour.** Quand ton focus change (nouveau sprint, nouveau sujet à apprendre,

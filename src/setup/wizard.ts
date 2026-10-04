@@ -32,7 +32,8 @@ export type WizardContext = {
 
 export async function wizardContext(env: NodeJS.ProcessEnv = process.env, options: { github?: boolean } = {}): Promise<WizardContext> {
   const [vaults, kbs, git, claude, launcher] = await Promise.all([obsidianVaults(env), listKbs(env), gitAvailable(), claudeState(), launcherState()]);
-  const withKbs = await Promise.all(vaults.map(async (v) => ({ ...v, kbs: await kbFoldersIn(v.path) })));
+  const roots = kbs.map((k) => k.root).filter((r): r is string => Boolean(r));
+  const withKbs = await Promise.all(vaults.map(async (v) => ({ ...v, kbs: await kbFoldersIn(v.path, roots) })));
   const gh = options.github === false ? { cli: null, loggedIn: false, user: null } : await ghState();
   let person = '';
   try { person = (await promisify(execFile)('git', ['config', '--global', 'user.name'], { timeout: 3000 })).stdout.trim(); } catch { /* none */ }
@@ -68,15 +69,23 @@ export type WizardAnswers = {
   adopt: boolean;
 };
 
-/** Where a new KB goes by default: beside the person's other KBs, else in their newest vault, else a fresh vault folder. */
+/**
+ * Where a new KB goes by default: beside the person's other OKB KBs, else in a
+ * fresh vault folder of its own. Never inside an Obsidian vault OKB has no KB in:
+ * that vault may be shared or belong to another tool (choose it explicitly).
+ */
 export function suggestedRoot(ctx: WizardContext, name: string, lang: Lang): string {
   const { folder } = kbNames(name);
   const withKbs = ctx.vaults.find((v) => v.kbs.length > 0);
   if (withKbs) return resolve(withKbs.path, folder);
   const known = ctx.kbs.find((k) => k.root);
   if (known) return resolve(dirname(known.root), folder);
-  if (ctx.vaults[0]) return resolve(ctx.vaults[0].path, folder);
   return resolve(homedir(), 'Documents', lang === 'fr' ? 'second-cerveau' : 'second-brain', folder);
+}
+
+/** Vaults worth offering for a new KB: those already holding an OKB KB. */
+export function okbVaults(ctx: WizardContext): WizardContext['vaults'] {
+  return ctx.vaults.filter((v) => v.kbs.length > 0);
 }
 
 export function defaultAnswers(ctx: WizardContext, name: string, lang: Lang): WizardAnswers {

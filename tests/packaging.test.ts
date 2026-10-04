@@ -197,6 +197,15 @@ describe('approval hook', () => {
     expect(JSON.parse(out).hookSpecificOutput.permissionDecision).toBe('deny');
   });
 
+  it('denies calling the web app approval endpoint or clicking its dialog from a script', async () => {
+    for (const command of [
+      "curl -s -X POST -H 'X-OKB-Token: t' http://127.0.0.1:4317/api/proposal/approve -d '{}'",
+      "node -e \"fetch('http://localhost:4317/api/proposal/approve',{method:'POST'})\"",
+      'osascript -e \'tell application "System Events" to click button "Approve" of window "OKB"\'',
+    ]) expect(JSON.parse(await run(command)).hookSpecificOutput.permissionDecision, command).toBe('deny');
+    expect(await run('curl -s http://127.0.0.1:4317/api/proposal?id=p-1')).toBe('');
+  });
+
   it('lets the ordinary workflow through', async () => {
     for (const command of [
       'okb ingest notes.vtt --append flows/a.md --heading Notes --json',

@@ -24,7 +24,10 @@ const APPROVE = /\breview\b[\s\S]*?--approve(?:\s|=|$)/;
 // A pseudo-terminal would turn OKB's interactive approval into something an agent can type.
 const PTY_WRAP = /(^|[;&|(]\s*|\$\(\s*)(script|expect|unbuffer|socat)\s[^;&|]*\bokb\s+(review|undo|kb|init|new|settings|update)\b/;
 // The local web app approves only with a person's confirmation on screen; never drive it from a tool call.
-const WEB_APPROVE = /\b(curl|wget|http|fetch|nc)\b[\s\S]*(127\.0\.0\.1|localhost)[\s\S]*\/api\/(approve|presence)/;
+// Any HTTP client aimed at the local web app's approval endpoints (/api/proposal/approve, …).
+const WEB_APPROVE = /\b(curl|wget|http|https|xh|fetch|nc|node|python3?|osascript)\b[\s\S]*(127\.0\.0\.1|localhost|\[::1\])[\s\S]*\/api\/[\w/-]*(approve|presence)/;
+// Clicking OKB's native approval dialog from a script is approving for the person.
+const DIALOG_CLICK = /\bosascript\b[\s\S]*\b(System Events|click button)\b[\s\S]*\b(OKB|Approuver|Approve)\b/i;
 const ENV_ESCAPE = /OKB_APPLY_MODE\s*=\s*allow-direct/;
 const KEY_READ = /(cat|less|more|head|tail|xxd|od|strings|cp|mv)\b[^;&|]*approval\.key/;
 
@@ -66,6 +69,9 @@ process.stdin.on('end', () => {
   }
   if (WEB_APPROVE.test(command)) {
     return deny('Approving through the OKB web app is the user\'s decision, confirmed on their screen. Do not call its approval endpoint.');
+  }
+  if (DIALOG_CLICK.test(command)) {
+    return deny('The OKB approval dialog is answered by the person, not by a script.');
   }
   if (ENV_ESCAPE.test(command)) {
     return deny('OKB_APPLY_MODE=allow-direct bypasses the review step. Ask the user to change it in their profile if they want it.');
