@@ -64,6 +64,10 @@ export async function installClaudePlugin(): Promise<{ ok: boolean; steps: strin
   if (!state.cli) return { ok: false, steps: [], error: 'claude-missing' };
   const steps: string[] = [];
   if (state.installed) {
+    // An update keeps the installation as it is (scope, enabled state); reinstall only if it fails.
+    const up = await tryRun(state.cli, ['plugin', 'update', 'okb@okb'], { timeout: 120_000 });
+    steps.push(`update: ${up.ok ? 'ok' : up.err}`);
+    if (up.ok) return { ok: true, steps };
     const r = await tryRun(state.cli, ['plugin', 'uninstall', 'okb@okb']);
     steps.push(`uninstall: ${r.ok ? 'ok' : r.err}`);
   }
