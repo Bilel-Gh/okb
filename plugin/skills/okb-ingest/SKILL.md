@@ -1,11 +1,14 @@
 ---
 name: okb-ingest
-description: Enrich the user's OKB knowledge base from a VTT transcript, document, article, URL or source-code files, with cited synthesis written in the user's configured style and optional concept cards. Use when importing one or several sources into their KB, including French requests such as « enrichis ma KB avec ce transcript ». Do not use for a standalone summary, a question about existing notes, an unrelated file edit or approving a prepared proposal.
+description: Enrich the user's OKB knowledge base from a VTT transcript, document, article, URL or source-code files, with cited synthesis written in the user's configured style and optional concept cards. Use when importing one or several sources into their KB, including French requests such as « enrichis ma KB avec ce transcript ». Do not use for a standalone summary, a question about existing notes, an unrelated file edit or approving a prepared proposal, nor for another tool's or agent's knowledge base.
 ---
 
 # Prepare a sourced knowledge change
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
+> 📚 **Before your first reply.** Run `okb profile --json` once and open with one line `📚 <KB name>` (add ` · 🎯 focus <n> j` when the focus is stale). If the session context lacks the user's OKB focus, `okb focus --context` gives it: use it silently. Speak the user's language.
+> 🧭 **Choices are buttons.** Whenever the user must choose (which KB, which proposal, keep or drop, go or not), ask with AskUserQuestion: 2 to 4 options, the recommended one first with « (recommandé) », one question at a time.
+> 🛡️ **Only OKB's own KBs.** Never read or write another tool's or agent's knowledge base (a support agent's KB, a wiki, another plugin's folder, `routing.otherKnowledgeTools`). If a request could concern one of them, ask which knowledge base is meant before acting.
+> ✍️ **Format.** Short sections, a table for lists, quotations as `>` blocks with `path:line`, and a last line « ➡️ Prochaine étape : … ». OKB refuses secrets (`E_SECRET`): offer a placeholder such as `<API_KEY>`.
 
 Use the installed `okb` CLI. If unavailable, report the installation error; never
 substitute direct writes to the knowledge bundle. No MCP is needed for local

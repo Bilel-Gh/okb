@@ -1,11 +1,14 @@
 ---
 name: okb-learn
-description: Help the user learn and retain a note or topic from their OKB knowledge bundle by active recall — short questions one at a time, feedback grounded in the note's cited evidence, and the gaps left to explore. Use when the user wants to revise, be quizzed, check understanding or learn a concept from the KB. Do not use to add knowledge, answer a factual question once, or audit the KB.
+description: Help the user learn and retain a note or topic from their OKB knowledge bundle by active recall — short questions one at a time, feedback grounded in the note's cited evidence, and the gaps left to explore. Use when the user wants to revise, be quizzed, check understanding or learn a concept from the KB. Do not use to add knowledge, answer a factual question once, or audit the KB, nor for another tool's or agent's knowledge base.
 ---
 
 # Learn by recalling, not by re-reading
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
+> 📚 **Before your first reply.** Run `okb profile --json` once and open with one line `📚 <KB name>` (add ` · 🎯 focus <n> j` when the focus is stale). If the session context lacks the user's OKB focus, `okb focus --context` gives it: use it silently. Speak the user's language.
+> 🧭 **Choices are buttons.** Whenever the user must choose (which KB, which proposal, keep or drop, go or not), ask with AskUserQuestion: 2 to 4 options, the recommended one first with « (recommandé) », one question at a time.
+> 🛡️ **Only OKB's own KBs.** Never read or write another tool's or agent's knowledge base (a support agent's KB, a wiki, another plugin's folder, `routing.otherKnowledgeTools`). If a request could concern one of them, ask which knowledge base is meant before acting.
+> ✍️ **Format.** Short sections, a table for lists, quotations as `>` blocks with `path:line`, and a last line « ➡️ Prochaine étape : … ». OKB refuses secrets (`E_SECRET`): offer a placeholder such as `<API_KEY>`.
 
 Work only from the KB: find the note with `okb ask "<topic>" --json` or read the
 given note. Each fact you test must come from a claim of that note and its

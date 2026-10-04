@@ -1,4 +1,4 @@
-import { formatDate, languageName, relativeTime, t, tn } from '../../i18n/index.js';
+import { formatDate, lang, languageName, relativeTime, t, tn } from '../../i18n/index.js';
 import { computeStatus, type Status } from '../../status/status.js';
 import { flagBool } from '../args.js';
 import { paint, sym } from '../ui/term.js';
@@ -55,7 +55,7 @@ export async function cmdStatus(ctx: Ctx): Promise<number> {
   const cfg = await config(ctx.args);
   const s = await computeStatus(cfg, { light: flagBool(ctx.args, 'brief') });
   if (ctx.mode === 'json') {
-    ctx.out.json({ ok: true, ...s, line: statusLine(s) });
+    ctx.out.json({ ok: true, ...s, line: statusLine(s), ui: lang() });
     return 0;
   }
   if (flagBool(ctx.args, 'brief')) {

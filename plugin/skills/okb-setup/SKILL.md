@@ -5,51 +5,54 @@ description: Install or reconfigure an okb profile — knowledge bundle location
 
 # Install or reconfigure a profile
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
+> 📚 **Before your first reply.** Run `okb profile --json` once and open with one line `📚 <KB name>` (add ` · 🎯 focus <n> j` when the focus is stale). If the session context lacks the user's OKB focus, `okb focus --context` gives it: use it silently. Speak the user's language.
+> 🧭 **Choices are buttons.** Whenever the user must choose (which KB, which proposal, keep or drop, go or not), ask with AskUserQuestion: 2 to 4 options, the recommended one first with « (recommandé) », one question at a time.
+> 🛡️ **Only OKB's own KBs.** Never read or write another tool's or agent's knowledge base (a support agent's KB, a wiki, another plugin's folder, `routing.otherKnowledgeTools`). If a request could concern one of them, ask which knowledge base is meant before acting.
+> ✍️ **Format.** Short sections, a table for lists, quotations as `>` blocks with `path:line`, and a last line « ➡️ Prochaine étape : … ». OKB refuses secrets (`E_SECRET`): offer a placeholder such as `<API_KEY>`.
 
 The product is generic; everything personal lives in a profile under `$OKB_HOME`
 (default `~/.okb`). Re-running setup updates known keys and preserves every other
 key the user added.
 
-## Interview — one question at a time
+## The easy way: `okb init`
 
-Ask ONE question per message, each with your recommended answer so the user can
-simply say yes. Skip what the user already said or supplied in a file. Keep a
-short running summary of the answers.
+In a terminal, `okb init` (first KB) or `okb new` (another KB) is a guided
+wizard: quick or custom mode, detected Obsidian vaults, the naming convention,
+Git and GitHub, the Claude plugin and the `okb` command. Recommend it first
+when the user has a terminal at hand.
+
+## In this conversation — one question at a time, with buttons
+
+Ask ONE question per message with AskUserQuestion, the recommended answer first.
+Skip what the user already said. Keep a short running summary.
 
 1. **What is this KB about?** A subject (lasting knowledge) or a project (shared
-   with others, ends one day)? Who else will read it? Propose a name following the
-   naming convention below.
-2. **Where does it live?** If the user already has an Obsidian vault with other
-   `kb-*` folders, recommend `<vault>/kb-<name>`. Otherwise an empty folder of
-   their choice. The KB is a separate directory of ordinary Markdown files.
-3. **Who reads it?** The reader's level (`beginner`, `intermediate`, `expert`)
-   and the domains where they start from zero (`reader.byDomain`).
-4. **Concept assist level** — ask explicitly, never choose silently:
+   with others, ends one day)? Propose a name following the naming convention.
+2. **Where?** If the user has an Obsidian vault with other `kb-*` folders,
+   recommend `<vault>/kb-<name>`. A folder holding notes another tool wrote may
+   belong to another agent: say so, and only continue on an explicit yes
+   (`--adopt`).
+3. **Interface language** of OKB (menus, messages): français, English or
+   automatic — and **writing language** of the notes, asked separately.
+4. **Quick or custom?** Quick keeps safe defaults. Custom asks: reader level
+   (`beginner`, `intermediate`, `expert`), style (`standard`, `pedagogique`,
+   `expert`), help with notions (`targeted` recommended, `pedagogical`, `off`).
+5. **Git history** (recommended when Git exists), a **private GitHub repository**
+   (only if `gh` is logged in and the user wants it), the **Claude plugin** and the
+   **okb command** on the PATH.
 
-   | Level | What it does |
-   |---|---|
-   | `off` | no detection, no insertion. Existing cards and links keep working. |
-   | `targeted` | business vocabulary, internal terms, indispensable prerequisites. **Recommended.** |
-   | `pedagogical` | targeted, plus the fundamental notions relevant to the subject. |
+Then show the whole configuration as a short table and ask for one confirmation.
+Run it without questions:
 
-5. **Language and actor**: answer language, and the id recorded in
-   `generated.by` (`human:<id>`). Propose what the conversation already shows.
-6. **Writing style**: preset `standard` (default), `pedagogique` or `expert`
-   (`okb style presets` if they hesitate). Style, reader level and concept assist
-   are three separate settings. For a KB that should stay uniform, recommend
-   `kb.requireTemplate: true` (`okb template list`).
-7. **Confidentiality**: private, or shareable with someone? Third-party paid
-   content (a course, a book) stays private. Record it as a writing instruction
-   or a comment so the next session knows.
-8. **Focus and history**: if another profile already has a focus note, propose to
-   share it (`focus.file`, `focus.journal`). If the KB folder is a Git repository,
-   propose `git.autoCommit: true` (each apply becomes a commit; nothing is pushed).
-9. **Organisation overlay**, only if the user mentions one. It can only narrow
-   what the profile allows, never widen it.
+```bash
+okb init --yes --name "<Name>" --dir "<folder>" --lang fr --writing-lang fr \
+  --preset standard [--git] [--github] [--adopt]
+okb settings set reader.level=intermediate conceptAssist.level=targeted --kb <id>
+okb doctor --kb <id>
+```
 
-Then show the whole configuration as a short table and ask for one confirmation
-before running setup.
+Change any setting later with `okb settings set <key>=<value>` (`okb settings
+show --all` lists them, with their labels in the user's language).
 
 ## Naming convention (recommend it)
 
@@ -77,41 +80,19 @@ The file may carry `writing:` (preset plus knobs to override, see
 `okb config show --defaults`), `reader:` (`level`, `byDomain`), `focus:` (`file`,
 `journal`) and `git:` (`autoCommit`).
 
-## Apply
+## Switching, other KBs, other tools
 
-```bash
-okb setup --profile <id> --kb-root <path> --concept-assist targeted \
-  --human-actor human:<id> --answer-language fr --concepts-folder concepts \
-  --writing-preset pedagogique
-okb doctor
-okb style            # the brief the writing workflows will follow
-```
+- Switch the active KB: `okb kb switch <id>` (the user may simply say « passe sur
+  la KB argo »). One command for another KB: add `--kb <id>`.
+- Several KBs live as sibling folders of one Obsidian vault, each with its own
+  settings. A folder belongs to one KB only (OKB marks it in `.okb/owner.yaml`).
+- Another tool or agent with its own knowledge base (a support agent, a wiki):
+  record its name so OKB never touches it and asks when a request is ambiguous:
+  `okb settings set routing.otherKnowledgeTools="support-kb, wiki produit"`.
+- Natural-language offers (« fin de session » → /okb:done) can be turned off:
+  `okb settings set routing.suggest=false`.
 
-Then confirm what is on and what is off:
-
-```bash
-okb config show
-```
-
-Report `disabled` (capabilities left off because nothing configured them) and
-`clamped` (settings an organisation policy narrowed). Do not present a clamped
-value as a user choice.
-
-## Second profile
-
-```bash
-okb setup --profile <other-id> --kb-root <other-path> --concept-assist off
-okb setup switch <other-id>
-```
-
-Profiles never share state: proposals, approvals, caches and logs live under
-`$OKB_HOME/profiles/<id>/state`.
-
-## Changing the assist level later
-
-- Globally: `conceptAssist.level` in the profile.
-- Per domain: `conceptAssist.byDomain.<domain>`.
-- For one import: `okb ingest … --concept-assist off`.
-
-Turning it off stops new suggestions and insertions. Cards and links already in
-the bundle keep working.
+For scripts, `okb setup --profile <id> --kb-root <path> --concept-assist targeted`
+still works, and `okb setup --from answers.yaml` reads `writing`, `reader`,
+`focus` and `git`. Profiles never share state: proposals, approvals and logs live
+under `$OKB_HOME/profiles/<id>/state`.

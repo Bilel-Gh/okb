@@ -619,7 +619,8 @@ export async function cmdMigrate(args: ParsedArgs, out: Output, mode: OutputMode
   return 0;
 }
 
-export function cmdRoute(args: ParsedArgs, out: Output, mode: OutputMode): number {
+export async function cmdRoute(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  if (flagBool(args, 'suggest')) return routeSuggest(args, out, mode);
   const request = args.positionals.join(' ').trim();
   if (!request) throw new OkbError('E_INVALID', 'usage: okb route "<request>"');
   const decision = route(request);
@@ -644,4 +645,37 @@ export async function packageVersion(): Promise<string> {
   const raw = await readTextIfExists(resolve(here, 'package.json'));
   if (!raw) return 'unknown';
   return (JSON.parse(raw) as { version?: string }).version ?? 'unknown';
+}
+
+/**
+ * `okb route --suggest [--stdin] [--cwd dir] "<message>"`: the offer the plugin's
+ * prompt hook gives Claude — which OKB command fits a message in natural language,
+ * and whether other knowledge tools mean Claude should ask first. Read-only.
+ */
+async function routeSuggest(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { detectOtherKnowledgeTools, renderOffer, suggestIntent } = await import('../../routing/intent.js');
+  const { listKbs } = await import('../../kb/registry.js');
+  const { lang } = await import('../../i18n/index.js');
+  let message = args.positionals.join(' ');
+  if (flagBool(args, 'stdin')) {
+    const chunks: Buffer[] = [];
+    for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+    message = Buffer.concat(chunks).toString('utf8');
+  }
+  let enabled = true;
+  let configured: string[] = [];
+  try {
+    const { config } = await effective(args);
+    enabled = config.routing.suggest;
+    configured = config.routing.otherKnowledgeTools;
+  } catch {
+    enabled = false; // no KB yet: nothing to offer
+  }
+  const kbs = (await listKbs()).map((k) => ({ id: k.id, name: k.name }));
+  const otherTools = [...new Set([...configured, ...(await detectOtherKnowledgeTools(flagString(args, 'cwd')))])];
+  const suggestion = enabled ? suggestIntent(message, { kbs, otherTools }) : null;
+  const context = suggestion ? renderOffer(suggestion, lang()) : '';
+  if (mode === 'json') out.json({ ok: true, enabled, suggestion, context });
+  else if (context) out.line(context);
+  return 0;
 }

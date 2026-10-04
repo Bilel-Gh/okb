@@ -11,5 +11,6 @@
   ],
   "author": {
     "name": "OKB contributors"
-  }
+  },
+  "types": "./types/index.d.ts"
 }

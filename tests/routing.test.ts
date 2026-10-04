@@ -32,6 +32,7 @@ const CASES: readonly { request: string; expect: SkillId; why: string }[] = [
   { request: "On a fini pour aujourd'hui, fais le /done", expect: 'okb-focus', why: 'end of session' },
   { request: 'Mets à jour mon focus : je prépare le sprint Carina', expect: 'okb-focus', why: 'update the focus note' },
   { request: 'Transforme cette procédure de déploiement en skill', expect: 'okb-skillify', why: 'procedure to skill' },
+  { request: "Où j'en suis avec mon second cerveau ?", expect: 'okb-guide', why: 'dashboard' },
 
   // negative — the skill must stay out of the way
   { request: 'Just summarise this article for me, do not save anything', expect: 'none', why: 'summary only' },
@@ -77,7 +78,7 @@ describe('plugin descriptions', () => {
       // A command delegates; it must not restate a procedure.
       expect(body.split('\n').filter((l) => l.trim()).length).toBeLessThan(12);
       if (command !== 'doctor.md') {
-        expect(body).toMatch(/okb-(setup|ingest|ask|review|maintain|revise|inbox|weekly|learn|focus|skillify)` skill/);
+        expect(body).toMatch(/okb-(setup|ingest|ask|review|maintain|revise|inbox|weekly|learn|focus|skillify|guide)` skill/);
       }
     }
   });

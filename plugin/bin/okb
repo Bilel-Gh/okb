@@ -3,6 +3,11 @@
 # enabled. This wrapper runs the CLI shipped beside the plugin (npm package or
 # built source checkout), so skills and CLI always come from the same version.
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+# Commands run for Claude never ask questions (an agent cannot answer for the
+# person), and say which plugin version called them so a mismatch is reported.
+export OKB_NO_INTERACTIVE=1
+OKB_PLUGIN_VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$here/../.claude-plugin/plugin.json" 2>/dev/null | head -1)
+export OKB_PLUGIN_VERSION
 cli="$here/../../dist/cli/index.js"
 if [ -f "$cli" ]; then
   exec node "$cli" "$@"

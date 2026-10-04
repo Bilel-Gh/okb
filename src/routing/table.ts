@@ -9,7 +9,7 @@
  * session.
  */
 
-export type SkillId = 'okb-setup' | 'okb-ingest' | 'okb-ask' | 'okb-review' | 'okb-maintain' | 'okb-revise' | 'okb-inbox' | 'okb-weekly' | 'okb-learn' | 'okb-focus' | 'okb-skillify' | 'none';
+export type SkillId = 'okb-setup' | 'okb-ingest' | 'okb-ask' | 'okb-review' | 'okb-maintain' | 'okb-revise' | 'okb-inbox' | 'okb-weekly' | 'okb-learn' | 'okb-focus' | 'okb-skillify' | 'okb-guide' | 'none';
 
 export type Signal = { readonly re: RegExp; readonly weight: 1 | 2 };
 
@@ -153,6 +153,16 @@ export const ROUTING_RULES: readonly RoutingRule[] = [
       weak(/\b(process|procédure|procedure|workflow)\b.*\b(skill|commande|command)\b/i),
     ],
     negative: [/\b(plugin okb|okb plugin)\b/i],
+  },
+  {
+    skill: 'okb-guide',
+    when: 'asking what OKB can do, how to use it or where things stand',
+    notWhen: 'a precise task another OKB skill handles',
+    positive: [
+      strong(/\b(o[ùu] (j['’]en suis|en est)|que (peut faire|fait)|comment (marche|fonctionne|utiliser)|aide)\b.{0,30}\b(okb|second cerveau)\b/i),
+      strong(/\b(what can okb do|how (do i|to) use okb|okb (help|status|menu))\b/i),
+    ],
+    negative: [/\b(install|installer|configure[rz]?)\b/i],
   },
 ];
 

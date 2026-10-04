@@ -18,7 +18,13 @@
  * isolate an adversarial model from the key or exhaustively parse shell code.
  */
 
+// Only OKB's own approval: `gh pr review --approve` and other tools pass untouched.
+const OKB = /(^|[\s;&|(`'"\/])(okb|okb-local|index\.js)(\s|$)/;
 const APPROVE = /\breview\b[\s\S]*?--approve(?:\s|=|$)/;
+// A pseudo-terminal would turn OKB's interactive approval into something an agent can type.
+const PTY_WRAP = /(^|[;&|(]\s*|\$\(\s*)(script|expect|unbuffer|socat)\s[^;&|]*\bokb\s+(review|undo|kb|init|new|settings|update)\b/;
+// The local web app approves only with a person's confirmation on screen; never drive it from a tool call.
+const WEB_APPROVE = /\b(curl|wget|http|fetch|nc)\b[\s\S]*(127\.0\.0\.1|localhost)[\s\S]*\/api\/(approve|presence)/;
 const ENV_ESCAPE = /OKB_APPLY_MODE\s*=\s*allow-direct/;
 const KEY_READ = /(cat|less|more|head|tail|xxd|od|strings|cp|mv)\b[^;&|]*approval\.key/;
 
@@ -49,11 +55,17 @@ process.stdin.on('end', () => {
     );
   };
 
-  if (APPROVE.test(command)) {
+  if (OKB.test(command) && APPROVE.test(command)) {
     return deny(
       'Approving an okb proposal is the user\'s decision. Show them the diff and the exact ' +
         '`okb review <id> --approve [--only …]` line, and let them run it themselves.',
     );
+  }
+  if (PTY_WRAP.test(command)) {
+    return deny('OKB\'s interactive questions are for the person at the keyboard. Run okb without a pseudo-terminal wrapper, and leave approvals to the user.');
+  }
+  if (WEB_APPROVE.test(command)) {
+    return deny('Approving through the OKB web app is the user\'s decision, confirmed on their screen. Do not call its approval endpoint.');
   }
   if (ENV_ESCAPE.test(command)) {
     return deny('OKB_APPLY_MODE=allow-direct bypasses the review step. Ask the user to change it in their profile if they want it.');

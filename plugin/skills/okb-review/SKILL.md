@@ -1,41 +1,42 @@
 ---
 name: okb-review
-description: Review, select, apply or roll back an existing OKB knowledge proposal. Use when the user wants its diff or authorises prepared KB changes, including « applique cette proposition ». Do not use to ingest a source, review code or edit notes directly.
+description: Review, select, apply or roll back an existing OKB knowledge proposal. Use when the user wants its diff or authorises prepared KB changes, including « applique cette proposition ». Do not use to ingest a source, review code or edit notes directly, nor for another tool's or agent's knowledge base.
 ---
 
 # Review the exact selected change
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
+> 📚 **Before your first reply.** Run `okb profile --json` once and open with one line `📚 <KB name>` (add ` · 🎯 focus <n> j` when the focus is stale). If the session context lacks the user's OKB focus, `okb focus --context` gives it: use it silently. Speak the user's language.
+> 🧭 **Choices are buttons.** Whenever the user must choose (which KB, which proposal, keep or drop, go or not), ask with AskUserQuestion: 2 to 4 options, the recommended one first with « (recommandé) », one question at a time.
+> 🛡️ **Only OKB's own KBs.** Never read or write another tool's or agent's knowledge base (a support agent's KB, a wiki, another plugin's folder, `routing.otherKnowledgeTools`). If a request could concern one of them, ask which knowledge base is meant before acting.
+> ✍️ **Format.** Short sections, a table for lists, quotations as `>` blocks with `path:line`, and a last line « ➡️ Prochaine étape : … ». OKB refuses secrets (`E_SECRET`): offer a placeholder such as `<API_KEY>`.
 
-1. Run `okb review --list --json` or `okb review <id> --diff --json`.
-   Show the paths, useful content changes, concept candidates and unresolved
-   contradictions. Review is separate from technical verification.
-   Several pending proposals that belong together (notes linking to each other)
-   can be merged with `okb combine <id> <id>…`: one diff, one approval, one
-   receipt and one rollback. Their change ids become `p1-…`, `p2-…`.
-2. A selection can include article, concept cards, links and mechanical changes.
-   Preview the **same selection** with `okb review <id> --only a,b --diff --json`.
-   Refused cards drop only their dependent links; moves must be accepted as a
-   complete operation. Empty or inconsistent selections cannot be applied.
-3. The CLI's configured approval workflow reserves signing for a person. Give
-   the user the exact command for this reviewed selection:
-   `okb review <id> --approve --only a,b`.
-   Do not run this yourself, read the approval key or use another tool to bypass
-   it. Explain this requirement comes from OKB's local approval boundary.
-4. After the grant exists, run `okb apply <id> --only a,b --json` if applying is
-   authorised. You may omit `--only` to use the exact stored approved selection.
-   A different selection or changed payload needs a new grant.
-5. Report the receipt and `okb apply --rollback <receipt-id>`.
+1. **What waits.** `okb review --list --json` gives the pending proposals with
+   their number (`#1`, `#2`…), a readable title and their size. Show them as a
+   short table. Several pending proposals that belong together can become one
+   with `okb combine <id> <id>…` (one diff, one approval, one receipt).
+2. **Read one.** `okb review <n> --diff --json` (a number, an id prefix or a full
+   id). Summarise what changes: files created or modified, the important claims,
+   concept cards, contradictions and the preparation notes. To keep only part of
+   it, preview the same selection with `--only a,b`; refused cards drop only
+   their dependent links; empty or inconsistent selections cannot be applied.
+3. **The person approves — never you.** Ask with buttons where they want to do it:
+   - « Dans mon terminal (recommandé) » → give them `okb review <n>` (with
+     `--kb <name>` if needed): it shows the coloured diff and lets them choose,
+     approve and apply in one step;
+   - « Dans l'application web » → `okb serve`, page « À relire »: their screen
+     asks them to confirm;
+   - « Plus tard » → stop here.
+   Never run `okb review … --approve`, never drive the web app's approval, never
+   read the approval key: the plugin's hook refuses it, and it is the user's
+   decision.
+4. **Then continue.** Ask « C'est fait ? » with the buttons « Oui, c'est appliqué »
+   and « Pas encore ». On yes, check `okb review --list --json` (status
+   `applied`) and report in two lines what entered the KB and that `okb undo`
+   takes it back. If it is approved but not applied, run `okb apply <id> --json`
+   yourself (applying an approved selection is allowed), then report the receipt.
+5. A proposal the user drops: `okb review <n> --discard` (nothing is written).
+   An interrupted apply: `okb apply <id> --resume`. Staleness (`E_STALE`) means a
+   note changed since preparation: offer to prepare it again, never overwrite.
 
-A prepared proposal the user drops is marked with `okb review <id> --discard`;
-nothing is written to the KB.
-
-An interrupted run can resume with `okb apply <id> --resume`. The receipt exists
-before the first KB write, so it also supports rollback of an incomplete apply.
-Rollback refuses later human edits and preflights backups before changing files.
-If staleness or a lock conflict is reported, explain the conflicting file/process;
-never remove a live lock or overwrite an edit to make a check pass.
-
-For `--dry-run`, expect no receipt or KB writes. Approval signatures and the hook
-are workflow controls under one OS account, not isolation from an adversarial
-agent with arbitrary filesystem or shell access.
+Approval signatures and hooks are workflow controls under one OS account, not
+isolation from an adversarial agent with arbitrary shell access.

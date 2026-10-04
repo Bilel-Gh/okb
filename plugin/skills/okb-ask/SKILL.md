@@ -1,11 +1,14 @@
 ---
 name: okb-ask
-description: Answer a question from the user's OKF knowledge bundle, quoting located evidence with file paths and line numbers. Use when the user asks what the knowledge base says about a topic, wants to find a note, or asks a question their knowledge base is likely to cover. Do not use for general world knowledge, for questions about code in the open repository, or when the user is adding content rather than retrieving it.
+description: Answer a question from the user's OKF knowledge bundle, quoting located evidence with file paths and line numbers. Use when the user asks what the knowledge base says about a topic, wants to find a note, or asks a question their knowledge base is likely to cover. Do not use for general world knowledge, for questions about code in the open repository, or when the user is adding content rather than retrieving it, nor for another tool's or agent's knowledge base.
 ---
 
 # Answer from the knowledge bundle
 
-> 📚 **Which KB.** Start your first reply with one line `📚 KB: <profile>` taken from `okb profile --json` (again after any `okb setup switch` or explicit `--profile`), so the user always sees which knowledge bundle is in use. If the session context does not already hold the user's OKB focus, `okb focus --context` gives it: use it silently to choose examples and priorities.
+> 📚 **Before your first reply.** Run `okb profile --json` once and open with one line `📚 <KB name>` (add ` · 🎯 focus <n> j` when the focus is stale). If the session context lacks the user's OKB focus, `okb focus --context` gives it: use it silently. Speak the user's language.
+> 🧭 **Choices are buttons.** Whenever the user must choose (which KB, which proposal, keep or drop, go or not), ask with AskUserQuestion: 2 to 4 options, the recommended one first with « (recommandé) », one question at a time.
+> 🛡️ **Only OKB's own KBs.** Never read or write another tool's or agent's knowledge base (a support agent's KB, a wiki, another plugin's folder, `routing.otherKnowledgeTools`). If a request could concern one of them, ask which knowledge base is meant before acting.
+> ✍️ **Format.** Short sections, a table for lists, quotations as `>` blocks with `path:line`, and a last line « ➡️ Prochaine étape : … ». OKB refuses secrets (`E_SECRET`): offer a placeholder such as `<API_KEY>`.
 
 ## Steps
 

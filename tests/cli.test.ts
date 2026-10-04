@@ -186,6 +186,27 @@ describe('packaged CLI', () => {
     expect(missing.code).not.toBe(0);
   });
 
+  it('speaks to people: tour, status, offers, typo suggestions and errors in French', async () => {
+    const s = await makeSandbox({ profileId: 'alpha' });
+    sandboxes.push(s);
+    const tour = await okb(['tour', '--yes'], s.env);
+    expect(tour.code).toBe(0);
+    expect(tour.stdout).toContain('Throwaway KB deleted');
+    const status = json<{ profile: string; line: string; pending: unknown[] }>(await okb(['status', '--json'], s.env));
+    expect(status.line).toContain('📚 alpha');
+    const offer = json<{ suggestion: { intent: string; command: string } }>(await okb(['route', '--suggest', '--json', 'ok fin de session'], s.env));
+    expect(offer.suggestion).toMatchObject({ intent: 'done', command: '/okb:done' });
+    const fr = { ...s.env, OKB_LANG: 'fr' };
+    const typo = await okb(['revew'], fr);
+    expect(typo.stderr).toContain('Tu voulais dire okb review');
+    const missing = await okb(['review', '42'], fr);
+    expect(missing.stderr).toContain('Proposition introuvable');
+    expect(missing.stderr).toContain('okb explain E_NOT_FOUND');
+    expect((await okb(['explain', 'E_STALE'], fr)).stdout).toContain('La KB a changé entre-temps');
+    const help = await okb(['help', 'review'], fr);
+    expect(help.stdout).toContain('okb review 1');
+  });
+
   it('generates a navigable index tree that resolves in every renderer', async () => {
     const s = await makeSandbox({ profileId: 'alpha' });
     sandboxes.push(s);

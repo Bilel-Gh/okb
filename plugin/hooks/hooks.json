@@ -22,6 +22,20 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/intent.mjs\"",
+            "timeout": 8
+          }
+        ]
+      }
     ]
-  }
+  },
+  "modules": [
+    "./okb-ui.tsx"
+  ]
 }
