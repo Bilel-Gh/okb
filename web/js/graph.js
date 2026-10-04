@@ -26,6 +26,24 @@ function seed(id) {
 }
 
 const dark = () => document.documentElement.dataset.theme === 'dark';
+/** "🧩 Les briques de Claude Code : outils, skills…" → "Les briques de Claude Code". */
+export function shortTitle(title, max = 32) {
+  let t = String(title).replace(/^[^\p{L}\p{N}«"(]+/u, '').trim();
+  const cut = t.search(/\s[:—–|]\s|\s-\s/);
+  if (cut >= 8) t = t.slice(0, cut);
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 function css(name, fallback) {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return v || fallback;
@@ -45,7 +63,8 @@ export class GraphView {
     this.allNodes = data.nodes.map((n) => ({ ...n }));
     this.allEdges = data.edges;
     this.filter = { hidden: new Set(), area: null, orphans: true, focus: null, depth: 1, query: '' };
-    this.options = { labels: 'auto', groupBy: 'none', arrows: false };
+    this.options = { labels: 'auto', groupBy: this.mini ? 'none' : 'theme', arrows: false };
+    this.themes = new Map((data.communities ?? []).map((c) => [c.id, { ...c, label: shortTitle(c.label, 28) }]));
     this.transform = { k: 1, x: 0, y: 0 };
     this.hover = null;
     this.selected = null;
@@ -117,47 +136,132 @@ export class GraphView {
     return { nodes, edges };
   }
 
+  /** What groups a note: its detected theme, its category or its area. */
+  groupKey(n) {
+    const mode = this.options.groupBy;
+    if (mode === 'theme') return n.community >= 0 ? `t${n.community}` : null;
+    if (mode === 'category') return `c:${n.category}`;
+    if (mode === 'area') return `a:${n.area}`;
+    return null;
+  }
+
+  groupLabel(key) {
+    if (key.startsWith('t')) return this.themes.get(Number(key.slice(1)))?.label ?? '';
+    if (key.startsWith('c:')) { const c = this.categories.get(key.slice(2)); return c ? `${c.emoji} ${c.name ?? c.id}` : ''; }
+    if (key.startsWith('a:')) return key.slice(2) === '.' ? '' : key.slice(2);
+    return '';
+  }
+
+  /**
+   * Two-level force layout ("group in a box"): the groups are laid out first,
+   * as discs sized by their number of notes and pulled together by the links
+   * between them; then each note settles around its group's place, with
+   * ForceAtlas2-style forces (well-linked notes push harder, links inside a
+   * group are short and strong, links between groups long and loose).
+   * Notes without links wait on a ring around the graph. Computed before the
+   * first frame, so the graph appears settled.
+   */
   rebuild(first) {
     if (!this.d3) return;
     const d3 = this.d3;
     const previous = new Map((this.nodes ?? []).map((n) => [n.id, n]));
     const { nodes, edges } = this.visible();
     const count = Math.max(1, nodes.length);
-    const spread = Math.sqrt(count) * 28;
-    this.nodes = nodes.map((n) => {
-      const old = previous.get(n.id) ?? this.allNodes.find((x) => x.id === n.id);
-      const a = seed(n.id) * Math.PI * 2;
-      const r = spread * (0.3 + seed(`${n.id}#r`) * 0.7);
-      return Object.assign(n, { x: old?.x ?? Math.cos(a) * r, y: old?.y ?? Math.sin(a) * r });
-    });
-    const byId = new Map(this.nodes.map((n) => [n.id, n]));
+    this.nodes = nodes;
+    const byId = new Map(nodes.map((n) => [n.id, n]));
     this.edges = edges.map((e) => ({ source: byId.get(e.source.id ?? e.source), target: byId.get(e.target.id ?? e.target), kind: e.kind })).filter((e) => e.source && e.target);
     const degree = new Map();
     for (const e of this.edges) { degree.set(e.source.id, (degree.get(e.source.id) ?? 0) + 1); degree.set(e.target.id, (degree.get(e.target.id) ?? 0) + 1); }
-    this.adj = new Map(this.nodes.map((n) => [n.id, new Set()]));
+    this.adj = new Map(nodes.map((n) => [n.id, new Set()]));
     for (const e of this.edges) { this.adj.get(e.source.id).add(e.target.id); this.adj.get(e.target.id).add(e.source.id); }
-    for (const n of this.nodes) { n.degree = degree.get(n.id) ?? 0; n.r = (this.mini ? 4 : 4.5) + Math.sqrt(n.degree) * (this.mini ? 1.6 : 2.2) + (n.id === this.filter.focus ? 3 : 0); }
-    this.sim?.stop();
-    const sim = d3.forceSimulation(this.nodes)
-      .force('link', d3.forceLink(this.edges).id((n) => n.id).distance((e) => (this.mini ? 60 : 34) + Math.min(40, (e.source.r + e.target.r) * 1.6)).strength((e) => 0.9 / Math.min(degree.get(e.source.id) ?? 1, degree.get(e.target.id) ?? 1)))
-      .force('charge', d3.forceManyBody().strength(this.mini ? -110 : -150).distanceMax(600))
-      .force('collide', d3.forceCollide().radius((n) => n.r + 3))
-      .force('x', d3.forceX(0).strength(this.nodes.length > 300 ? 0.06 : 0.04))
-      .force('y', d3.forceY(0).strength(this.nodes.length > 300 ? 0.06 : 0.04))
-      .alphaDecay(this.nodes.length > 800 ? 0.035 : 0.025);
-    if (this.options.groupBy !== 'none') {
-      const key = this.options.groupBy === 'category' ? 'category' : 'area';
-      const groups = [...new Set(this.nodes.map((n) => n[key]))];
-      const radius = Math.max(120, Math.sqrt(count) * 40);
-      const anchor = new Map(groups.map((g, i) => [g, { x: Math.cos((i / groups.length) * Math.PI * 2) * radius, y: Math.sin((i / groups.length) * Math.PI * 2) * radius }]));
-      sim.force('x', d3.forceX((n) => anchor.get(n[key]).x).strength(0.12)).force('y', d3.forceY((n) => anchor.get(n[key]).y).strength(0.12));
+    for (const n of nodes) { n.degree = degree.get(n.id) ?? 0; n.r = (this.mini ? 4 : 4.5) + Math.sqrt(n.degree) * (this.mini ? 1.6 : 2.1) + (n.id === this.filter.focus ? 3 : 0); }
+
+    // Level 1: the groups.
+    const grouped = !this.mini && this.options.groupBy !== 'none';
+    const groups = new Map();
+    if (grouped) for (const n of nodes) { const k = n.degree || this.options.groupBy !== 'theme' ? this.groupKey(n) : null; n.group = k; if (k) { if (!groups.has(k)) groups.set(k, []); groups.get(k).push(n); } }
+    else for (const n of nodes) n.group = null;
+    const anchors = new Map();
+    if (groups.size) {
+      const gnodes = [...groups].map(([key, members]) => ({ key, size: members.length, R: 18 + Math.sqrt(members.length) * 26 }));
+      const gIndex = new Map(gnodes.map((g) => [g.key, g]));
+      const between = new Map();
+      for (const e of this.edges) {
+        const a = e.source.group, b = e.target.group;
+        if (!a || !b || a === b) continue;
+        const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+        between.set(key, (between.get(key) ?? 0) + 1);
+      }
+      const glinks = [...between].map(([key, w]) => { const [a, b] = key.split('|'); return { source: gIndex.get(a), target: gIndex.get(b), w }; });
+      gnodes.forEach((g, i) => { const a = i * 2.39996; const r = 60 * Math.sqrt(i); g.x = Math.cos(a) * r; g.y = Math.sin(a) * r; });
+      const gsim = d3.forceSimulation(gnodes)
+        .force('link', d3.forceLink(glinks).distance((l) => l.source.R + l.target.R + 20).strength((l) => Math.min(0.9, 0.15 + l.w / Math.min(l.source.size, l.target.size))))
+        .force('charge', d3.forceManyBody().strength((g) => -26 * g.R))
+        .force('collide', d3.forceCollide().radius((g) => g.R + 18).strength(1))
+        .force('x', d3.forceX(0).strength(0.09)).force('y', d3.forceY(0).strength(0.09))
+        .stop();
+      for (let i = 0; i < 400; i++) gsim.tick();
+      for (const g of gnodes) anchors.set(g.key, g);
     }
+
+    // Level 2: the notes, starting where they were or around their group's place.
+    const spread = Math.sqrt(count) * 30;
+    const perGroupIndex = new Map();
+    for (const n of nodes) {
+      const old = previous.get(n.id);
+      if (old && !first && old.group === n.group && old.x !== undefined) { n.x = old.x; n.y = old.y; continue; }
+      const g = n.group ? anchors.get(n.group) : null;
+      if (g) {
+        const i = perGroupIndex.get(n.group) ?? 0;
+        perGroupIndex.set(n.group, i + 1);
+        const a = i * 2.39996, r = g.R * 0.85 * Math.sqrt((i + 0.5) / g.size);
+        n.x = g.x + Math.cos(a) * r; n.y = g.y + Math.sin(a) * r;
+      } else {
+        const a = seed(n.id) * Math.PI * 2, r = spread * (0.3 + seed(`${n.id}#r`) * 0.7);
+        n.x = Math.cos(a) * r; n.y = Math.sin(a) * r;
+      }
+    }
+    // The ring for notes without links, just outside everything else.
+    let outer = spread * 0.9;
+    for (const g of anchors.values()) outer = Math.max(outer, Math.hypot(g.x, g.y) + g.R + 60);
+    const lonely = (n) => n.degree === 0;
+
+    this.sim?.stop();
+    const sameGroup = (e) => e.source.group && e.source.group === e.target.group;
+    const sim = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(this.edges).id((n) => n.id)
+        .distance((e) => (grouped && !sameGroup(e) ? 70 : this.mini ? 56 : 30) + Math.min(40, (e.source.r + e.target.r) * 1.5))
+        .strength((e) => (grouped && !sameGroup(e) ? 0.04 : 0.8) / Math.min(degree.get(e.source.id) ?? 1, degree.get(e.target.id) ?? 1)))
+      // ForceAtlas2-like repulsion: hubs push harder, leaves stay near their hub.
+      .force('charge', d3.forceManyBody().strength((n) => -(this.mini ? 90 : 55) * (1 + Math.sqrt(n.degree))).distanceMax(grouped ? 320 : 900))
+      .force('collide', d3.forceCollide().radius((n) => n.r + (this.mini ? 6 : 8)).strength(0.9))
+      .force('x', d3.forceX((n) => (n.group && anchors.get(n.group) ? anchors.get(n.group).x : 0)).strength((n) => (lonely(n) ? 0 : n.group && anchors.get(n.group) ? 0.14 : 0.05)))
+      .force('y', d3.forceY((n) => (n.group && anchors.get(n.group) ? anchors.get(n.group).y : 0)).strength((n) => (lonely(n) ? 0 : n.group && anchors.get(n.group) ? 0.14 : 0.05)))
+      .force('ring', d3.forceRadial(outer, 0, 0).strength((n) => (lonely(n) && !this.mini ? 0.25 : 0)))
+      .alphaDecay(0.028)
+      .stop();
+    // Settle before showing: no wobbling graph on screen.
+    const started = performance.now();
+    while (sim.alpha() > 0.04 && performance.now() - started < (first ? 900 : 500)) sim.tick();
     sim.on('tick', () => { if (this.autoFit) this.fit(); else this.draw(); });
     this.sim = sim;
-    if (first) for (let i = 0; i < 120; i++) sim.tick();
-    if (!first) this.autoFit = true;
+    this.autoFit = true;
     this.fit();
-    sim.alpha(first ? 0.3 : 0.6).restart();
+    sim.alpha(Math.min(sim.alpha(), 0.08)).restart();
+  }
+
+  /** Light up and frame a set of notes (a theme). */
+  focusGroup(ids) {
+    const set = new Set(ids);
+    const members = (this.nodes ?? []).filter((n) => set.has(n.id));
+    if (!members.length) return;
+    this.autoFit = false;
+    this.highlight = set;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const n of members) { x0 = Math.min(x0, n.x - n.r); y0 = Math.min(y0, n.y - n.r); x1 = Math.max(x1, n.x + n.r); y1 = Math.max(y1, n.y + n.r); }
+    const k = Math.min(2.4, Math.max(0.1, Math.min((this.w - 120) / Math.max(1, x1 - x0), (this.h - 120) / Math.max(1, y1 - y0))));
+    this.transform = { k, x: this.w / 2 - ((x0 + x1) / 2) * k, y: this.h / 2 - ((y0 + y1) / 2) * k };
+    this.draw();
   }
 
   resize() {
@@ -318,12 +422,27 @@ export class GraphView {
     const lit = (n) => !active || n === active || near.has(n.id);
     const marked = (n) => !this.highlight || this.highlight.has(n.id);
 
-    // Links first, under the dots.
+    // Group halos: a soft disc around each theme (or category, or area), named.
+    const halos = this.groupHalos();
+    for (const g of halos) {
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+      ctx.fillStyle = isDark ? 'rgba(148,163,184,.045)' : 'rgba(100,116,139,.05)';
+      ctx.fill();
+      ctx.lineWidth = 1 / k;
+      ctx.strokeStyle = isDark ? 'rgba(148,163,184,.14)' : 'rgba(100,116,139,.16)';
+      ctx.stroke();
+    }
+
+    // Links first, under the dots; the more there are, the fainter each one,
+    // and links between groups fainter still, so each group reads as one.
+    const edgeAlpha = Math.max(0.1, Math.min(0.32, 0.32 * Math.sqrt(120 / Math.max(120, this.edges.length))));
     ctx.lineWidth = 1 / Math.max(0.6, k);
     for (const e of this.edges) {
       const on = active && (e.source === active || e.target === active);
       const dim = (active && !on) || (this.highlight && !(this.highlight.has(e.source.id) && this.highlight.has(e.target.id)));
-      ctx.strokeStyle = on ? this.colorOf(active.category) : `${line}${dim ? 0.08 : 0.32})`;
+      const across = e.source.group !== e.target.group;
+      ctx.strokeStyle = on ? this.colorOf(active.category) : `${line}${dim ? 0.05 : across ? edgeAlpha * 0.45 : edgeAlpha})`;
       ctx.lineWidth = (on ? 1.8 : 1) / Math.max(0.6, k);
       if (e.kind === 'prereq') ctx.setLineDash([4 / k, 3 / k]); else ctx.setLineDash([]);
       ctx.beginPath();
@@ -350,27 +469,95 @@ export class GraphView {
     }
     ctx.globalAlpha = 1;
 
-    // Labels: on the notes that matter at this zoom, always on the active neighbourhood.
+    // Labels, in screen space so they keep their size: the active neighbourhood
+    // first, then the most linked notes; a title is drawn only where it does not
+    // cover another one, and fades in as you zoom.
     const mode = this.options.labels;
-    if (mode !== 'never') {
-      const size = 12 / k;
-      ctx.font = `500 ${size}px Inter, system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      for (const n of this.nodes) {
-        const important = n === active || (near && near.has(n.id)) || n.id === this.filter.focus;
-        const show = mode === 'always' || important || (!active && (k > 1.15 || n.r * k > 9 || this.mini));
-        if (!show || (!important && !marked(n))) continue;
-        const label = n.title.length > 42 ? `${n.title.slice(0, 40)}…` : n.title;
-        ctx.globalAlpha = lit(n) ? 1 : 0.25;
-        ctx.lineWidth = 3 / k;
-        ctx.strokeStyle = isDark ? 'rgba(15,17,21,.85)' : 'rgba(255,255,255,.9)';
-        ctx.strokeText(label, n.x, n.y + n.r + 3 / k);
-        ctx.fillStyle = text;
-        ctx.fillText(label, n.x, n.y + n.r + 3 / k);
-      }
-      ctx.globalAlpha = 1;
+    const taken = this.paintGroupNames(ctx, halos, { k, x, y, isDark, active });
+    if (mode !== 'never') this.paintLabels(ctx, { k, x, y, active, near, lit, marked, text, isDark, mode, taken });
+  }
+
+  /** Centre and radius of each group, from its notes' current positions. */
+  groupHalos() {
+    if (this.mini || this.options.groupBy === 'none' || !this.nodes) return [];
+    const groups = new Map();
+    for (const n of this.nodes) { if (!n.group) continue; if (!groups.has(n.group)) groups.set(n.group, []); groups.get(n.group).push(n); }
+    const out = [];
+    for (const [key, members] of groups) {
+      if (members.length < 3) continue;
+      const cx = members.reduce((s, n) => s + n.x, 0) / members.length;
+      const cy = members.reduce((s, n) => s + n.y, 0) / members.length;
+      const r = Math.max(...members.map((n) => Math.hypot(n.x - cx, n.y - cy) + n.r)) + 16;
+      out.push({ key, x: cx, y: cy, r, size: members.length });
     }
+    return out;
+  }
+
+  /** Each group's name above its halo, in screen space. */
+  paintGroupNames(ctx, halos, { k, x, y, isDark, active }) {
+    const boxes = [];
+    if (!halos.length) return boxes;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.font = '650 12.5px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.globalAlpha = active ? 0.35 : 0.9;
+    for (const g of halos) {
+      const label = this.groupLabel(g.key);
+      if (!label) continue;
+      const sx = g.x * k + x, sy = (g.y - g.r) * k + y - 4;
+      const textOut = `${label} · ${g.size}`;
+      const w = ctx.measureText(textOut).width;
+      const box = { x0: sx - w / 2 - 4, x1: sx + w / 2 + 4, y0: sy - 16, y1: sy + 2 };
+      if (boxes.some((b) => b.x0 < box.x1 && b.x1 > box.x0 && b.y0 < box.y1 && b.y1 > box.y0)) continue;
+      boxes.push(box);
+      ctx.fillStyle = isDark ? 'rgba(203,213,225,.85)' : 'rgba(51,65,85,.85)';
+      ctx.fillText(textOut, sx, sy);
+    }
+    ctx.globalAlpha = 1;
+    // Back to world space for anything drawn next.
+    ctx.setTransform(this.dpr * k, 0, 0, this.dpr * k, this.dpr * x, this.dpr * y);
+    return boxes;
+  }
+
+  paintLabels(ctx, { k, x, y, active, near, lit, marked, text, isDark, mode, taken = [] }) {
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const font = this.mini ? 11 : 12;
+    ctx.font = `500 ${font}px Inter, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const important = (n) => n === active || (near && near.has(n.id)) || n.id === this.filter.focus || n === this.selected;
+    // Zoomed out, only the hubs carry a title; zooming in reveals the others.
+    const candidates = this.nodes
+      .filter((n) => important(n) || (!active && marked(n) && (mode === 'always' || this.mini || n.r * k >= 7 || k >= 1.3)))
+      .sort((a, b) => (important(b) - important(a)) || (b === active) - (a === active) || b.degree - a.degree);
+    // Dots are obstacles: a title never hides another note.
+    const dots = this.nodes.map((n) => ({ n, cx: n.x * k + x, cy: n.y * k + y, r: n.r * k + 2 }));
+    const covers = (box, self) => dots.some((d) => d.n !== self && d.r > 2.5
+      && d.cx + d.r > box.x0 && d.cx - d.r < box.x1 && d.cy + d.r > box.y0 && d.cy - d.r < box.y1
+      && Math.hypot(Math.max(box.x0 - d.cx, 0, d.cx - box.x1), Math.max(box.y0 - d.cy, 0, d.cy - box.y1)) < d.r);
+    const placed = [...taken];
+    const pad = 4;
+    for (const n of candidates) {
+      const strong = important(n);
+      const label = shortTitle(n.title, this.mini ? 26 : strong ? 40 : 30);
+      const w = ctx.measureText(label).width;
+      const sx = n.x * k + x;
+      const sy = (n.y + n.r) * k + y + 4;
+      if (sx < -w || sx > this.w + w || sy < -20 || sy > this.h + 20) continue;
+      const box = { x0: sx - w / 2 - pad, x1: sx + w / 2 + pad, y0: sy - 2, y1: sy + font + 3 };
+      if (placed.some((b) => b.x0 < box.x1 && b.x1 > box.x0 && b.y0 < box.y1 && b.y1 > box.y0)) continue;
+      if (!strong && covers(box, n)) continue;
+      placed.push(box);
+      ctx.globalAlpha = lit(n) ? 1 : 0.3;
+      // An opaque pill behind the title keeps it readable over the links.
+      ctx.fillStyle = isDark ? 'rgba(17,20,26,.92)' : 'rgba(255,255,255,.94)';
+      roundRect(ctx, box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0, 6);
+      ctx.fill();
+      ctx.fillStyle = n === active ? this.colorOf(n.category) : text;
+      ctx.fillText(label, sx, sy);
+    }
+    ctx.globalAlpha = 1;
   }
 
   arrow(ctx, e, color) {

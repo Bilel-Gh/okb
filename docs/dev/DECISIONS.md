@@ -418,4 +418,11 @@ Le diagnostic et les contrats Claude consultés sont dans
   d3-force (déjà présent via Mermaid, déclaré en dépendance directe).
 - **Conséquence.** Les rétroliens deviennent exacts. Obsidian est facultatif.
 - **Réexamen.** Au-delà de quelques milliers de notes : rendu WebGL ou agrégation par zone.
+- **Mise en page (ajout).** Thèmes détectés par Louvain (modularité, déterministe,
+  côté serveur, `src/kb/communities.ts`), mise en page à deux niveaux (« group in a
+  box ») : les thèmes d’abord, en disques proportionnels à leur taille, puis les notes
+  autour de leur thème avec des forces de type ForceAtlas2 (répulsion pondérée par le
+  degré, liens internes courts et forts, liens entre thèmes longs et faibles) ; notes
+  sans lien sur un anneau extérieur ; calcul avant affichage. Titres placés sans
+  chevauchement (les plus reliés d’abord, les points comme obstacles).
 

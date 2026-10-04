@@ -3,7 +3,7 @@ import { state, h, t, tn, get, icon, empty, loading, clear, catChip, catColor, c
 import { setTitle, go } from '../main.js';
 import { GraphView } from '../graph.js';
 
-const PREFS = 'okb-graph-prefs';
+const PREFS = 'okb-graph-prefs-v2';
 function loadPrefs() {
   try { return JSON.parse(localStorage.getItem(PREFS) || '{}'); } catch { return {}; }
 }
@@ -14,7 +14,7 @@ function savePrefs(p) {
 export async function render({ mount, query }) {
   setTitle(t('web.nav.graph'));
   mount.append(loading(3));
-  const prefs = { hidden: [], orphans: true, labels: 'auto', groupBy: 'none', area: '', nav: false, depth: 1, ...loadPrefs() };
+  const prefs = { hidden: [], orphans: true, labels: 'auto', groupBy: 'theme', area: '', nav: false, depth: 1, ...loadPrefs() };
   let data = await get('/api/graph', prefs.nav ? { nav: 1 } : {});
   clear(mount);
   if (!data.nodes.length) {
@@ -35,7 +35,7 @@ export async function render({ mount, query }) {
     h('option', { value: '' }, t('web.graph.allAreas')),
     data.areas.map((a) => h('option', { value: a.id, selected: prefs.area === a.id }, `${a.id === '.' ? t('web.notes.root') : a.id} (${a.count})`)));
   const labels = h('select', { class: 'input sm', 'aria-label': t('web.graph.labels') }, ['auto', 'always', 'never'].map((v) => h('option', { value: v, selected: prefs.labels === v }, t(`web.graph.labels.${v}`))));
-  const groupBy = h('select', { class: 'input sm', 'aria-label': t('web.graph.group') }, ['none', 'category', 'area'].map((v) => h('option', { value: v, selected: prefs.groupBy === v }, t(`web.graph.group.${v}`))));
+  const groupBy = h('select', { class: 'input sm', 'aria-label': t('web.graph.group') }, ['theme', 'category', 'area', 'none'].map((v) => h('option', { value: v, selected: prefs.groupBy === v }, t(`web.graph.group.${v}`))));
   const orphans = h('input', { type: 'checkbox', checked: prefs.orphans });
   const nav = h('input', { type: 'checkbox', checked: prefs.nav });
   const focusBar = h('div', { class: 'graph-focus', style: { display: 'none' } });
@@ -46,14 +46,19 @@ export async function render({ mount, query }) {
       areaSelect, groupBy, labels,
       h('label', { class: 'toggle' }, orphans, t('web.graph.orphans')),
       h('label', { class: 'toggle' }, nav, t('web.graph.nav')),
-      h('button', { class: 'btn sm', onclick: () => view.fit(), title: t('web.graph.fit') }, icon('focus', 14), t('web.graph.fit'))),
+      h('button', { class: 'btn sm', onclick: () => { view.setHighlight(null); view.autoFit = false; view.fit(); }, title: t('web.graph.fit') }, icon('focus', 14), t('web.graph.fit'))),
     focusBar);
-  const side = h('div', { class: 'graph-side' }, h('div', { class: 'card' }, h('div', { class: 'nav-label', style: { paddingTop: 0 } }, t('web.graph.legend')), legend, h('div', { class: 'hr' }), stats), panel);
+  const themes = h('div', { class: 'graph-legend' });
+  const side = h('div', { class: 'graph-side' },
+    h('div', { class: 'card' }, h('div', { class: 'nav-label', style: { paddingTop: 0 } }, t('web.graph.legend')), legend, h('div', { class: 'hr' }), stats),
+    data.communities?.length ? h('div', { class: 'card' }, h('div', { class: 'nav-label', style: { paddingTop: 0 } }, t('web.graph.themes')), themes,
+      h('div', { class: 'small muted', style: { marginTop: '8px' } }, t(data.modularity >= 0.3 ? 'web.graph.themesClear' : 'web.graph.themesMixed', { q: String(data.modularity).replace('.', state.lang === 'fr' ? ',' : '.') }))) : null,
+    panel);
   mount.append(h('div', { class: 'graph-page' }, h('div', { class: 'graph-main' }, toolbar, stage), side));
 
   /* ---------- the graph ---------- */
   const view = new GraphView(stage, {
-    nodes: data.nodes, edges: data.edges, categories: cats,
+    nodes: data.nodes, edges: data.edges, categories: cats, communities: data.communities,
     onSelect: (n) => (n ? showPanel(n) : hidePanel()),
     onOpen: (n) => go(`#/note/${encodeURIComponent(n.id)}`),
   });
@@ -151,6 +156,13 @@ export async function render({ mount, query }) {
   groupBy.addEventListener('change', () => { view.setOptions({ groupBy: groupBy.value }); persist(); });
   orphans.addEventListener('change', () => { view.setFilter({ orphans: orphans.checked }); persist(); drawStats(); });
   nav.addEventListener('change', async () => { prefs.nav = nav.checked; persist(); go(`#/graph?r=${Date.now()}`); });
+
+  // Detected themes: click one to frame it and light it up.
+  for (const c of (data.communities ?? []).slice(0, 12)) {
+    const ids = data.nodes.filter((n) => n.community === c.id).map((n) => n.id);
+    themes.append(h('button', { class: 'legend-item', title: c.label, onclick: () => { view.focusGroup(ids); showPanel(byId.get(c.hub)); } },
+      h('span', { class: 'theme-dot' }), h('span', { class: 'grow' }, c.label.length > 34 ? `${c.label.slice(0, 33)}…` : c.label), h('span', { class: 'muted small' }, String(c.size))));
+  }
 
   drawLegend();
   drawStats();

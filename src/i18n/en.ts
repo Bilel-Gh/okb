@@ -1441,4 +1441,8 @@ export const EN = {
   "serve.staleOther": "An older OKB web app (started before an update) still runs on port {port}; this one opens on {next}. Stop the old one with Ctrl+C in its terminal.",
   "update.restartServe": "The web app ({url}) still runs the previous version: stop it (Ctrl+C) and run okb serve again.",
   "web.outdated": "OKB was updated since this page started: stop okb serve (Ctrl+C) and run it again to get the new version.",
+  "web.graph.group.theme": "Group by detected themes",
+  "web.graph.themes": "Detected themes",
+  "web.graph.themesClear": "Notes form clear themes (modularity {q}). Click one to frame it.",
+  "web.graph.themesMixed": "Themes overlap a lot (modularity {q}): many links cross them.",
 } as const;

@@ -1443,4 +1443,8 @@ export const FR: Record<keyof typeof EN, string> = {
   "serve.staleOther": "Une ancienne version de l’application web (lancée avant une mise à jour) tourne encore sur le port {port} ; celle-ci s’ouvre sur le {next}. Arrête l’ancienne avec Ctrl+C dans son terminal.",
   "update.restartServe": "L’application web ({url}) tourne encore avec l’ancienne version : arrête-la (Ctrl+C) puis relance okb serve.",
   "web.outdated": "OKB a été mis à jour depuis le lancement de cette page : arrête okb serve (Ctrl+C) et relance-le pour avoir la nouvelle version.",
+  "web.graph.group.theme": "Regrouper par thèmes détectés",
+  "web.graph.themes": "Thèmes détectés",
+  "web.graph.themesClear": "Tes notes forment des thèmes nets (modularité {q}). Clique sur un thème pour le cadrer.",
+  "web.graph.themesMixed": "Les thèmes se mélangent beaucoup (modularité {q}) : beaucoup de liens les traversent.",
 };

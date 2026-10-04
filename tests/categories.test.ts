@@ -7,6 +7,7 @@ import { proposeCategory } from '../src/categories/assign.js';
 import { BUILTIN_CATEGORIES, categorise, loadCategories, mergeCategories } from '../src/categories/categories.js';
 import { loadBundleFor } from '../src/kb/bundle.js';
 import { buildGraph, neighbours } from '../src/kb/graph.js';
+import { louvain } from '../src/kb/communities.js';
 import { maintain } from '../src/maintain/maintain.js';
 import { saveProposal } from '../src/proposal/store.js';
 import { suggestIntent } from '../src/routing/intent.js';
@@ -134,6 +135,29 @@ describe('note categories', () => {
     const token = ((await (await fetch(`${url}/api/session`)).json()) as { token: string }).token;
     const set = await fetch(`${url}/api/categories/set`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-OKB-Token': token }, body: JSON.stringify({ path: 'reference/glossary.md', category: 'concept' }) });
     expect((await set.json()).proposalId).toMatch(/^p-/);
+  });
+
+  it('find the themes of a KB (Louvain communities), deterministically', () => {
+    const ids = ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'z'];
+    const links: { source: string; target: string }[] = [];
+    for (const [g, n] of [['a', 5], ['b', 4]] as const) for (let i = 1; i <= n; i++) for (let j = i + 1; j <= n; j++) links.push({ source: `${g}${i}`, target: `${g}${j}` });
+    links.push({ source: 'a1', target: 'b1' }, { source: 'b1', target: 'a1' });
+    const found = louvain(ids, links);
+    expect(found.list.map((c) => c.members)).toEqual([['a1', 'a2', 'a3', 'a4', 'a5'], ['b1', 'b2', 'b3', 'b4']]);
+    expect(found.of.get('z')).toBe(-1);
+    expect(found.modularity).toBe(0.364); // 10/18 − (22/36)² + 6/18 − (14/36)²
+    expect(louvain(ids, links)).toEqual(found);
+    expect(louvain(['x', 'y'], []).list).toEqual([]);
+  });
+
+  it('name each theme after its most linked note', async () => {
+    const { config } = await env();
+    const graph = buildGraph(await loadBundleFor(config), await loadCategories(config), await loadTemplates(config));
+    expect(graph.communities.length).toBeGreaterThan(0);
+    expect(graph.communities.reduce((n, c) => n + c.size, 0)).toBe(graph.nodes.filter((n) => n.community >= 0).length);
+    const first = graph.communities[0]!;
+    expect(graph.nodes.find((n) => n.id === first.hub)!.community).toBe(first.id);
+    expect(first.label).toBe(graph.nodes.find((n) => n.id === first.hub)!.title);
   });
 
   it('offer the graph from plain words', () => {

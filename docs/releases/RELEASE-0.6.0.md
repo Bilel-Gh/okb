@@ -108,6 +108,9 @@ ticket.
 - Catégories propres à une KB dans `.okb/categories.yaml`.
   `okb maintain` signale les notes sans catégorie.
 - **Graphe** dans l'application web (page Graphe) :
+  - **thèmes détectés** automatiquement (méthode de Louvain), avec un halo et un
+    nom chacun ; disposition en deux niveaux, calculée avant l'affichage ;
+  - titres placés sans chevauchement ;
   - notes et liens, couleur par catégorie, taille selon les liens ;
   - zoom, déplacement, voisinage d'une note, filtres par catégorie et par zone ;
   - regroupement, recherche.
@@ -115,6 +118,15 @@ ticket.
   exacts.
 - **Page Catégories** : ce qu'on range dans chacune, ses modèles, les notes sans
   catégorie.
+
+## Application web après une mise à jour
+
+- Une application web lancée avant une mise à jour garde la page qui correspond
+  à son code. Elle affiche un bandeau qui invite à relancer `okb serve`.
+- Un nouveau `okb serve` arrête l'ancienne version quand il le peut. Sinon, il
+  s'ouvre à côté et explique quoi faire.
+- `okb update` prévient quand l'application tourne encore avec l'ancienne
+  version.
 
 ## Vérification
 

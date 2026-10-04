@@ -4,6 +4,7 @@ import { extractLinks } from '../markdown/ast.js';
 import type { NoteTemplate } from '../templates/builtin.js';
 import type { BundlePath } from '../util/paths.js';
 import type { Bundle } from './bundle.js';
+import { louvain } from './communities.js';
 
 /**
  * The KB as a graph: one node per note, one edge per link a note makes to
@@ -29,6 +30,8 @@ export type GraphNode = {
   readonly size: number;
   readonly in: number;
   readonly out: number;
+  /** Detected theme (Louvain community), -1 for a note without links. */
+  readonly community: number;
 };
 
 export type GraphEdge = { readonly source: BundlePath; readonly target: BundlePath; readonly kind: 'link' | 'prereq' };
@@ -40,11 +43,15 @@ export type KbGraph = {
   readonly areas: readonly { readonly id: string; readonly count: number }[];
   /** Links to notes that do not exist (yet). */
   readonly unresolved: number;
+  /** Detected themes, largest first, each named after its most linked note. */
+  readonly communities: readonly { readonly id: number; readonly size: number; readonly hub: BundlePath; readonly label: string }[];
+  /** How well the themes separate (Louvain modularity, 0 to 1; above ~0.3 the themes are real). */
+  readonly modularity: number;
 };
 
 export function buildGraph(bundle: Bundle, categories: readonly Category[], templates: readonly NoteTemplate[] = [], options: { includeNav?: boolean } = {}): KbGraph {
   const byTemplate = templateCategories(templates);
-  const nodes = new Map<BundlePath, Omit<GraphNode, 'in' | 'out'>>();
+  const nodes = new Map<BundlePath, Omit<GraphNode, 'in' | 'out' | 'community'>>();
   for (const [path, doc] of bundle.docs) {
     if (doc.reserved && !options.includeNav) continue;
     const entry = bundle.byPath.get(path);
@@ -88,8 +95,14 @@ export function buildGraph(bundle: Bundle, categories: readonly Category[], temp
     outCount.set(e.source, (outCount.get(e.source) ?? 0) + 1);
     inCount.set(e.target, (inCount.get(e.target) ?? 0) + 1);
   }
-  const list: GraphNode[] = [...nodes.values()].map((n) => ({ ...n, in: inCount.get(n.id) ?? 0, out: outCount.get(n.id) ?? 0 }))
-    .sort((a, b) => a.id.localeCompare(b.id));
+  const ordered = [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
+  const found = louvain(ordered.map((n) => n.id), edges.map((e) => ({ source: e.source, target: e.target })));
+  const list: GraphNode[] = ordered.map((n) => ({ ...n, in: inCount.get(n.id) ?? 0, out: outCount.get(n.id) ?? 0, community: found.of.get(n.id) ?? -1 }));
+  const degree = (id: string) => (inCount.get(id) ?? 0) + (outCount.get(id) ?? 0);
+  const communities = found.list.map((c) => {
+    const hub = [...c.members].sort((a, b) => degree(b) - degree(a) || a.localeCompare(b))[0]! as BundlePath;
+    return { id: c.id, size: c.members.length, hub, label: nodes.get(hub)?.title ?? hub };
+  });
   const counts = new Map<string, number>();
   for (const n of list) counts.set(n.category, (counts.get(n.category) ?? 0) + 1);
   const areas = new Map<string, number>();
@@ -100,6 +113,8 @@ export function buildGraph(bundle: Bundle, categories: readonly Category[], temp
     categories: categories.map((c) => ({ ...c, count: counts.get(c.id) ?? 0 })),
     areas: [...areas].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count || a.id.localeCompare(b.id)),
     unresolved,
+    communities,
+    modularity: found.modularity,
   };
 }
 

@@ -84,6 +84,10 @@ l'avait.
 
 Dans l'application web (`okb serve`), page **Graphe** :
 
+- **les notes sont regroupées par thème**, détecté tout seul à partir des liens
+  (méthode de Louvain : des groupes de notes bien plus liées entre elles qu'avec
+  le reste). Chaque thème a un halo et un nom, celui de sa note la plus reliée.
+  La liste « Thèmes détectés » permet de cadrer un thème d'un clic ;
 - **chaque point est une note**, coloré par catégorie, plus gros quand la note
   est très reliée ;
 - **chaque trait est un lien** d'une note vers une autre ; les pointillés
@@ -96,7 +100,10 @@ Dans l'application web (`okb serve`), page **Graphe** :
 - **la légende** masque ou affiche une catégorie d'un clic ;
 - **filtres** : une zone (un dossier ou un repo), les notes isolées, les pages de
   navigation ;
-- **regrouper** par catégorie ou par zone, pour voir les grandes masses ;
+- **regrouper** autrement : par catégorie, par zone, ou disposition libre ;
+- **les titres ne se chevauchent jamais** : ceux des notes les plus reliées
+  d'abord, les autres apparaissent en zoomant ; survoler une note affiche ses
+  voisines ;
 - **la recherche** allume les notes trouvées et va sur celle que tu choisis.
 
 Sous chaque note, le **graphe local** montre ses voisins. Les listes **« Cité
