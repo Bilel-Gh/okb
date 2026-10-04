@@ -1437,4 +1437,8 @@ export const EN = {
   "web.categories.change": "Change the category",
   "web.categories.auto": "Automatic (from the template)",
   "web.categories.changeProposed": "Proposal ready: approve it to change the category",
+  "serve.replaced": "An older OKB web app was running on port {port}: it was stopped and replaced.",
+  "serve.staleOther": "An older OKB web app (started before an update) still runs on port {port}; this one opens on {next}. Stop the old one with Ctrl+C in its terminal.",
+  "update.restartServe": "The web app ({url}) still runs the previous version: stop it (Ctrl+C) and run okb serve again.",
+  "web.outdated": "OKB was updated since this page started: stop okb serve (Ctrl+C) and run it again to get the new version.",
 } as const;

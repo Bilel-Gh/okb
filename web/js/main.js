@@ -231,7 +231,9 @@ async function boot() {
     h('button', { class: 'btn icon ghost menu-toggle', onclick: () => shell.classList.toggle('menu-open'), 'aria-label': 'Menu' }, icon('menu')),
     titleEl,
     h('div', { class: 'searchbox', role: 'button', tabindex: '0', onclick: palette, onkeydown: (e) => { if (e.key === 'Enter') palette(); } }, icon('search', 15), h('span', null, t('web.palette.short')), h('kbd', null, navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl K')));
-  shell = h('div', { class: 'shell' }, h('main', { class: 'main' }, topbar, contentEl));
+  // After an update, a page served by an older server says so instead of failing oddly.
+  const outdated = session.outdated ? h('div', { class: 'note-box warn', style: { margin: '12px 28px 0' } }, icon('alert', 17), h('div', null, t('web.outdated'))) : null;
+  shell = h('div', { class: 'shell' }, h('main', { class: 'main' }, topbar, outdated, contentEl));
   clear(app).append(shell);
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); palette(); }
@@ -241,6 +243,10 @@ async function boot() {
   await refreshStatus();
   route();
   setInterval(() => { if (document.visibilityState === 'visible') refreshStatus(); }, 30_000);
+  setInterval(async () => {
+    if (document.visibilityState !== 'visible' || outdated) return;
+    try { if ((await get('/api/session')).outdated) location.reload(); } catch { /* server stopped: the view says so */ }
+  }, 60_000);
 }
 
 boot().catch((e) => {

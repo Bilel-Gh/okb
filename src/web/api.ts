@@ -49,6 +49,10 @@ export type ApiContext = {
   /** Null before the first KB exists: only the setup wizard works then. */
   readonly defaultConfig: OkbConfig | null;
   readonly token: string;
+  /** The build this server started with, and the build on disk now: they differ after an update. */
+  readonly build?: { readonly boot: string; readonly now: () => string };
+  /** Stops this server (a newer `okb serve` asks for it). */
+  readonly stop?: () => void;
 };
 type Query = URLSearchParams;
 type Body = Record<string, unknown>;
@@ -121,6 +125,7 @@ export const ROUTES: Record<string, Handler> = {
   /* ---------- session ---------- */
   'GET /api/session': async (ctx) => ({
     token: ctx.token, ui: lang(), version: await productVersion(), kbs: await listKbs(ctx.env), active: ctx.defaultConfig?.profile.id ?? null,
+    build: ctx.build?.boot ?? null, outdated: ctx.build ? ctx.build.now() !== ctx.build.boot : false, canStop: Boolean(ctx.stop),
     presence: presenceMethod(), obsidian: await obsidianInstalled(),
   }),
   'GET /api/i18n': async () => ({ lang: lang(), messages: catalog() }),
@@ -529,6 +534,12 @@ export const ROUTES: Record<string, Handler> = {
     if (!proposal?.changes.length) return { ok: true, proposalId: null };
     await saveProposal(config, proposal);
     return { ok: true, proposalId: proposal.id };
+  },
+  /** A newer `okb serve` replaces this one: stop after answering. */
+  'POST /api/shutdown': async (ctx) => {
+    if (!ctx.stop) throw new OkbError('E_UNSUPPORTED', 'this server cannot be stopped from the API');
+    setTimeout(() => ctx.stop?.(), 50);
+    return { ok: true };
   },
   'POST /api/update': async () => {
     const steps: { step: string; ok: boolean; detail?: string }[] = [];

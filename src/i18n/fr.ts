@@ -1439,4 +1439,8 @@ export const FR: Record<keyof typeof EN, string> = {
   "web.categories.change": "Changer la catégorie",
   "web.categories.auto": "Automatique (d’après le modèle)",
   "web.categories.changeProposed": "Proposition prête : approuve-la pour changer la catégorie",
+  "serve.replaced": "Une ancienne version de l’application web tournait sur le port {port} : elle a été arrêtée et remplacée.",
+  "serve.staleOther": "Une ancienne version de l’application web (lancée avant une mise à jour) tourne encore sur le port {port} ; celle-ci s’ouvre sur le {next}. Arrête l’ancienne avec Ctrl+C dans son terminal.",
+  "update.restartServe": "L’application web ({url}) tourne encore avec l’ancienne version : arrête-la (Ctrl+C) puis relance okb serve.",
+  "web.outdated": "OKB a été mis à jour depuis le lancement de cette page : arrête okb serve (Ctrl+C) et relance-le pour avoir la nouvelle version.",
 };

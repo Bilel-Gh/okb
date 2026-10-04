@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { statSync } from 'node:fs';
+import { readdir, readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { createRequire } from 'node:module';
 import { dirname, extname, resolve, sep } from 'node:path';
@@ -36,6 +37,31 @@ function forcePaths(): string[] | null {
   }
 }
 
+/** When OKB was built: this file is rewritten by every build, so its date tells one build from the next. */
+export function buildStamp(): string {
+  try { return String(Math.round(statSync(fileURLToPath(import.meta.url)).mtimeMs)); } catch { return 'unknown'; }
+}
+
+/**
+ * The page's files, read once when the server starts: after an update, a running
+ * server keeps serving the page that matches its own code (and tells the page it
+ * is outdated) instead of a new page talking to an old API. OKB_WEB_LIVE=1 reads
+ * from disk on every request, for development.
+ */
+async function snapshotWeb(): Promise<Map<string, Buffer> | null> {
+  if (process.env.OKB_WEB_LIVE === '1') return null;
+  const out = new Map<string, Buffer>();
+  const walk = async (dir: string, prefix: string): Promise<void> => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) await walk(resolve(dir, entry.name), rel);
+      else if (entry.isFile() && TYPES[extname(entry.name)]) out.set(rel, await readFile(resolve(dir, entry.name)));
+    }
+  };
+  try { await walk(WEB_ROOT, ''); } catch { return null; }
+  return out;
+}
+
 function mermaidPath(): string | null {
   try { return createRequire(import.meta.url).resolve('mermaid/dist/mermaid.min.js'); } catch { return null; }
 }
@@ -60,7 +86,10 @@ async function readBody(req: IncomingMessage, max = 1_000_000): Promise<Record<s
 export async function serve(config: OkbConfig | null, options: { port?: number; env?: NodeJS.ProcessEnv } = {}): Promise<{ server: Server; url: string }> {
   const port = options.port ?? 4317;
   if (!Number.isSafeInteger(port) || port < 0 || port > 65535) throw new OkbError('E_INVALID', 'port must be between 0 and 65535');
-  const ctx: ApiContext = { env: options.env ?? process.env, defaultConfig: config, token: randomBytes(24).toString('hex') };
+  const boot = buildStamp();
+  let stopServer: () => void = () => {};
+  const ctx: ApiContext = { env: options.env ?? process.env, defaultConfig: config, token: randomBytes(24).toString('hex'), build: { boot, now: buildStamp }, stop: () => stopServer() };
+  const assets = await snapshotWeb();
   const mermaid = mermaidPath();
   const force = forcePaths();
   let origin = '';
@@ -112,7 +141,7 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
       const rel = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
       const file = resolve(WEB_ROOT, rel);
       if (!file.startsWith(WEB_ROOT + sep) || rel.includes('\0')) { json({ error: 'Not found.' }, 404); return; }
-      const content = await readFile(file).catch(() => null);
+      const content = assets ? assets.get(rel.split(sep).join('/')) ?? null : await readFile(file).catch(() => null);
       if (!content) { json({ error: 'Not found.' }, 404); return; }
       res.writeHead(200, { 'Content-Type': `${TYPES[extname(file)] ?? 'application/octet-stream'}; charset=utf-8` });
       res.end(content);
@@ -144,5 +173,6 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   const address = server.address();
   if (!address || typeof address === 'string') throw new OkbError('E_IO', 'cannot determine local reader address');
   origin = `http://127.0.0.1:${address.port}`;
+  stopServer = () => { server.closeAllConnections(); server.close(); };
   return { server, url: origin };
 }

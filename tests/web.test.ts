@@ -152,6 +152,20 @@ describe('OKB web app', () => {
     await expect(serve(config, { port })).rejects.toMatchObject({ code: 'E_CONFLICT', key: 'portInUse', params: { port, next: port + 1 } });
   });
 
+  it('knows its own build, and lets a newer okb serve stop it', async () => {
+    const s: Sandbox = await makeSandbox({ profileId: 'reader' });
+    cleanup.push(() => s.cleanup());
+    const { server, url } = await serve(await s.config(), { port: 0, env: s.env });
+    const closed = new Promise<void>((done) => server.once('close', () => done()));
+    const session = await (await fetch(`${url}/api/session`)).json();
+    expect(session).toMatchObject({ outdated: false, canStop: true });
+    expect(session.build).toMatch(/^\d+$/);
+    expect((await fetch(`${url}/api/shutdown`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status).toBe(403);
+    const r = await fetch(`${url}/api/shutdown`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-OKB-Token': session.token }, body: '{}' });
+    expect(await r.json()).toEqual({ ok: true });
+    await closed;
+  });
+
   it('serves its own assets only, with a restrictive content policy, and scripts that parse', async () => {
     const { url } = await app();
     const page = await fetch(url);

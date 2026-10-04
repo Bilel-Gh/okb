@@ -249,8 +249,26 @@ export async function cmdUpdate(ctx: Ctx): Promise<number> {
   ok ? s.done(t('update.done', { version: await productVersion() })) : s.fail(t('update.failed'));
   if (ctx.mode === 'json') { out.json({ ok, steps }); return ok ? 0 : 1; }
   for (const st of steps) (st.ok ? out.ok(`${t(`update.step.${st.step}`)}${st.detail ? paint.dim(`  ${st.detail}`) : ''}`) : out.fail(`${t(`update.step.${st.step}`)} — ${st.detail ?? ''}`));
-  if (ok) out.tip(t('update.newSession'));
+  if (ok) {
+    out.tip(t('update.newSession'));
+    // A web app started before the update still runs the old code.
+    const running = await runningWebApps();
+    if (running.length) out.warn(t('update.restartServe', { url: running[0]! }));
+  }
   return ok ? 0 : 1;
+}
+
+/** OKB web apps answering on this computer's usual ports. */
+async function runningWebApps(): Promise<string[]> {
+  const found: string[] = [];
+  await Promise.all(Array.from({ length: 10 }, (_, i) => 4317 + i).map(async (port) => {
+    try {
+      const r = await fetch(`http://127.0.0.1:${port}/api/session`, { signal: AbortSignal.timeout(800) });
+      const body = (await r.json()) as { token?: unknown };
+      if (r.ok && typeof body.token === 'string') found.push(`http://127.0.0.1:${port}`);
+    } catch { /* nothing there */ }
+  }));
+  return found.sort();
 }
 
 /** `okb context` — what OKB costs in Claude's context. */
