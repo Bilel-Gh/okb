@@ -27,7 +27,10 @@ Ask ONE question per message with AskUserQuestion, the recommended answer first.
 Skip what the user already said. Keep a short running summary.
 
 1. **What is this KB about?** A subject (lasting knowledge) or a project (shared
-   with others, ends one day)? Propose a name following the naming convention.
+   with others, ends one day)? Ask its **name**: suggest one from the subject
+   (never a person's first name) and use the one the user gives. A folder of
+   notes that already exists: `okb kb add "<folder>" --name "<name>"`, then
+   `/okb:convert`.
 2. **Where?** If the user has an Obsidian vault with other `kb-*` folders,
    recommend `<vault>/kb-<name>`. A folder holding notes another tool wrote may
    belong to another agent: say so, and only continue on an explicit yes

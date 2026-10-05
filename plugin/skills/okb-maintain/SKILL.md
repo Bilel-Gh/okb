@@ -1,6 +1,6 @@
 ---
 name: okb-maintain
-description: Audit an OKB knowledge bundle, prepare navigation updates, move notes with link rewrites or migrate legacy links. Use when checking broken links, ambiguous concepts, stale notes, prerequisite cycles or KB organisation. Do not use for a new source, a knowledge question or a software installation problem, nor for another tool's or agent's knowledge base.
+description: Audit an OKB knowledge bundle, prepare navigation updates, move notes with link rewrites, migrate legacy links or convert a folder of notes written before OKB to its format. Use when checking broken links, ambiguous concepts, stale notes, prerequisite cycles or KB organisation, or to connect and convert an old KB or Obsidian vault. Do not use for a new source, a knowledge question or a software installation problem, nor for another tool's or agent's knowledge base.
 ---
 
 # Maintain the bundle
@@ -28,6 +28,8 @@ Mechanical operations prepare ordinary proposals:
   refuse an existing destination. The complete move must be selected together.
 - `okb migrate portable-links --json`: AST-based rewrites; ambiguous or missing
   targets are listed for a human decision. Quotes and code stay untouched.
+- **An old KB or vault to bring into OKB** (`okb kb convert`): follow
+  [the conversion procedure](references/convert.md).
 
 Use `okb-review` for the returned proposal id. `--write` is retained only as a
 compatibility spelling and never bypasses review. Do not write Markdown directly.

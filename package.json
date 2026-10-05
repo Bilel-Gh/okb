@@ -1,6 +1,6 @@
 {
   "name": "okb",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Open Knowledge Brain — a local, profile-driven second brain that ingests sources and proposes reviewed, traceable changes to an OKF knowledge bundle.",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,8 @@
     "README.md",
     "LICENSE",
     "DEMARRER.md",
-    "examples"
+    "examples",
+    ".claude-plugin"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

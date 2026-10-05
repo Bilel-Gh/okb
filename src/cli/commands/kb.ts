@@ -3,13 +3,13 @@ import { languageName, t } from '../../i18n/index.js';
 import { archiveKb, foreignNotes, listKbs, readOwner, writeOwner } from '../../kb/registry.js';
 import { switchProfile } from '../../setup/setup.js';
 import { OkbError } from '../../util/errors.js';
-import { flagBool } from '../args.js';
-import { choose, confirm } from '../ui/prompt.js';
+import { flagBool, flagString } from '../args.js';
+import { choose, confirm, input } from '../ui/prompt.js';
 import { paint, sym, tilde } from '../ui/term.js';
 import { canAsk, effective, type Ctx } from './common.js';
 
 
-/** `okb kb` — every KB, the active one starred; switch, archive, adopt. */
+/** `okb kb` — every KB, the active one starred; switch, add an existing folder, remove, adopt. */
 export async function cmdKb(ctx: Ctx): Promise<number> {
   const { args, out } = ctx;
   const sub = args.positionals[0] ?? (canAsk(ctx) ? 'menu' : 'list');
@@ -17,22 +17,24 @@ export async function cmdKb(ctx: Ctx): Promise<number> {
 
   if (sub === 'list' || sub === 'menu') {
     if (ctx.mode === 'json') { out.json({ ok: true, kbs }); return 0; }
-    if (!kbs.length) { out.info(t('kb.none')); out.next(['okb init']); return 0; }
+    if (!kbs.length) { out.info(t('kb.none')); out.next(['okb new', 'okb kb add <dossier>']); return 0; }
     out.grid(kbs.map((k) => [
       k.active ? sym.star() : ' ',
       paint.bold(k.name) + (k.name !== k.id ? paint.dim(` (${k.id})`) : ''),
       languageName(k.writingLanguage),
       k.exists ? tilde(k.root) : paint.err(`${tilde(k.root)} — ${t('kb.missing')}`),
     ]), ['', t('kb.col.kb'), t('kb.col.lang'), t('kb.col.folder')]);
-    if (sub === 'list') { out.next(['okb kb switch <kb>', 'okb new']); return 0; }
+    if (sub === 'list') { out.next(['okb kb switch <kb>', 'okb new', 'okb kb add <dossier>', 'okb kb remove <kb>']); return 0; }
     const action = await choose(t('kb.menu.q'), [
       { value: 'switch', label: t('kb.menu.switch'), recommended: kbs.length > 1 },
       { value: 'new', label: t('kb.menu.new') },
+      { value: 'add', label: t('kb.menu.add') },
       { value: 'archive', label: t('kb.menu.archive') },
       { value: 'quit', label: t('ui.quit') },
     ]);
     if (action === 'quit') return 0;
     if (action === 'new') { const { cmdInit } = await import('./init.js'); return cmdInit(ctx, { first: false }); }
+    if (action === 'add') return doAdd(ctx, null);
     const id = await choose(action === 'switch' ? t('kb.switch.q') : t('kb.archive.q'), kbs.map((k) => ({ value: k.id, label: k.name, hint: tilde(k.root), recommended: action === 'switch' ? !k.active : false })));
     return action === 'switch' ? doSwitch(ctx, id) : doArchive(ctx, id);
   }
@@ -46,11 +48,17 @@ export async function cmdKb(ctx: Ctx): Promise<number> {
     return doSwitch(ctx, id);
   }
 
-  if (sub === 'archive') {
-    const id = args.positionals[1];
-    if (!id) throw new OkbError('E_INVALID', 'usage: okb kb archive <kb>', { key: 'usage', params: { usage: 'okb kb archive <kb>' } });
+  if (sub === 'archive' || sub === 'remove' || sub === 'rm' || sub === 'delete') {
+    let id = args.positionals[1];
+    if (!id) {
+      if (!canAsk(ctx) || !kbs.length) throw new OkbError('E_INVALID', 'usage: okb kb remove <kb>', { key: 'usage', params: { usage: 'okb kb remove <kb>' } });
+      id = await choose(t('kb.archive.q'), kbs.map((k) => ({ value: k.id, label: k.name, hint: tilde(k.root) })));
+    }
     return doArchive(ctx, id);
   }
+
+  if (sub === 'add' || sub === 'connect') return doAdd(ctx, args.positionals[1] ?? null);
+  if (sub === 'convert') return doConvert(ctx);
 
   if (sub === 'adopt') {
     const { config } = await effective(args);
@@ -71,7 +79,7 @@ export async function cmdKb(ctx: Ctx): Promise<number> {
     return 0;
   }
 
-  throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { key: 'unknownSub', params: { sub, usage: 'okb kb [list|switch <kb>|archive <kb>|adopt]' } });
+  throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { key: 'unknownSub', params: { sub, usage: 'okb kb [list|switch <kb>|add <dossier>|remove <kb>|adopt]' } });
 }
 
 async function doSwitch(ctx: Ctx, id: string): Promise<number> {
@@ -83,10 +91,99 @@ async function doSwitch(ctx: Ctx, id: string): Promise<number> {
 }
 
 async function doArchive(ctx: Ctx, id: string): Promise<number> {
-  if (canAsk(ctx) && !(await confirm(t('kb.archive.confirm', { id }), false))) return 130;
-  if (!canAsk(ctx) && !flagBool(ctx.args, 'yes') && ctx.mode !== 'json') throw new OkbError('E_INVALID', 'archiving needs --yes', { key: 'archiveNeedsYes', params: { id } });
+  const kb = (await listKbs()).find((k) => k.id === id);
+  if (canAsk(ctx) && !(await confirm(t('kb.archive.confirm', { id, root: kb ? tilde(kb.root) : '' }), false))) return 130;
+  if (!canAsk(ctx) && !flagBool(ctx.args, 'yes') && ctx.mode !== 'json') throw new OkbError('E_INVALID', 'removing needs --yes', { key: 'archiveNeedsYes', params: { id } });
   const where = await archiveKb(id);
-  if (ctx.mode === 'json') ctx.out.json({ ok: true, archived: id, settings: where });
-  else ctx.out.ok(t('kb.archived', { id, where: tilde(where) }));
+  const left = await listKbs();
+  if (ctx.mode === 'json') { ctx.out.json({ ok: true, archived: id, settings: where, kbsLeft: left.length }); return 0; }
+  ctx.out.ok(t('kb.archived', { id, where: tilde(where) }));
+  if (kb) ctx.out.line(paint.dim(`  ${t('kb.archived.notes', { root: tilde(kb.root) })}`));
+  if (!left.length) { ctx.out.info(t('kb.noneConnected')); ctx.out.next(['okb new', 'okb kb add <dossier>']); }
   return 0;
 }
+
+/**
+ * `okb kb add [folder]` — connect a folder of notes as a KB, under a name the
+ * person chooses. Notes written before OKB stay as they are; `okb kb convert`
+ * then prepares their move to OKB's format, as a proposal.
+ */
+export async function doAdd(ctx: Ctx, folderArg: string | null): Promise<number> {
+  const { out, args } = ctx;
+  const { expandHome } = await import('../../config/load.js');
+  const { resolve } = await import('node:path');
+  const { kbNames } = await import('../../kb/registry.js');
+  const { checkFolder } = await import('../../setup/wizard.js');
+  const { connectKb } = await import('../../setup/connect.js');
+  let folder = folderArg ?? flagString(args, 'dir');
+  if (!folder) {
+    if (!canAsk(ctx)) throw new OkbError('E_INVALID', 'usage: okb kb add <folder> --name <name>', { key: 'usage', params: { usage: 'okb kb add <dossier> --name <nom>' } });
+    folder = await input(t('kb.add.where'), { placeholder: '~/Documents/mes-notes', validate: (v) => (v.trim() ? undefined : t('wiz.required')) });
+  }
+  const root = resolve(expandHome(folder.trim()));
+  const kbs = await listKbs();
+  const taken = new Set(kbs.map((k) => k.id));
+  let name = flagString(args, 'name') ?? null;
+  if (!name) {
+    if (!canAsk(ctx)) throw new OkbError('E_INVALID', 'okb kb add needs --name <name> when it cannot ask', { key: 'kbAddNeedsName' });
+    name = await input(t('wiz.name.q'), { placeholder: t('wiz.name.placeholder'), validate: (v) => (!v.trim() ? t('wiz.required') : taken.has(kbNames(v).id) ? t('wiz.name.taken', { id: kbNames(v).id }) : undefined) });
+  }
+  if (canAsk(ctx)) {
+    const check = await checkFolder(root, kbNames(name).id).catch(() => null);
+    if (check?.state === 'foreign') {
+      out.info(t('kb.add.legacy', { root: tilde(root), example: check.examples[0]! }));
+      if (!(await confirm(t('kb.adopt.q'), true))) return 130;
+    }
+  }
+  const confidential = flagBool(args, 'confidential', false) || (canAsk(ctx) && (await confirm(t('kb.add.confidential'), false)));
+  const activate = flagBool(args, 'activate', false) || (kbs.length > 0 && canAsk(ctx) && (await confirm(t('wiz.activate.q', { name }), true)));
+  const created = await connectKb({ folder: root, name, confidential, activate });
+  if (ctx.mode === 'json') { out.json({ ok: true, ...created, confidential }); return 0; }
+  out.ok(t('kb.add.done', { name: paint.name(name), root: tilde(created.root) }));
+  if (created.notesBeforeOkb) {
+    out.line(`  ${t('kb.add.toConvert', { n: String(created.notesBeforeOkb) })}`);
+    out.next([`okb kb convert --kb ${created.id}`, t('kb.add.askClaude')]);
+  } else out.next([`okb status --kb ${created.id}`]);
+  return 0;
+}
+
+/**
+ * `okb kb convert` — what the notes written before OKB lack, and a plan to
+ * complete; `--plan-file <plan>` turns the completed plan into one proposal.
+ */
+async function doConvert(ctx: Ctx): Promise<number> {
+  const { out, args } = ctx;
+  const { config } = await effective(args);
+  const { buildConversion, scanConversion, writePlanSkeleton } = await import('../../kb/convert.js');
+  const planFile = flagString(args, 'plan-file');
+  if (planFile) {
+    const { readFile } = await import('node:fs/promises');
+    let raw: unknown;
+    try { raw = JSON.parse(await readFile(planFile, 'utf8')); } catch (cause) { throw new OkbError('E_INVALID', `cannot read the plan ${planFile}`, { cause, key: 'convertPlanUnreadable', params: { path: planFile } }); }
+    const result = await buildConversion(config, raw);
+    const { saveProposal } = await import('../../proposal/store.js');
+    await saveProposal(config, result.proposal);
+    if (ctx.mode === 'json') { out.json({ ok: true, proposalId: result.proposal.id, converted: result.converted, kept: result.kept, moved: result.moved, linksRewritten: result.linksRewritten, manualLinks: result.manualLinks.slice(0, 40), files: result.proposal.changes.length }); return 0; }
+    out.ok(t('kb.convert.prepared', { n: String(result.converted), files: String(result.proposal.changes.length) }));
+    out.line(`  ${t('kb.convert.detail', { moved: String(result.moved.length), links: String(result.linksRewritten), kept: String(result.kept) })}`);
+    if (result.manualLinks.length) out.warn(t('kb.convert.manual', { n: String(result.manualLinks.length) }));
+    out.next([`okb review ${result.proposal.id}`, 'okb serve']);
+    return 0;
+  }
+  const scan = await scanConversion(config, { limit: Number(flagString(args, 'limit') ?? 40), cursor: flagString(args, 'cursor') ?? null });
+  const skeleton = await writePlanSkeleton(config);
+  if (ctx.mode === 'json') { out.json({ ok: true, ...scan, planWritten: !skeleton.existed }); return 0; }
+  out.line(paint.bold(t('kb.convert.title', { kb: config.profile.displayName || config.profile.id })));
+  out.line(`  ${t('kb.convert.counts', { notes: String(scan.notes), legacy: String(scan.legacy), okb: String(scan.alreadyOkb), links: String(scan.wikilinks) })}`);
+  if (scan.unreadable.length) out.warn(t('kb.convert.unreadable', { n: String(scan.unreadable.length), example: scan.unreadable[0]!.path }));
+  if (!scan.legacy) { out.ok(t('kb.convert.nothing')); return 0; }
+  const missing = new Map<string, number>();
+  for (const n of scan.page) for (const f of n.missing) missing.set(f, (missing.get(f) ?? 0) + 1);
+  if (missing.size) out.line(`  ${paint.dim(t('kb.convert.missing', { list: [...missing].map(([f, k]) => `${f} ${k}`).join(', ') }))}`);
+  out.line();
+  out.line(t('kb.convert.how'));
+  out.line(`  ${paint.dim(t('kb.convert.plan', { path: tilde(skeleton.path) }))}`);
+  out.next([t('kb.add.askClaude'), `okb kb convert --plan-file ${tilde(skeleton.path)}`]);
+  return 0;
+}
+

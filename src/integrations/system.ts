@@ -183,14 +183,55 @@ export async function obsidianInstalled(): Promise<boolean> {
 
 /* ---------- Updating OKB itself ---------- */
 
-export async function updateProduct(onStep: (step: string, ok: boolean, detail?: string) => void): Promise<boolean> {
-  const repo = await tryRun('git', ['-C', PRODUCT_ROOT, 'rev-parse', '--show-toplevel']);
-  if (repo.ok) {
+/** How this copy of OKB was installed: it decides how it updates. */
+export async function installKind(): Promise<'git' | 'npm-global' | 'folder'> {
+  if ((await tryRun('git', ['-C', PRODUCT_ROOT, 'rev-parse', '--show-toplevel'])).ok) return 'git';
+  return /[\\/]node_modules[\\/]okb$/.test(PRODUCT_ROOT) ? 'npm-global' : 'folder';
+}
+
+/** Access to the repository refused or unreachable, as opposed to a local problem (conflict, local edits). */
+export function pullDenied(err: string): boolean {
+  return /permission denied|authentication failed|could not read username|repository not found|access denied|403|401|could not resolve host|publickey/i.test(err);
+}
+
+export async function updateProduct(onStep: (step: string, ok: boolean, detail?: string) => void, options: { from?: string } = {}): Promise<boolean> {
+  const kind = await installKind();
+  if (options.from) {
+    // A package (okb-x.y.z.tgz from `npm pack`) or a folder holding a newer copy of OKB.
+    const from = resolve(options.from);
+    const pkg = await readPackageVersion(from);
+    if (!pkg) { onStep('package', false, 'not an OKB package'); return false; }
+    onStep('package', true, `${pkg}`);
+    if (kind === 'git') { onStep('install', false, 'git-checkout'); return false; }
+    if (kind === 'npm-global') {
+      const npm = (await which('npm')) ?? 'npm';
+      const r = await tryRun(npm, ['install', '-g', from, '--no-audit', '--no-fund'], { timeout: 600_000 });
+      onStep('install', r.ok, r.ok ? undefined : r.err.split('\n').slice(-3).join(' '));
+      if (!r.ok) return false;
+    } else {
+      const copied = await replaceInstall(from);
+      onStep('install', copied.ok, copied.error);
+      if (!copied.ok) return false;
+      const npm = (await which('npm')) ?? 'npm';
+      const deps = await tryRun(npm, ['install', '--omit=dev', '--no-audit', '--no-fund'], { cwd: PRODUCT_ROOT, timeout: 600_000 });
+      onStep('install', deps.ok, deps.ok ? undefined : deps.err.split('\n').slice(-3).join(' '));
+      if (!deps.ok) return false;
+    }
+    const claude = await claudeState();
+    if (claude.cli) {
+      const plugin = await installClaudePlugin();
+      onStep('plugin', plugin.ok, plugin.error);
+    }
+    return true;
+  }
+  if (kind === 'git') {
     const pull = await tryRun('git', ['-C', PRODUCT_ROOT, 'pull', '--ff-only'], { timeout: 120_000 });
-    onStep('pull', pull.ok, pull.ok ? pull.out.split('\n').pop() : pull.err);
+    onStep('pull', pull.ok, pull.ok ? pull.out.split('\n').pop() : pullDenied(pull.err) ? 'no-access' : pull.err);
     if (!pull.ok) return false;
   } else {
-    onStep('pull', true, 'not a Git checkout: skipped');
+    // Without Git there is nothing to pull from: the new version comes as a package.
+    onStep('pull', false, 'needs-package');
+    return false;
   }
   const npm = (await which('npm')) ?? 'npm';
   const install = await tryRun(npm, ['ci', '--no-audit', '--no-fund'], { cwd: PRODUCT_ROOT, timeout: 600_000 });
@@ -208,3 +249,46 @@ export async function updateProduct(onStep: (step: string, ok: boolean, detail?:
   }
   return true;
 }
+
+/** The version inside an OKB package (.tgz) or folder, or null when it is not OKB. */
+async function readPackageVersion(from: string): Promise<string | null> {
+  try {
+    if (from.endsWith('.tgz') || from.endsWith('.tar.gz')) {
+      const r = await tryRun('tar', ['-xzOf', from, 'package/package.json']);
+      const pkg = r.ok ? (JSON.parse(r.out) as { name?: string; version?: string }) : null;
+      return pkg?.name === 'okb' ? pkg.version ?? null : null;
+    }
+    const pkg = JSON.parse(await readFile(resolve(from, 'package.json'), 'utf8')) as { name?: string; version?: string };
+    return pkg.name === 'okb' ? pkg.version ?? null : null;
+  } catch { return null; }
+}
+
+/**
+ * Replace this copy's files with the package's: the shipped folders are swapped
+ * whole (no stale file survives), profiles and KBs are elsewhere and untouched.
+ */
+async function replaceInstall(from: string): Promise<{ ok: boolean; error?: string }> {
+  const { mkdtemp, rm, cp, readdir } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const work = await mkdtemp(resolve(tmpdir(), 'okb-update-'));
+  try {
+    let src = from;
+    if (from.endsWith('.tgz') || from.endsWith('.tar.gz')) {
+      const r = await tryRun('tar', ['-xzf', from, '-C', work]);
+      if (!r.ok) return { ok: false, error: r.err };
+      src = resolve(work, 'package');
+    }
+    for (const entry of await readdir(src)) {
+      if (entry === 'node_modules' || entry === '.git') continue;
+      const target = resolve(PRODUCT_ROOT, entry);
+      await rm(target, { recursive: true, force: true });
+      await cp(resolve(src, entry), target, { recursive: true });
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+}
+

@@ -3,11 +3,11 @@
 Trace courte pour reprendre le projet sans l’historique de conversation.
 Format : problème → décision → conséquence → condition de réexamen.
 
-## État au 4 octobre 2026 (version 0.7.0)
+## État au 5 octobre 2026 (version 0.8.0)
 
 | Contrôle | Résultat |
 |---|---|
-| `npm run release:check` (Node 24.4) | voir [RELEASE-0.7.0.md](../releases/RELEASE-0.7.0.md) : tests, plugin, paquet installé proprement |
+| `npm run release:check` (Node 24.4) | voir [RELEASE-0.8.0.md](../releases/RELEASE-0.8.0.md) : tests, plugin, paquet installé proprement |
 | `claude plugin validate ./plugin` (Claude Code du poste) | Validation passée |
 | Évaluations natives `claude plugin eval` | Non exécutées (cas prêts dans `plugin/evals/`) |
 
@@ -461,4 +461,36 @@ Le diagnostic et les contrats Claude consultés sont dans
 - **Réexamen.** Si Claude Code change le format de ses journaux, le lecteur
   (`src/usage/claude-logs.ts`) ignore ce qu'il ne comprend pas : les chiffres
   baissent, sans plantage.
+
+## D31 — Les KB : choisies, nommées, retirables, convertibles
+
+- **Problème.**
+  - L'installation créait une KB d'office et l'assistant pré-remplissait son nom.
+  - Un ancien profil restait actif sans que la personne sache d'où il venait.
+  - Le nom de la personne était lu dans Git.
+  - Retirer une KB s'appelait « archiver ».
+  - Rien ne convertissait une ancienne KB.
+  - Les mises à jour exigeaient l'accès au dépôt privé.
+- **Décision.**
+  - Aucune KB par défaut. « Aucune KB connectée » s'affiche là où apparaît le nom
+    de la KB.
+  - Le nom d'une KB est toujours demandé. Aucun nom de personne n'est lu :
+    `human:me` par défaut.
+  - `okb kb add` connecte un dossier (marqueur `.okb/owner.yaml`, aucune note
+    écrite). `okb kb remove` déconnecte, les notes restent.
+  - La conversion est découpée en deux.
+    - Le jugement (modèle, titre, description d'une phrase tirée de la note)
+      revient à Claude, dans un plan JSON.
+    - L'application est mécanique (`src/kb/convert.ts`) : liens portables, puis
+      en-têtes, puis rangement avec réécriture des liens. Elle produit une seule
+      proposition atomique.
+  - La conversion ne réécrit jamais le corps d'une note.
+  - `okb update --from <paquet>` met à jour sans accès au dépôt.
+- **Conséquence.**
+  - Une ancienne KB devient une KB OKB propre en une relecture, réversible avec
+    `okb undo`.
+  - La réécriture d'une note dans son modèle reste un choix, note par note
+    (`okb revise`).
+- **Réexamen.** Pour une très grande KB (des milliers de notes), découper la
+  proposition par dossier.
 

@@ -219,3 +219,24 @@ export async function runWizard(answers: WizardAnswers, onStep: (r: StepResult) 
   }
   return { id, root };
 }
+
+/**
+ * Set OKB up without any KB: the interface language, the Claude Code plugin and
+ * the `okb` command. A KB is connected later, under a name the person chooses.
+ */
+export async function runTools(answers: { uiLanguage: Lang | 'auto'; plugin: boolean; launcher: string | null }, onStep: (r: StepResult) => void, env: NodeJS.ProcessEnv = process.env): Promise<void> {
+  await setUiLanguage(answers.uiLanguage, env);
+  onStep({ step: 'language', ok: true, detail: answers.uiLanguage });
+  if (answers.plugin) {
+    const r = await installClaudePlugin();
+    onStep({ step: 'plugin', ok: r.ok, ...(r.error ? { detail: r.error } : {}) });
+  }
+  if (answers.launcher) {
+    try {
+      onStep({ step: 'launcher', ok: true, detail: await installLauncher(answers.launcher) });
+    } catch (e) {
+      onStep({ step: 'launcher', ok: false, detail: (e as Error).message });
+    }
+  }
+}
+

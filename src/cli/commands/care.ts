@@ -247,10 +247,13 @@ export async function cmdUpdate(ctx: Ctx): Promise<number> {
   if (!canAsk(ctx) && !flagBool(ctx.args, 'yes') && ctx.mode !== 'json') throw new OkbError('E_INVALID', 'update needs --yes when it cannot ask', { key: 'updateNeedsYes' });
   const steps: { step: string; ok: boolean; detail?: string }[] = [];
   const s = spin(t('update.running'));
-  const ok = await updateProduct((step, okStep, detail) => { steps.push({ step, ok: okStep, ...(detail ? { detail } : {}) }); });
+  const from = flagString(ctx.args, 'from');
+  const ok = await updateProduct((step, okStep, detail) => { steps.push({ step, ok: okStep, ...(detail ? { detail } : {}) }); }, from ? { from } : {});
   ok ? s.done(t('update.done', { version: await productVersion() })) : s.fail(t('update.failed'));
   if (ctx.mode === 'json') { out.json({ ok, steps }); return ok ? 0 : 1; }
-  for (const st of steps) (st.ok ? out.ok(`${t(`update.step.${st.step}`)}${st.detail ? paint.dim(`  ${st.detail}`) : ''}`) : out.fail(`${t(`update.step.${st.step}`)} — ${st.detail ?? ''}`));
+  // Known failures get a plain explanation and the way out.
+  const explain: Record<string, string> = { 'no-access': t('update.noAccess'), 'needs-package': t('update.needsPackage'), 'git-checkout': t('update.gitCheckout'), 'not an OKB package': t('update.notPackage') };
+  for (const st of steps) (st.ok ? out.ok(`${t(`update.step.${st.step}`)}${st.detail ? paint.dim(`  ${st.detail}`) : ''}`) : out.fail(`${t(`update.step.${st.step}`)} — ${explain[st.detail ?? ''] ?? st.detail ?? ''}`));
   if (ok) {
     out.tip(t('update.newSession'));
     // A web app started before the update still runs the old code.

@@ -60,12 +60,17 @@ export type Handler = (ctx: ApiContext, q: Query, body: Body) => Promise<unknown
 
 /** The KB a request is about: `kb` when given, else the KB the server started with. */
 async function kbConfig(ctx: ApiContext, kb: unknown): Promise<OkbConfig> {
-  const id = typeof kb === 'string' && kb ? kb : ctx.defaultConfig?.profile.id;
+  // A server started with no KB follows the one connected since (the active KB on disk).
+  const id = typeof kb === 'string' && kb ? kb : ctx.defaultConfig?.profile.id ?? (await activeKb(ctx));
   if (!id) throw new OkbError('E_CONFIG', 'no KB yet', { key: 'noKbYet' });
   // Read on every request: a setting changed here or in the terminal applies at once.
   const { config } = await loadConfig({ env: ctx.env, profileId: id });
   await ensureState(statePaths(config));
   return config;
+}
+async function activeKb(ctx: ApiContext): Promise<string | undefined> {
+  const kbs = await listKbs(ctx.env);
+  return (kbs.find((k) => k.active) ?? kbs[0])?.id;
 }
 const str = (v: unknown, name: string, max = 20_000): string => {
   if (typeof v !== 'string' || !v.trim() || v.length > max) throw new OkbError('E_INVALID', `${name} is required`);
@@ -124,7 +129,7 @@ function categoryOfText(path: string, text: string, cx: Awaited<ReturnType<typeo
 export const ROUTES: Record<string, Handler> = {
   /* ---------- session ---------- */
   'GET /api/session': async (ctx) => ({
-    token: ctx.token, ui: lang(), version: await productVersion(), kbs: await listKbs(ctx.env), active: ctx.defaultConfig?.profile.id ?? null,
+    token: ctx.token, ui: lang(), version: await productVersion(), kbs: await listKbs(ctx.env), active: ctx.defaultConfig?.profile.id ?? (await activeKb(ctx)) ?? null,
     build: ctx.build?.boot ?? null, outdated: ctx.build ? ctx.build.now() !== ctx.build.boot : false, canStop: Boolean(ctx.stop),
     presence: presenceMethod(), obsidian: await obsidianInstalled(),
   }),
@@ -351,6 +356,18 @@ export const ROUTES: Record<string, Handler> = {
   /* ---------- actions ---------- */
   'POST /api/kb/switch': async (ctx, _q, b) => { await switchProfile(str(b.id, 'id', 80), { env: ctx.env }); return { ok: true, active: b.id }; },
   'POST /api/kb/archive': async (ctx, _q, b) => ({ ok: true, archived: await archiveKb(str(b.id, 'id', 80), ctx.env) }),
+  /** Connect a folder of notes that already exists, under the name the person chose. */
+  'POST /api/kb/add': async (ctx, _q, b) => {
+    const { connectKb } = await import('../setup/connect.js');
+    return { ok: true, ...(await connectKb({ folder: str(b.path, 'path', 1000), name: str(b.name, 'name', 80), confidential: b.confidential === true, activate: b.activate !== false }, ctx.env)) };
+  },
+  /** How far a KB is from the OKB format: notes written before OKB, links to convert. */
+  'GET /api/kb/convert': async (ctx, q) => {
+    const config = await kbConfig(ctx, q.get('kb'));
+    const { scanConversion } = await import('../kb/convert.js');
+    const scan = await scanConversion(config, { limit: 5 });
+    return { kb: scan.kb, notes: scan.notes, legacy: scan.legacy, alreadyOkb: scan.alreadyOkb, wikilinks: scan.wikilinks, examples: scan.page.map((n) => n.path) };
+  },
   'POST /api/kb/adopt': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);
     const owner = await readOwner(config.kb.root);

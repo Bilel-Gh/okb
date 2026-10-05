@@ -53,6 +53,15 @@ export function printStatus(ctx: Ctx, s: Status): void {
 }
 
 export async function cmdStatus(ctx: Ctx): Promise<number> {
+  // No KB connected: say so where the KB name usually shows (Claude Code's status line, the menu).
+  const { listKbs } = await import('../../kb/registry.js');
+  if (!(await listKbs()).length) {
+    const line = `📚 OKB · ${t('kb.noneConnected')}`;
+    if (ctx.mode === 'json') { ctx.out.json({ ok: true, profile: null, name: null, line, ui: lang(), pending: [], inbox: { open: 0 }, focus: { exists: false, ageDays: null, stale: false }, notes: 0 }); return 0; }
+    ctx.out.line(line);
+    if (!flagBool(ctx.args, 'brief')) ctx.out.next(['okb new', 'okb kb add <dossier>']);
+    return 0;
+  }
   const cfg = await config(ctx.args);
   const s = await computeStatus(cfg, { light: flagBool(ctx.args, 'brief') });
   if (ctx.mode === 'json') {

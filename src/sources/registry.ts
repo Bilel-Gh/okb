@@ -99,7 +99,7 @@ export async function acquireUrl(url: string, config: OkbConfig): Promise<Acquir
       throw new OkbError('E_FORBIDDEN_PATH', `URL or redirect is outside the configured domain allow-list: ${host}`);
     }
     let response: Response;
-    try { response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(30_000), headers: { 'user-agent': 'okb/0.7' } }); }
+    try { response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(30_000), headers: { 'user-agent': 'okb/0.8' } }); }
     catch (cause) { throw new OkbError('E_EXTRACTION', 'page could not be fetched; no content assumed', { cause }); }
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location');

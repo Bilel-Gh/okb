@@ -16,7 +16,7 @@ import { resolve } from 'node:path';
 export type IntentId =
   | 'done' | 'ingest' | 'ask' | 'capture' | 'inbox' | 'focus' | 'weekly' | 'learn' | 'review'
   | 'undo' | 'maintain' | 'revise' | 'skillify' | 'setup' | 'switch' | 'status' | 'serve' | 'onboard' | 'ticket'
-  | 'usage' | 'feedback';
+  | 'usage' | 'feedback' | 'convert';
 
 type Rule = {
   readonly id: IntentId;
@@ -123,6 +123,10 @@ export const INTENT_RULES: readonly Rule[] = [
     /\b(ouvre|lance|montre)[-\s]?(moi )?(le lecteur|l['’]interface web|l['’]appli(cation)? web|ma kb dans le navigateur)\b/i,
     /\bopen (the )?okb (web app|reader)\b|\bshow my kb in the browser\b/i,
     /\b(ouvre|montre|affiche)[-\s]?(moi )?(le |mon )?graphe (de |des )?(ma kb|mes notes|ma base|mon second cerveau)\b|\b(show|open) (me )?(the |my )?(kb |knowledge )?graph( of my notes)?\b/i,
+  ] },
+  { id: 'convert', command: '/okb:convert', okbOnly: false, patterns: [
+    /\b(convertis|convertir|adapte|adapter|migre|migrer|importe|importer|transforme|transformer|ajoute|ajouter|connecte|connecter)[-\s]?(moi )?(cette|ma|mon|une|mes|ce|cet|l['’]?ancienne?) ?(ancien |ancienne |vieille |vieux )?(kb|base|coffre|vault|dossier de notes|notes)\b.{0,60}\b(okb|format okb|au format|dans okb|à okb|mes kb)\b/i,
+    /\b(convert|migrate|import|bring|add|connect) (this|my|an?|the) (old )?(kb|vault|notes folder|folder of notes|knowledge base)\b.{0,40}\b(okb|okb format|into okb|to okb)\b/i,
   ] },
   { id: 'usage', command: 'okb usage', okbOnly: true, patterns: [
     /\b(combien (me )?co[uû]te|co[uû]ts? d['’]|consommation (de tokens )?d['’]|utilisation d['’]|tokens? (consomm[ée]s? )?par) ?(okb|mon second cerveau)\b/i,
@@ -260,6 +264,7 @@ export function renderOffer(s: IntentSuggestion, lang: 'fr' | 'en'): string {
     status: ['montrer où en est ton second cerveau', 'show where your second brain stands'],
     onboard: ['te faire découvrir ce repo et lui créer sa KB (notes sourcées dans le code)', 'onboard you on this repository and build its KB (notes cited from the code)'],
     ticket: ['enrichir la KB de ce repo avec ce ticket', 'enrich this repository’s KB with this ticket'],
+    convert: ['connecter cette ancienne KB à OKB et la convertir au format OKB (par une proposition que tu relis)', 'connect this old KB to OKB and convert it to the OKB format (through a proposal you review)'],
     usage: ['montrer ce que coûte OKB (lu dans les journaux locaux, sans dépenser de token)', 'show what OKB costs (read from local logs, no token spent)'],
     feedback: ['noter ce retour pour le rapport d’amélioration d’OKB (okb feedback "…")', 'note this remark for OKB’s improvement report (okb feedback "…")'],
   };

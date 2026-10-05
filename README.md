@@ -1,4 +1,4 @@
-# OKB — Open Knowledge Brain · 0.7.0
+# OKB — Open Knowledge Brain · 0.8.0
 
 **A local second brain for Claude Code and Obsidian, where nothing enters your
 notes without your approval.**
@@ -108,11 +108,19 @@ git clone <this repository> okb && cd okb
 ./scripts/install.sh
 ```
 
-The script builds OKB inside its folder, then the `okb init` wizard asks, one
-question at a time: the KB name, its folder, the interface and writing languages,
-the writing style, Git history, and whether to install the Claude Code plugin and
+The script builds OKB inside its folder. No KB is connected by default: the `okb
+init` wizard asks whether to create one, under a name you choose, to connect an
+existing folder of notes, or to wait. Then it offers the Claude Code plugin and
 an `okb` command. Nothing outside the folder changes without a yes; Claude and
-shell settings are never edited. `--yes` accepts every recommendation.
+shell settings are never edited; no person's name is read. `--yes` installs OKB
+without a KB.
+
+No access to this repository? `npm pack` makes an `okb-x.y.z.tgz` to share:
+`npm install -g okb-x.y.z.tgz`, then `okb update --from <newer.tgz>`.
+
+An old KB or Obsidian vault: `okb kb add <folder>`, then `/okb:convert` in
+Claude Code. It prepares one proposal that adds the missing front matter, makes
+links portable and files each note by category, without rewriting a word.
 
 Then:
 
@@ -242,7 +250,7 @@ filesystem transaction.
   [templates](docs/dev/TEMPLATES.md) · [style](docs/dev/STYLE.md) ·
   [installation details](docs/dev/INSTALL.md) · [context budget](docs/dev/CONTEXT.md) · [cost and quality](docs/dev/COSTS.md) ·
   [Claude compatibility](docs/dev/CLAUDE-COMPATIBILITY.md) · [evaluation](docs/dev/EVALUATION.md)
-- **Release notes:** [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
+- **Release notes:** [0.8.0](docs/releases/RELEASE-0.8.0.md) · [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
   [0.4.0](docs/releases/RELEASE-0.4.0.md) · [0.3.0](docs/releases/RELEASE-0.3.0.md) ·
   [0.2.0](docs/releases/RELEASE-0.2.0.md)
 

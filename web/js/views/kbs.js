@@ -19,26 +19,75 @@ export async function render(r) {
         h('button', { class: 'btn sm', onclick: () => { switchKb(kb.id); go('#/'); } }, icon('right', 14), t('web.kb.open')),
         kb.active ? null : h('button', { class: 'btn sm ghost', onclick: async () => { await switchKb(kb.id, true); toast(t('kb.switched', { name: kb.name, root: '' })); go('#/kbs'); } }, t('web.kb.makeActive')),
         kb.owner === 'none' ? h('button', { class: 'btn sm ghost', onclick: async () => { try { await post('/api/kb/adopt', { kb: kb.id }); toast(t('kb.adopt.done', { root: kb.root, id: kb.id })); } catch (e) { errorToast(e); } } }, t('web.kb.adopt')) : null,
+        h('button', { class: 'btn sm ghost', onclick: (e) => checkFormat(kb, e.currentTarget) }, t('web.kb.checkFormat')),
         h('span', { class: 'spacer' }),
-        h('button', { class: 'btn sm danger', onclick: async () => {
-          if (!(await confirmDialog({ title: t('kb.archive.confirm', { id: kb.id }), ok: t('kb.menu.archive'), danger: true }))) return;
+        h('button', { class: 'btn sm danger', title: t('kb.menu.archive'), onclick: async () => {
+          if (!(await confirmDialog({ title: t('kb.archive.confirm', { id: kb.id, root: kb.root }), ok: t('web.kb.remove'), danger: true }))) return;
           try { await post('/api/kb/archive', { id: kb.id }); toast(t('kb.archived', { id: kb.id, where: '' })); location.hash = '#/kbs'; location.reload(); } catch (e) { errorToast(e); }
-        } }, icon('trash', 14))))),
-      h('div', { class: 'card hover', style: { display: 'grid', placeItems: 'center', minHeight: '150px', borderStyle: 'dashed' }, onclick: () => go('#/newkb') }, h('div', { class: 'row', style: { color: 'var(--brand)', fontWeight: 650 } }, icon('plus', 18), t('web.kb.new')))));
+        } }, icon('trash', 14), t('web.kb.remove'))))),
+      h('div', { class: 'card hover', style: { display: 'grid', placeItems: 'center', minHeight: '150px', borderStyle: 'dashed' }, onclick: () => go('#/newkb') }, h('div', { class: 'row', style: { color: 'var(--brand)', fontWeight: 650 } }, icon('plus', 18), t('web.kb.new'))),
+      h('div', { class: 'card hover', style: { display: 'grid', placeItems: 'center', minHeight: '150px', borderStyle: 'dashed' }, onclick: (e) => { const box = h('div', { class: 'card' }); e.currentTarget.replaceWith(box); connectForm(box, () => go('#/kbs')); } }, h('div', { class: 'row', style: { color: 'var(--brand)', fontWeight: 650 } }, icon('source', 18), t('wiz.start.add')))));
 }
 
-/** Full-screen first run: no KB yet. */
+/** Notes written before OKB in a KB, and how to convert them. */
+async function checkFormat(kb, button) {
+  try {
+    const r = await get('/api/kb/convert', { kb: kb.id });
+    const box = r.legacy
+      ? noteBox('warn', `${t('kb.convert.counts', { notes: String(r.notes), legacy: String(r.legacy), okb: String(r.alreadyOkb), links: String(r.wikilinks) })} ${t('web.kb.convertHow')}`)
+      : noteBox('ok', t('kb.convert.nothing'));
+    button.closest('.card').append(box);
+    button.remove();
+  } catch (e) { errorToast(e); }
+}
+
+/** Full-screen first run: no KB connected yet — create one, or connect a folder of notes. */
 export async function onboarding(app) {
   const card = h('div', { class: 'card' });
   app.append(h('div', { class: 'onboard' }, card));
-  await wizard(card, true);
+  const start = () => {
+    card.replaceChildren(
+      h('div', { class: 'row', style: { marginBottom: '14px' } }, h('span', { class: 'logo-mark' }), h('div', null, h('h2', { style: { margin: 0, fontSize: '20px' } }, `📚 OKB · ${t('kb.noneConnected')}`), h('div', { class: 'muted small' }, t('wiz.start.q')))),
+      h('div', { class: 'stack', style: { gap: '10px' } },
+        h('div', { class: 'choice', onclick: () => { card.replaceChildren(); wizard(card, true); } }, h('span', { class: 'dot' }), h('div', null, h('b', null, t('wiz.start.create'), h('span', { class: 'star' }, ' ★')), h('span', null, t('wiz.start.createHint')))),
+        h('div', { class: 'choice', onclick: () => connectForm(card, start) }, h('span', { class: 'dot' }), h('div', null, h('b', null, t('wiz.start.add')), h('span', null, t('wiz.start.addHint'))))));
+  };
+  start();
+}
+
+/** Connect a folder of notes that already exists: its path, the name the person chooses. */
+export function connectForm(mount, back) {
+  const path = h('input', { class: 'input', placeholder: '~/Documents/mes-notes', 'aria-label': t('kb.add.where') });
+  const name = h('input', { class: 'input', placeholder: t('wiz.name.placeholder'), 'aria-label': t('wiz.name.q') });
+  const confidential = h('input', { type: 'checkbox', class: 'check' });
+  mount.replaceChildren(
+    h('h2', { style: { marginTop: 0 } }, t('wiz.start.add')),
+    h('div', { class: 'field' }, h('label', null, t('kb.add.where')), path),
+    h('div', { class: 'field' }, h('label', null, t('wiz.name.q')), name),
+    h('label', { class: 'row', style: { gap: '8px', margin: '8px 0' } }, confidential, t('kb.add.confidential')),
+    noteBox('info', t('web.kb.connectHelp')),
+    h('div', { class: 'row', style: { marginTop: '14px' } },
+      h('button', { class: 'btn', onclick: back }, t('web.back')),
+      h('span', { class: 'spacer' }),
+      h('button', { class: 'btn primary', onclick: async () => {
+        if (!path.value.trim() || !name.value.trim()) { toast(t('wiz.required'), 'err'); return; }
+        try {
+          const r = await post('/api/kb/add', { path: path.value.trim(), name: name.value.trim(), confidential: confidential.checked });
+          toast(t('kb.add.done', { name: name.value.trim(), root: r.root }));
+          try { localStorage.setItem('okb-kb', r.id); } catch { /* ignore */ }
+          location.hash = '#/kbs';
+          location.reload();
+        } catch (e) { errorToast(e); }
+      } }, icon('check', 15), t('web.kb.connect'))));
+  setTimeout(() => path.focus(), 30);
 }
 
 async function wizard(mount, first) {
   setTitle?.(t('web.kb.new'));
   mount.append(loading(6));
   const { context: ctx, defaults } = await get('/api/wizard');
-  const a = { ...defaults, name: first ? t('wiz.name.default') : '', root: '' };
+  // The person names the KB: nothing is suggested in the field.
+  const a = { ...defaults, name: '', root: '' };
   let step = 0, folder = null, mode = 'quick';
   const steps = ['name', 'where', 'lang', 'style', 'tools', 'recap'];
   const stepper = h('div', { class: 'steps' });

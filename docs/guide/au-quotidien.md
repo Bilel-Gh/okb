@@ -110,7 +110,7 @@ Les plus utiles :
 | `okb ask "…"` | chercher dans mes notes |
 | `okb open <note>` | ouvrir une note dans Obsidian |
 | `okb serve` | l’application web |
-| `okb kb` | mes KB : changer, archiver, adopter |
+| `okb kb` | mes KB : changer, connecter un dossier (`add`), retirer (`remove`), convertir (`convert`) |
 | `okb settings` | les réglages |
 | `okb doctor` | tout vérifier |
 | `okb explain <code>` | comprendre un code d’erreur |

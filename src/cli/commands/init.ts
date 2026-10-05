@@ -3,7 +3,7 @@ import { expandHome } from '../../config/load.js';
 import { lang, languageName, setLanguage, systemLanguage, t, WRITING_LANGUAGES, type Lang } from '../../i18n/index.js';
 import { kbNames, listKbs } from '../../kb/registry.js';
 import { productVersion } from '../../integrations/system.js';
-import { checkFolder, defaultAnswers, okbVaults, runWizard, suggestedRoot, wizardContext, type StepResult, type WizardAnswers, type WizardContext } from '../../setup/wizard.js';
+import { checkFolder, defaultAnswers, okbVaults, runTools, runWizard, suggestedRoot, wizardContext, type StepResult, type WizardAnswers, type WizardContext } from '../../setup/wizard.js';
 import { OkbError } from '../../util/errors.js';
 import { flagBool, flagString } from '../args.js';
 import { choose, confirm, input, intro, note, outro, spin, step } from '../ui/prompt.js';
@@ -73,10 +73,19 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
   const first = options.first && wctx.kbs.length === 0;
 
   if (!canAsk(ctx)) {
-    // --yes means "the recommended answers", the name included.
-    const name = flagString(args, 'name') ?? args.positionals[0] ?? (flagBool(args, 'yes', false) ? t('wiz.name.default') : undefined);
-    if (!name) throw new OkbError('E_INVALID', 'okb init needs a name when it cannot ask: okb init --yes --name <name> [--dir <folder>]', { key: 'initNeedsName' });
+    // No KB unless one is named: OKB never connects a KB by default.
+    const name = flagString(args, 'name') ?? args.positionals[0];
     const ui = (flagString(args, 'lang') as Lang | undefined) ?? 'auto';
+    if (!name) {
+      if (!options.first) throw new OkbError('E_INVALID', 'okb new needs a name when it cannot ask: okb new --name <name> [--dir <folder>]', { key: 'initNeedsName' });
+      const results: StepResult[] = [];
+      await runTools({ uiLanguage: ui, plugin: flagBool(args, 'plugin', false), launcher: flagString(args, 'launcher') ?? null }, (r) => results.push(r));
+      if (ctx.mode === 'json') { out.json({ ok: true, kb: null, steps: results }); return 0; }
+      out.ok(t('wiz.toolsOnly'));
+      out.info(t('kb.noneConnected'));
+      out.next(['okb new', 'okb kb add <dossier>']);
+      return 0;
+    }
     // --folder and --kb-root (the 0.3 name) mean --dir: a folder given must never be silently ignored.
     const dir = flagString(args, 'dir') ?? flagString(args, 'folder') ?? flagString(args, 'kb-root');
     const answers: WizardAnswers = {
@@ -117,15 +126,36 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
     uiLanguage = root.ui?.language ?? 'auto';
   }
 
+  // OKB connects no KB by default: create one, connect an existing folder, or later.
+  const start = await choose<'create' | 'add' | 'later'>(t('wiz.start.q'), [
+    { value: 'create', label: t('wiz.start.create'), hint: t('wiz.start.createHint'), recommended: true },
+    { value: 'add', label: t('wiz.start.add'), hint: t('wiz.start.addHint') },
+    ...(first ? [{ value: 'later' as const, label: t('wiz.start.later'), hint: t('wiz.start.laterHint') }] : []),
+  ]);
+  if (start === 'add') {
+    if (first) await runTools({ uiLanguage, plugin: false, launcher: null }, () => undefined);
+    const { doAdd } = await import('./kb.js');
+    const code = await doAdd(ctx, null);
+    if (code === 0 && first) await offerTools(ctx, wctx);
+    return code;
+  }
+  if (start === 'later') {
+    await runTools({ uiLanguage, plugin: false, launcher: null }, () => undefined);
+    await offerTools(ctx, wctx);
+    out.info(t('kb.noneConnected'));
+    outro(t('wiz.laterOutro'));
+    return 0;
+  }
+
   const mode = await choose<'quick' | 'custom'>(t('wiz.mode.q'), [
     { value: 'quick', label: t('wiz.mode.quick'), hint: t('wiz.mode.quickHint'), recommended: true },
     { value: 'custom', label: t('wiz.mode.custom'), hint: t('wiz.mode.customHint') },
   ]);
 
   const taken = new Set((await listKbs()).map((k) => k.id));
+  // The person names the KB: nothing is suggested in the field.
   const name = await input(t('wiz.name.q'), {
     placeholder: t('wiz.name.placeholder'),
-    ...(first ? { initial: t('wiz.name.default') } : {}),
     validate: (v) => {
       if (!v.trim()) return t('wiz.required');
       if (taken.has(kbNames(v).id)) return t('wiz.name.taken', { id: kbNames(v).id });
@@ -202,3 +232,15 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
   outro(t('wiz.outro', { name: paint.name(name), id: created.id }));
   return 0;
 }
+
+/** The plugin and the `okb` command, offered when no KB is created now. */
+async function offerTools(ctx: Ctx, wctx: WizardContext): Promise<void> {
+  const plugin = Boolean(wctx.claude.cli) && !wctx.claude.installed && (await confirm(t('wiz.plugin.q'), true));
+  const launcher = !wctx.launcher.onPath && wctx.launcher.candidates[0] && (await confirm(t('wiz.launcher.q', { dir: tilde(wctx.launcher.candidates[0]) }), true)) ? wctx.launcher.candidates[0] : null;
+  if (!plugin && !launcher) return;
+  const results: StepResult[] = [];
+  await runTools({ uiLanguage: (await (await import('../../kb/registry.js')).readRootConfig()).ui?.language ?? 'auto', plugin, launcher }, (r) => results.push(r));
+  note(stepLines(results), t('wiz.doneTitle'));
+  void ctx;
+}
+

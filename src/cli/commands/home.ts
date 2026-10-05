@@ -24,7 +24,8 @@ export async function cmdHome(ctx: Ctx, dispatch: (name: string) => Handler | un
     if (ctx.mode === 'json') { out.json({ ok: true, kbs: [], next: 'okb init' }); return 0; }
     out.line(banner(await productVersion(), t('home.subtitle')));
     out.line(t('home.welcome'));
-    out.next(['okb init', 'okb tour']);
+    out.info(t('kb.noneConnected'));
+    out.next(['okb new', 'okb kb add <dossier>', 'okb tour']);
     return 0;
   }
   const { config } = await effective(ctx.args);

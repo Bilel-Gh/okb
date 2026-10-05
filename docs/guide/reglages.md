@@ -51,18 +51,53 @@ réglages. Un même nom partout : « Finance » → dossier `kb-finance`, nom co
 `finance`.
 
 ```bash
-okb new                # créer une autre KB (le même assistant que okb init)
-okb kb                 # la liste ; changer de KB active
+okb new                          # créer une KB : tu choisis son nom
+okb kb                           # la liste ; changer de KB active
 okb kb switch finance
-okb kb archive ancien  # la retirer d’OKB, sans toucher à ses fichiers
+okb kb add ~/Documents/notes     # connecter un dossier de notes existant
+okb kb remove ancien             # la retirer d’OKB, sans toucher à ses notes
 ```
 
 Sépare deux KB quand le partage, la confidentialité ou le niveau de lecture
 diffèrent ; sinon, une KB avec des dossiers, pour que les notes se lient entre elles.
 
-Deux KB ne partagent jamais un dossier. Pour une KB existante qui n’a pas été
-créée par OKB, l’assistant te demande explicitement si tu veux l’**adopter**
-(`okb kb adopt`).
+Deux KB ne partagent jamais un dossier. L’application web fait tout cela aussi,
+page **Mes KB** : *Nouvelle KB*, *Connecter un dossier de notes existant*,
+*Vérifier le format*, *Retirer d’OKB*.
+
+### Retirer une KB
+
+`okb kb remove <kb>` (ou *Retirer d’OKB* dans l’application web) la déconnecte :
+ses réglages sont mis de côté dans `~/.okb/archive/`, **ses notes restent dans
+leur dossier**. Pour la reconnecter plus tard : `okb kb add <dossier>`. OKB ne
+supprime jamais tes notes : si tu veux effacer le dossier, fais-le toi-même.
+
+### Une ancienne KB, au format OKB
+
+Un dossier de notes écrit avant OKB (une ancienne KB, un coffre Obsidian) se
+connecte puis se convertit, sans perdre un mot :
+
+1. **Connecter** : `okb kb add <dossier>`. OKB te demande son nom et si elle doit
+   rester sur cet ordinateur (KB confidentielle). Il n’écrit aucune note : il
+   marque seulement le dossier comme le sien (`.okb/owner.yaml`).
+2. **Convertir** : dans Claude Code, `/okb:convert` (ou « convertis cette KB au
+   format OKB »). Claude lit chaque note et choisit son modèle, donc sa
+   catégorie, son titre et une description d’une phrase tirée de la note. OKB
+   prépare alors **une seule proposition** :
+   - il ajoute à chaque note l’en-tête qui lui manque (type, titre, description,
+     statut, catégorie), en gardant les champs qu’elle avait déjà ;
+   - il transforme les liens Obsidian `[[…]]` en liens Markdown qui marchent
+     partout ;
+   - il range chaque note dans le dossier de sa catégorie (`concepts/`,
+     `guides/`…), en réécrivant tous les liens vers elle.
+3. **Relire et approuver**, comme toute proposition. `okb undo` revient en arrière.
+4. Ensuite, OKB propose la page d’accueil (`okb nav`) et, pour tes notes les plus
+   importantes, une réécriture dans leur modèle, une par une.
+
+Le texte des notes n’est pas réécrit par la conversion. Ce que Claude ne peut pas
+classer sans doute (une famille de notes, un doublon), il te le demande. Sans
+Claude : `okb kb convert` écrit un plan à compléter, puis `okb kb convert
+--plan-file <plan>` prépare la proposition.
 
 ## Cohabiter avec d’autres outils
 
