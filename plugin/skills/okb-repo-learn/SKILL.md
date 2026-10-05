@@ -25,7 +25,7 @@ Not registered → offer `/okb:onboard` and stop.
    understand the change. What the session taught (a trap met, a rule
    discovered, a colleague's explanation) is cited from the code, the context
    file, or the user's own words: record their statement with
-   `okb repo answer "<what they said>" --by "<name>"` and cite that file.
+   `okb repo answer "<what they said>" [--by "<role>"]` (a role, not a first name, unless the user asks) and cite that file.
 4. **Write** (dossiers v3, [contract](../okb-onboard/references/repo-dossier.md)):
    - a `ticket` note: `okb repo write --note ticket --title "<ticket>" --analysis-file … --after prepared`;
    - what serves every future ticket as a dated section of the code map:
@@ -42,7 +42,7 @@ Not registered → offer `/okb:onboard` and stop.
 
 « Marie m'a dit que la prod est déployée par l'équipe plateforme » → find the
 question (`okb repo questions --json`), record it:
-`okb repo answer q-deploy "<the answer>" --by "Marie"`, then write it into the
+`okb repo answer q-deploy "<the answer>" --by "dev senior"`, then write it into the
 note that answers it (dated section citing the answer file) and regenerate the
 open questions. Without a matching question, cite it in the right note anyway.
 

@@ -1,8 +1,6 @@
-import { execFile } from 'node:child_process';
 import { stat } from 'node:fs/promises';
-import { homedir, userInfo } from 'node:os';
+import { homedir } from 'node:os';
 import { dirname, resolve } from 'node:path';
-import { promisify } from 'node:util';
 import { expandHome } from '../config/load.js';
 import { initFocus, focusPaths } from '../focus/focus.js';
 import { systemLanguage, type Lang } from '../i18n/index.js';
@@ -35,9 +33,8 @@ export async function wizardContext(env: NodeJS.ProcessEnv = process.env, option
   const roots = kbs.map((k) => k.root).filter((r): r is string => Boolean(r));
   const withKbs = await Promise.all(vaults.map(async (v) => ({ ...v, kbs: await kbFoldersIn(v.path, roots) })));
   const gh = options.github === false ? { cli: null, loggedIn: false, user: null } : await ghState();
-  let person = '';
-  try { person = (await promisify(execFile)('git', ['config', '--global', 'user.name'], { timeout: 3000 })).stdout.trim(); } catch { /* none */ }
-  if (!person) person = userInfo().username;
+  // Nobody's name is read: approvals are recorded as `human:me` unless the person sets one.
+  const person = 'me';
   // A focus note another KB already uses is offered again: one person, one focus.
   let sharedFocus: { file: string; journal: string } | null = null;
   for (const kb of kbs) {
@@ -162,7 +159,8 @@ export async function runWizard(answers: WizardAnswers, onStep: (r: StepResult) 
     : answers.focus === 'create'
       ? { file: resolve(dirname(root), dirname(root) === homedir() ? '.okb-focus.md' : '01 Focus.md'), journal: resolve(dirname(root), 'journal') }
       : null;
-  const person = (ctx.person || userInfo().username).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'me';
+  // Anonymous by default: no name taken from Git or the computer account (settings: profile.humanActor).
+  const person = 'me';
   await runSetup({
     profileId: id,
     displayName: display,

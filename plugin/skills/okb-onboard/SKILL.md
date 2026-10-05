@@ -20,8 +20,8 @@ who knows the repository can add answers (`okb repo answer`): cited sources.
 
 `okb repo status --json`. If the folder is not registered: ask which KB holds it
 — « Une KB de travail confidentielle, sur cet ordinateur (recommandé) » or an
-existing KB — then `okb repo add --new-kb "<Travail|Work>" --json` or
-`okb repo add --kb <id> --json` (this also scans). Never put company code in a
+existing KB. New: ask its name (suggest « Travail », never a first name), then
+`okb repo add --new-kb "<name>" --json`; else `--kb <id>` (this also scans). Never put company code in a
 KB synchronised with a personal GitHub without the user's explicit choice.
 
 Registered with notes already → go to **§8 Refresh**. Registered without notes
@@ -34,14 +34,14 @@ Ask once: « As-tu d'autres sources sur ce repo ? » with
 « Je le connais : pose-moi les questions ». Transcripts (passation, demo, KT
 session) are gold for the *why*: get their absolute paths. The third option is
 the senior path: after §3, ask the open questions one at a time and record each
-answer with `okb repo answer <q-id> "<answer>" --by "<name>"`.
+answer with `okb repo answer <q-id> "<answer>"` (`--by "<role>"`, never a first
+name unless asked).
 
 ## 3. Map (no AI, seconds)
 
-`okb repo scan --json` gives the summary (stack, modules, exposes and calls,
-config, commands, CI, risks, reading plan, question hints; details in `mapPath`).
-Tell the user in ≤ 8 lines what it is, its stack and modules, who it talks to,
-how it starts, and the reading plan: they learn something in the first minute.
+`okb repo scan --json` gives the summary (details in `mapPath`). Tell the user
+in ≤ 8 lines what it is, its stack and modules, who it talks to, how it starts,
+and the reading plan: they learn something in the first minute.
 
 ## 4. Read everything that matters — and say what was not read
 
@@ -51,8 +51,8 @@ how it starts, and the reading plan: they learn something in the first minute.
 1. **Read yourself first** every README, docs page, ADR and CONTRIBUTING in the
    plan (they frame the rest). Over ~1,500 lines, delegate them like an area.
 2. **One `okb:okb-repo-explorer` agent per area**, in parallel (≤ 5 at once,
-   group tiny areas; `model: <agentModel>` when `okb profile --json` gives one). Give each: the repository root, the area, its read and
-   skim files, and the onboarding questions as `id: text`. Each returns
+   group tiny areas; `model: <agentModel>` if `okb profile --json` has one).
+   Give each: the root, the area, its read and skim files, the questions as `id: text`. Each returns
    [findings JSON](references/repo-dossier.md#findings): write it to
    `<findingsDir>/<area>.json` and run `okb repo findings add <file> --json`,
    which checks every quote against the files. A failing quote goes back to the

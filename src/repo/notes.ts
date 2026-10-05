@@ -316,17 +316,19 @@ export async function recordAnswer(ctx: RepoContext, input: { question?: string;
   const n = progress.answers.length + 1;
   const file = resolve(ctx.paths.answers, `${day}-${String(n).padStart(3, '0')}-${q?.id ?? 'note'}.md`);
   const title = q ? (lang.startsWith('fr') ? q.text.fr : q.text.en) : (lang.startsWith('fr') ? 'Information donnée' : 'Information given');
-  const by = input.by.trim() || 'me';
+  // No name unless one is given: « me » and anonymous actors stay unnamed.
+  const given = input.by.trim();
+  const by = given && !['me', 'anonymous', 'moi'].includes(given.toLowerCase()) ? given : '';
   // The title names the person and the day: it is what a footnote shows.
   await writeTextAtomic(file, [
-    `# ${lang.startsWith('fr') ? 'Réponse de' : 'Answer from'} ${by}, ${day} : ${title}`,
+    `# ${lang.startsWith('fr') ? (by ? `Réponse de ${by}` : 'Réponse') : (by ? `Answer from ${by}` : 'Answer')}, ${day} : ${title}`,
     '',
     `${ctx.repo.name} · ${q?.id ?? (lang.startsWith('fr') ? 'information libre' : 'free information')}`,
     '',
     text,
     '',
   ].join('\n'));
-  progress.answers.push({ id: `a-${n}`, question: q?.id ?? null, file, by, at: new Date().toISOString() });
+  progress.answers.push({ id: `a-${n}`, question: q?.id ?? null, file, by: by || 'me', at: new Date().toISOString() });
   if (q && progress.questions[q.id]?.status !== 'answered') {
     progress.questions[q.id] = { status: 'received', answerFile: file, at: new Date().toISOString() };
   }
