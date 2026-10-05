@@ -123,7 +123,9 @@ export const INTENT_RULES: readonly Rule[] = [
   ] },
   { id: 'setup', command: '/okb:setup', okbOnly: true, patterns: [
     /\b(cr[ée]e|ajoute|configure)[-\s]?(moi )?(une )?(nouvelle )?(kb|base de connaissances?)\b/i,
-    /\b(configure|installe|set ?up)\s+okb\b|\bnew (okb )?knowledge base\b|\bcreate a (new )?kb\b/i,
+    /\b(configure|installe|set ?up|mets? en place|param[eè]tre)[-\s]?(moi\s+)?okb\b|\bnew (okb )?knowledge base\b|\bcreate a (new )?kb\b/i,
+    /\b(aide[-\s]?moi|comment)\b.{0,25}\b(installer|configurer|d[ée]marrer|commencer|utiliser)\b.{0,20}\bokb\b/i,
+    /\b(je )?(commence|d[ée]bute|d[ée]marre) (avec|sur) okb\b|\b(get started|start) with okb\b|\bset okb up\b/i,
   ] },
   { id: 'switch', command: 'okb kb switch', okbOnly: true, patterns: [
     /\b(passe|bascule|change)\s+(sur|vers|à)\s+(la |ma )?kb\b/i,
@@ -268,7 +270,7 @@ export function renderOffer(s: IntentSuggestion, lang: 'fr' | 'en'): string {
     maintain: ['vérifier la santé de ta KB', 'check your KB’s health'],
     revise: ['réécrire cette note dans un autre style', 'rewrite this note in another style'],
     skillify: ['transformer cette procédure en skill', 'turn this procedure into a skill'],
-    setup: ['configurer une KB', 'set up a KB'],
+    setup: ['installer et organiser OKB pour toi (aperçu puis ton accord)', 'set OKB up for you (preview, then your go)'],
     switch: ['changer de KB active', 'switch the active KB'],
     serve: ['ouvrir l’application web OKB (notes, graphe, relecture)', 'open the OKB web app (notes, graph, review)'],
     status: ['montrer où en est ton second cerveau', 'show where your second brain stands'],

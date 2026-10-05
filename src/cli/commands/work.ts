@@ -19,7 +19,7 @@ import { buildBrief, renderBrief, type Brief } from '../../work/brief.js';
 import { tiedNotes } from '../../work/rank.js';
 import { chooseScope, resolveScope, scopeFor, workspaceOfRepo, workspaceRepos, type Scope } from '../../work/scope.js';
 import { addJournal, finishTicket, listTickets, loadTicket, NOTE_KINDS, startTicket, syncTicket, ticketId, ticketText, titleFrom, type TicketRecord } from '../../work/tickets.js';
-import { addWorkspace, findWorkspace, learnPrefixes, listWorkspaces, removeWorkspace, reposIn, ticketRefs, updateWorkspace, workspaceForDir, type Workspace } from '../../work/workspaces.js';
+import { addWorkspace, findWorkspace, learnPrefixes, listWorkspaces, looksLikeNotes, removeWorkspace, reposIn, ticketRefs, updateWorkspace, workspaceForDir, type Workspace } from '../../work/workspaces.js';
 import { flagBool, flagList, flagString, flagValues } from '../args.js';
 import { choose, input, spin } from '../ui/prompt.js';
 import { paint, sym, tilde } from '../ui/term.js';
@@ -99,7 +99,11 @@ async function workspaceList(ctx: Ctx): Promise<number> {
 export async function workspaceAdd(ctx: Ctx, folderArg: string): Promise<number> {
   const { args, out } = ctx;
   const folder = resolve(folderArg);
-  const roots = await reposIn(folder);
+  // A folder of notes under Git (a KB written before OKB) is not a code repository: it is connected, not onboarded.
+  const found = await reposIn(folder);
+  const notes: string[] = [];
+  const roots: string[] = [];
+  for (const r of found) (await looksLikeNotes(r) ? notes : roots).push(r);
   if (!roots.length) throw new OkbError('E_NOT_FOUND', `no Git repository in ${folder}`, { key: 'repoNoneInFolder', params: { folder }, hint: t('ws.layoutHint') });
   const into = flagString(args, 'to') ?? flagString(args, 'workspace');
   const target = into ? await findWorkspace(into) : await workspaceForDir(folder);
@@ -155,10 +159,11 @@ export async function workspaceAdd(ctx: Ctx, folderArg: string): Promise<number>
     const proposal = await proposeLandscape(config).catch(() => null);
     if (proposal?.changes.length) { await saveProposal(config, proposal); landscape = proposal.id; }
   }
-  if (ctx.mode === 'json') { out.json({ ok: true, created, workspace, kb, repos: rows, prefixes: workspace.tickets.prefixes, landscapeProposal: landscape, ...(single ? { advice: 'single-repo' } : {}) }); return 0; }
+  if (ctx.mode === 'json') { out.json({ ok: true, created, workspace, kb, repos: rows, notesFolders: notes, prefixes: workspace.tickets.prefixes, landscapeProposal: landscape, ...(single ? { advice: 'single-repo' } : {}) }); return 0; }
   out.ok(t(created ? 'ws.added' : 'ws.updated', { name: paint.name(workspace.name), n: rows.filter((r) => !r.error).length, kb: paint.name(kbName(config)) }));
   out.grid(rows.map((r) => [r.error ? sym.err() : r.attached ? '🔗' : r.created ? sym.ok() : '·', paint.bold(r.name), r.error ? paint.err(r.error) : r.attached ? paint.dim(t('ws.attachedRow', { kb: r.attached })) : paint.dim(r.stack || '—')]));
   if (single && !canAsk(ctx)) out.tip(t('ws.single.tip'));
+  for (const n of notes) out.tip(t('ws.notesFolder', { folder: tilde(n) }));
   out.line();
   out.line(`  ${workspace.tickets.prefixes.length ? t('ws.learned', { prefixes: paint.bold(workspace.tickets.prefixes.join(', ')) }) : paint.dim(t('ws.noPrefixesYet'))}`);
   if (landscape) out.line(`  ${t('ws.landscape', { id: paint.bold(landscape) })}`);
@@ -326,6 +331,12 @@ async function scopeContext(ctx: Ctx, cwd: string): Promise<number> {
   if (scope?.config) {
     const brief = await buildBrief(scope, { sync: true }).catch(() => null);
     if (brief) text = renderBrief(brief);
+    // In a workspace, outside its repositories: a folder of notes or a new repository says what it is.
+    if (!scope.repo) {
+      const { repoContextText } = await import('./repo.js');
+      const here = await repoContextText(cwd).catch(() => '');
+      if (here) text = [text, here].filter(Boolean).join('\n');
+    }
   } else {
     // An undocumented Git repository: the onboarding offer, as before.
     const { repoContextText } = await import('./repo.js');

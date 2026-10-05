@@ -1,101 +1,97 @@
 ---
 name: okb-setup
-description: Install or reconfigure an okb profile — knowledge bundle location, language, concept-assist level, organisation policy overlay. Use when the user installs okb for the first time, adds a second profile, switches profile, or wants to change where the knowledge base lives or how much concept help they get. Do not use to ingest a source, to answer a question, or to change the content of a note.
+description: Set OKB up for the user, guided — read where they stand (their KBs, a folder of repositories, a KB written before OKB, the Claude plugin), recommend the right organisation (a subject KB, a KB for one repository, or a workspace for a team's repositories) with the reason, ask only what is needed, show a preview of exactly what will be done, then do it after one confirmation. Use when the user installs OKB or asks to set it up for them (« configure OKB pour moi », « je commence avec OKB », "set up okb"), adds a KB, or wants a setting changed. Do not use to ingest a source, answer a question, or change the content of a note.
 ---
 
-# Install or reconfigure a profile
+# Set OKB up for the user
 
-> 📚 **Before your first reply.** Run `okb profile --json` once and open with one line `📚 <KB name>` (add ` · 🎯 focus <n> j` when the focus is stale). If the session context lacks the user's OKB focus, `okb focus --context` gives it: use it silently. Speak the user's language.
-> 🧭 **Choices are buttons.** Whenever the user must choose (which KB, which proposal, keep or drop, go or not), ask with AskUserQuestion: 2 to 4 options, the recommended one first with « (recommandé) », one question at a time.
-> 🛡️ **Only OKB's own KBs.** Never read or write another tool's or agent's knowledge base (a support agent's KB, a wiki, another plugin's folder, `routing.otherKnowledgeTools`). If a request could concern one of them, ask which knowledge base is meant before acting.
-> ✍️ **Format.** Short sections, a table for lists, quotations as `>` blocks with `path:line`, and a last line « ➡️ Prochaine étape : … ». OKB refuses secrets (`E_SECRET`): offer a placeholder such as `<API_KEY>`.
+> 🌐 **Speak the user's language.** Plain words: they may know nothing about OKB.
+> 🧭 **Choices are buttons.** Whenever the user must choose, ask with AskUserQuestion: 2 to 4 options, the recommended one first with « (recommandé) », one question at a time.
+> 🛡️ **Only OKB's own KBs.** Never read or write another tool's knowledge base. OKB writes no note during setup, nothing in code repositories, and never uses Git on a KB. Never approve a proposal for the user.
+> ✍️ **Format.** Short sections, tables for lists, last line « ➡️ Prochaine étape : … ».
 
-The product is generic; everything personal lives in a profile under `$OKB_HOME`
-(default `~/.okb`). Re-running setup updates known keys and preserves every other
-key the user added.
-
-## The easy way: `okb init`
-
-In a terminal, `okb init` (first KB) or `okb new` (another KB) is a guided
-wizard: what the KB is for, quick or custom mode, detected Obsidian vaults, the
-naming convention, the Claude plugin and the `okb` command. Recommend it first
-when the user has a terminal at hand. A KB is a plain local folder: OKB never
-puts it under Git, never commits, never adds a remote.
-
-## In this conversation — one question at a time, with buttons
-
-Ask ONE question per message with AskUserQuestion, the recommended answer first.
-Skip what the user already said. Keep a short running summary.
-
-1. **What is this KB for?** « Un sujet » (course, domain, project) ·
-   « Un seul repo de code » · « Les repos d'une équipe (espace de travail) ».
-   For code, stop here and use `/okb:workspace` (team) or `/okb:onboard` (one
-   repository): they create the right kind of KB. Ask its **name**: suggest one
-   from the subject (never a person's first name) and use the one the user gives.
-   A folder of notes that already exists: `okb kb add "<folder>" --name "<name>"`,
-   then `/okb:convert`.
-2. **Where?** If the user has an Obsidian vault with other `kb-*` folders,
-   recommend `<vault>/kb-<name>`. A folder holding notes another tool wrote may
-   belong to another agent: say so, and only continue on an explicit yes
-   (`--adopt`).
-3. **Interface language** of OKB (menus, messages): français, English or
-   automatic — and **writing language** of the notes, asked separately.
-4. **Quick or custom?** Quick keeps safe defaults. Custom asks: reader level
-   (`beginner`, `intermediate`, `expert`), style (`standard`, `pedagogique`,
-   `expert`), help with notions (`targeted` recommended, `pedagogical`, `off`).
-5. The **Claude plugin** and the **okb command** on the PATH.
-
-Then show the whole configuration as a short table and ask for one confirmation.
-Run it without questions:
+## 1. Read where they stand — no AI, nothing written
 
 ```bash
-okb init --yes --name "<Name>" --dir "<folder>" --lang fr --writing-lang fr \
-  --preset standard [--adopt]
-okb settings set reader.level=intermediate conceptAssist.level=targeted --kb <id>
-okb doctor --kb <id>
+okb start --json
 ```
 
-Change any setting later with `okb settings set <key>=<value>` (`okb settings
-show --all` lists them, with their labels in the user's language).
+Add `--cwd "<folder>"` when the user's folders are elsewhere (Claude opened in
+their home folder): ask once « Où sont tes repos ? » (or « Où est ton ancienne
+KB ? ») and run it again. It returns `situation`, `kbs`, `workspaces`,
+`reposFolder` (a folder of repositories, up to two levels down), `tree` (each
+subfolder: repository in OKB or not, OKB KB, old KB, team group, other),
+`notesFolders` (KBs written before OKB, `kb: null` when not connected), `tools`,
+`advice`, `plan` and `next`.
 
-## Naming convention (recommend it)
+## 2. Overview and recommendation
 
-One name per KB, used everywhere so it is easy to tell KBs apart:
+One short table of what OKB found: the KBs (kind, folder), the plugin, and
+`tree` as the folder's map — one row per subfolder with what it is and what
+OKB will do with it. Then the recommendation from `advice`, with its reason:
 
-| What | Pattern | Example |
+| `situation` | Recommend | Why, in a few words |
 |---|---|---|
-| Folder | `kb-<name>` | `kb-atlas` |
-| Profile id | `<name>` | `atlas` |
+| `team-repos` | 🗂️ a workspace for that folder | one KB for the team, one space per repository, shared business notes, links between repositories |
+| `single-repo` | 📦 a KB for that repository | its notes at the root, nothing to choose later |
+| `notes` | connect the old KB, convert it later | everything already written is kept |
+| `subject` | 📚 a subject KB | notes filed by kind |
+| `ready-repo`, `ready-workspace` | nothing to install, unless `plan` adds the repositories left out (`syncWorkspace`) or makes the folder a workspace | go to §6 |
 
-`<name>` is one or two lowercase words the user would say aloud: a subject
-(`ia`, `finance-perso`) or a project (`atlas`). Keep all KBs as sibling folders of
-one Obsidian vault, with a hand-written home page at the vault root linking them.
-Create a separate KB when sharing, confidentiality or reader level differ;
-otherwise prefer one KB with folders, so notes can link to each other.
+Every repository of a workspace's folder must be in it: `missingRepos` lists
+the ones left out. Several team groups (`groups`): one workspace for one team or
+employer, else ask, and one workspace per group (`--cwd` on each).
 
-A configuration file answers all of it without a questionnaire:
+An old KB found beside the repositories: recommend making it the work KB.
+Read `level: warn` items as they are (a KB in a synchronised folder, a missing
+folder).
 
-```bash
-okb setup --from ./onboarding.yaml
-```
+## 3. Ask only what is needed — one question at a time
 
-The file may carry `writing:` (preset plus knobs to override, see
-`okb config show --defaults`), `reader:` (`level`, `byDomain`), `focus:` (`file`,
-`journal`) and `git:` (`autoCommit`).
+1. **The organisation**, the recommended one first; alternatives only when they
+   fit (a workspace anyway for one repository when more will come; a KB for one
+   repository inside a team folder when it is more confidential).
+2. **The old KB**, when one is found: « La reprendre comme KB de travail
+   (recommandé) » · « Non, une KB neuve ». Not reused: replace its steps by
+   `okb workspace add "<folder>" --new-kb "{name}"`.
+3. **The KB's name**: ask it as free text; the step's `nameHint` or a subject
+   word may be offered as an example, never a person's first name.
+4. **Confidential?** For code: « Oui, sur cet ordinateur (recommandé) ».
 
-## Switching, other KBs, other tools
+## 4. Preview, then one confirmation
 
-- Switch the active KB: `okb kb switch <id>` (the user may simply say « passe sur
-  la KB atlas »). One command for another KB: add `--kb <id>`.
-- Several KBs live as sibling folders of one Obsidian vault, each with its own
-  settings. A folder belongs to one KB only (OKB marks it in `.okb/owner.yaml`).
-- Another tool or agent with its own knowledge base (a support agent, a wiki):
-  record its name so OKB never touches it and asks when a request is ambiguous:
-  `okb settings set routing.otherKnowledgeTools="support-kb, wiki produit"`.
-- Natural-language offers (« fin de session » → /okb:done) can be turned off:
-  `okb settings set routing.suggest=false`.
+A table: # · what · exact command (`{name}` and `{id}` filled: the id is the
+name in lowercase with dashes, as `okb kb` shows it) · what it writes. Say what
+is not done: no note written, nothing in the repositories, no Git, no AI before
+`/okb:convert` or `/okb:onboard`. Then ask: « Lancer (recommandé) » ·
+« Modifier » · « Annuler ».
 
-For scripts, `okb setup --profile <id> --kb-root <path> --concept-assist targeted`
-still works, and `okb setup --from answers.yaml` reads `writing`, `reader`,
-`focus` and `git`. Profiles never share state: proposals, approvals and logs live
-under `$OKB_HOME/profiles/<id>/state`.
+## 5. Run
+
+Each step with `argv`, in order: `okb <argv> --json`. Stop at the first error,
+explain it in one line (`okb explain <code>`) and offer the fix. A step marked
+`interactive` (the plugin and the `okb` command) asks its own questions: ask the
+user to run it in a terminal. Steps with `inClaude` are not run now: offer them
+(`/okb:convert`: one proposal to review, can take a while; `/okb:onboard` for
+the ticket's repository). Report each step with ✔ and its result (repositories
+found, ticket prefixes learned, a landscape proposal to review in `okb serve`).
+
+## 6. How to work now
+
+From `next` (or `okb start --json` again): for a ticket, open Claude Code **in
+the folder of the ticket's repository**, type `/okb:ticket ABC-123` and paste
+the ticket's text; at the end, « j'ai fini mon ticket ». The guide:
+`docs/guide/choisir-son-organisation.md`.
+
+## Changing a setting, other KBs
+
+- A setting: `okb settings set <key>=<value>` (`okb settings show --all` lists
+  them, with labels in the user's language): languages, writing style, reader
+  level, help with notions.
+- The active KB: `okb kb switch <id>` (« passe sur la KB atlas »); one command
+  for another KB: `--kb <id>`. A KB is removed with `okb kb remove <id>` (its
+  folder stays).
+- Another tool's knowledge base: record its name so OKB never touches it,
+  `okb settings set routing.otherKnowledgeTools="<name>"`.
+- In a terminal, `okb start` shows the same overview and runs the plan after
+  one confirmation.

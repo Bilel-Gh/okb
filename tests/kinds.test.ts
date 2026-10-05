@@ -176,3 +176,24 @@ describe('the web graph of a workspace', () => {
     expect(await workspaceGraph(cours, await loadBundleFor(cours))).toBeNull();
   });
 });
+
+describe('a KB written before OKB, under Git, beside the repositories', () => {
+  it('is offered the conversion, never onboarding, and is not taken for a repository', async () => {
+    const { ws } = await team();
+    const { env } = await person();
+    const old = resolve(ws, 'old-notes');
+    await repo(old, { 'Accueil.md': '# Accueil\n\nVoir [[Commandes]].\n', 'Commandes.md': '# Commandes\n\norders-service gère les commandes.\n', 'Equipe.md': '# Équipe\n', 'images/schema.txt': 'schéma' }, 'notes');
+    const before = (await run(['scope', '--context', '--cwd', old], env, old)).stdout;
+    expect(before).toContain('looks like a knowledge base written before OKB');
+    expect(before).toContain('/okb:convert');
+    expect(before).not.toContain('offer /okb:onboard to build');
+    const added = await json(['workspace', 'add', ws, '--kb', 'travail', '--name', 'Acme', '--no-landscape'], env, ws);
+    expect(added.repos.map((r: { id: string }) => r.id)).not.toContain('old-notes');
+    expect(added.notesFolders).toEqual([old]);
+    expect((await run(['scope', '--context', '--cwd', old], env, old)).stdout).toContain('/okb:convert');
+    // Connected, it is named as a KB; `okb convert` is `okb kb convert`.
+    await json(['kb', 'add', old, '--name', 'Anciennes notes'], env, ws);
+    expect((await run(['repo', 'context', '--cwd', old], env, old)).stdout).toContain('this folder is the OKB KB "Anciennes notes"');
+    expect(await json(['convert', '--kb', 'anciennes-notes'], env, old)).toMatchObject({ ok: true, legacy: 3 });
+  });
+});

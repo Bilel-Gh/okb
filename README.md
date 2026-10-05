@@ -1,4 +1,4 @@
-# OKB — Open Knowledge Brain · 0.10.0
+# OKB — Open Knowledge Brain · 0.11.0
 
 **A local second brain for Claude Code and Obsidian, where nothing enters your
 notes without your approval.**
@@ -62,7 +62,9 @@ repository, type `/okb:onboard` (or just say “I'm new to this repo”):
    - open questions.
 
 **Three kinds of KB**: a subject, one code repository (its notes at the root), or
-a team's repositories — a workspace. `okb repo add` advises which one fits.
+a team's repositories — a workspace. Say “set OKB up for me” in Claude Code (or
+run `okb start`): it reads the folders around you, recommends one, shows the plan
+and runs it once you agree.
 
 **A whole team's repositories — a workspace.** `okb workspace add <folder>` maps
 every repository of a folder into one KB, one space per repository plus a shared
@@ -265,7 +267,7 @@ filesystem transaction.
   [templates](docs/dev/TEMPLATES.md) · [style](docs/dev/STYLE.md) ·
   [installation details](docs/dev/INSTALL.md) · [context budget](docs/dev/CONTEXT.md) · [cost and quality](docs/dev/COSTS.md) ·
   [Claude compatibility](docs/dev/CLAUDE-COMPATIBILITY.md) · [evaluation](docs/dev/EVALUATION.md)
-- **Release notes:** [0.10.0](docs/releases/RELEASE-0.10.0.md) · [0.9.0](docs/releases/RELEASE-0.9.0.md) · [0.8.0](docs/releases/RELEASE-0.8.0.md) · [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
+- **Release notes:** [0.11.0](docs/releases/RELEASE-0.11.0.md) · [0.10.0](docs/releases/RELEASE-0.10.0.md) · [0.9.0](docs/releases/RELEASE-0.9.0.md) · [0.8.0](docs/releases/RELEASE-0.8.0.md) · [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
   [0.4.0](docs/releases/RELEASE-0.4.0.md) · [0.3.0](docs/releases/RELEASE-0.3.0.md) ·
   [0.2.0](docs/releases/RELEASE-0.2.0.md)
 

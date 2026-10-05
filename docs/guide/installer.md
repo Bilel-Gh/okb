@@ -30,6 +30,21 @@ Rien n’est installé hors du dossier d’OKB sans ton « oui ». Tes réglages
 tes fichiers de shell ne sont jamais modifiés. Aucun nom de personne n’est lu
 (ni Git, ni compte de l’ordinateur) : tes approbations sont signées `human:me`.
 
+### Le plus simple ensuite : laisser OKB s'installer pour toi
+
+Dans Claude Code, ouvert dans ton dossier de travail ou dans un repo, dis
+« configure OKB pour moi » (ou tape `/okb:setup`). Dans un terminal :
+`okb start`. OKB, sans IA et sans rien écrire :
+- regarde les dossiers autour : un repo seul, un dossier de repos (jusqu'à deux
+  niveaux), une ancienne KB, tes KB existantes, le plugin ;
+- te montre ce qu'il a trouvé, dossier par dossier, et te recommande une
+  organisation, avec la raison ;
+- te propose un plan précis, les commandes exactes, et le lance après ton
+  accord.
+
+Si un espace de travail existe déjà, il vérifie que tous les repos du dossier y
+sont, et propose d'ajouter ceux qui manquent.
+
 Sans question : `./scripts/install.sh --yes` installe OKB sans créer de KB.
 Si OKB est déjà configuré, le script propose les réparations utiles (commande
 `okb`, plugin).
@@ -88,7 +103,7 @@ okb init
 3. Pour une nouvelle version, avec le nouveau fichier :
 
 ```bash
-okb update --from okb-0.10.0.tgz
+okb update --from okb-0.11.0.tgz
 ```
 
 `okb update --from` accepte aussi un dossier qui contient une copie d’OKB. Il

@@ -45,7 +45,15 @@ sur ton ordinateur seulement : rien ne change pour l'équipe.
 ## Cas concret : rien n'est installé, j'ai un ticket
 
 Ton dossier `~/dev/mon-equipe` contient `repo1`, `repo2`, `repo3` et une ancienne KB
-écrite avant OKB. Ton ticket concerne `repo2`. Dans l'ordre :
+écrite avant OKB. Ton ticket concerne `repo2`.
+
+**Le plus simple :** ouvre Claude Code dans `~/dev/mon-equipe/repo2` et dis
+« configure OKB pour moi » (ou `okb start` dans un terminal). OKB trouve les repos
+et l'ancienne KB, te recommande de la reprendre comme KB de travail, te demande
+son nom, te montre le plan, puis le lance après ton accord. Il ne reste qu'à taper
+`/okb:ticket ABC-123`.
+
+**À la main**, dans l'ordre :
 
 1. **Connecter l'ancienne KB** (« KB confidentielle » : oui) :
    ```bash

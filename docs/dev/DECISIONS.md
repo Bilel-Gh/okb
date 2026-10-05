@@ -3,11 +3,11 @@
 Trace courte pour reprendre le projet sans l’historique de conversation.
 Format : problème → décision → conséquence → condition de réexamen.
 
-## État au 5 octobre 2026 (version 0.10.0)
+## État au 5 octobre 2026 (version 0.11.0)
 
 | Contrôle | Résultat |
 |---|---|
-| `npm run release:check` (Node 24.4) | voir [RELEASE-0.10.0.md](../releases/RELEASE-0.10.0.md) : tests, plugin, paquet installé proprement |
+| `npm run release:check` (Node 24.4) | voir [RELEASE-0.11.0.md](../releases/RELEASE-0.11.0.md) : tests, plugin, paquet installé proprement |
 | `claude plugin validate ./plugin` (Claude Code du poste) | Validation passée |
 | Évaluations natives `claude plugin eval` | Non exécutées (cas prêts dans `plugin/evals/`) |
 
@@ -564,4 +564,29 @@ Le diagnostic et les contrats Claude consultés sont dans
   ensuite.
 - **Réexamen.** Si les repos rattachés deviennent la règle, envisager une
   recherche multi-KB générale.
+
+## D35 — Installation guidée : OKB regarde avant de proposer
+
+- **Problème.**
+  - Mettre OKB en place demandait de connaître l'ordre des commandes
+    (`kb add`, `workspace add`, `/okb:convert`) et quel type de KB choisir.
+  - Sur le terrain, la personne ne savait pas par où commencer pour son ticket.
+- **Décision.**
+  - `okb start` lit la situation sans IA et sans rien écrire :
+    - KB, espaces et repos connus ;
+    - dossier de repos jusqu'à deux niveaux, dossier par dossier ;
+    - anciennes KB, sous Git ou non ;
+    - groupes par équipe, plugin.
+  - Il en tire des recommandations et un plan de commandes exactes ; dans le
+    terminal, il l'exécute après une confirmation.
+  - Le skill `okb-setup` le lit, pose seulement les questions utiles (le nom de
+    la KB n'est jamais deviné), montre l'aperçu, puis lance le plan.
+  - Un espace existant est vérifié : les repos du dossier qui manquent sont
+    ajoutés.
+  - Un dossier de notes n'est jamais pris pour un repo, et Claude n'y propose
+    pas l'onboarding.
+- **Conséquence.** Une phrase suffit pour démarrer ; le plan reste visible et
+  modifiable avant tout changement.
+- **Réexamen.** Si des organisations plus profondes que deux niveaux sont
+  courantes, étendre la recherche ou demander le dossier.
 

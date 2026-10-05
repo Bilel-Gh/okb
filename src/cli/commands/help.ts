@@ -20,6 +20,7 @@ export type CommandInfo = {
 };
 
 export const COMMANDS: readonly CommandInfo[] = [
+  { name: 'start', group: 'start', aliases: ['demarrer', 'démarrer', 'commencer'], usage: 'okb start [--cwd <dossier>]', examples: ['okb start', 'cd ~/dev/mon-equipe && okb start'], flags: ['--cwd'] },
   { name: 'init', group: 'start', usage: 'okb init', examples: ['okb init', 'okb init --yes --name Notes --dir ~/Notes/kb-notes', 'okb init --yes --name Travail --kind workspace --workspace ~/dev/acme'], flags: ['--yes', '--name', '--dir', '--lang', '--writing-lang', '--kind', '--repo', '--workspace', '--in-repo'] },
   { name: 'new', group: 'start', usage: 'okb new', examples: ['okb new'] },
   { name: 'tour', group: 'start', aliases: ['demo'], usage: 'okb tour', examples: ['okb tour'] },
@@ -38,6 +39,7 @@ export const COMMANDS: readonly CommandInfo[] = [
   { name: 'scope', group: 'daily', aliases: ['perimetre', 'périmètre', 'here'], usage: 'okb scope [<repo>|<ABC-123>|off]', examples: ['okb scope', 'okb scope orders-service', 'okb scope ABC-123', 'okb scope off'], flags: ['--cwd', '--context'] },
   { name: 'ticket', group: 'daily', aliases: ['tickets'], usage: 'okb ticket [start <ABC-123>|note "…"|done|list]', subcommands: ['status', 'start', 'note', 'done', 'list'], examples: ['okb ticket start ABC-123 --repo orders-service', 'okb ticket note "le total se recalcule côté serveur" --kind decision', 'okb ticket', 'okb ticket done'], flags: ['--repo', '--title', '--ticket-file', '--text', '--base', '--kind', '--ticket', '--all', '--keep-open'] },
   { name: 'serve', group: 'daily', aliases: ['web', 'reader'], usage: 'okb serve [--port 4317] [--no-open]', examples: ['okb serve'] },
+  { name: 'convert', group: 'care', aliases: ['convertir'], usage: 'okb convert [--kb <id>]', examples: ['okb kb add ~/notes/ancienne-kb', 'okb convert --kb archives'], flags: ['--kb', '--plan-file', '--limit', '--cursor'] },
   { name: 'kb', group: 'care', usage: 'okb kb [list|switch|add|remove|convert|merge|adopt]', subcommands: ['list', 'switch', 'add', 'remove', 'archive', 'convert', 'merge', 'adopt'], examples: ['okb kb', 'okb kb switch atlas', 'okb kb add ~/Documents/anciennes-notes --name Archives', 'okb kb convert', 'okb kb merge orders-service --into travail', 'okb kb remove atlas'], flags: ['--name', '--confidential', '--plan-file', '--into', '--retire', '--yes'] },
   { name: 'settings', group: 'care', aliases: ['config'], usage: 'okb settings [show|set key=value]', subcommands: ['show', 'set'], examples: ['okb settings', 'okb settings set writing.language=fr'] },
   { name: 'doctor', group: 'care', usage: 'okb doctor [--fix]', examples: ['okb doctor', 'okb doctor --fix'], flags: ['--fix', '--verbose'] },

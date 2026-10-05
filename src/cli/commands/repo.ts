@@ -878,9 +878,21 @@ export async function repoContextText(cwd: string): Promise<string> {
   } else {
     const root = await gitRoot(cwd);
     const kbs = await listKbs();
+    const { isInside, readOwner } = await import('../../kb/registry.js');
+    const kb = kbs.find((k) => isInside(cwd, k.root));
+    if (kb) {
+      // The folder of an OKB KB: its notes, not code to onboard.
+      return `OKB: this folder is the OKB KB "${kb.name}" (id ${kb.id}): notes, not a code repository — never offer /okb:onboard here. If its notes were written before OKB (no front matter), offer /okb:convert to convert them through a proposal (ask first).`;
+    }
     let suggest = kbs.length > 0;
     if (suggest) try { suggest = (await loadConfig({})).config.routing.suggest; } catch { /* no active KB */ }
-    if (root && suggest) text = `OKB: this folder is a Git repository OKB does not document yet ("${root.split('/').pop()}"). If the user says they are discovering or starting on it, offer /okb:onboard to build its knowledge base (ask first; never run it unasked).`;
+    if (root && (await readOwner(root).catch(() => null))) return '';
+    const { looksLikeNotes } = await import('../../work/workspaces.js');
+    if (root && (await looksLikeNotes(root))) {
+      text = `OKB: this folder looks like a knowledge base written before OKB ("${root.split('/').pop()}": Markdown notes, not code). Never offer /okb:onboard for it (that is for code repositories). If the user wants it in OKB, offer /okb:convert: it connects the folder as a KB (asking its name) and converts its notes through a proposal they review.`;
+    } else if (root && suggest) {
+      text = `OKB: this folder is a Git repository OKB does not document yet ("${root.split('/').pop()}"). If the user says they are discovering or starting on it, offer /okb:onboard to build its knowledge base (ask first; never run it unasked).`;
+    }
   }
   return text;
 }

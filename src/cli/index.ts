@@ -23,6 +23,7 @@ const wrap = (fn: (args: Ctx['args'], out: Output, mode: OutputMode) => Promise<
 /** Every command by canonical name; aliases resolve through the help catalogue. */
 const HANDLERS: Record<string, Handler> = {
   home: (c) => import('./commands/home.js').then((m) => m.cmdHome(c, dispatch)),
+  start: (c) => import('./commands/start.js').then((m) => m.cmdStart(c, dispatch)),
   init: (c) => import('./commands/init.js').then((m) => m.cmdInit(c, { first: true })),
   new: (c) => import('./commands/init.js').then((m) => m.cmdInit(c, { first: false })),
   tour: cmdTour,
@@ -39,6 +40,8 @@ const HANDLERS: Record<string, Handler> = {
   weekly: cmdWeekly,
   serve: cmdServe,
   kb: cmdKb,
+  // `okb convert` is `okb kb convert`: the word people use first.
+  convert: (c) => cmdKb({ ...c, args: { ...c.args, positionals: ['convert', ...c.args.positionals] } }),
   categories: (c) => import('./commands/categories.js').then((m) => m.cmdCategories(c)),
   repo: (c) => import('./commands/repo.js').then((m) => m.cmdRepo(c)),
   workspace: (c) => import('./commands/work.js').then((m) => m.cmdWorkspace(c)),

@@ -196,6 +196,23 @@ export async function reposIn(folder: string, env: NodeJS.ProcessEnv = process.e
   return found.sort();
 }
 
+/** Manifests that make a folder a code project. */
+const CODE_MANIFESTS = /(^|\/)(package\.json|pom\.xml|build\.gradle(\.kts)?|settings\.gradle|go\.mod|Cargo\.toml|pyproject\.toml|requirements\.txt|setup\.py|Gemfile|composer\.json|mta\.yaml|[^/]+\.csproj|[^/]+\.sln|Makefile|CMakeLists\.txt)$/;
+
+/**
+ * A Git repository that holds notes, not code — a KB written before OKB, an
+ * Obsidian vault: mostly Markdown and no project manifest. It is connected
+ * as a KB (`okb kb add`, then `/okb:convert`), not onboarded as a repository.
+ */
+export async function looksLikeNotes(root: string): Promise<boolean> {
+  const { listFiles } = await import('../repo/git.js');
+  const files = (await listFiles(root).catch(() => null)) ?? [];
+  if (files.length < 3) return false;
+  if (files.some((f) => CODE_MANIFESTS.test(f))) return false;
+  const markdown = files.filter((f) => /\.(md|markdown)$/i.test(f)).length;
+  return markdown / files.length >= 0.6;
+}
+
 /* ---------------------------------------------------- ticket references */
 
 /** Words shaped like `ABC-123` that are not tickets. */
