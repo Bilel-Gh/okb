@@ -11,7 +11,7 @@ completed dossier as a different file so a later template cannot overwrite it.
   "template": "guide",
   "sources": ["<sha256 of the primary source>", "<sha256 of each --with source>"],
   "style": { "...": "copied unchanged from okb style --json / the template" },
-  "reviewedBlockIds": ["<every block of every source actually read>"],
+  "reviewedBlockIds": ["<every block of every source actually read; runs as <source>#0-70>"],
   "summary": "Private working summary; not published as uncited prose.",
   "sections": [{
     "role": "purpose",

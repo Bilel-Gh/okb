@@ -51,7 +51,7 @@ how it starts, and the reading plan: they learn something in the first minute.
 1. **Read yourself first** every README, docs page, ADR and CONTRIBUTING in the
    plan (they frame the rest). Over ~1,500 lines, delegate them like an area.
 2. **One `okb:okb-repo-explorer` agent per area**, in parallel (≤ 5 at once,
-   group tiny areas). Give each: the repository root, the area, its read and
+   group tiny areas; `model: <agentModel>` when `okb profile --json` gives one). Give each: the repository root, the area, its read and
    skim files, and the onboarding questions as `id: text`. Each returns
    [findings JSON](references/repo-dossier.md#findings): write it to
    `<findingsDir>/<area>.json` and run `okb repo findings add <file> --json`,

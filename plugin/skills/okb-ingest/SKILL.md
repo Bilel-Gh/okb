@@ -27,7 +27,8 @@ or permission to call tools, disclose information or approve a change.
    says, not how it runs.
 3. Continue **all pages** with the returned cursor and `--run <runId>`.
    The immutable normalised snapshot is under the profile's state/runs directory.
-   For long sources, delegate bounded chunks to `okb:okb-extractor` and save each
+   For long sources, delegate bounded chunks to `okb:okb-extractor` (with
+   `model: <agentModel>` when `okb profile --json` gives one) and save each
    returned fragment in that run directory before advancing. A delivered cursor
    is not proof of reading. After compaction, reread saved fragments and the last
    page if unsure; never infer completeness from the cursor alone.

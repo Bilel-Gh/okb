@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import YAML from 'yaml';
 import { loadConfig, okbHome } from '../config/load.js';
-import { readRootConfig, setUiLanguage } from '../kb/registry.js';
+import { readRootConfig, setUiLanguage, writeRootConfig } from '../kb/registry.js';
 import { OkbError } from '../util/errors.js';
 import { readTextIfExists, writeTextAtomic } from '../util/fsx.js';
 
@@ -40,6 +40,9 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: 'kb.confidential', group: 'history', type: 'bool', scope: 'profile', path: ['kb', 'confidential'], fallback: false },
   { key: 'git.autoCommit', group: 'history', type: 'bool', scope: 'profile', path: ['git', 'autoCommit'], recommended: true, fallback: false },
   { key: 'routing.suggest', group: 'assistant', type: 'bool', scope: 'profile', path: ['routing', 'suggest'], recommended: true, fallback: true },
+  // Subagents that gather located evidence (long sources, repositories). Per machine: a
+  // company gateway may not offer every model. Writing and the evidence reviewer keep the session's model.
+  { key: 'agents.model', group: 'assistant', type: 'choice', scope: 'global', path: ['agents', 'model'], options: ['inherit', 'sonnet', 'haiku', 'opus'], recommended: 'inherit', fallback: 'inherit' },
   { key: 'routing.otherKnowledgeTools', group: 'assistant', type: 'list', scope: 'profile', path: ['routing', 'otherKnowledgeTools'], fallback: [] },
   { key: 'profile.humanActor', group: 'advanced', type: 'text', scope: 'profile', path: ['profile', 'humanActor'], fallback: 'human:anonymous' },
   { key: 'context.pageSize', group: 'advanced', type: 'number', scope: 'profile', path: ['context', 'pageSize'], fallback: 25 },
@@ -100,7 +103,16 @@ export async function writeSetting(profileId: string, key: string, raw: unknown,
   const def = settingDef(key);
   const value = parseSettingValue(def, raw);
   if (def.scope === 'global') {
-    await setUiLanguage(value as 'auto' | 'fr' | 'en', env);
+    if (key === 'ui.language') await setUiLanguage(value as 'auto' | 'fr' | 'en', env);
+    else {
+      await writeRootConfig((root) => {
+        const next: Record<string, unknown> = { ...root };
+        let cur = next;
+        def.path.slice(0, -1).forEach((part) => { cur[part] = { ...((cur[part] as Record<string, unknown>) ?? {}) }; cur = cur[part] as Record<string, unknown>; });
+        cur[def.path[def.path.length - 1]!] = value;
+        return next;
+      }, env);
+    }
     return value;
   }
   const path = resolve(okbHome(env), 'profiles', profileId, 'profile.yaml');

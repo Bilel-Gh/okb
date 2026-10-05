@@ -7,6 +7,7 @@ import { assertGuard, guardApply } from '../../apply/guard.js';
 import type { OkbConfig } from '../../config/schema.js';
 import { formatDate, relativeTime, t, tn } from '../../i18n/index.js';
 import { unifiedDiff } from '../../proposal/diff.js';
+import { expandBlockRanges } from '../../pipeline/analysis.js';
 import { groupChangesByPath, materializeFile } from '../../proposal/materialize.js';
 import { resolveSelection, type Proposal } from '../../proposal/model.js';
 import { loadProposal, updateProposalStatus } from '../../proposal/store.js';
@@ -173,7 +174,7 @@ export async function cmdReview(ctx: Ctx): Promise<number> {
       proposal: { id: proposal.id, status: proposal.status, contentHash: proposal.contentHash, notes: proposal.notes, title: proposalTitle(proposal), number },
       changes: proposal.changes.map((c) => ({ id: c.id, category: c.category, kind: c.kind, path: c.path, label: c.label, rationale: c.rationale, dependsOn: c.dependsOn })),
       contradictions: proposal.contradictions,
-      analysisSummary: proposal.analysis ? { reviewedBlocks: proposal.analysis.reviewedBlockIds.length, claims: proposal.analysis.sections.flatMap((s) => s.claims).length, corrections: proposal.analysis.corrections, caveat: 'coverage is an author declaration; quote identity is checked; entailment needs review' } : null,
+      analysisSummary: proposal.analysis ? { reviewedBlocks: expandBlockRanges(proposal.analysis.reviewedBlockIds).length, claims: proposal.analysis.sections.flatMap((s) => s.claims).length, corrections: proposal.analysis.corrections, caveat: 'coverage is an author declaration; quote identity is checked; entailment needs review' } : null,
       claims: proposal.analysis ? paginate(proposal.analysis.sections.flatMap((s) => s.claims), { limit, cursor }) : null,
       evidence: paginate(proposal.evidence, { limit, cursor }).page,
       evidencePagination: paginate(proposal.evidence, { limit, cursor }).truncation,

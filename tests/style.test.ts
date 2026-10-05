@@ -7,7 +7,7 @@ import { grantApproval } from '../src/apply/approval.js';
 import { loadConfig } from '../src/config/load.js';
 import { loadBundleFor } from '../src/kb/bundle.js';
 import { maintain } from '../src/maintain/maintain.js';
-import { renderAnalysis, validateAnalysis } from '../src/pipeline/analysis.js';
+import { compressBlockIds, expandBlockRanges, renderAnalysis, validateAnalysis } from '../src/pipeline/analysis.js';
 import { prepareProposal } from '../src/pipeline/ingest.js';
 import { saveProposal } from '../src/proposal/store.js';
 import { checkRevision, proposeRevision } from '../src/revise/revise.js';
@@ -193,6 +193,13 @@ describe('dossier version 2', () => {
     delete (noLimits.sections[0]!.aids[0] as { limits?: string }).limits;
     expect(() => validateAnalysis(noLimits, [f.notes, f.code])).toThrow(/invalid analysis dossier/);
     expect(() => validateAnalysis({ ...f.analysis, reviewedBlockIds: f.notes.blocks.map((b) => b.id) }, [f.notes, f.code])).toThrow(/every extracted block/);
+    // The same declaration as ranges: shorter to write, checked the same way.
+    const ranged = compressBlockIds([...f.notes.blocks, ...f.code.blocks].map((b) => b.id));
+    expect(ranged.length).toBeLessThan(f.notes.blocks.length + f.code.blocks.length);
+    expect(() => validateAnalysis({ ...f.analysis, reviewedBlockIds: ranged }, [f.notes, f.code])).not.toThrow();
+    expect(() => validateAnalysis({ ...f.analysis, reviewedBlockIds: [...ranged, f.notes.blocks[0]!.id] }, [f.notes, f.code])).toThrow(/every extracted block/);
+    expect(expandBlockRanges(['s#2-4', 'x#9'])).toEqual(['s#2', 's#3', 's#4', 'x#9']);
+    expect(compressBlockIds(['s#0', 's#1', 's#2', 's#5', 't#1'])).toEqual(['s#0-2', 's#5', 't#1']);
     expect(() => validateAnalysis(f.analysis, [f.notes])).toThrow(/different source bytes/);
   });
 

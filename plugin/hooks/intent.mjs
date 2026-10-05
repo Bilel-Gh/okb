@@ -22,6 +22,8 @@ process.stdin.on('end', () => {
   try { input = JSON.parse(raw); } catch { process.exit(0); }
   const prompt = String(input?.prompt ?? '').trim();
   if (!prompt || prompt.startsWith('/') || prompt.length < 4) process.exit(0);
+  // Notices Claude Code delivers as prompts (a background task that ended…) are not the user.
+  if (/^<(task-notification|system-reminder|local-command-[a-z]+|command-[a-z]+)>/.test(prompt)) process.exit(0);
   const args = ['route', '--suggest', '--stdin', '--json', ...(input?.cwd ? ['--cwd', String(input.cwd)] : [])];
   const child = execFile(okb, args, { timeout: 4000, maxBuffer: 200_000, env: process.env }, (error, stdout) => {
     if (error) process.exit(0);

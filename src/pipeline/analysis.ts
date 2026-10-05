@@ -147,9 +147,16 @@ export function validateAnalysis(raw: unknown, input: NormalizedDoc | readonly N
   }
 
   const blocks = new Map(docs.flatMap((d) => d.blocks.map((b) => [b.id, b] as const)));
-  const reviewed = new Set(a.reviewedBlockIds);
-  if (reviewed.size !== blocks.size || [...blocks.keys()].some(id => !reviewed.has(id)) || a.reviewedBlockIds.length !== reviewed.size) {
-    throw new OkbError('E_INVALID', 'analysis must account for every extracted block exactly once', { detail: { missing: [...blocks.keys()].filter(id => !reviewed.has(id)) } });
+  const declaredBlocks = expandBlockRanges(a.reviewedBlockIds);
+  const reviewed = new Set(declaredBlocks);
+  if (reviewed.size !== blocks.size || [...blocks.keys()].some(id => !reviewed.has(id)) || declaredBlocks.length !== reviewed.size) {
+    const missing = [...blocks.keys()].filter(id => !reviewed.has(id));
+    const twice = declaredBlocks.filter((id, i) => declaredBlocks.indexOf(id) !== i);
+    const unknown = [...reviewed].filter((id) => !blocks.has(id));
+    throw new OkbError('E_INVALID', 'analysis must account for every extracted block exactly once', {
+      detail: { missing: compressBlockIds(missing), ...(twice.length ? { twice: compressBlockIds(twice) } : {}), ...(unknown.length ? { unknown: compressBlockIds(unknown) } : {}) },
+      hint: 'List the blocks you read; consecutive blocks can be written as a range, e.g. "<source>#0-70".',
+    });
   }
   const claims = a.sections.flatMap(s => s.claims);
   if (!claims.length) throw new OkbError('E_INVALID', 'a dossier needs at least one sourced claim');
@@ -377,3 +384,42 @@ export function analysisTemplate(input: NormalizedDoc | readonly NormalizedDoc[]
     concepts: [], corrections: [], openQuestions: [], related: [],
   };
 }
+
+/**
+ * `abc#3-6` stands for `abc#3`, `abc#4`, `abc#5`, `abc#6`: the same declaration
+ * of what was read, without writing seventy ids by hand.
+ */
+export function expandBlockRanges(ids: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const id of ids) {
+    const m = /^(.*)#(\d+)-(\d+)$/.exec(id);
+    if (!m) { out.push(id); continue; }
+    const from = Number(m[2]), to = Number(m[3]);
+    if (to < from || to - from > 100_000) { out.push(id); continue; }
+    for (let n = from; n <= to; n++) out.push(`${m[1]}#${n}`);
+  }
+  return out;
+}
+
+/** The reverse, for short messages: `abc#0`, `abc#1`, `abc#2` → `abc#0-2`. */
+export function compressBlockIds(ids: readonly string[]): string[] {
+  const bySource = new Map<string, number[]>();
+  const other: string[] = [];
+  for (const id of ids) {
+    const m = /^(.*)#(\d+)$/.exec(id);
+    if (!m) { other.push(id); continue; }
+    bySource.set(m[1]!, [...(bySource.get(m[1]!) ?? []), Number(m[2])]);
+  }
+  const out: string[] = [];
+  for (const [source, ns] of bySource) {
+    const sorted = [...new Set(ns)].sort((a, b) => a - b);
+    let start = sorted[0]!, prev = start;
+    for (const n of [...sorted.slice(1), Number.NaN]) {
+      if (n === prev + 1) { prev = n; continue; }
+      out.push(start === prev ? `${source}#${start}` : `${source}#${start}-${prev}`);
+      start = n; prev = n;
+    }
+  }
+  return [...out, ...other];
+}
+

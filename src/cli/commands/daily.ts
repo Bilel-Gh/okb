@@ -285,6 +285,7 @@ export async function cmdProfile(ctx: Ctx): Promise<number> {
   const { config } = await effective(args);
   const raw = await readTextIfExists(resolve(okbHome(), 'config.yaml'));
   const root = raw ? ((YAML.parse(raw) as { profiles?: unknown; activeProfile?: unknown }) ?? {}) : {};
+  const agentModel = config.agents.model === 'inherit' ? null : config.agents.model;
   const installed = Array.isArray(root.profiles) ? root.profiles.map(String) : [];
   const active = typeof root.activeProfile === 'string' ? root.activeProfile : null;
   const focus = await readFocus(config);
@@ -292,6 +293,8 @@ export async function cmdProfile(ctx: Ctx): Promise<number> {
     profile: config.profile.id, name: config.profile.displayName || config.profile.id, kbRoot: config.kb.root, active, installed,
     explicit: config.profile.id !== active, writingLanguage: config.profile.answer.language,
     focus: { path: focus.path, exists: focus.exists, ageDays: focus.ageDays, stale: focus.stale },
+    // Model for evidence-gathering subagents (Agent tool `model`); null: the session's.
+    agentModel,
   };
   if (ctx.mode === 'json') { out.json({ ok: true, ...info }); return 0; }
   out.line(`📚 ${config.profile.id} → ${config.kb.root}${info.explicit ? `  ${paint.dim(t('profile.explicit'))}` : ''}`);

@@ -14,7 +14,7 @@ import { PRODUCT_ROOT } from '../integrations/system.js';
  * Code logs (claude-logs.ts); a cache keeps each log's summary, so only new or
  * changed logs are read again.
  */
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 type Cache = { version: number; entries: Record<string, { fp: string; summary: SessionSummary }> };
 
 export function usageDir(env: NodeJS.ProcessEnv = process.env): string {

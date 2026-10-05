@@ -131,11 +131,30 @@ Instructions chargées par un import :
 `okb template list` en texte fait 1 345 octets, contre 8 901 en JSON compact :
 le skill d'import n'a pas besoin du JSON.
 
-### Essais réels
+### Essais réels (4 octobre 2026, avant les plages de blocs)
 
-À compléter avec `scripts/bench.mjs`. Chaque ligne : modèle principal, modèle des
-sous-agents, coût, faits retrouvés, erreurs interdites, verdict à l'aveugle
-contre la référence (tout sur Opus).
+| Essai | Modèle | Coût | Durée | Faits | Erreurs | Rédaction (à l'aveugle) |
+|---|---|---:|---:|---:|---:|---|
+| Import de la réunion | Opus 5.5, relecteur Opus | 3,41 $ | 9 min | 22/22 | 0 | référence |
+| Import de la réunion | Sonnet 5.5 partout | 1,93 $ (−43 %) | 8 min | 22/22 | 0 | Opus préféré sur complétude, clarté, structure ; exactitude égale |
+| Onboarding du repo fictif | Opus 5.5 | 3,51 $ | 11 min | 19/19 | 0 | — |
+
+Ce qu'on en retient :
+- **Sonnet partout coûte 43 % de moins, sans erreur ni fait manqué**, mais sa
+  rédaction est jugée moins complète et moins claire. Pour la rédaction, le
+  modèle principal compte : on le laisse au choix de la personne.
+- **Le relecteur des preuves pèse un tiers du coût** d'un import (1,10 $ sur
+  3,41 $). Il a trouvé un problème bloquant et plusieurs oublis, que Claude a
+  corrigés : on le garde sur un modèle fort.
+- **L'onboarding d'un petit repo n'utilise pas de sous-agent** : la conversation
+  principale lit tout (2,88 $ sur 3,51 $). Les sous-agents de lecture
+  n'interviennent que sur un grand repo. Leur passage sur un modèle moins cher
+  reste donc un réglage (`agents.model`) à mesurer sur un vrai repo.
+- **Les allers-retours sur le dossier** étaient la principale perte. Claude
+  devait recopier les 71 identifiants de blocs de la source dans chaque dossier
+  et se trompait (4 échecs de validation). Le dossier accepte maintenant des
+  plages (`source#0-70`), avec la même vérification. Les erreurs de couverture
+  sont aussi résumées en plages.
 
 ## Décisions
 
@@ -143,10 +162,13 @@ contre la référence (tout sur Opus).
   d'analyse et les choix de modèle de note sont écrits par la conversation
   principale, sur le modèle choisi par la personne.
 - **Les sous-agents qui cherchent des preuves** (`okb-extractor`,
-  `okb-repo-explorer`) peuvent tourner sur un modèle moins cher : chaque citation
-  qu'ils rapportent est revérifiée mot pour mot par le CLI. Ce changement ne se
-  fait qu'après un essai sur le banc qui montre autant de faits retrouvés et
-  aucune erreur de plus.
+  `okb-repo-explorer`) suivent par défaut le modèle de la session. Le réglage
+  `agents.model` (propre à chaque ordinateur, `okb settings set
+  agents.model=sonnet`) les fait passer sur un autre modèle. Chaque citation
+  qu'ils rapportent est revérifiée mot pour mot, mais un modèle plus faible peut
+  oublier un fait : à valider sur le banc ou dans `okb usage` avant de l'adopter.
+  Derrière un proxy d'entreprise qui ne propose pas tous les modèles, on laisse
+  « comme la session ».
 - **Le relecteur des preuves** (`okb-evidence-reviewer`) reste sur un modèle
   fort : c'est le garde-fou.
 - **Aucune mesure ne dépense de token** : pas de hook qui injecte des chiffres,

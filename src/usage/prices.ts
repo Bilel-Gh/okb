@@ -47,8 +47,21 @@ const FAST: Readonly<Record<string, { input: number; output: number }>> = {
   'claude-opus-4-8': { input: 10, output: 50 },
 };
 
+/**
+ * The Anthropic model id behind a provider's or a gateway's name:
+ * `us.anthropic.claude-sonnet-4-5-20250929-v1:0`, `claude-opus-4-5@20251101`,
+ * `anthropic/claude-sonnet-4.5` → `claude-sonnet-4-5…`.
+ */
+export function normaliseModel(model: string): string {
+  const lower = model.toLowerCase();
+  const at = lower.indexOf('claude-');
+  if (at < 0) return lower;
+  const id = lower.slice(at).split('@')[0]!.split(':')[0]!;
+  return id.replace(/(\d)\.(\d)/g, '$1-$2');
+}
+
 export function priceOf(model: string, speed: 'standard' | 'fast' = 'standard'): Price | null {
-  const id = model.toLowerCase();
+  const id = normaliseModel(model);
   const found = TABLE.filter(([prefix]) => id.startsWith(prefix)).sort((a, b) => b[0].length - a[0].length)[0];
   if (!found) return null;
   const [prefix, base] = found;
@@ -88,7 +101,7 @@ export function costOf(model: string, tokens: Tokens, speed: 'standard' | 'fast'
 
 /** "claude-opus-5-5" → "Opus 5.5". */
 export function modelLabel(model: string): string {
-  const m = /^claude-([a-z]+)-(\d+)(?:-(\d+))?/.exec(model.toLowerCase());
+  const m = /^claude-([a-z]+)-(\d+)(?:-(\d+))?/.exec(normaliseModel(model));
   if (!m) return model;
   const family = m[1]!.charAt(0).toUpperCase() + m[1]!.slice(1);
   const minor = m[3] && m[3].length <= 2 ? `.${m[3]}` : '';

@@ -28,7 +28,7 @@
   "forbidden": [
     { "id": "autonomie-8h", "label": "8 h d'autonomie présentées comme un fait", "sentence": ["8 ?h(eures)?"], "with": ["autonomie|tienn|journée complète"], "unless": ["vide|corrig|trompé|erreur|annonc|initial|d'abord|au départ|pas 8|non 8|et non|plutôt que"] },
     { "id": "rlq-invente", "label": "Un sens inventé pour RLQ", "sentence": ["RLQ ?(\\(|:|=|signifie|veut dire)[^)\\n]{0,4}[A-Z][a-z]+ [A-Z]"], "with": [], "unless": [] },
-    { "id": "relances-3", "label": "L'ancienne règle des 3 relances présentée comme actuelle", "sentence": ["(3|trois) (tentatives|relances)|relance trois fois"], "with": [], "unless": ["aujourd|actuel|avant|ancien|passe|remplac|au lieu|jusqu|désormais|à la place|plus que|ne couvr|insuffis|ancienne"] },
+    { "id": "relances-3", "label": "L'ancienne règle des 3 relances présentée comme actuelle", "sentence": ["(3|trois) (tentatives|relances)|relance trois fois"], "with": [], "unless": ["aujourd|actuel|avant|ancien|passe|remplac|au lieu|jusqu|désormais|à la place|plus que|ne couvr|insuffis|ancienne|raison|perd|nouvelle|coupure"] },
     { "id": "drx-pipeline", "label": "DRX décrit comme un pipeline", "sentence": ["DRX"], "with": ["pipeline"], "unless": ["pas|plutôt|confond|n'est|non"] }
   ]
 }

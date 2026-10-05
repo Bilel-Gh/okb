@@ -311,6 +311,13 @@ export const policySchema = z
   })
   .strict();
 
+/** Subagents that gather located evidence; writing and the reviewer keep the session's model. */
+const agentsSchema = z
+  .object({
+    model: z.enum(['inherit', 'sonnet', 'haiku', 'opus']).default('inherit'),
+  })
+  .strict();
+
 export const configSchema = z
   .object({
     version: z.literal(CONFIG_VERSION).default(CONFIG_VERSION),
@@ -328,6 +335,7 @@ export const configSchema = z
     focus: focusSchema.default({}),
     routing: routingSchema.default({}),
     policy: policySchema.default({}),
+    agents: agentsSchema.default({}),
     /** Root of operational state: proposals, runs, caches, logs. Never inside the KB. */
     stateHome: z.string().default(''),
   })

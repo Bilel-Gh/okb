@@ -193,7 +193,8 @@ const newTurn = (ts: string | null): Turn => ({
 function isPrompt(line: Line): boolean {
   if (line.type !== 'user' || line.isMeta || line.isCompactSummary) return false;
   const c = (line.message as { content?: unknown } | undefined)?.content;
-  if (typeof c === 'string') return !c.startsWith('<local-command-stdout>') && !c.startsWith('<local-command-caveat>');
+  // A background task that ends arrives as a message: it continues the current task.
+  if (typeof c === 'string') return !/^<(task-notification|local-command-stdout|local-command-caveat|system-reminder)>/.test(c);
   return Array.isArray(c) && !c.some((x) => (x as Content)?.type === 'tool_result');
 }
 

@@ -50,6 +50,9 @@ async function fakeLogs(devRoot: string) {
     line({ type: 'user', timestamp: at(3), message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'x'.repeat(3800) }] } }),
     answer('m2', OPUS, usage(5, 50, 3000), [{ type: 'tool_use', id: 't2', name: 'Agent', input: { subagent_type: 'okb:okb-evidence-reviewer' } }], 4),
     line({ type: 'user', timestamp: at(9), message: { content: [{ type: 'tool_result', tool_use_id: 't2', content: 'ok' }] } }),
+    // A background subagent ending: same task, not a new message from the person.
+    line({ type: 'user', timestamp: at(10), message: { content: '<task-notification>\n<task-id>a1</task-id>\n</task-notification>' } }),
+    answer('m2b', OPUS, usage(1, 5), [{ type: 'text', text: 'Relecture reçue.' }], 11),
     // A plain question: not OKB.
     line({ type: 'user', timestamp: at(20), message: { content: 'Quelle heure est-il ?' } }),
     answer('m3', OPUS, usage(20, 10), [{ type: 'text', text: 'Midi.' }], 21),
@@ -77,6 +80,11 @@ describe('what OKB costs', () => {
     expect(costOf('mystery-model', { input: 1e6, output: 1e6, write5m: 0, write1h: 0, read: 0 })).toBe(0);
     expect(modelLabel('claude-haiku-4-5-20251001')).toBe('Haiku 4.5');
     expect(modelLabel(OPUS)).toBe('Opus 5.5');
+    // Through a cloud provider or a company gateway.
+    expect(priceOf('us.anthropic.claude-sonnet-4-5-20250929-v1:0')?.input).toBe(3);
+    expect(priceOf('claude-opus-4-5@20251101')?.input).toBe(5);
+    expect(priceOf('anthropic/claude-sonnet-4.5')?.input).toBe(3);
+    expect(modelLabel('eu.anthropic.claude-haiku-4-5-20251001-v1:0')).toBe('Haiku 4.5');
   });
 
   it('reads Claude Code logs: each answer once, OKB tasks apart, subagents with their task, development left out', async () => {
@@ -86,10 +94,10 @@ describe('what OKB costs', () => {
     const s = await summariseSession(entry!, () => 'acme', devRoot);
     expect(s.okbRuns.map((r) => r.workflow)).toEqual(['ingest']);
     const run = s.okbRuns[0]!;
-    // m1 + m2 on Opus, each once despite the duplicated lines.
-    expect(run.main[OPUS]!.requests).toBe(2);
-    expect(run.main[OPUS]!.tokens).toEqual({ input: 15, output: 150, write5m: 0, write1h: 2000, read: 4000 });
-    expect(run.main[OPUS]!.costUsd).toBeCloseTo((15 * 4 + 150 * 20 + 2000 * 8 + 4000 * 0.2) / 1e6);
+    // m1, m2 and the answer after the notification, each once despite the duplicated lines.
+    expect(run.main[OPUS]!.requests).toBe(3);
+    expect(run.main[OPUS]!.tokens).toEqual({ input: 16, output: 155, write5m: 0, write1h: 2000, read: 4000 });
+    expect(run.main[OPUS]!.costUsd).toBeCloseTo((16 * 4 + 155 * 20 + 2000 * 8 + 4000 * 0.2) / 1e6);
     expect(run.agents).toHaveLength(1);
     expect(run.agents[0]!.type).toBe('okb:okb-evidence-reviewer');
     expect(run.agents[0]!.usage[SONNET]!.requests).toBe(1);

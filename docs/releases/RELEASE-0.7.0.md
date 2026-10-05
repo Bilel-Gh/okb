@@ -39,10 +39,18 @@ l'améliorer au fil de l'usage.
 - Les commandes `okb … --json` répondent en JSON compact quand c'est Claude (ou un
   programme) qui lit : les mêmes données en 25 à 40 % de tokens en moins. Dans
   un terminal, le JSON reste indenté.
+- Le dossier d'analyse déclare les blocs lus en plages (`source#0-70`) au lieu
+  de les recopier un par un ; la vérification est la même. C'était la première
+  cause d'allers-retours pendant un import.
+- **`agents.model`** : le modèle des sous-agents qui cherchent les preuves, réglé
+  par ordinateur. Par défaut, celui de la session : rien à faire derrière un
+  proxy d'entreprise. La rédaction et le relecteur gardent le modèle de la session.
 - Un banc d'essai (`scripts/bench.mjs`) lance un vrai import ou un vrai
   onboarding dans un bac à sable, sur des sources fictives aux faits connus, et
   note le coût et la qualité (faits retrouvés, erreurs, jugement à l'aveugle de
-  la rédaction). Méthode et mesures : [COSTS.md](../dev/COSTS.md).
+  la rédaction). Premières mesures : un import complet de réunion coûte 3,41 $
+  sur Opus (22 faits sur 22) et 1,93 $ sur Sonnet (22 sur 22, rédaction jugée
+  moins complète). Méthode et mesures : [COSTS.md](../dev/COSTS.md).
 
 ## Le graphe et les catégories
 

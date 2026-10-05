@@ -23,6 +23,6 @@
     { "id": "env", "label": "Variables NOTIFY_URL et ORDER_MAX_ITEMS", "all": ["NOTIFY_URL"] }
   ],
   "forbidden": [
-    { "id": "cancel-shipped", "label": "Dire qu'on peut annuler une commande expédiée", "sentence": ["annul|cancel"], "with": ["exp[ée]di|shipped"], "unless": ["ne |pas|impossible|cannot|refus|409|sauf|except|non"] }
+    { "id": "cancel-shipped", "label": "Dire qu'on peut annuler une commande expédiée", "sentence": ["annul|cancel"], "with": ["exp[ée]di|shipped"], "unless": ["ne |pas|plus annulable|impossible|cannot|refus|409|sauf|except|non|!="] }
   ]
 }

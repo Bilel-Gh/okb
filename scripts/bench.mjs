@@ -5,7 +5,7 @@
  * It spends real tokens (your Claude account), so it is never part of
  * release:check. Nothing is approved and no real KB is touched.
  *
- *   node scripts/bench.mjs run   --out <dir> [--model opus] [--agents-model sonnet] [--effort high] [--case atelier-lyon-gerland] [--budget 8]
+ *   node scripts/bench.mjs run   --out <dir> [--model opus] [--agents-model sonnet] [--reviewer-model opus] [--effort high] [--case atelier-lyon-gerland] [--budget 8]
  *   node scripts/bench.mjs grade --out <dir>
  *   node scripts/bench.mjs judge --a <dir> --b <dir> [--model opus]
  *   node scripts/bench.mjs table <dir>…
@@ -64,13 +64,15 @@ async function run() {
 
   // The plugin from this checkout; subagents optionally pinned to another model.
   cpSync(join(ROOT, 'plugin'), join(out, 'plugin'), { recursive: true });
+  // Evidence gatherers and the reviewer can be set apart: the reviewer is the safeguard.
   const agentsModel = opt('agents-model');
-  if (agentsModel) {
-    for (const f of readdirSync(join(out, 'plugin', 'agents'))) {
-      const p = join(out, 'plugin', 'agents', f);
-      writeFileSync(p, readFileSync(p, 'utf8').replace(/^model: .*$/m, `model: ${agentsModel}`));
-    }
-  }
+  const reviewerModel = opt('reviewer-model');
+  const pin = (file, model) => {
+    const p = join(out, 'plugin', 'agents', file);
+    writeFileSync(p, readFileSync(p, 'utf8').replace(/^model: .*$/m, `model: ${model}`));
+  };
+  if (agentsModel) for (const f of ['okb-extractor.md', 'okb-repo-explorer.md']) pin(f, agentsModel);
+  if (reviewerModel) pin('okb-evidence-reviewer.md', reviewerModel);
   // `okb` on PATH runs this checkout's build, against the sandbox home.
   mkdirSync(join(out, 'bin'), { recursive: true });
   writeFileSync(join(out, 'bin', 'okb'), `#!/bin/sh\nexec "${process.execPath}" "${join(DIST, 'cli', 'index.js')}" "$@"\n`);
@@ -101,7 +103,7 @@ async function run() {
   });
   writeFileSync(join(out, 'claude-result.json'), result.stdout || '{}');
   if (result.stderr) writeFileSync(join(out, 'claude-stderr.txt'), result.stderr);
-  const meta = { case: caseId, model, agentsModel: agentsModel ?? 'inherit', effort: opt('effort') ?? 'default', exit: result.code, wallSeconds: Math.round((Date.now() - started) / 1000) };
+  const meta = { case: caseId, model, agentsModel: agentsModel ?? 'inherit', reviewerModel: reviewerModel ?? 'inherit', effort: opt('effort') ?? 'default', exit: result.code, wallSeconds: Math.round((Date.now() - started) / 1000) };
   writeFileSync(join(out, 'meta.json'), JSON.stringify(meta, null, 2));
   console.log(JSON.stringify(meta));
   await grade(out);
@@ -114,10 +116,14 @@ async function proposedText(out) {
   const { groupChangesByPath, materializeFile } = await import(join(DIST, 'proposal', 'materialize.js'));
   const eff = await loadConfig({ profileId: 'bench', env: { ...process.env, OKB_HOME: join(out, 'home') } });
   const config = eff.config ?? eff;
-  const proposals = (await listProposals(config)).filter((p) => p.status !== 'superseded');
+  // The newest proposal wins for a file: a combined proposal repeats the ones it gathers.
+  const proposals = (await listProposals(config)).filter((p) => p.status !== 'superseded').sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const files = [];
+  const seen = new Set();
   for (const p of proposals) {
     for (const [path, changes] of groupChangesByPath(p.changes)) {
+      if (seen.has(path)) continue;
+      seen.add(path);
       const abs = join(config.kb.root, path);
       const before = existsSync(abs) ? readFileSync(abs, 'utf8') : null;
       const after = materializeFile(path, before, changes);
@@ -136,8 +142,12 @@ async function grade(out) {
   const spec = JSON.parse(readFileSync(join(BENCH, `${meta.case}.expect.json`), 'utf8'));
   const { proposals, files } = await proposedText(out);
   const text = norm(files.map((f) => f.added).join('\n'));
-  // Prose only: verbatim quotes may repeat what the source got wrong.
-  const prose = text.split('\n').filter((l) => !l.trim().startsWith('>')).join('\n');
+  // Prose only: verbatim quotes may repeat what the source got wrong; footnotes,
+  // front matter and ids (`drx-not-pipeline`) are not statements.
+  const prose = text.split('\n')
+    .filter((l) => !/^\s*(>|\[\^|- id:|id:|[a-z_]+: )/.test(l))
+    .map((l) => l.replace(/\[\^[^\]]*\]/g, '').replace(/\b[\w]+(?:-[\w]+){2,}\b/g, ''))
+    .join('\n');
   const sentences = prose.split(/(?<=[.!?])\s+|\n+/);
   const facts = spec.facts.map((f) => {
     const missing = f.all.filter((re) => !new RegExp(re, 'iu').test(text));
