@@ -20,7 +20,7 @@ Tout ce que fait le terminal se fait aussi dans la page.
 | **Accueil** | ce qui t’attend, ce qui est utile maintenant, ta dernière session, une capture rapide |
 | **Notes** | lire tes notes, colorées par catégorie : tableaux, schémas Mermaid, encadrés, notes de bas de page, « cité par » et « liens vers », graphe local, sommaire ; ouvrir dans Obsidian |
 | **Graphe** | toutes les notes et leurs liens, une couleur par catégorie ; zoom, filtres, voisinage d’une note ([détails](graphe-et-categories.md)) |
-| **Repos** | les repos de code documentés : carte, notes, questions, fraîcheur ([détails](repos.md)) |
+| **Repos** | les repos de code documentés : carte, notes, questions, fraîcheur, tickets suivis et leur journal ([détails](repos.md), [espace de travail](espace-de-travail.md)) |
 | **Rechercher** | mots, alias, passages exacts |
 | **À relire** | les propositions : changements fichier par fichier, aperçu, citations des sources ; approuver, appliquer, écarter |
 | **Inbox** | trier tes captures : marquer comme traitée, jeter, ou demander à Claude d’en faire une note |

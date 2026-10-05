@@ -35,13 +35,13 @@ describe('note categories', () => {
     const cats = [...BUILTIN_CATEGORIES];
     expect(categorise({ path: 'x/a.md', template: 'tutorial', type: 'Concept', explicit: 'decision' }, cats)).toEqual({ category: 'decision', via: 'explicit' });
     expect(categorise({ path: 'x/a.md', template: 'tutorial', type: 'Concept' }, cats)).toEqual({ category: 'howto', via: 'template' });
-    expect(categorise({ path: 'x/a.md', template: 'repo-ticket' }, cats)).toEqual({ category: 'case', via: 'template' });
+    expect(categorise({ path: 'x/a.md', template: 'repo-ticket' }, cats)).toEqual({ category: 'ticket', via: 'template' });
     expect(categorise({ path: 'x/a.md', type: 'runbook' }, cats)).toEqual({ category: 'howto', via: 'type' });
     expect(categorise({ path: 'cas-clients/energie.md' }, cats)).toEqual({ category: 'case', via: 'folder' });
     expect(categorise({ path: 'brouillons/idee.md', type: 'Note' }, cats)).toEqual({ category: 'other', via: 'none' });
     expect(categorise({ path: 'a.md', explicit: 'nope', template: 'path' }, cats).category).toBe('path');
     const ids = cats.map((c) => c.id);
-    expect(ids).toEqual(['concept', 'guide', 'howto', 'process', 'case', 'decision', 'source', 'path', 'other']);
+    expect(ids).toEqual(['concept', 'guide', 'howto', 'process', 'case', 'ticket', 'decision', 'source', 'path', 'other']);
     expect(new Set(cats.map((c) => c.color)).size).toBe(cats.length);
   });
 
@@ -61,8 +61,8 @@ describe('note categories', () => {
       '',
     ].join('\n'));
     const cats = await loadCategories(config);
-    expect(cats.map((c) => c.id)).toEqual(['concept', 'guide', 'howto', 'process', 'case', 'decision', 'source', 'path', 'client', 'other']);
-    expect(cats.find((c) => c.id === 'case')).toMatchObject({ label: { fr: 'Incidents' }, color: '#b45309', templates: ['experience', 'repo-ticket'] });
+    expect(cats.map((c) => c.id)).toEqual(['concept', 'guide', 'howto', 'process', 'case', 'ticket', 'decision', 'source', 'path', 'client', 'other']);
+    expect(cats.find((c) => c.id === 'case')).toMatchObject({ label: { fr: 'Incidents' }, color: '#b45309', templates: ['experience'] });
     expect(categorise({ path: 'a.md', template: 'client-case' }, cats).category).toBe('client');
     expect(categorise({ path: 'clients/x.md' }, cats).category).toBe('client');
     await writeFile(resolve(s.vault, '.okb', 'categories.yaml'), 'categories: [{ id: Bad }]\n');

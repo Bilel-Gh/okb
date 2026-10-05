@@ -61,8 +61,41 @@ flowchart LR
 | `confidential.ts` | dossiers synchronisés, remotes |
 
 Plugin : skills `okb-onboard` et `okb-repo-learn`, agent `okb-repo-explorer`,
-commandes `/okb:onboard`, `/okb:ticket`, `/okb:repo`, contexte de repo au démarrage
-de session, intentions « je découvre ce repo » et « j’ai fini mon ticket ».
+commandes `/okb:onboard`, `/okb:ticket`, `/okb:repo`, `/okb:workspace`, brief du
+périmètre au démarrage de session, intentions « je découvre ce repo », « je
+commence / j’ai fini mon ticket » et « un dossier avec tous mes repos ».
+
+## Espace de travail, périmètre et tickets (`src/work/`)
+
+Un **espace de travail** relie un dossier de repos à une KB. Le **périmètre** est
+le repo (et le ticket) sur lequel OKB se concentre. Un **ticket suivi** garde son
+point de départ, sa branche, ses commits et un journal. Tout est état local :
+rien n'entre dans la KB sans proposition approuvée.
+
+| Fichier | Rôle |
+|---|---|
+| `workspaces.ts` | `~/.okb/workspaces.yaml` : dossiers → KB, préfixes de tickets appris des branches et des commits ; découverte des repos (deux niveaux, KB exclues) ; lecture des références `ABC-123` |
+| `scope.ts` | résolution du périmètre (dossier du repo, sinon choix mémorisé dans `~/.okb/scope.yaml`) ; bascule quand un message nomme un repo ou un ticket |
+| `tickets.ts` | tickets dans l'état privé de la KB (`tickets/<REF>.json`) : départ (merge-base), branche reconnue ou adoptée, commits relevés dans le journal (survivent au squash), mergé ou supprimé, note écrite ou non |
+| `rank.ts` | classement dans un périmètre : notes du repo, notes communes liées (liens sortants, entrants, mentions), voisins, autres repos |
+| `brief.ts` | le brief de Claude (≈ 20 lignes) ; liens entre repos de l'espace mis en cache (`repos/edges-<espace>.json`) tant qu'aucune carte ne change |
+| `kinds.ts` | les trois types de KB (`kb.kind` : `topic`, `repo`, `workspace`) ; type déduit pour les KB d'avant 0.10 |
+| `cli-scope.ts` | `okb ask` dans le périmètre ; pour un repo rattaché, sa KB puis la partie commune de l'espace, en une liste |
+| `merge.ts` | fusion d'une KB de repo dans un espace : une proposition sous `repos/<id>/`, puis l'état privé, les tickets et l'enregistrement |
+| `graph-view.ts` | ce que le graphe web dessine d'un espace : repos, liens de code, périmètre, tickets |
+
+Branchements :
+- `okb ask` applique le périmètre (sauf `--everywhere`) ;
+- `effective()` choisit la KB de l'espace quand on est dans son dossier ;
+- `okb status --brief` ajoute `📦 repo · 🎫 ticket` ;
+- hooks : `SessionStart` → `okb scope --context`, `UserPromptSubmit` →
+  `okb route --suggest --cwd` (bascule et brief), `PostToolUse` sur `git commit` →
+  `okb ticket commit` ;
+- `okb repo write --append|--create` hors de `repos/` laisse la note commune
+  (aucun tampon `x_okb.repo`).
+
+Coût : aucun appel de modèle. Le brief remplace l'exploration du code en début de
+session ; le rappel après commit fait une ligne.
 
 ## Ce que le noyau vérifie, et ce qu’il ne vérifie pas
 
@@ -78,6 +111,10 @@ se comporte comme il est écrit (OKB n’exécute rien), l’exhaustivité de la
 
 ## Choix et limites
 
+- **Trois types de KB.** Une KB de repo garde ses notes à la racine (`isFlat`, `repoFolder(id, flat)`) ;
+  un espace de travail les range sous `repos/<id>/`. Une KB de repo dans un espace est
+  « rattachée » : la portée (`Scope.shared`) ajoute la KB de l'espace pour la partie commune,
+  et `okb repo write --to-kb` y écrit, seulement hors de `repos/`.
 - **Une KB de travail, un dossier par repo**, plutôt qu’une KB par repo : vocabulaire
   métier partagé, paysage multi-repos, un seul endroit à relire. Une KB par repo reste
   possible (`okb repo add --kb`).

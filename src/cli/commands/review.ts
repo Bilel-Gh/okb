@@ -2,7 +2,6 @@ import { spawn } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { applyProposal, rollback, type Receipt } from '../../apply/apply.js';
 import { approvalPath, grantApproval } from '../../apply/approval.js';
-import { commitKbChanges, type GitCommitResult } from '../../apply/git.js';
 import { assertGuard, guardApply } from '../../apply/guard.js';
 import type { OkbConfig } from '../../config/schema.js';
 import { formatDate, relativeTime, t, tn } from '../../i18n/index.js';
@@ -46,12 +45,6 @@ function page(text: string): Promise<void> {
   });
 }
 
-function reportGit(ctx: Ctx, config: OkbConfig, git: GitCommitResult | null): void {
-  if (!git) return;
-  if (git.committed) ctx.out.ok(t('apply.committed', { sha: git.sha, files: git.paths }));
-  else if (config.git.autoCommit) ctx.out.later(t('apply.notCommitted', { reason: git.reason }));
-}
-
 async function applyAndReport(ctx: Ctx, config: OkbConfig, proposal: Proposal, only?: readonly string[]): Promise<Receipt> {
   const s = spin(t('apply.running'));
   let receipt: Receipt;
@@ -62,12 +55,9 @@ async function applyAndReport(ctx: Ctx, config: OkbConfig, proposal: Proposal, o
     s.fail(t('apply.failed'));
     throw e;
   }
-  const written = receipt.results.filter((r) => r.action !== 'skipped').map((r) => r.path);
-  const git = await commitKbChanges(config, written, `okb: apply ${proposal.id} (${written.length} file(s))\n\n${proposalTitle(proposal)}\nReceipt: ${receipt.id}`);
   const created = receipt.results.filter((r) => r.action === 'created').length;
   const updated = receipt.results.filter((r) => r.action === 'updated').length;
   ctx.out.ok(t('apply.summary', { created, updated, deleted: receipt.results.filter((r) => r.action === 'deleted').length }));
-  reportGit(ctx, config, git);
   ctx.out.line(paint.dim(`  ${t('apply.undoHint')} ${paint.code(`okb undo${kbFlag(ctx.args)}`)}`));
   ctx.out.flush();
   return receipt;
@@ -259,9 +249,7 @@ export async function cmdApply(ctx: Ctx): Promise<number> {
       ...(flagBool(args, 'resume') ? { resume: true } : {}),
       ...(flagBool(args, 'dry-run') ? { dryRun: true } : {}),
     });
-    const written = flagBool(args, 'dry-run') ? [] : receipt.results.filter((r) => r.action !== 'skipped').map((r) => r.path);
-    const git = flagBool(args, 'dry-run') ? null : await commitKbChanges(config, written, `okb: apply ${proposal.id} (${written.length} file(s))\n\n${proposalTitle(proposal)}\nReceipt: ${receipt.id}`);
-    if (ctx.mode === 'json') { out.json({ ok: true, receipt, ...(git ? { git } : {}) }); return 0; }
+    if (ctx.mode === 'json') { out.json({ ok: true, receipt }); return 0; }
     out.ok(t('apply.dryRun', { n: receipt.results.length }));
     return 0;
   }
@@ -272,10 +260,8 @@ export async function cmdApply(ctx: Ctx): Promise<number> {
 
 async function undo(ctx: Ctx, config: OkbConfig, receiptId: string): Promise<number> {
   const results = await rollback(config, receiptId);
-  const git = await commitKbChanges(config, results.map((r) => r.path), `okb: roll back ${receiptId}\n\n${results.length} file(s) restored.`);
-  if (ctx.mode === 'json') { ctx.out.json({ ok: true, restored: results, git }); return 0; }
+  if (ctx.mode === 'json') { ctx.out.json({ ok: true, restored: results }); return 0; }
   ctx.out.ok(tn('undo.restored', results.length));
-  reportGit(ctx, config, git);
   ctx.out.flush();
   return 0;
 }

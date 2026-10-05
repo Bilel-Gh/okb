@@ -14,15 +14,19 @@ function savePrefs(p) {
 export async function render({ mount, query }) {
   setTitle(t('web.nav.graph'));
   mount.append(loading(3));
-  const prefs = { hidden: [], orphans: true, labels: 'auto', groupBy: 'theme', area: '', nav: false, depth: 1, ...loadPrefs() };
+  const prefs = { hidden: [], orphans: true, labels: 'auto', groupBy: 'theme', area: '', nav: false, depth: 1, mode: '', ...loadPrefs() };
   let data = await get('/api/graph', prefs.nav ? { nav: 1 } : {});
   clear(mount);
-  if (!data.nodes.length) {
+  // A workspace is drawn from above even before its first note.
+  if (!data.nodes.length && !data.workspace) {
     mount.append(empty('🕸️', t('web.graph.emptyTitle'), t('web.graph.emptyText'), h('div', { class: 'stack', style: { width: 'min(460px, 100%)' } }, cmdBox('/okb:ingest'), cmdBox('/okb:onboard'))));
     return;
   }
   const cats = data.categories.map(localiseCategory);
   const byId = new Map(data.nodes.map((n) => [n.id, n]));
+  // A workspace KB: also seen from above, one disc per repository.
+  const ws = data.workspace ?? null;
+  let mode = ws ? (prefs.mode || 'overview') : 'notes';
 
   /* ---------- layout ---------- */
   const stage = h('div', { class: 'graph-stage' });
@@ -39,23 +43,33 @@ export async function render({ mount, query }) {
   const orphans = h('input', { type: 'checkbox', checked: prefs.orphans });
   const nav = h('input', { type: 'checkbox', checked: prefs.nav });
   const focusBar = h('div', { class: 'graph-focus', style: { display: 'none' } });
+  const overStage = h('div', { class: 'graph-stage', style: { display: 'none' } });
+  const modeSwitch = ws ? h('div', { class: 'segmented' },
+    h('button', { 'data-mode': 'overview', onclick: () => setMode('overview') }, `🗂️ ${t('web.graph.ws.overview')}`),
+    h('button', { 'data-mode': 'notes', onclick: () => setMode('notes') }, `🕸️ ${t('web.graph.ws.notes')}`)) : null;
+  const scopeSelect = ws ? h('select', { class: 'input sm', 'aria-label': t('web.graph.ws.scope'), title: t('web.graph.ws.scopeHelp') },
+    h('option', { value: '' }, t('web.graph.ws.noScope')),
+    ws.repos.map((r) => h('option', { value: r.id, selected: r.id === ws.scope.repo }, `🎯 ${r.name}`))) : null;
 
   const toolbar = h('div', { class: 'graph-toolbar card' },
-    h('div', { class: 'graph-search' }, icon('search', 15), search, results),
-    h('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap' } },
-      areaSelect, groupBy, labels,
+    modeSwitch,
+    h('div', { class: 'graph-search notes-only' }, icon('search', 15), search, results),
+    h('div', { class: 'row notes-only', style: { gap: '8px', flexWrap: 'wrap' } },
+      scopeSelect, areaSelect, groupBy, labels,
       h('label', { class: 'toggle' }, orphans, t('web.graph.orphans')),
       h('label', { class: 'toggle' }, nav, t('web.graph.nav')),
       h('button', { class: 'btn sm', onclick: () => { view.setHighlight(null); view.autoFit = false; view.fit(); }, title: t('web.graph.fit') }, icon('focus', 14), t('web.graph.fit'))),
     focusBar);
   const themes = h('div', { class: 'graph-legend' });
+  const overInfo = ws ? h('div', { class: 'card over-only' }) : null;
   const side = h('div', { class: 'graph-side' },
-    h('div', { class: 'card' }, h('div', { class: 'nav-label', style: { paddingTop: 0 } }, t('web.graph.legend')), legend, h('div', { class: 'hr' }), stats),
-    data.communities?.length ? h('div', { class: 'card' }, h('div', { class: 'nav-label', style: { paddingTop: 0 } }, t('web.graph.themes')),
+    overInfo,
+    h('div', { class: 'card notes-only' }, h('div', { class: 'nav-label', style: { paddingTop: 0 } }, t('web.graph.legend')), legend, h('div', { class: 'hr' }), stats),
+    data.communities?.length ? h('div', { class: 'card notes-only' }, h('div', { class: 'nav-label', style: { paddingTop: 0 } }, t('web.graph.themes')),
       h('div', { class: 'small muted', style: { marginBottom: '8px' } }, t('web.graph.themesIntro')), themes,
       h('div', { class: 'small muted', style: { marginTop: '8px' } }, t(data.modularity >= 0.3 ? 'web.graph.themesClear' : 'web.graph.themesMixed', { q: String(data.modularity).replace('.', state.lang === 'fr' ? ',' : '.') }))) : null,
     panel);
-  mount.append(h('div', { class: 'graph-page' }, h('div', { class: 'graph-main' }, toolbar, stage), side));
+  mount.append(h('div', { class: 'graph-page' }, h('div', { class: 'graph-main' }, toolbar, stage, overStage), side));
 
   /* ---------- the graph ---------- */
   const view = new GraphView(stage, {
@@ -71,7 +85,7 @@ export async function render({ mount, query }) {
   view.options.groupBy = prefs.groupBy;
   await view.ready;
 
-  const persist = () => savePrefs({ hidden: [...view.filter.hidden], orphans: view.filter.orphans, labels: view.options.labels, groupBy: view.options.groupBy, area: view.filter.area ?? '', nav: prefs.nav, depth: view.filter.depth });
+  const persist = () => savePrefs({ hidden: [...view.filter.hidden], orphans: view.filter.orphans, labels: view.options.labels, groupBy: view.options.groupBy, area: view.filter.area ?? '', nav: prefs.nav, depth: view.filter.depth, mode: ws ? mode : prefs.mode });
 
   function drawLegend() {
     clear(legend);
@@ -173,9 +187,138 @@ export async function render({ mount, query }) {
       h('span', { class: 'muted small' }, String(c.size))));
   }
 
+  /* ---------- the workspace, from above ---------- */
+  const isRepoArea = (area) => typeof area === 'string' && area.startsWith('repos/') && ws?.repos.some((r) => r.area === area);
+  let over = null;
+
+  /** One disc per repository and per shared folder; code connections and note links between them. */
+  function overviewData() {
+    const repoByArea = new Map(ws.repos.map((r) => [r.area, r]));
+    const groupOf = (area) => (repoByArea.has(area) ? `repo:${repoByArea.get(area).id}` : `area:${area}`);
+    const nodes = ws.repos.map((r) => ({ id: `repo:${r.id}`, title: r.name, category: r.ownKb ? 'ws-attached' : 'ws-repo', area: r.area, weight: r.notes, community: -1, in: 0, out: 0, repo: r }));
+    const shared = new Map();
+    for (const n of data.nodes) if (!n.reserved && !repoByArea.has(n.area)) shared.set(n.area, (shared.get(n.area) ?? 0) + 1);
+    for (const [area, count] of shared) nodes.push({ id: `area:${area}`, title: area === '.' ? t('web.notes.root') : area === 'repos' ? t('web.graph.ws.map') : area, category: 'ws-shared', area, weight: count, community: -1, in: 0, out: 0 });
+    const ids = new Set(nodes.map((n) => n.id));
+    const edges = [];
+    const seen = new Set();
+    for (const e of ws.edges) {
+      const a = `repo:${e.from}`, b = `repo:${e.to}`;
+      if (ids.has(a) && ids.has(b) && !seen.has(`${a}>${b}`)) { seen.add(`${a}>${b}`); edges.push({ source: a, target: b, kind: 'code', label: e.label }); }
+    }
+    for (const e of data.edges) {
+      const sa = byId.get(e.source.id ?? e.source)?.area, ta = byId.get(e.target.id ?? e.target)?.area;
+      if (sa === undefined || ta === undefined) continue;
+      const a = groupOf(sa), b = groupOf(ta);
+      if (a === b || !ids.has(a) || !ids.has(b) || seen.has(`${a}>${b}`)) continue;
+      seen.add(`${a}>${b}`);
+      edges.push({ source: a, target: b, kind: 'link' });
+    }
+    return { nodes, edges };
+  }
+
+  function buildOverview() {
+    const { nodes, edges } = overviewData();
+    const overCats = [
+      { id: 'ws-repo', color: '#0d9488', colorDark: '#2dd4bf', emoji: '📦', name: t('web.graph.ws.repos') },
+      { id: 'ws-attached', color: '#d97706', colorDark: '#fbbf24', emoji: '🔗', name: t('web.graph.ws.attached') },
+      { id: 'ws-shared', color: '#6366f1', colorDark: '#a5b4fc', emoji: '📚', name: t('web.graph.ws.shared') },
+    ];
+    const g = new GraphView(overStage, { nodes, edges, categories: overCats, onSelect: (n) => (n ? showOverPanel(n) : hidePanel()), onOpen: (n) => openArea(n.area) });
+    g.options.groupBy = 'none';
+    g.options.labels = 'always';
+    g.options.arrows = true;
+    // The repository in scope wears a ring; every name stays readable.
+    if (ws.scope.repo) g.ready.then(() => g.setRinged([`repo:${ws.scope.repo}`]));
+    return g;
+  }
+
+  /** The notes of one repository or shared folder, in the notes view. */
+  function openArea(area) {
+    setMode('notes');
+    areaSelect.value = area;
+    view.setFilter({ area });
+    persist(); drawStats();
+  }
+
+  /** Light up a repository, the shared notes tied to it and the repositories it talks to; dim the rest. */
+  function applyScope(id) {
+    if (!ws || !id) { view.setHighlight(null); return; }
+    const area = `repos/${id}`;
+    const mine = new Set(data.nodes.filter((n) => n.area === area).map((n) => n.id));
+    const tied = new Set(id === ws.scope.repo ? ws.scope.tied : []);
+    for (const e of data.edges) {
+      const s = e.source.id ?? e.source, t2 = e.target.id ?? e.target;
+      if (mine.has(s) && !isRepoArea(byId.get(t2)?.area)) tied.add(t2);
+      if (mine.has(t2) && !isRepoArea(byId.get(s)?.area)) tied.add(s);
+    }
+    const near = new Set(ws.edges.filter((e) => e.from === id || e.to === id).map((e) => `repos/${e.from === id ? e.to : e.from}`));
+    const neighbours = data.nodes.filter((n) => near.has(n.area)).map((n) => n.id);
+    view.setHighlight([...mine, ...tied, ...neighbours]);
+  }
+
+  function showOverPanel(n) {
+    panel.style.display = 'block';
+    if (n.repo) {
+      const r = n.repo;
+      const calls = ws.edges.filter((e) => e.from === r.id).map((e) => `${ws.repos.find((x) => x.id === e.to)?.name ?? e.to} (${e.label})`);
+      const callers = ws.edges.filter((e) => e.to === r.id).map((e) => `${ws.repos.find((x) => x.id === e.from)?.name ?? e.from} (${e.label})`);
+      const tickets = ws.tickets.filter((tk) => tk.status === 'active' && tk.repos.includes(r.id));
+      clear(panel).append(...[
+        h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('span', { class: 'badge' }, r.ownKb ? `🔗 ${t('web.graph.ws.attached')}` : `📦 ${t('web.graph.ws.repo')}`),
+          h('button', { class: 'btn icon ghost sm', title: t('web.close'), onclick: hidePanel }, icon('x', 14))),
+        h('h3', { style: { margin: '10px 0 4px' } }, r.name),
+        h('div', { class: 'small muted' }, r.ownKb ? t('web.graph.ws.ownKb', { kb: r.ownKb }) : tn('web.graph.notes', r.notes)),
+        calls.length ? h('div', { class: 'small', style: { marginTop: '8px' } }, h('span', { class: 'muted' }, `${t('web.graph.ws.calls')} `), calls.join(', ')) : null,
+        callers.length ? h('div', { class: 'small', style: { marginTop: '4px' } }, h('span', { class: 'muted' }, `${t('web.graph.ws.calledBy')} `), callers.join(', ')) : null,
+        tickets.length ? h('div', { class: 'small', style: { marginTop: '8px' } }, tickets.map((tk) => h('div', null, `🎫 ${tk.ref}${tk.title !== tk.ref ? ` · ${tk.title}` : ''}`))) : null,
+        r.ownKb ? null : h('div', { class: 'row', style: { gap: '6px', marginTop: '10px', flexWrap: 'wrap' } },
+          h('button', { class: 'btn sm primary', onclick: () => openArea(r.area) }, icon('notes', 14), t('web.graph.ws.showNotes')),
+          h('button', { class: 'btn sm', onclick: () => { setMode('notes'); if (scopeSelect) scopeSelect.value = r.id; applyScope(r.id); } }, icon('focus', 14), t('web.graph.ws.emphasise'))),
+      ].filter(Boolean));
+      return;
+    }
+    clear(panel).append(
+      h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('span', { class: 'badge' }, `📚 ${t('web.graph.ws.shared')}`), h('button', { class: 'btn icon ghost sm', title: t('web.close'), onclick: hidePanel }, icon('x', 14))),
+      h('h3', { style: { margin: '10px 0 4px' } }, n.title),
+      h('div', { class: 'small muted' }, tn('web.graph.notes', n.weight)),
+      h('div', { class: 'row', style: { marginTop: '10px' } }, h('button', { class: 'btn sm primary', onclick: () => openArea(n.area) }, icon('notes', 14), t('web.graph.ws.showNotes'))));
+  }
+
+  function drawOverInfo() {
+    if (!overInfo) return;
+    const active = ws.tickets.filter((tk) => tk.status === 'active');
+    clear(overInfo).append(
+      h('div', { class: 'nav-label', style: { paddingTop: 0 } }, `🗂️ ${ws.name}`),
+      h('div', { class: 'small muted', style: { marginBottom: '8px' } }, t('web.graph.ws.intro')),
+      h('div', { class: 'graph-legend' }, [['ws-repo', '📦', 'web.graph.ws.repos'], ['ws-attached', '🔗', 'web.graph.ws.attached'], ['ws-shared', '📚', 'web.graph.ws.shared']].map(([, e, k]) => h('div', { class: 'legend-item' }, h('span', { class: 'grow' }, `${e} ${t(k)}`)))),
+      h('div', { class: 'hr' }),
+      h('div', { class: 'nav-label', style: { padding: '4px 0' } }, `🎫 ${t('web.graph.ws.tickets')}`),
+      active.length ? h('div', { class: 'stack', style: { gap: '4px' } }, active.map((tk) => h('div', { class: 'small' }, h('strong', null, tk.ref), tk.title !== tk.ref ? ` · ${tk.title}` : '', h('span', { class: 'muted' }, ` (${tk.repos.join(', ')})`)))) : h('div', { class: 'small muted' }, t('web.graph.ws.noTickets')),
+      ws.scope.repo ? h('div', { class: 'small', style: { marginTop: '10px' } }, `🎯 ${t('web.graph.ws.inScope', { repo: ws.repos.find((r) => r.id === ws.scope.repo)?.name ?? ws.scope.repo })}`) : null);
+  }
+
+  function setMode(next) {
+    mode = next;
+    stage.style.display = mode === 'notes' ? '' : 'none';
+    overStage.style.display = mode === 'overview' ? '' : 'none';
+    for (const el of mount.querySelectorAll('.notes-only')) el.style.display = mode === 'notes' ? '' : 'none';
+    for (const el of mount.querySelectorAll('.over-only')) el.style.display = mode === 'overview' ? '' : 'none';
+    for (const b of modeSwitch?.querySelectorAll('button') ?? []) b.classList.toggle('on', b.dataset.mode === mode);
+    hidePanel();
+    if (mode === 'overview' && !over) over = buildOverview();
+    persist();
+  }
+  if (scopeSelect) scopeSelect.addEventListener('change', () => applyScope(scopeSelect.value));
+
   drawLegend();
   drawStats();
+  if (ws) {
+    drawOverInfo();
+    setMode(mode);
+    if (ws.scope.repo) applyScope(ws.scope.repo);
+  }
   const focus = query?.get('focus');
-  if (focus && byId.has(focus)) { setFocus(focus); showPanel(byId.get(focus)); }
+  if (focus && byId.has(focus)) { if (ws) setMode('notes'); setFocus(focus); showPanel(byId.get(focus)); }
   void state; void catColor;
 }

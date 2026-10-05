@@ -11,9 +11,13 @@ const PACKAGE_ROOT = resolve(TEST_ROOT, '..');
 
 /**
  * Anything that would betray the author's machine, employer or private corpus.
- * This file holds the patterns themselves, so it carries the okb-leak-fixture marker.
+ * This file holds the generic patterns, so it carries the okb-leak-fixture marker.
+ * Words that would themselves name an employer, a team or a private project stay
+ * out of the repository: each developer lists them, one regular expression per
+ * line, in `.dev/private-leaks.txt` (ignored by Git), or in OKB_PRIVATE_LEAKS
+ * separated by `|`.
  */
-const LEAKS: readonly { label: string; re: RegExp }[] = [
+const GENERIC_LEAKS: readonly { label: string; re: RegExp }[] = [
   { label: 'home directory', re: /\/Users\/[a-z0-9._-]+\//i },
   { label: 'windows home', re: /C:\\Users\\[a-z0-9._-]+/i },
   { label: 'linux home', re: /\/home\/[a-z0-9._-]+\//i },
@@ -21,9 +25,14 @@ const LEAKS: readonly { label: string; re: RegExp }[] = [
   { label: 'slack token', re: /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/ },
   { label: 'private key', re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
   { label: 'bearer header', re: /authorization:\s*bearer\s+\S+/i },
-  { label: 'internal sap host', re: /\b[\w.-]*\.sap\.corp\b|\bgithub\.tools\.sap\b|\bwdf\.sap\.corp\b/i },
-  { label: 'employer-specific vocabulary', re: /\b(SBPA|IRPA|SuccessFactors|SAPMLIPA|Joule)\b/ },
 ];
+
+async function privateLeaks(): Promise<{ label: string; re: RegExp }[]> {
+  const fromFile = await readFile(resolve(PACKAGE_ROOT, '.dev', 'private-leaks.txt'), 'utf8').catch(() => '');
+  const lines = [...fromFile.split('\n'), ...(process.env.OKB_PRIVATE_LEAKS ?? '').split('|')]
+    .map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+  return lines.map((l, i) => ({ label: `private word #${i + 1}`, re: new RegExp(l, 'i') }));
+}
 
 async function shippedFiles(): Promise<string[]> {
   const pkg = JSON.parse(await readFile(resolve(PACKAGE_ROOT, 'package.json'), 'utf8')) as {
@@ -62,6 +71,7 @@ describe('shareable package', () => {
 
     const findings: string[] = [];
     const exempted: string[] = [];
+    const privateWords = await privateLeaks();
     for (const rel of files) {
       if (/\.(png|jpg|jpeg|gif|pdf|docx|zip)$/i.test(rel)) continue;
       let text: string;
@@ -70,11 +80,15 @@ describe('shareable package', () => {
       } catch {
         continue;
       }
+      // A private word has no place anywhere, fixtures included.
+      for (const leak of privateWords) {
+        if (leak.re.test(text)) findings.push(`${rel}: ${leak.label}`);
+      }
       if (text.includes(FIXTURE_MARKER)) {
         exempted.push(rel);
         continue;
       }
-      for (const leak of LEAKS) {
+      for (const leak of GENERIC_LEAKS) {
         if (leak.re.test(text)) findings.push(`${rel}: ${leak.label}`);
       }
     }

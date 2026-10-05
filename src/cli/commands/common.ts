@@ -3,7 +3,7 @@ import { loadConfig, type EffectiveConfig } from '../../config/load.js';
 import type { OkbConfig } from '../../config/schema.js';
 import { parseConceptAssist } from '../../setup/setup.js';
 import { ensureState, statePaths } from '../../state/paths.js';
-import { isInside } from '../../kb/registry.js';
+import { isInside, readRootConfig } from '../../kb/registry.js';
 import { listRepos } from '../../repo/registry.js';
 import { flagBool, flagString, type ParsedArgs } from '../args.js';
 import type { Output, OutputMode } from '../output.js';
@@ -18,8 +18,8 @@ export type Ctx = {
 export type Handler = (ctx: Ctx) => Promise<number> | number;
 
 export async function effective(args: ParsedArgs): Promise<EffectiveConfig> {
-  // Inside a repository OKB documents, its KB is the one meant (unless one is named).
-  const profileId = flagString(args, 'profile') ?? flagString(args, 'kb') ?? (process.env.OKB_PROFILE ? undefined : await kbOfCurrentRepo());
+  // Inside a repository OKB documents, or a workspace, its KB is the one meant (unless one is named).
+  const profileId = flagString(args, 'profile') ?? flagString(args, 'kb') ?? (process.env.OKB_PROFILE ? undefined : await kbOfCurrentFolder());
   const result = await loadConfig({
     ...(profileId ? { profileId } : {}),
     ...(flagString(args, 'org-config') ? { orgConfigPath: flagString(args, 'org-config')! } : {}),
@@ -29,12 +29,15 @@ export async function effective(args: ParsedArgs): Promise<EffectiveConfig> {
   return result;
 }
 
-/** The KB of the registered repository containing the current folder (by path only: no Git call). */
-async function kbOfCurrentRepo(): Promise<string | undefined> {
+/** The KB of the registered repository, else the workspace, containing the current folder (by path only: no Git call). */
+export async function kbOfCurrentFolder(cwd = process.cwd()): Promise<string | undefined> {
   try {
     const repos = await listRepos();
-    const cwd = process.cwd();
-    return repos.filter((r) => isInside(cwd, r.path)).sort((a, b) => b.path.length - a.path.length)[0]?.kb;
+    const repo = repos.filter((r) => isInside(cwd, r.path)).sort((a, b) => b.path.length - a.path.length)[0];
+    const { workspaceForDir } = await import('../../work/workspaces.js');
+    const kb = repo?.kb ?? (await workspaceForDir(cwd))?.kb;
+    // A KB removed since: the active one applies.
+    return kb && (await readRootConfig()).profiles?.map(String).includes(kb) ? kb : undefined;
   } catch {
     return undefined;
   }

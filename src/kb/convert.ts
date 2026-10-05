@@ -100,7 +100,8 @@ export async function scanConversion(config: OkbConfig, options: { limit?: numbe
   const [bundle, categories, templates] = await Promise.all([loadBundleFor(config), loadCategories(config), loadTemplates(config)]);
   const byTemplate = templateCategories(templates);
   const { listRepos } = await import('../repo/registry.js');
-  const repos = (await listRepos().catch(() => [])).filter((r) => r.kb === config.profile.id).map((r) => ({ id: r.id, name: r.name }));
+  // A repository KB is one repository: its notes stay where the template puts them.
+  const repos = config.kb.kind === 'repo' ? [] : (await listRepos().catch(() => [])).filter((r) => r.kb === config.profile.id).map((r) => ({ id: r.id, name: r.name }));
   const repoOf = (path: string, title: string, body: string): string | undefined => {
     const scores = repos.map((r) => {
       const words = [...new Set([r.id, r.name])].filter((w) => w.length >= 3).map((w) => w.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));

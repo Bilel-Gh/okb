@@ -14,7 +14,7 @@ export async function render(r) {
         h('span', { class: 'spacer' }),
         kb.active ? badge(`★ ${t('profile.active')}`, 'brand') : null),
       h('div', { class: 'small muted mono', style: { margin: '10px 0' } }, kb.root),
-      h('div', { class: 'row small' }, badge(langName(kb.writingLanguage)), kb.exists ? null : badge(t('kb.missing'), 'err'), kb.owner === 'other' ? badge(t('err.kbOtherOwner.title'), 'err') : null),
+      h('div', { class: 'row small' }, kb.kind ? badge(`${{ topic: '📚', repo: '📦', workspace: '🗂️' }[kb.kind] ?? ''} ${t(`kb.kind.${kb.kind}`)}`) : null, badge(langName(kb.writingLanguage)), kb.exists ? null : badge(t('kb.missing'), 'err'), kb.owner === 'other' ? badge(t('err.kbOtherOwner.title'), 'err') : null),
       h('div', { class: 'row', style: { marginTop: '12px' } },
         h('button', { class: 'btn sm', onclick: () => { switchKb(kb.id); go('#/'); } }, icon('right', 14), t('web.kb.open')),
         kb.active ? null : h('button', { class: 'btn sm ghost', onclick: async () => { await switchKb(kb.id, true); toast(t('kb.switched', { name: kb.name, root: '' })); go('#/kbs'); } }, t('web.kb.makeActive')),
@@ -164,8 +164,6 @@ async function wizard(mount, first) {
       }
     }
     if (s === 'tools') {
-      if (ctx.git) body.append(toggle(t('wiz.git.q'), t('web.wizard.gitHelp'), 'git'));
-      if (ctx.git && ctx.gh?.loggedIn) body.append(toggle(t('wiz.github.q', { user: ctx.gh.user }), '', 'github'));
       if (ctx.claude?.cli && !ctx.claude.installed) body.append(toggle(t('wiz.plugin.q'), '', 'plugin'));
       if (!ctx.launcher?.onPath && ctx.launcher?.candidates?.[0]) { if (a.launcher === undefined) a.launcher = ctx.launcher.candidates[0]; body.append(h('div', { class: 'row', style: { padding: '10px 0', borderTop: '1px solid var(--border)' } }, h('div', { style: { flex: 1, fontWeight: 600 } }, t('wiz.launcher.q', { dir: ctx.launcher.candidates[0] })), h('button', { class: `switch${a.launcher ? ' on' : ''}`, onclick: (e) => { a.launcher = a.launcher ? null : ctx.launcher.candidates[0]; e.currentTarget.classList.toggle('on', Boolean(a.launcher)); } }))); }
       if (!first) body.append(toggle(t('wiz.activate.q', { name: a.name }), '', 'activate'));
@@ -177,7 +175,6 @@ async function wizard(mount, first) {
         [t('wiz.recap.uiLang'), a.uiLanguage === 'auto' ? t('wiz.lang.auto') : langName(a.uiLanguage)], [t('wiz.recap.writingLang'), langName(a.writingLanguage)],
         [t('wiz.recap.style'), `${t(`settings.opt.writing.preset.${a.preset}`)} · ${t(`settings.opt.reader.level.${a.readerLevel}`)}`],
         [t('wiz.recap.help'), t(`settings.opt.conceptAssist.level.${a.conceptAssist}`)], [t('wiz.recap.focus'), t(`wiz.focus.${a.focus}`)],
-        [t('wiz.recap.git'), a.git ? `${t('ui.yes')}${a.github ? ` · ${t('wiz.recap.github')}` : ''}` : t('ui.no')],
       ];
       body.append(h('table', { class: 'table' }, h('tbody', null, rows.map(([k, v]) => h('tr', null, h('td', { class: 'muted', style: { width: '40%' } }, k), h('td', null, v))))));
     }

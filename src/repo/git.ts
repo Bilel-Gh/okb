@@ -173,3 +173,35 @@ export async function commitsBetween(root: string, from: string, to = 'HEAD', ma
 export async function fileAt(root: string, sha: string, path: string): Promise<string | null> {
   return attempt(root, ['show', `${sha}:${path}`], { maxBuffer: 32_000_000 });
 }
+
+/** The checked-out branch, or null on a detached HEAD or outside Git (one fast call). */
+export async function currentBranch(root: string): Promise<string | null> {
+  const out = await attempt(root, ['rev-parse', '--abbrev-ref', 'HEAD'], { timeout: 5000 });
+  const name = out?.trim();
+  return name && name !== 'HEAD' ? name : null;
+}
+
+/** The commit a ref points to, or null. */
+export async function revParse(root: string, ref: string): Promise<string | null> {
+  if (!/^[\w./@{}^~-]+$/.test(ref)) return null;
+  const out = await attempt(root, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { timeout: 5000 });
+  return out?.trim() || null;
+}
+
+/** Whether `sha` is already contained in `ref` (a merged branch's last commit is). */
+export async function isAncestor(root: string, sha: string, ref: string): Promise<boolean> {
+  if (!/^[0-9a-f]{7,40}$/i.test(sha) || !/^[\w./-]+$/.test(ref)) return false;
+  return (await attempt(root, ['merge-base', '--is-ancestor', sha, ref], { timeout: 5000 })) !== null;
+}
+
+/** Local and remote branch names, newest first: where a team's ticket references show. */
+export async function branchNames(root: string, max = 200): Promise<string[]> {
+  const out = await attempt(root, ['for-each-ref', '--sort=-committerdate', `--count=${max}`, '--format=%(refname:short)', 'refs/heads', 'refs/remotes'], { timeout: 8000 });
+  return (out ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+}
+
+/** The subjects of the last commits on every branch. */
+export async function recentSubjects(root: string, max = 200): Promise<string[]> {
+  const out = await attempt(root, ['log', '--all', `--max-count=${max}`, '--format=%s'], { timeout: 8000 });
+  return (out ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+}

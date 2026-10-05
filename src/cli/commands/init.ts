@@ -48,7 +48,6 @@ function recap(a: WizardAnswers, ctx: WizardContext): string {
     [t('wiz.recap.style'), `${t(`settings.opt.writing.preset.${a.preset}`)} ${paint.dim('·')} ${t(`settings.opt.reader.level.${a.readerLevel}`)}`],
     [t('wiz.recap.help'), t(`settings.opt.conceptAssist.level.${a.conceptAssist}`)],
     [t('wiz.recap.focus'), a.focus === 'later' ? paint.dim(t(`wiz.focus.${a.focus}`)) : t(`wiz.focus.${a.focus}`)],
-    [t('wiz.recap.git'), a.git ? `${paint.ok(t('ui.yes'))}${a.github ? paint.dim(` · ${t('wiz.recap.github')}`) : ''}` : paint.dim(t('ui.no'))],
   ];
   if (ctx.claude.cli) rows.push([t('wiz.recap.plugin'), ctx.claude.installed && !a.plugin ? paint.dim(t('wiz.recap.pluginThere')) : yes(a.plugin)]);
   rows.push([t('wiz.recap.launcher'), ctx.launcher.onPath ? paint.dim(t('wiz.recap.launcherThere')) : a.launcher ? paint.path(resolve(a.launcher, 'okb')) : paint.dim(t('ui.no'))]);
@@ -86,6 +85,12 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
       out.next(['okb new', 'okb kb add <dossier>']);
       return 0;
     }
+    // A KB for code: one repository, or a team's repositories (a workspace).
+    const kind = flagString(args, 'kind');
+    if (kind && !['topic', 'repo', 'workspace'].includes(kind)) throw new OkbError('E_INVALID', `--kind must be topic, repo or workspace`, { key: 'usage', params: { usage: 'okb init --kind topic|repo|workspace' } });
+    if (kind === 'repo' || kind === 'workspace') {
+      return createForCode(ctx, kind, { name, folder: flagString(args, kind === 'repo' ? 'repo' : 'workspace') ?? process.cwd(), dir: flagString(args, 'dir') ?? null, inRepo: flagBool(args, 'in-repo') });
+    }
     // --folder and --kb-root (the 0.3 name) mean --dir: a folder given must never be silently ignored.
     const dir = flagString(args, 'dir') ?? flagString(args, 'folder') ?? flagString(args, 'kb-root');
     const answers: WizardAnswers = {
@@ -94,11 +99,10 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
       ...(dir ? { root: resolve(expandHome(dir)) } : {}),
       ...(flagString(args, 'writing-lang') ? { writingLanguage: flagString(args, 'writing-lang')! } : {}),
       ...(flagString(args, 'preset') ? { preset: flagString(args, 'preset') as WizardAnswers['preset'] } : {}),
-      git: flagBool(args, 'git', wctx.git),
-      github: flagBool(args, 'github', false),
       plugin: flagBool(args, 'plugin', false),
       launcher: flagString(args, 'launcher') ?? null,
       adopt: flagBool(args, 'adopt', false),
+      kind: 'topic',
     };
     const results: StepResult[] = [];
     const created = await runWizard(answers, (r) => results.push(r));
@@ -147,6 +151,41 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
     return 0;
   }
 
+  // What the KB is for: a subject, one code repository, or a team's repositories.
+  const { gitRoot } = await import('../../repo/git.js');
+  const { reposIn } = await import('../../work/workspaces.js');
+  const { dirname } = await import('node:path');
+  const here = await gitRoot(process.cwd());
+  const reposHere = await reposIn(process.cwd()).catch(() => [] as string[]);
+  const siblings = here ? (await reposIn(dirname(here)).catch(() => [] as string[])).filter((r) => resolve(r) !== resolve(here)) : [];
+  const teamHere = reposHere.length > 1 || siblings.length > 0;
+  const kind = await choose<'topic' | 'repo' | 'workspace'>(t('wiz.kind.q'), [
+    { value: 'topic', label: t('wiz.kind.topic'), hint: t('wiz.kind.topicHint'), recommended: !here && !reposHere.length },
+    { value: 'repo', label: t('wiz.kind.repo'), hint: t('wiz.kind.repoHint'), recommended: Boolean(here) && !teamHere },
+    { value: 'workspace', label: t('wiz.kind.workspace'), hint: t('wiz.kind.workspaceHint'), recommended: teamHere },
+  ]);
+  if (kind !== 'topic') {
+    const suggested = kind === 'repo' ? here ?? '' : reposHere.length ? process.cwd() : siblings.length && here ? dirname(here) : '';
+    const folder = resolve(expandHome(await input(t(kind === 'repo' ? 'wiz.kind.repoPath' : 'wiz.kind.workspacePath'), {
+      ...(suggested ? { initial: suggested } : {}),
+      validate: (v) => (v.trim() ? undefined : t('wiz.required')),
+    })));
+    const takenIds = new Set((await listKbs()).map((k) => k.id));
+    const name = await input(t(kind === 'repo' ? 'repo.add.repoKbName' : 'repo.add.newKbName'), {
+      placeholder: kind === 'repo' ? folder.split('/').pop() ?? '' : t('repo.add.newKbDefault'),
+      validate: (v) => (!v.trim() ? t('wiz.required') : takenIds.has(kbNames(v).id) ? t('wiz.name.taken', { id: kbNames(v).id }) : undefined),
+    });
+    const inRepo = kind === 'repo' && await choose(t('repo.add.whereQ'), [
+      { value: false, label: t('repo.add.whereOutside'), hint: t('repo.add.whereOutsideHint'), recommended: true },
+      { value: true, label: t('repo.add.whereInside'), hint: t('repo.add.whereInsideHint') },
+    ]);
+    if (first) {
+      await runTools({ uiLanguage, plugin: false, launcher: null }, () => undefined);
+      await offerTools(ctx, wctx);
+    }
+    return createForCode(ctx, kind, { name, folder, dir: null, inRepo });
+  }
+
   const mode = await choose<'quick' | 'custom'>(t('wiz.mode.q'), [
     { value: 'quick', label: t('wiz.mode.quick'), hint: t('wiz.mode.quickHint'), recommended: true },
     { value: 'custom', label: t('wiz.mode.custom'), hint: t('wiz.mode.customHint') },
@@ -165,7 +204,7 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
   const names = kbNames(name);
   step.info(t('wiz.name.derived', { folder: paint.code(names.folder), id: paint.code(names.id) }));
 
-  const answers = defaultAnswers(wctx, name, lang());
+  const answers = { ...defaultAnswers(wctx, name, lang()), kind: 'topic' as const };
   answers.uiLanguage = uiLanguage;
   const where = await askLocation(wctx, name, answers.root);
   answers.root = where.root;
@@ -191,10 +230,6 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
       { value: 'create' as const, label: t('wiz.focus.create'), hint: t('wiz.focus.createHint'), recommended: !wctx.sharedFocus },
       { value: 'later' as const, label: t('wiz.focus.later') },
     ]);
-    if (wctx.git) {
-      answers.git = await confirm(t('wiz.git.q'), true);
-      if (answers.git && wctx.gh.loggedIn) answers.github = await confirm(t('wiz.github.q', { user: wctx.gh.user ?? '' }), false);
-    }
   }
 
   if (wctx.claude.cli && !wctx.claude.installed) answers.plugin = await confirm(t('wiz.plugin.q'), true);
@@ -244,3 +279,27 @@ async function offerTools(ctx: Ctx, wctx: WizardContext): Promise<void> {
   void ctx;
 }
 
+/**
+ * A KB for code, made and filled in one go: a repository KB with its
+ * repository registered and mapped, or a work KB with every repository of
+ * the folder (a workspace). Confidential, local, no AI involved.
+ */
+async function createForCode(ctx: Ctx, kind: 'repo' | 'workspace', input: { name: string; folder: string; dir: string | null; inRepo: boolean }): Promise<number> {
+  const { createCodeKb, cmdRepo } = await import('./repo.js');
+  const folder = resolve(expandHome(input.folder));
+  // The name given is the KB's: the repository keeps its own, the workspace its folder's.
+  const { name: _kbName, ...flags } = ctx.args.flags;
+  void _kbName;
+  if (kind === 'repo') {
+    const { gitRoot } = await import('../../repo/git.js');
+    const root = await gitRoot(folder);
+    if (!root) throw new OkbError('E_NOT_FOUND', `not a Git repository: ${folder}`, { key: 'repoNotGit', params: { path: folder } });
+    const id = await createCodeKb(ctx, { name: input.name, dir: input.dir, kind: 'repo', repoRoot: root, inRepo: input.inRepo });
+    const code = await cmdRepo({ ...ctx, args: { ...ctx.args, positionals: ['add', root], flags: { ...flags, kb: id } } });
+    if (code === 0 && ctx.mode === 'text') ctx.out.next([`cd ${tilde(root)} && claude`, '/okb:onboard']);
+    return code;
+  }
+  const id = await createCodeKb(ctx, { name: input.name, dir: input.dir, kind: 'workspace', repoRoot: null });
+  const { workspaceAdd } = await import('./work.js');
+  return workspaceAdd({ ...ctx, args: { ...ctx.args, flags: { ...flags, kb: id } } }, folder);
+}

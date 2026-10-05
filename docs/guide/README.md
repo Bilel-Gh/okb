@@ -20,14 +20,18 @@ Tu peux tout faire de trois façons, au choix :
    finir une session, revue de la semaine.
 3. [Une KB pour chaque repo de code](repos.md) — être onboardé sur un repo inconnu,
    puis enrichir sa KB après chaque ticket.
-4. [L’application web](application-web.md) — tout ce que fait le terminal, en clics.
-5. [Le graphe et les catégories](graphe-et-categories.md) — voir toutes tes notes
+4. [Plusieurs repos : l'espace de travail](espace-de-travail.md) — une KB pour les
+   repos d'une équipe, OKB qui se concentre sur le repo et le ticket en cours.
+   [Choisir son organisation](choisir-son-organisation.md) : KB de sujet, de repo
+   ou espace de travail, et la marche à suivre pour un premier ticket.
+5. [L’application web](application-web.md) — tout ce que fait le terminal, en clics.
+6. [Le graphe et les catégories](graphe-et-categories.md) — voir toutes tes notes
    et leurs liens, une couleur par type de note, et à quoi sert encore Obsidian.
-6. [Utilisation, coûts et rapport](utilisation-et-couts.md) — ce que coûte OKB,
+7. [Utilisation, coûts et rapport](utilisation-et-couts.md) — ce que coûte OKB,
    si son travail te convient, et le rapport qui sert à l’améliorer.
-7. [Réglages](reglages.md) — langues, style d’écriture, plusieurs KB, cohabitation
+8. [Réglages](reglages.md) — langues, style d’écriture, plusieurs KB, cohabitation
    avec d’autres outils.
-8. [Dépannage](depannage.md) — comprendre une erreur et la corriger.
+9. [Dépannage](depannage.md) — comprendre une erreur et la corriger.
 
 Les documents techniques (architecture, décisions, sécurité) sont dans
 [docs/dev](../dev/).
@@ -36,8 +40,9 @@ Les documents techniques (architecture, décisions, sécurité) sont dans
 
 - **Rien n’entre dans ta KB sans ton accord.** Claude prépare une *proposition* ;
   toi seul l’approuves. Chaque changement appliqué peut être annulé (`okb undo`).
-- **Une KB = un dossier.** Un sujet (IA, Finance) ou un projet. Tu peux en avoir
-  plusieurs ; OKB n’écrit jamais dans le dossier d’un autre outil.
+- **Une KB = un dossier, sur ton ordinateur.** Un sujet, un repo de code ou les
+  repos d'une équipe. Tu peux en avoir plusieurs ; OKB n’écrit jamais dans le
+  dossier d’un autre outil, et ne met jamais une KB sous Git.
 - **Ta mémoire entre deux sessions.** Une courte note de *focus* (ce sur quoi tu
   travailles) et un *journal* des sessions permettent à Claude de reprendre là où
   tu t’étais arrêté.

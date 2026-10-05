@@ -16,7 +16,8 @@ puis lance l’assistant `okb init`. **Aucune KB n’est connectée d’office.*
 L’assistant te demande par quoi commencer :
 
 - **créer une nouvelle KB** : tu lui donnes un nom (rien n’est pré-rempli), puis
-  son dossier, les langues, le style, l’historique Git ;
+  son type (un sujet, un repo de code, les repos d'une équipe), son dossier, les
+  langues, le style ;
 - **connecter un dossier de notes existant** (une ancienne KB, un coffre
   Obsidian) : voir [Plusieurs KB](reglages.md#plusieurs-kb) ;
 - **plus tard** : OKB est installé, sans KB.
@@ -87,7 +88,7 @@ okb init
 3. Pour une nouvelle version, avec le nouveau fichier :
 
 ```bash
-okb update --from okb-0.9.0.tgz
+okb update --from okb-0.10.0.tgz
 ```
 
 `okb update --from` accepte aussi un dossier qui contient une copie d’OKB. Il

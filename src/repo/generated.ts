@@ -10,7 +10,7 @@ import { sha256 } from '../util/hash.js';
 import { asBundlePath, type BundlePath } from '../util/paths.js';
 import { gitIdentity } from './git.js';
 import { repoContext, repoNotes, type RepoContext } from './notes.js';
-import { notePath, noteDescription, noteTitle, REPOS_FOLDER } from './pack.js';
+import { isFlat, notePath, noteDescription, noteTitle, REPOS_FOLDER } from './pack.js';
 import { QUESTIONS, THEMES } from './questions.js';
 import { listRepos, type RepoEntry } from './registry.js';
 import { coverageOf, repoStatus } from './status.js';
@@ -83,7 +83,7 @@ export async function questionsNote(ctx: RepoContext, bundle?: Bundle): Promise<
   const kb = bundle ?? (await loadBundleFor(config));
   const status = await repoStatus(ctx, { bundle: kb });
   const progress = await loadProgress(paths);
-  const path = notePath(repo.id, 'questions', lang);
+  const path = notePath(repo.id, 'questions', lang, isFlat(config));
   const mapBytes = await readFile(paths.map);
   const identity = await gitIdentity(repo.path);
   const counts = { done: 0, pending: 0, received: 0, unknown: 0, open: 0, found: 0 };
@@ -225,7 +225,8 @@ export async function landscapeNote(config: OkbConfig): Promise<{ path: BundlePa
     const map = await loadMap(repoPaths(config, r.id));
     if (map) maps.push(map);
   }
-  if (!maps.length) return null;
+  // A repository KB has no landscape: its connections show in the workspace it is attached to.
+  if (!maps.length || isFlat(config)) return null;
   const bundle = await loadBundleFor(config);
   const path = asBundlePath(`${REPOS_FOLDER}/${fr ? 'paysage.md' : 'landscape.md'}`);
   const { edges, external } = landscapeEdges(maps);

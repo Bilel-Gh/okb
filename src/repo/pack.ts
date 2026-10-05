@@ -43,18 +43,33 @@ export const PACK: readonly PackNote[] = [
 
 export const REPOS_FOLDER = 'repos';
 
+/** A repository KB (`kb.kind: repo`) keeps its notes at the root instead of `repos/<id>/`. */
+export function isFlat(config: { kb: { kind?: string | undefined } }): boolean {
+  return config.kb.kind === 'repo';
+}
+
 export function packNote(kind: NoteKind): PackNote {
   const found = PACK.find((p) => p.kind === kind);
   if (!found) throw new Error(`unknown pack note ${kind}`);
   return found;
 }
 
-export function repoFolder(id: string): string {
-  return `${REPOS_FOLDER}/${id}`;
+/**
+ * Where a repository's notes go: `repos/<id>/` in a KB of several repositories,
+ * the root of the KB in a repository KB (`flat`).
+ */
+export function repoFolder(id: string, flat = false): string {
+  return flat ? '' : `${REPOS_FOLDER}/${id}`;
 }
 
-export function notePath(id: string, kind: NoteKind, language: string): BundlePath {
-  return asBundlePath(`${repoFolder(id)}/${pick(packNote(kind).file, language)}`);
+/** `folder/file`, or `file` at the root. */
+export function inRepoFolder(id: string, file: string, flat = false): string {
+  const folder = repoFolder(id, flat);
+  return folder ? `${folder}/${file}` : file;
+}
+
+export function notePath(id: string, kind: NoteKind, language: string, flat = false): BundlePath {
+  return asBundlePath(inRepoFolder(id, pick(packNote(kind).file, language), flat));
 }
 
 export function noteTitle(kind: NoteKind, name: string, language: string): string {
@@ -65,10 +80,10 @@ export function noteDescription(kind: NoteKind, name: string, language: string):
   return pick(packNote(kind).description, language).replaceAll('{name}', name);
 }
 
-/** `repos/<id>/tickets/2026-10-04-fix-cancel-order.md` */
-export function ticketPath(id: string, title: string, date = new Date()): BundlePath {
+/** `repos/<id>/tickets/2026-10-04-fix-cancel-order.md` (`tickets/…` in a repository KB) */
+export function ticketPath(id: string, title: string, date = new Date(), flat = false): BundlePath {
   const slug = title.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'ticket';
-  return asBundlePath(`${repoFolder(id)}/tickets/${date.toISOString().slice(0, 10)}-${slug}.md`);
+  return asBundlePath(inRepoFolder(id, `tickets/${date.toISOString().slice(0, 10)}-${slug}.md`, flat));
 }
 
 /** Pack order for reading: overview first, questions last. */

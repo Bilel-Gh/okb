@@ -3,11 +3,11 @@
 Trace courte pour reprendre le projet sans l’historique de conversation.
 Format : problème → décision → conséquence → condition de réexamen.
 
-## État au 5 octobre 2026 (version 0.9.0)
+## État au 5 octobre 2026 (version 0.10.0)
 
 | Contrôle | Résultat |
 |---|---|
-| `npm run release:check` (Node 24.4) | voir [RELEASE-0.9.0.md](../releases/RELEASE-0.9.0.md) : tests, plugin, paquet installé proprement |
+| `npm run release:check` (Node 24.4) | voir [RELEASE-0.10.0.md](../releases/RELEASE-0.10.0.md) : tests, plugin, paquet installé proprement |
 | `claude plugin validate ./plugin` (Claude Code du poste) | Validation passée |
 | Évaluations natives `claude plugin eval` | Non exécutées (cas prêts dans `plugin/evals/`) |
 
@@ -493,4 +493,75 @@ Le diagnostic et les contrats Claude consultés sont dans
     (`okb revise`).
 - **Réexamen.** Pour une très grande KB (des milliers de notes), découper la
   proposition par dossier.
+
+## D32 — Espace de travail, périmètre et tickets suivis
+
+- **Problème.**
+  - Une KB qui documente vingt repos noie la réponse : une recherche ramène
+    les notes de tous les repos, et Claude ouvert à la racine du dossier ne
+    sait pas lequel est visé.
+  - Ce qu'un ticket apprend (décisions, pièges) se perdait avant la fin.
+  - Ce qui dépasse un repo (règle métier, fonctionnalité) n'avait pas de chemin
+    vers la partie commune.
+  - Le produit ne devait rien supposer d'une organisation de dossiers.
+- **Décision.**
+  - Un **espace de travail** relie un ou plusieurs dossiers à une KB. Il est
+    créé en une commande ; les préfixes de tickets sont appris des branches.
+  - Un **périmètre** : le dossier du repo décide, sinon le choix mémorisé, que
+    met à jour un message nommant un seul repo ou un ticket. Brief court au
+    démarrage, recherche classée par périmètre, ligne d'état.
+  - Un **ticket suivi** sans IA : départ, branche, commits copiés dans un
+    journal, notes de décision ou de piège. Un rappel d'une ligne après chaque
+    commit fait dans Claude Code.
+  - À la fin, une proposition à deux niveaux : l'espace du repo et la partie
+    commune. Une note commune n'est jamais rattachée à un repo.
+  - Tout est local ; rien n'est écrit dans les repos.
+- **Conséquence.** Moins de contexte et plus juste ; la mémoire d'un ticket ne
+  dépend plus de la fin de session ; zéro token pour le suivi.
+- **Réexamen.** Si la bascule par message se trompe trop souvent (noms de repos
+  ambigus), passer à une confirmation par bouton ; si une équipe veut partager
+  la KB, étudier une KB synchronisée par équipe.
+
+## D33 — Les KB restent locales : OKB ne fait plus de Git
+
+- **Problème.** L'assistant proposait un historique Git et un dépôt GitHub, et
+  chaque approbation devenait un commit. La personne veut des KB locales ; un
+  remote ou un push n'est pas le rôle d'OKB.
+- **Décision.**
+  - OKB ne crée plus de dépôt Git, ne commite plus, ne propose plus GitHub ni
+    `git push`.
+  - `git.autoCommit` est ignoré et retiré des réglages. L'annulation repose sur
+    les reçus et sauvegardes d'OKB.
+  - Une KB que la personne versionne elle-même reste sous Git, sans aucun commit
+    d'OKB.
+  - Le diagnostic garde une alerte pour une KB confidentielle synchronisée par un
+    cloud ou munie d'un remote.
+- **Conséquence.** Les profils existants restent valides ; plus rien ne sort de
+  la machine par OKB.
+- **Réexamen.** Si un partage d'équipe est demandé, il passera par un outil
+  choisi par la personne, pas par un push d'OKB.
+
+## D34 — Trois types de KB : sujet, repo, espace de travail
+
+- **Problème.** Une KB unique pour toute une équipe convient quand les repos se
+  parlent, mais pas pour un repo isolé ou plus confidentiel. Et rien ne guidait
+  le choix.
+- **Décision.**
+  - `kb.kind` : `topic`, `repo` (notes à la racine) ou `workspace`
+    (`repos/<id>/` et une partie commune). Il est demandé à la création ; pour une
+    ancienne KB, il est déduit.
+  - `okb repo add` conseille selon le contexte :
+    - des repos voisins → créer un espace de travail ;
+    - un repo seul → une KB de repo ;
+    - un repo dans un espace → la KB de cet espace.
+  - Une KB de repo dans un espace est rattachée : résumé, recherche et fin de
+    ticket lisent aussi la partie commune de l'espace.
+  - `okb kb merge` fusionne une KB de repo dans un espace, par une proposition,
+    puis déplace l'état.
+  - Le graphe web d'un espace a une vue d'ensemble (une bulle par repo) et un
+    périmètre. Les tickets ont leur propre catégorie.
+- **Conséquence.** Le bon rangement dès la création, sans migration forcée
+  ensuite.
+- **Réexamen.** Si les repos rattachés deviennent la règle, envisager une
+  recherche multi-KB générale.
 

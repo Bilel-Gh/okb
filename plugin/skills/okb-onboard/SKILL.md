@@ -18,11 +18,12 @@ who knows the repository can add answers (`okb repo answer`): cited sources.
 
 ## 1. Locate the repository and its KB
 
-`okb repo status --json`. If the folder is not registered: ask which KB holds it
-— « Une KB de travail confidentielle, sur cet ordinateur (recommandé) » or an
-existing KB. New: ask its name (suggest « Travail », never a first name), then
-`okb repo add --new-kb "<name>" --json`; else `--kb <id>` (this also scans). Never put company code in a
-KB synchronised with a personal GitHub without the user's explicit choice.
+`okb repo status --json`. Several repositories here → `/okb:workspace` first.
+Not registered: `okb repo add --json` (in a workspace it joins its KB). Asked
+for a KB, offer with buttons: when `repoNeedsKbSiblings`, « Faire du dossier
+parent un espace de travail (recommandé) » → `/okb:workspace`; « Une KB pour ce
+repo seul » → ask its name (never a first name), `okb repo add --new-repo-kb
+"<name>" --json`; an existing KB → `--kb <id>`. It also scans.
 
 Registered with notes already → go to **§8 Refresh**. Registered without notes
 → continue (findings and coverage from an earlier session are kept).

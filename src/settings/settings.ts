@@ -38,7 +38,6 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: 'focus.sessionStart', group: 'memory', type: 'bool', scope: 'profile', path: ['focus', 'sessionStart'], recommended: true, fallback: true },
   { key: 'focus.staleDays', group: 'memory', type: 'number', scope: 'profile', path: ['focus', 'staleDays'], recommended: 14, fallback: 14 },
   { key: 'kb.confidential', group: 'history', type: 'bool', scope: 'profile', path: ['kb', 'confidential'], fallback: false },
-  { key: 'git.autoCommit', group: 'history', type: 'bool', scope: 'profile', path: ['git', 'autoCommit'], recommended: true, fallback: false },
   { key: 'routing.suggest', group: 'assistant', type: 'bool', scope: 'profile', path: ['routing', 'suggest'], recommended: true, fallback: true },
   // Subagents that gather located evidence (long sources, repositories). Per machine: a
   // company gateway may not offer every model. Writing and the evidence reviewer keep the session's model.

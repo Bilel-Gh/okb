@@ -53,7 +53,8 @@ okb review 1     # la proposition n°1 : changements, fichier par fichier
 ```
 
 Tu lis les différences, gardes ce qui te sert, puis approuves. L’approbation
-applique les changements et, si l’historique Git est actif, crée un commit. Dans
+applique les changements (`okb undo` les reprend). OKB ne fait jamais de commit
+Git dans tes KB : c'est à toi de le faire si tu veux un historique. Dans
 l’application web, le bouton « Approuver et appliquer » te demande une
 confirmation sur ton écran.
 

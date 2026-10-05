@@ -10,7 +10,8 @@ import { freshness, repoStatus, type QuestionView, type RepoStatus } from '../..
 import { gitIdentity, gitRoot } from '../../repo/git.js';
 import { proposeLandscape, proposeQuestionsNote, askWho, riskText } from '../../repo/generated.js';
 import { addFindings, loadFindings, recordAnswer, repoContext, repoNotes, writeRepoNote, type RepoContext } from '../../repo/notes.js';
-import { notePath, PACK, READING_ORDER } from '../../repo/pack.js';
+import { isFlat, notePath, PACK, READING_ORDER } from '../../repo/pack.js';
+import { KIND_ICON, kindOf } from '../../work/kinds.js';
 import { QUESTIONS, THEMES, questionById, type NoteKind } from '../../repo/questions.js';
 import { addRepo, findRepo, listRepos, removeRepo, repoForDir, type RepoEntry } from '../../repo/registry.js';
 import { scanAndStore } from '../../repo/scan.js';
@@ -167,49 +168,10 @@ async function repoList(ctx: Ctx): Promise<number> {
 
 /* -------------------------------------------------------------------- add */
 
-/** Git repositories in a folder (its subfolders, and theirs one level down): a team's whole workspace. */
-async function reposIn(folder: string): Promise<string[]> {
-  const { readdir, stat } = await import('node:fs/promises');
-  // A KB kept beside the repositories (even under Git) is not one of them.
-  const kbRoots = new Set((await listKbs()).map((k) => resolve(k.root)));
-  const isKb = async (dir: string) => kbRoots.has(resolve(dir)) || stat(resolve(dir, '.okb', 'owner.yaml')).then(() => true, () => false);
-  const isRepo = async (dir: string) => !(await isKb(dir)) && stat(resolve(dir, '.git')).then(() => true, () => false);
-  const found: string[] = [];
-  const children = (await readdir(folder, { withFileTypes: true }).catch(() => [])).filter((d) => d.isDirectory() && !d.name.startsWith('.') && d.name !== 'node_modules');
-  for (const child of children) {
-    const dir = resolve(folder, child.name);
-    if (await isRepo(dir)) { found.push(dir); continue; }
-    const grand = (await readdir(dir, { withFileTypes: true }).catch(() => [])).filter((d) => d.isDirectory() && !d.name.startsWith('.') && d.name !== 'node_modules');
-    for (const g of grand) if (await isRepo(resolve(dir, g.name))) found.push(resolve(dir, g.name));
-  }
-  return found.sort();
-}
-
-/** `okb repo add --all <folder>`: every repository of a workspace into one KB, mapped without AI. */
+/** `okb repo add --all <folder>`: the folder becomes a workspace (`okb workspace add`). */
 async function repoAddAll(ctx: Ctx, folder: string): Promise<number> {
-  const { args, out } = ctx;
-  const roots = await reposIn(resolve(folder));
-  if (!roots.length) throw new OkbError('E_NOT_FOUND', `no Git repository in ${folder}`, { key: 'repoNoneInFolder', params: { folder } });
-  const kb = await chooseKb(ctx, resolve(folder));
-  const { config } = await loadConfig({ profileId: kb });
-  const scan = flagBool(args, 'scan', true);
-  const rows: { name: string; id: string; stack: string; created: boolean; error?: string }[] = [];
-  const s = canAsk(ctx) ? spin(t('repo.addAll.running', { n: String(roots.length) })) : null;
-  for (const root of roots) {
-    try {
-      const { repo, created } = await addRepo({ path: root, kb });
-      const result = scan ? await scanAndStore(config, repo) : null;
-      rows.push({ name: repo.name, id: repo.id, created, stack: result ? result.map.stack.slice(0, 3).map((x) => x.label).join(', ') : '' });
-    } catch (e) {
-      rows.push({ name: root.split('/').pop() ?? root, id: '', created: false, stack: '', error: (e as Error).message });
-    }
-  }
-  s?.done();
-  if (ctx.mode === 'json') { out.json({ ok: true, kb, repos: rows }); return 0; }
-  out.ok(t('repo.addAll.done', { n: String(rows.filter((r) => !r.error).length), kb: paint.name(config.profile.displayName || kb) }));
-  out.grid(rows.map((r) => [r.error ? sym.err() : r.created ? sym.ok() : '·', paint.bold(r.name), r.error ? paint.err(r.error) : paint.dim(r.stack || '—')]));
-  out.next([`okb repo landscape --propose --kb ${kb}`, t('repo.addAll.next')]);
-  return 0;
+  const { workspaceAdd } = await import('./work.js');
+  return workspaceAdd(ctx, folder);
 }
 
 async function repoAdd(ctx: Ctx): Promise<number> {
@@ -219,16 +181,28 @@ async function repoAdd(ctx: Ctx): Promise<number> {
   const path = resolve(args.positionals[1] ?? process.cwd());
   const root = (await gitRoot(path)) ?? path;
   const existing = (await listRepos()).find((r) => resolve(r.path) === root);
-  const kb = existing && !flagString(args, 'kb') && !flagString(args, 'new-kb') ? existing.kb : await chooseKb(ctx, root);
+  const asked = flagString(args, 'kb') ?? flagString(args, 'new-kb') ?? flagString(args, 'new-repo-kb');
+  let kb: string;
+  if (existing && !asked) kb = existing.kb;
+  else {
+    const choice = await chooseKb(ctx, root, 'repo');
+    // Repositories beside it and the person chose a workspace: the whole folder is registered.
+    if (choice === WORKSPACE_CHOICE) {
+      const { workspaceAdd } = await import('./work.js');
+      return workspaceAdd(ctx, dirname(root));
+    }
+    kb = choice;
+  }
   const { repo, created } = await addRepo({ path: root, kb, ...(flagString(args, 'name') ? { name: flagString(args, 'name')! } : {}) });
   const { config } = await loadConfig({ profileId: repo.kb });
   const scan = flagBool(args, 'scan', true);
   const result = scan ? await withSpinner(ctx, t('repo.scan.running', { name: repo.name }), () => scanAndStore(config, repo)) : null;
   if (ctx.mode === 'json') {
-    out.json({ ok: true, created, repo, kb: { id: config.profile.id, root: config.kb.root, confidential: config.kb.confidential }, ...(result ? { mapPath: result.mapPath, factsPath: result.factsPath, summary: compact(result.map) } : {}) });
+    out.json({ ok: true, created, repo, kb: { id: config.profile.id, root: config.kb.root, confidential: config.kb.confidential, kind: await kindOf(config.profile.id, config) }, ...(result ? { mapPath: result.mapPath, factsPath: result.factsPath, summary: compact(result.map) } : {}) });
     return 0;
   }
-  out.ok(t(created ? 'repo.add.done' : 'repo.add.again', { name: paint.name(repo.name), kb: paint.name(config.profile.displayName || config.profile.id), folder: paint.path(`${config.kb.root}/repos/${repo.id}`) }));
+  const folder = isFlat(config) ? config.kb.root : `${config.kb.root}/repos/${repo.id}`;
+  out.ok(t(created ? 'repo.add.done' : 'repo.add.again', { name: paint.name(repo.name), kb: paint.name(config.profile.displayName || config.profile.id), folder: paint.path(folder) }));
   if (result) {
     out.line();
     renderScan(ctx, result.map, config);
@@ -242,65 +216,133 @@ async function withSpinner<T>(ctx: Ctx, text: string, run: () => Promise<T>): Pr
   try { const r = await run(); s.done(); return r; } catch (e) { s.fail(); throw e; }
 }
 
+/** The answer « register the whole folder as a workspace » to `chooseKb`. */
+export const WORKSPACE_CHOICE = '__workspace';
+
 /**
- * Which KB holds the repository's notes. Company code belongs in a KB of its
- * own that stays on this machine: that is the recommended choice.
+ * Which KB holds a repository (`purpose: 'repo'`) or a workspace's
+ * repositories (`'workspace'`), with the recommended choice explained:
+ * - a repository inside a workspace goes to the workspace's KB;
+ * - a repository with other repositories beside it: make that folder a workspace;
+ * - a repository on its own: a KB for that repository alone;
+ * - a workspace: a new work KB, or an existing one that holds repositories.
+ * Company code stays in confidential KBs, on this machine.
  */
-async function chooseKb(ctx: Ctx, root: string): Promise<string> {
-  const { args } = ctx;
-  const asked = flagString(args, 'kb');
+export async function chooseKb(ctx: Ctx, root: string, purpose: 'repo' | 'workspace'): Promise<string> {
+  const { args, out } = ctx;
   const kbs = await listKbs();
+  const asked = flagString(args, 'kb');
   if (asked) {
     if (!kbs.some((k) => k.id === asked)) throw new OkbError('E_NOT_FOUND', `KB "${asked}" is not installed`, { key: 'kbUnknown', params: { id: asked } });
+    if (purpose === 'workspace' && (await kindOf(asked)) === 'repo') throw new OkbError('E_INVALID', `KB "${asked}" is a repository KB`, { key: 'kbIsRepoKb', params: { id: asked } });
     return asked;
   }
-  const newName = flagString(args, 'new-kb');
-  if (newName) return createWorkKb(ctx, newName, flagString(args, 'dir') ?? null, kbs);
-  const info = await Promise.all(kbs.map(async (k) => ({ k, confidential: await isConfidential(k.id), remotes: k.exists ? await kbRemotes(k.root) : [], synced: cloudSyncedFolder(k.root) })));
+  const { reposIn, workspaceForDir } = await import('../../work/workspaces.js');
+  const here = purpose === 'repo' ? await workspaceForDir(root) : null;
+  const siblings = purpose === 'repo' && !here ? (await reposIn(dirname(root))).filter((r) => resolve(r) !== resolve(root)) : [];
+  const newName = flagString(args, 'new-kb') ?? flagString(args, 'new-repo-kb');
+  if (newName) {
+    // `--new-repo-kb`: a KB for this repository alone; `--new-kb`: a work KB for several repositories.
+    const kind = flagString(args, 'new-repo-kb') || flagString(args, 'kind') === 'repo' ? 'repo' : 'workspace';
+    return createCodeKb(ctx, { name: newName, dir: flagString(args, 'dir') ?? null, kind, repoRoot: purpose === 'repo' ? root : null, inRepo: flagBool(args, 'in-repo') });
+  }
+  // Inside a workspace, its KB is the obvious one.
+  if (here) {
+    if (ctx.mode === 'text') out.info(t('repo.add.inWorkspace', { ws: paint.name(here.name) }));
+    return here.kb;
+  }
+  const info = await Promise.all(kbs.map(async (k) => ({ k, kind: await kindOf(k.id), confidential: await isConfidential(k.id), remotes: k.exists ? await kbRemotes(k.root) : [], synced: cloudSyncedFolder(k.root) })));
   if (!canAsk(ctx)) {
     throw new OkbError('E_INVALID', 'choose the KB that will hold this repository: --kb <id> or --new-kb "<name>"', {
-      key: 'repoNeedsKb', params: { kbs: info.map(({ k, confidential }) => `${k.id}${confidential ? ' (confidential)' : ''}`).join(', ') || '—' },
+      key: purpose === 'repo' && siblings.length ? 'repoNeedsKbSiblings' : 'repoNeedsKb',
+      params: { kbs: info.map(({ k, kind }) => `${k.id} (${t(`kb.kind.${kind}`)})`).join(', ') || '—', n: siblings.length, parent: tilde(dirname(root)) },
     });
   }
-  intro(paint.bold(t('repo.add.title', { name: kbNames(root.split('/').pop() ?? 'repo').display })));
-  const work = info.find((x) => x.confidential);
-  const choice = await choose(t('repo.add.kbQ'), [
-    { value: '__new', label: t('repo.add.newKb'), hint: t('repo.add.newKbHint'), recommended: !work },
-    ...info.map(({ k, confidential, remotes, synced }) => ({
-      value: k.id,
-      label: k.name,
-      hint: [confidential ? t('repo.add.hint.confidential') : '', remotes.length ? t('repo.add.hint.remote') : '', synced ? t('repo.add.hint.synced', { where: synced }) : ''].filter(Boolean).join(' · ') || tilde(k.root),
-      recommended: work?.k.id === k.id,
-    })),
-  ]);
-  if (choice !== '__new') return choice;
-  // The person names the KB; « Travail » is only a hint.
-  const name = await input(t('repo.add.newKbName'), { placeholder: t('repo.add.newKbDefault'), validate: (v) => (v.trim() ? undefined : t('wiz.required')) });
-  return createWorkKb(ctx, name, null, kbs);
+  const name = kbNames(root.split('/').pop() ?? 'repo').display;
+  intro(paint.bold(purpose === 'repo' ? t('repo.add.title', { name }) : t('ws.add.title', { name })));
+  const hint = ({ k, kind, confidential, remotes, synced }: (typeof info)[number]) => [
+    `${KIND_ICON[kind]} ${t(`kb.kind.${kind}`)}`, confidential ? t('repo.add.hint.confidential') : '', remotes.length ? t('repo.add.hint.remote') : '', synced ? t('repo.add.hint.synced', { where: synced }) : '',
+  ].filter(Boolean).join(' · ') || tilde(k.root);
+  const codeKbs = info.filter((x) => x.kind === 'workspace');
+  type Option = { value: string; label: string; hint?: string; recommended?: boolean };
+  const options: Option[] = [];
+  if (purpose === 'repo') {
+    // Other repositories beside it: the folder is a team's, make it a workspace.
+    if (siblings.length) options.push({ value: WORKSPACE_CHOICE, label: t('repo.add.makeWorkspace', { parent: tilde(dirname(root)), n: siblings.length + 1 }), hint: t('repo.add.makeWorkspaceHint'), recommended: true });
+    options.push({ value: '__repo', label: t('repo.add.repoKb'), hint: t('repo.add.repoKbHint'), recommended: !siblings.length });
+    for (const x of codeKbs) options.push({ value: x.k.id, label: t('repo.add.joinKb', { name: x.k.name }), hint: hint(x) });
+    for (const x of info.filter((y) => y.kind === 'topic')) options.push({ value: x.k.id, label: x.k.name, hint: `${hint(x)} · ${t('repo.add.topicWarn')}` });
+  } else {
+    options.push({ value: '__newws', label: t('repo.add.newKb'), hint: t('repo.add.newKbHint'), recommended: !codeKbs.length });
+    for (const x of codeKbs) options.push({ value: x.k.id, label: x.k.name, hint: hint(x), recommended: codeKbs[0] === x });
+    for (const x of info.filter((y) => y.kind === 'topic')) options.push({ value: x.k.id, label: x.k.name, hint: `${hint(x)} · ${t('repo.add.topicWarn')}` });
+  }
+  const choice = await choose(purpose === 'repo' ? t('repo.add.kbQ') : t('ws.add.kbQ'), options);
+  if (choice === WORKSPACE_CHOICE) return choice;
+  if (choice !== '__repo' && choice !== '__newws') return choice;
+  const kind = choice === '__repo' ? 'repo' : 'workspace';
+  // The person names the KB; the repository's or the folder's name is only a hint.
+  const kbName = await input(kind === 'repo' ? t('repo.add.repoKbName') : t('repo.add.newKbName'), {
+    placeholder: kind === 'repo' ? name : t('repo.add.newKbDefault'),
+    validate: (v) => (v.trim() ? undefined : t('wiz.required')),
+  });
+  let inRepo = false;
+  if (kind === 'repo') {
+    inRepo = await choose(t('repo.add.whereQ'), [
+      { value: false, label: t('repo.add.whereOutside'), hint: t('repo.add.whereOutsideHint'), recommended: true },
+      { value: true, label: t('repo.add.whereInside'), hint: t('repo.add.whereInsideHint') },
+    ]);
+  }
+  return createCodeKb(ctx, { name: kbName, dir: null, kind, repoRoot: purpose === 'repo' ? root : null, inRepo });
 }
 
 async function isConfidential(id: string): Promise<boolean> {
   try { return (await loadConfig({ profileId: id })).config.kb.confidential; } catch { return false; }
 }
 
-/** A KB for work: confidential, local Git history only, pedagogical writing, every note on a template. */
-async function createWorkKb(ctx: Ctx, name: string, dir: string | null, kbs: readonly KbSummary[]): Promise<string> {
+/**
+ * A KB for code: confidential, pedagogical writing, every note on a template,
+ * a plain local folder (OKB never puts it under Git). A repository KB goes
+ * outside the repository by default, or inside it (`inRepo`) in a folder Git
+ * is told to ignore on this machine only (`.git/info/exclude`, never shared).
+ */
+export async function createCodeKb(ctx: Ctx, input: { name: string; dir: string | null; kind: 'repo' | 'workspace'; repoRoot: string | null; inRepo?: boolean }): Promise<string> {
   const { runWizard, wizardContext, defaultAnswers } = await import('../../setup/wizard.js');
   const { writeSetting } = await import('../../settings/settings.js');
-  const wctx = await wizardContext(process.env, { github: false });
+  const kbs = await listKbs();
+  const wctx = await wizardContext(process.env);
   const uiLang = (await readRootConfig()).ui?.language ?? 'auto';
   const writing = kbs[0]?.writingLanguage ?? (t('ui.yes') === 'Oui' ? 'fr' : 'en');
-  const base = defaultAnswers(wctx, name, writing === 'fr' ? 'fr' : 'en');
-  const { folder } = kbNames(name);
+  const base = defaultAnswers(wctx, input.name, writing === 'fr' ? 'fr' : 'en');
+  const { folder } = kbNames(input.name);
   const parent = kbs.find((k) => k.root)?.root;
-  const root = dir ? resolve(dir) : confidentialDefaultRoot(folder, parent ? dirname(parent) : null);
+  let root = input.dir ? resolve(input.dir) : confidentialDefaultRoot(folder, parent ? dirname(parent) : null);
+  if (!input.dir && input.inRepo && input.repoRoot) {
+    root = resolve(input.repoRoot, IN_REPO_FOLDER);
+    await excludeLocally(input.repoRoot, IN_REPO_FOLDER);
+  }
   const { id } = await runWizard({
     ...base, uiLanguage: uiLang as never, root, writingLanguage: writing, preset: 'pedagogique', conceptAssist: 'pedagogical', requireTemplate: true,
-    git: wctx.git, github: false, plugin: false, launcher: null, activate: false, adopt: false,
+    kind: input.kind, plugin: false, launcher: null, activate: false, adopt: false,
   }, () => {});
   await writeSetting(id, 'kb.confidential', true);
-  if (ctx.mode === 'text') ctx.out.ok(t('repo.add.kbCreated', { name: paint.name(name), root: paint.path(root) }));
+  if (ctx.mode === 'text') ctx.out.ok(t(input.kind === 'repo' ? 'repo.add.repoKbCreated' : 'repo.add.kbCreated', { name: paint.name(input.name), root: paint.path(root) }));
   return id;
+}
+
+/** The folder of a repository KB kept inside its repository. */
+export const IN_REPO_FOLDER = '.okb-kb';
+
+/** Tell Git, on this machine only, to ignore a folder of the repository (`.git/info/exclude` is never committed). */
+async function excludeLocally(repoRoot: string, folder: string): Promise<void> {
+  const { git } = await import('../../repo/git.js');
+  const { appendFile, mkdir } = await import('node:fs/promises');
+  const rel = (await git(repoRoot, ['rev-parse', '--git-path', 'info/exclude'])).trim();
+  const file = resolve(repoRoot, rel);
+  const current = await readFile(file, 'utf8').catch(() => '');
+  if (current.split('\n').some((l) => l.trim() === `/${folder}/`)) return;
+  await mkdir(dirname(file), { recursive: true });
+  await appendFile(file, `${current && !current.endsWith('\n') ? '\n' : ''}# OKB: this repository's knowledge base, kept on this machine\n/${folder}/\n`);
 }
 
 /* ------------------------------------------------------------------- scan */
@@ -577,7 +619,22 @@ async function repoWrite(ctx: Ctx): Promise<number> {
   const file = flagString(args, 'analysis-file') ?? flagString(args, 'dossier');
   if (!file) throw new OkbError('E_INVALID', 'usage: okb repo write --analysis-file <dossier.json>', { key: 'usage', params: { usage: 'okb repo write --analysis-file <dossier.json> [--note <kind>]' } });
   const raw = JSON.parse(await readFile(resolve(file), 'utf8')) as { repo?: string };
-  const { config, ctx: rctx } = await pickRepo(ctx, ctx.args.positionals[1] ?? (typeof raw.repo === 'string' ? raw.repo : undefined));
+  const picked = await pickRepo(ctx, ctx.args.positionals[1] ?? (typeof raw.repo === 'string' ? raw.repo : undefined));
+  let { config, ctx: rctx } = picked;
+  // A repository with its own KB writes the shared part into its workspace's KB (`--to-kb`).
+  const toKb = flagString(args, 'to-kb');
+  const sourceDirs: string[] = [];
+  if (toKb && toKb !== config.profile.id) {
+    const { workspaceOfRepo } = await import('../../work/scope.js');
+    const ws = await workspaceOfRepo(picked.repo);
+    const target = flagString(args, 'append') ?? flagString(args, 'create');
+    if (!ws || ws.kb !== toKb || !target || target.startsWith('repos/')) {
+      throw new OkbError('E_INVALID', `--to-kb ${toKb}: only a shared note of the repository's workspace KB`, { key: 'repoToKb', params: { kb: toKb } });
+    }
+    sourceDirs.push(rctx.paths.dir);
+    config = (await loadConfig({ profileId: toKb })).config;
+    rctx = await repoContext(config, picked.repo);
+  }
   const after = flagList(args, 'after');
   let pending;
   if (after.length) {
@@ -585,6 +642,7 @@ async function repoWrite(ctx: Ctx): Promise<number> {
     pending = (await pendingCreationsFor(config, after)) ?? undefined;
   }
   const result = await writeRepoNote(rctx, raw, {
+    ...(sourceDirs.length ? { sourceDirs } : {}),
     ...(flagString(args, 'note') ? { kind: flagString(args, 'note') as NoteKind } : {}),
     ...(flagString(args, 'create') ? { create: flagString(args, 'create')! } : {}),
     ...(flagString(args, 'append') ? { append: flagString(args, 'append')! } : {}),
@@ -620,9 +678,9 @@ async function repoQuestions(ctx: Ctx): Promise<number> {
   if (flagBool(ctx.args, 'propose')) {
     const proposal = await proposeQuestionsNote(rctx);
     if (proposal.changes.length) await saveProposal(config, proposal);
-    if (ctx.mode === 'json') ctx.out.json({ ok: true, proposalId: proposal.id, changes: proposal.changes.length, path: notePath(repo.id, 'questions', lang(config)) });
+    if (ctx.mode === 'json') ctx.out.json({ ok: true, proposalId: proposal.id, changes: proposal.changes.length, path: notePath(repo.id, 'questions', lang(config), isFlat(config)) });
     else if (!proposal.changes.length) ctx.out.info(t('repo.questions.upToDate'));
-    else { ctx.out.ok(t('repo.questions.proposed', { path: paint.code(notePath(repo.id, 'questions', lang(config))) })); ctx.out.next([`okb review ${proposal.id} --diff`]); }
+    else { ctx.out.ok(t('repo.questions.proposed', { path: paint.code(notePath(repo.id, 'questions', lang(config), isFlat(config))) })); ctx.out.next([`okb review ${proposal.id} --diff`]); }
     return 0;
   }
   const status = await repoStatus(rctx);
@@ -633,7 +691,7 @@ async function repoQuestions(ctx: Ctx): Promise<number> {
     ctx.out.json({ ok: true, repo: repo.id, questions: views.map((v) => {
       const hint = map.questions.find((h) => h.id === v.id);
       const files = v.looked?.length ? v.looked : hint?.hints.map((h) => h.file) ?? [];
-      return { ...v, text: pick(questionById(v.id)!.text, l), why: v.why ?? pick(questionById(v.id)!.why, l), note: v.note ?? notePath(repo.id, questionById(v.id)!.note, l), hints: hint?.hints ?? [], askWho: v.askWho ?? askWho(map, files, l) };
+      return { ...v, text: pick(questionById(v.id)!.text, l), why: v.why ?? pick(questionById(v.id)!.why, l), note: v.note ?? notePath(repo.id, questionById(v.id)!.note, l, isFlat(config)), hints: hint?.hints ?? [], askWho: v.askWho ?? askWho(map, files, l) };
     }) });
     return 0;
   }
@@ -762,7 +820,11 @@ async function repoLandscape(ctx: Ctx): Promise<number> {
   const { landscapeNote } = await import('../../repo/generated.js');
   if (flagBool(ctx.args, 'propose')) {
     const proposal = await proposeLandscape(config);
-    if (!proposal) { ctx.out.info(t('repo.landscape.none')); return 0; }
+    if (!proposal) {
+      if (ctx.mode === 'json') ctx.out.json({ ok: true, proposalId: null, changes: 0 });
+      else ctx.out.info(t('repo.landscape.none'));
+      return 0;
+    }
     if (proposal.changes.length) await saveProposal(config, proposal);
     if (ctx.mode === 'json') ctx.out.json({ ok: true, proposalId: proposal.id, changes: proposal.changes.length });
     else if (!proposal.changes.length) ctx.out.info(t('repo.questions.upToDate'));
@@ -788,14 +850,20 @@ async function repoLandscape(ctx: Ctx): Promise<number> {
  * or, in an undocumented Git repository, that onboarding can be offered.
  */
 async function repoContextCmd(ctx: Ctx): Promise<number> {
-  const cwd = resolve(flagString(ctx.args, 'cwd') ?? process.cwd());
+  const text = await repoContextText(resolve(flagString(ctx.args, 'cwd') ?? process.cwd()));
+  if (ctx.mode === 'json') ctx.out.json({ ok: true, context: text });
+  else if (text) ctx.out.line(text);
+  return 0;
+}
+
+export async function repoContextText(cwd: string): Promise<string> {
   const found = await repoForDir(cwd);
   let text = '';
   if (found) {
     const { config } = await loadConfig({ profileId: found.repo.kb });
     const rctx = await repoContext(config, found.repo);
     const bundle = await loadBundleFor(config);
-    const notes = repoNotes(bundle, found.repo.id);
+    const notes = repoNotes(bundle, found.repo.id, isFlat(config));
     const status = await repoStatus(rctx, { bundle });
     const counts = countQuestions(status.questions);
     const lines = [
@@ -814,9 +882,7 @@ async function repoContextCmd(ctx: Ctx): Promise<number> {
     if (suggest) try { suggest = (await loadConfig({})).config.routing.suggest; } catch { /* no active KB */ }
     if (root && suggest) text = `OKB: this folder is a Git repository OKB does not document yet ("${root.split('/').pop()}"). If the user says they are discovering or starting on it, offer /okb:onboard to build its knowledge base (ask first; never run it unasked).`;
   }
-  if (ctx.mode === 'json') ctx.out.json({ ok: true, context: text });
-  else if (text) ctx.out.line(text);
-  return 0;
+  return text;
 }
 
 /* ----------------------------------------------------------------- remove */

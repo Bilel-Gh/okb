@@ -7,6 +7,7 @@ import { flagBool, flagString } from '../args.js';
 import { choose, confirm, input } from '../ui/prompt.js';
 import { paint, sym, tilde } from '../ui/term.js';
 import { canAsk, effective, type Ctx } from './common.js';
+import { KIND_ICON, kindOf } from '../../work/kinds.js';
 
 
 /** `okb kb` — every KB, the active one starred; switch, add an existing folder, remove, adopt. */
@@ -16,14 +17,16 @@ export async function cmdKb(ctx: Ctx): Promise<number> {
   const kbs = await listKbs();
 
   if (sub === 'list' || sub === 'menu') {
-    if (ctx.mode === 'json') { out.json({ ok: true, kbs }); return 0; }
+    const kinds = new Map(await Promise.all(kbs.map(async (k) => [k.id, await kindOf(k.id).catch(() => 'topic' as const)] as const)));
+    if (ctx.mode === 'json') { out.json({ ok: true, kbs: kbs.map((k) => ({ ...k, kind: kinds.get(k.id) })) }); return 0; }
     if (!kbs.length) { out.info(t('kb.none')); out.next(['okb new', 'okb kb add <dossier>']); return 0; }
     out.grid(kbs.map((k) => [
       k.active ? sym.star() : ' ',
       paint.bold(k.name) + (k.name !== k.id ? paint.dim(` (${k.id})`) : ''),
+      `${KIND_ICON[kinds.get(k.id) ?? 'topic']} ${t(`kb.kind.${kinds.get(k.id) ?? 'topic'}`)}`,
       languageName(k.writingLanguage),
       k.exists ? tilde(k.root) : paint.err(`${tilde(k.root)} — ${t('kb.missing')}`),
-    ]), ['', t('kb.col.kb'), t('kb.col.lang'), t('kb.col.folder')]);
+    ]), ['', t('kb.col.kb'), t('kb.col.kind'), t('kb.col.lang'), t('kb.col.folder')]);
     if (sub === 'list') { out.next(['okb kb switch <kb>', 'okb new', 'okb kb add <dossier>', 'okb kb remove <kb>']); return 0; }
     const action = await choose(t('kb.menu.q'), [
       { value: 'switch', label: t('kb.menu.switch'), recommended: kbs.length > 1 },
@@ -58,6 +61,7 @@ export async function cmdKb(ctx: Ctx): Promise<number> {
   }
 
   if (sub === 'add' || sub === 'connect') return doAdd(ctx, args.positionals[1] ?? null);
+  if (sub === 'merge') return doMerge(ctx);
   if (sub === 'convert') return doConvert(ctx);
 
   if (sub === 'adopt') {
@@ -79,7 +83,7 @@ export async function cmdKb(ctx: Ctx): Promise<number> {
     return 0;
   }
 
-  throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { key: 'unknownSub', params: { sub, usage: 'okb kb [list|switch <kb>|add <dossier>|remove <kb>|adopt]' } });
+  throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { key: 'unknownSub', params: { sub, usage: 'okb kb [list|switch <kb>|add <dossier>|remove <kb>|convert|merge <kb> --into <kb>|adopt]' } });
 }
 
 async function doSwitch(ctx: Ctx, id: string): Promise<number> {
@@ -187,3 +191,41 @@ async function doConvert(ctx: Ctx): Promise<number> {
   return 0;
 }
 
+/**
+ * `okb kb merge <repository KB> --into <workspace KB>`: first a proposal that
+ * puts every note under `repos/<id>/` of the workspace; once it is approved
+ * and applied, the same command finishes (state, registration) and offers to
+ * retire the old KB from OKB — its folder stays as it is.
+ */
+async function doMerge(ctx: Ctx): Promise<number> {
+  const { args, out } = ctx;
+  const sourceId = args.positionals[1];
+  const targetId = flagString(args, 'into');
+  if (!sourceId || !targetId) throw new OkbError('E_INVALID', 'usage: okb kb merge <repository KB> --into <workspace KB>', { key: 'usage', params: { usage: 'okb kb merge <KB du repo> --into <KB de l’espace>' } });
+  const { planMerge, mergeProposal, finishMerge } = await import('../../work/merge.js');
+  const { saveProposal } = await import('../../proposal/store.js');
+  const source = (await loadConfig({ profileId: sourceId })).config;
+  const target = (await loadConfig({ profileId: targetId })).config;
+  const plan = await planMerge(source, target);
+  if (plan.applied || flagBool(args, 'finish')) {
+    if (!plan.applied) throw new OkbError('E_CONFLICT', 'the merge proposal is not applied yet', { key: 'mergeNotApplied', params: { source: sourceId, target: targetId } });
+    const done = await finishMerge(source, target, plan.repo);
+    let retired = false;
+    if (flagBool(args, 'retire') || (canAsk(ctx) && (await confirm(t('kb.merge.retireQ', { name: source.profile.displayName || sourceId }), true)))) {
+      await archiveKb(sourceId);
+      retired = true;
+    }
+    if (ctx.mode === 'json') { out.json({ ok: true, finished: true, repo: plan.repo.id, kb: targetId, ...done, retired }); return 0; }
+    out.ok(t('kb.merge.finished', { repo: paint.name(plan.repo.name), kb: paint.name(target.profile.displayName || targetId) }));
+    if (retired) out.line(paint.dim(`  ${t('kb.merge.retired', { root: tilde(source.kb.root) })}`));
+    return 0;
+  }
+  const { proposal, reused } = await mergeProposal(source, target, plan);
+  if (!reused) await saveProposal(target, proposal);
+  if (ctx.mode === 'json') { out.json({ ok: true, finished: false, proposalId: proposal.id, reused, files: proposal.changes.length, conflicts: plan.conflicts, binaries: plan.binaries, repo: plan.repo.id }); return 0; }
+  out.ok(t('kb.merge.proposed', { n: proposal.changes.length, repo: paint.name(plan.repo.name), kb: paint.name(target.profile.displayName || targetId) }));
+  if (plan.conflicts.length) out.warn(t('kb.merge.conflicts', { files: plan.conflicts.slice(0, 5).join(', ') }));
+  if (plan.binaries.length) out.line(paint.dim(`  ${t('kb.merge.binaries', { n: plan.binaries.length, root: tilde(source.kb.root) })}`));
+  out.next([`okb review ${proposal.id} --kb ${targetId}`, `okb kb merge ${sourceId} --into ${targetId}`]);
+  return 0;
+}

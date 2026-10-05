@@ -113,7 +113,7 @@ async function detail({ arg, mount }) {
       if (r.applied) {
         const created = r.receipt.results.filter((x) => x.action === 'created').length;
         const updated = r.receipt.results.filter((x) => x.action === 'updated').length;
-        toast(`${t('apply.summary', { created, updated, deleted: 0 })}${r.git?.committed ? ` · commit ${r.git.sha}` : ''}`);
+        toast(t('apply.summary', { created, updated, deleted: 0 }));
       } else toast(t('review.approvedShort'));
       await refreshStatus();
       go('#/review');

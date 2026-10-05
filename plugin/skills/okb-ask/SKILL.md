@@ -18,6 +18,11 @@ description: Answer a question from the user's OKF knowledge bundle, quoting loc
    okb ask "<the user's question>" --json --limit 8
    ```
 
+   Inside a repository's scope (its folder, or the one chosen in a workspace),
+   the JSON's `scope` says so: its notes and the shared notes tied to it rank
+   first. For a question about the whole KB or another repository, add
+   `--everywhere` (or `--repo <id>`).
+
 2. Read the matching files only when an excerpt is not enough. Paths come from
    the JSON; do not glob the vault.
 

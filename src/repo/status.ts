@@ -6,7 +6,7 @@ import type { BundlePath } from '../util/paths.js';
 import { commitExists, diffNames, gitIdentity, type FileChange } from './git.js';
 import { classify } from './inventory.js';
 import { loadFindings, pendingRepoProposals, repoNotes, type RepoContext, type RepoNote } from './notes.js';
-import { notePath, PACK } from './pack.js';
+import { isFlat, notePath, PACK } from './pack.js';
 import { QUESTIONS, type NoteKind } from './questions.js';
 import { linesCovered, loadMap, loadProgress, type Progress } from './state.js';
 import type { RepoMap } from './types.js';
@@ -46,10 +46,10 @@ export async function repoStatus(ctx: RepoContext, options: { bundle?: Bundle } 
   const [map, progress, identity, bundle, pending, findings] = await Promise.all([
     loadMap(paths), loadProgress(paths), gitIdentity(repo.path), options.bundle ?? loadBundleFor(config), pendingRepoProposals(config, repo.id), loadFindings(ctx),
   ]);
-  const notes = repoNotes(bundle, repo.id);
+  const notes = repoNotes(bundle, repo.id, isFlat(config));
   const pendingPaths = new Set(pending.flatMap((p) => p.paths));
   const pack = PACK.map((p) => {
-    const path = notePath(repo.id, p.kind, lang);
+    const path = notePath(repo.id, p.kind, lang, isFlat(config));
     const written = notes.find((n) => n.path === path || n.kind === p.kind);
     return { kind: p.kind, path: written?.path ?? path, state: written ? 'written' as const : pendingPaths.has(path) ? 'pending' as const : 'missing' as const, commit: written?.commit ?? null };
   });
@@ -152,7 +152,7 @@ function citedFiles(ctx: RepoContext, bundle: Bundle, path: BundlePath, progress
 
 export async function freshness(ctx: RepoContext, options: { bundle?: Bundle; notes?: readonly RepoNote[]; progress?: Progress; head?: string | null } = {}): Promise<Freshness> {
   const bundle = options.bundle ?? (await loadBundleFor(ctx.config));
-  const notes = options.notes ?? repoNotes(bundle, ctx.repo.id);
+  const notes = options.notes ?? repoNotes(bundle, ctx.repo.id, isFlat(ctx.config));
   const progress = options.progress ?? (await loadProgress(ctx.paths));
   const head = options.head !== undefined ? options.head : (await gitIdentity(ctx.repo.path)).head;
   const diffs = new Map<string, FileChange[] | null>();

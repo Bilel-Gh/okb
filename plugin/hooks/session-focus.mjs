@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
  * SessionStart: hand Claude the user's OKB focus note and the last session's
- * "next time", once, so a new session starts where the last one stopped — and,
- * inside a code repository OKB documents, where that repository's notes are.
+ * "next time", once, so a new session starts where the last one stopped — and
+ * the brief of the scope it opens in: inside a repository OKB documents, its
+ * notes, the shared notes tied to it, its connections and the ticket in
+ * progress; at the top of a workspace, its repositories and tickets.
  *
  * Prints nothing, and never blocks the session, when OKB is not configured, when
  * there is no focus note or journal yet, or when the profile sets
@@ -23,8 +25,9 @@ process.stdin.on('error', () => {});
 process.stdin.on('end', () => {
   let cwd = '';
   try { cwd = String(JSON.parse(raw)?.cwd ?? ''); } catch { /* no input */ }
-  const run = (args) => new Promise((done) => execFile(okb, args, { timeout: 5000, maxBuffer: 200_000, env: process.env }, (error, stdout) => done(error ? '' : String(stdout).trim())));
-  Promise.all([run(['focus', '--context']), cwd ? run(['repo', 'context', '--cwd', cwd]) : Promise.resolve('')]).then(([focus, repo]) => {
+  // Run in the session's folder: inside a workspace, its KB is the one meant.
+  const run = (args) => new Promise((done) => execFile(okb, args, { timeout: 7000, maxBuffer: 200_000, env: process.env, ...(cwd ? { cwd } : {}) }, (error, stdout) => done(error ? '' : String(stdout).trim())));
+  Promise.all([run(['focus', '--context']), cwd ? run(['scope', '--context', '--cwd', cwd]) : Promise.resolve('')]).then(([focus, repo]) => {
     const text = [focus, repo].filter(Boolean).join('\n\n');
     if (text) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: text } }));
     process.exit(0);

@@ -5,8 +5,10 @@ import { paint, sym, tilde } from '../ui/term.js';
 import { config, kbFlag, type Ctx } from './common.js';
 
 /** One line for status bars: `📚 atlas · 🎯 3 j · 📥 2 · ⏳ 1`. */
-export function statusLine(s: Status): string {
+export function statusLine(s: Status, scope?: { repo: string | null; ticket: string | null } | null): string {
   const parts = [`📚 ${s.profile}`];
+  if (scope?.repo) parts.push(`📦 ${scope.repo}`);
+  if (scope?.ticket) parts.push(`🎫 ${scope.ticket}`);
   if (s.focus.exists) parts.push(`🎯 ${s.focus.ageDays ?? 0}${t('ui.daysShort')}${s.focus.stale ? '!' : ''}`);
   if (s.inbox.open) parts.push(`📥 ${s.inbox.open}`);
   if (s.pending.length) parts.push(`⏳ ${s.pending.length}`);
@@ -35,9 +37,7 @@ export function printStatus(ctx: Ctx, s: Status): void {
     const tone = h.errors ? paint.err : h.warnings ? paint.warn : paint.ok;
     rows.push(['🩺', t('status.health'), tone(`${h.score}/100`) + paint.dim(` · ${tn('status.errors', h.errors)} · ${tn('status.warnings', h.warnings)}`)]);
   }
-  if (s.git.repo) {
-    rows.push(['🌿', 'Git', s.git.dirty ? paint.warn(tn('status.gitDirty', s.git.dirty)) : s.git.ahead ? paint.warn(tn('status.gitAhead', s.git.ahead)) : paint.ok(t('status.gitClean'))]);
-  }
+
   out.grid(rows.map((r) => [r[0]!, r[1]!, r[2]!]));
   if (s.pending.length) {
     out.heading(t('status.waiting'));
@@ -48,7 +48,6 @@ export function printStatus(ctx: Ctx, s: Status): void {
   if (!s.focus.exists) steps.push(`okb focus init${k}`);
   else if (s.focus.stale) steps.push(`okb focus${k}`);
   if (s.inbox.open) steps.push(`okb inbox${k}`);
-  if (s.git.repo && (s.git.ahead ?? 0) > 0) steps.push(`git -C "${s.kbRoot}" push`);
   out.next(steps);
 }
 
@@ -64,12 +63,16 @@ export async function cmdStatus(ctx: Ctx): Promise<number> {
   }
   const cfg = await config(ctx.args);
   const s = await computeStatus(cfg, { light: flagBool(ctx.args, 'brief') });
+  // The repository and ticket OKB is narrowed to, when they belong to this KB.
+  const { resolveScope } = await import('../../work/scope.js');
+  const sc = await resolveScope(process.cwd()).catch(() => null);
+  const scope = sc && sc.kb === cfg.profile.id ? { repo: sc.repo?.name ?? null, ticket: sc.ticket?.status === 'active' ? sc.ticket.ref : null } : null;
   if (ctx.mode === 'json') {
-    ctx.out.json({ ok: true, ...s, line: statusLine(s), ui: lang() });
+    ctx.out.json({ ok: true, ...s, scope, line: statusLine(s, scope), ui: lang() });
     return 0;
   }
   if (flagBool(ctx.args, 'brief')) {
-    ctx.out.line(statusLine(s));
+    ctx.out.line(statusLine(s, scope));
     return 0;
   }
   printStatus(ctx, s);

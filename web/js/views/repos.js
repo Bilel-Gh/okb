@@ -24,9 +24,16 @@ export async function render({ view, arg, mount }) {
   if (view === 'repo' && arg) return renderRepo(mount, arg);
   setTitle(t('web.nav.repos'));
   mount.append(loading(4));
-  const { repos } = await get('/api/repos');
+  const { repos, tickets = [], workspaces = [] } = await get('/api/repos');
   clear(mount);
   mount.append(h('p', { class: 'lead muted' }, t('web.repos.lead')));
+  for (const w of workspaces) {
+    mount.append(h('div', { class: 'row small muted', style: { gap: '8px', flexWrap: 'wrap', marginBottom: '10px' } },
+      h('span', null, `🗂️ ${t('web.repos.workspace', { name: w.name })}`), '·', h('span', { class: 'mono' }, w.roots.join(', ')),
+      w.prefixes.length ? badge(`🎫 ${w.prefixes.join(', ')}`) : null));
+  }
+  const active = tickets.filter((tk) => tk.status === 'active');
+  if (active.length) mount.append(ticketsCard(active, true), h('div', { style: { height: '16px' } }));
   if (!repos.length) {
     mount.append(empty('📦', t('web.repos.none'), t('web.repos.noneText'), h('div', { class: 'stack', style: { width: 'min(520px, 100%)' } }, cmdBox('/okb:onboard'), cmdBox('cd <repo> && okb repo add'))));
     return;
@@ -38,6 +45,7 @@ export async function render({ view, arg, mount }) {
     return h('div', { class: 'card hover', role: 'button', tabindex: '0', onclick: () => go(`#/repo/${encodeURIComponent(r.id)}`) },
       h('div', { class: 'card-head' }, h('span', { style: { fontSize: '20px' } }, '📦'), h('h2', null, r.name),
         s.pending.length ? badge(tn('web.repos.pending', s.pending.length), 'brand') : null,
+        active.some((tk) => tk.repos.some((x) => x.id === r.id)) ? badge(`🎫 ${active.filter((tk) => tk.repos.some((x) => x.id === r.id)).map((tk) => tk.ref).join(', ')}`, 'info') : null,
         s.stale ? badge(tn('web.repos.stale', s.stale), 'warn') : null),
       r.description ? h('p', { class: 'muted', style: { marginTop: 0 } }, r.description) : null,
       h('div', { class: 'row', style: { gap: '6px', flexWrap: 'wrap', marginBottom: '12px' } }, r.stack.map((x) => badge(x))),
@@ -110,6 +118,8 @@ async function renderRepo(mount, id) {
           badge(`✅ ${c.answered}`, 'ok'), badge(`🕓 ${c.pending}`, 'info'), badge(`📨 ${c.received}`), badge(`❓ ${c.unknown}`, 'warn'), badge(`⬜ ${c.open}`)),
         h('div', { class: 'small muted' }, t('web.repos.legend'))))));
 
+  if (d.tickets?.length) mount.append(h('div', { style: { height: '16px' } }), ticketsCard(d.tickets, false));
+
   // The onboarding questions, by theme, with whom to ask and an inline answer.
   mount.append(h('div', { style: { height: '16px' } }), questionsCard(repo, d.questions));
 
@@ -129,6 +139,23 @@ async function renderRepo(mount, id) {
     mount.append(h('div', { style: { height: '16px' } }), h('div', { class: 'card' }, h('div', { class: 'card-head' }, icon('globe', 17), h('h2', null, t('web.repos.landscapeTitle'))), article));
     enhance(article);
   }
+}
+
+/** Tickets OKB follows: branch, commits and what the work taught, before /okb:ticket writes the note. */
+function ticketsCard(tickets, showRepos) {
+  return h('div', { class: 'card' },
+    h('div', { class: 'card-head' }, h('span', { style: { fontSize: '18px' } }, '🎫'), h('h2', null, t('web.repos.tickets'))),
+    h('p', { class: 'small muted', style: { marginTop: 0 } }, t('web.repos.ticketsLead')),
+    h('div', { class: 'list' }, tickets.map((tk) => h('div', { class: 'list-item wrap', style: { alignItems: 'flex-start' } },
+      h('div', { class: 'grow' },
+        h('div', null, h('strong', null, tk.ref), tk.title && tk.title !== tk.ref ? ` · ${tk.title}` : ''),
+        h('div', { class: 'small muted' }, [
+          showRepos ? tk.repos.map((r) => r.branch ? `${r.id} (${r.branch})` : r.id).join(', ') : tk.branch ?? t('scope.noBranch'),
+          tn('scope.commits', tk.commits), rel(tk.updatedAt),
+        ].join(' · ')),
+        tk.journal.length ? h('div', { class: 'stack', style: { gap: '2px', marginTop: '6px' } }, tk.journal.map((j) => h('div', { class: 'small' }, h('span', { class: 'muted' }, `${t(`ticket.kind.${j.kind}`)} · `), j.text))) : null),
+      badge(t(`ticket.status.${tk.status}`), tk.status === 'active' ? 'info' : 'ok')))),
+    h('div', { style: { marginTop: '10px' } }, cmdBox('/okb:ticket')));
 }
 
 function questionsCard(repo, questions) {

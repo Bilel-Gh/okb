@@ -100,7 +100,7 @@ okb repo questions
 ```
 
 ```bash
-okb repo answer q-deploy "La prod est déployée par l'équipe plateforme, le jeudi" --by "Marie"
+okb repo answer q-deploy "La prod est déployée par l'équipe plateforme, le jeudi" --by "dev senior"
 ```
 
 ```bash
@@ -112,24 +112,26 @@ okb repo interview
 - `okb repo interview` est fait pour un collègue qui connaît le repo : il répond
   à tout, une question après l'autre.
 
-Une réponse devient une **source datée** (« Réponse de Marie, 4 octobre ») que la
+Une réponse devient une **source datée** (« Réponse du dev senior, 4 octobre ») que la
 note peut citer. Au prochain `/okb:onboard`, Claude l'intègre dans la bonne note.
 Dans l'application web, chaque question ouverte a un bouton « Répondre ».
 
 ## Commencer un ticket
 
 ```text
-/okb:ticket je commence le ticket …
+/okb:ticket je commence le ticket ABC-123 …
 ```
 
-Claude garde le texte du ticket et cherche dans toute la KB ce qu'il touche, y
-compris les autres repos et les notes générales. Il te donne :
+OKB suit désormais le ticket : son point de départ, sa branche, ses commits, et
+un journal des décisions et des pièges que Claude y note en une ligne. Tout cela
+sans IA et sans rien écrire dans la KB.
+
+Claude cherche dans la KB ce que le ticket touche (ce repo d'abord, puis les
+notes communes et les autres repos) et te donne :
 - les notes à lire d'abord ;
 - les fichiers qui vont sans doute changer ;
 - les questions ouvertes que le ticket rencontre ;
 - un plan court.
-
-Il n'écrit rien : la note de ticket vient quand le travail est fini.
 
 ## Après un ticket
 
@@ -137,18 +139,20 @@ Il n'écrit rien : la note de ticket vient quand le travail est fini.
 /okb:ticket
 ```
 
-Ou en clair : « j'ai fini mon ticket ». Claude te demande le texte du ticket,
-puis lit les commits et les fichiers modifiés de la branche. Il voit aussi les
-notes qui citent ces fichiers. Il prépare alors :
+Ou en clair : « j'ai fini mon ticket ». Claude rassemble le texte du ticket, ses
+commits (même fusionnés en un seul), son journal et les fichiers modifiés. Il
+voit aussi les notes qui citent ces fichiers. Il prépare alors :
 
 - une note de ticket : le besoin, ce qui a changé, comment c'est testé, ce qu'il
   faut retenir ;
 - une section datée dans la **carte du code**, pour ce qui servira au prochain
   ticket : « pour changer X → tel fichier », un piège, une règle métier ;
-- la mise à jour des notes dont le comportement décrit a changé.
+- la mise à jour des notes dont le comportement décrit a changé ;
+- dans la partie commune de la KB, ce qui dépasse ce repo : une règle métier,
+  un nouveau terme, une fonctionnalité qui traverse plusieurs repos.
 
 `okb done` (fin de session) propose aussi `/okb:ticket` quand tu as travaillé
-dans un repo documenté.
+dans un repo documenté. Le détail : [Un ticket, du début à la fin](espace-de-travail.md#un-ticket-du-début-à-la-fin).
 
 ## Quand le code bouge
 
@@ -169,11 +173,12 @@ manifeste. `/okb:onboard refresh` met les notes à jour.
 
 ## Dans Claude, au quotidien
 
-Quand tu ouvres Claude dans un repo documenté, il sait :
+Quand tu ouvres Claude dans un repo documenté, il reçoit un court brief :
 
-- que la KB du repo existe et quelles notes elle contient ;
-- combien de questions restent ouvertes ;
-- quelles notes sont peut-être dépassées.
+- les notes du repo, dans l'ordre de lecture ;
+- les notes communes liées au repo (métier, fonctionnalités) ;
+- les repos avec lesquels il communique ;
+- le ticket en cours, avec ses commits et son journal.
 
 Il lit la bonne note avant de fouiller le code, et la cite. Dans un repo pas
 encore documenté, il peut te proposer `/okb:onboard` si tu dis que tu le
@@ -182,69 +187,18 @@ découvres.
 Les commandes `okb` lancées depuis un repo documenté visent automatiquement sa
 KB : `okb status`, `okb ask`, `okb doctor`…
 
-## Tous les repos d'une équipe : une KB de travail
+## Tous les repos d'une équipe
 
-Quand tu travailles sur beaucoup de repos qui se parlent, le plus simple est
-**une seule KB de travail, avec une pièce par repo** :
-
-```text
-~/Documents/<tes repos>/        les repos, intacts : OKB n'y écrit rien
-~/Documents/<ta KB>/            la KB de travail, confidentielle, sur cet ordinateur
-  concepts/                    le vocabulaire métier et technique, une fiche par notion
-  guides/                      l'application, ses fonctionnalités, l'architecture d'ensemble
-  procedures/  tutos/          faire : poste de travail, déployer, débugger, accès
-  decisions/  reunions/        pourquoi c'est ainsi ; démos, passations
-  parcours/                    par où commencer sur un sujet
-  repos/
-    paysage.md                 qui appelle qui, d'après le code
-    <repo>/                    la KB du repo : comprendre, démarrer, architecture,
-                               interfaces, livrer, carte du code, questions ouvertes,
-                               et une note par ticket
-```
-
-Pourquoi une seule KB plutôt qu'une par repo :
-- **Les liens.** Une fonctionnalité traverse plusieurs repos : sa note générale
-  pointe vers les interfaces de chacun. La recherche et le graphe voient tout.
-- **Pas de doublons.** Une notion comme XSUAA a une seule fiche, utilisée par
-  tous les repos.
-- **Le paysage.** OKB calcule les connexions entre repos (services, événements,
-  destinations), mais seulement entre les repos d'une même KB.
-- **Ça se vit quand même comme une KB par repo.** Ouvre Claude Code dans un
-  repo : OKB reconnaît le repo par son chemin et donne à Claude ses notes et ses
-  questions ouvertes. `/okb:onboard` crée sa pièce, `/okb:ticket` la nourrit. Dans
-  l'app web, la page Repos montre chaque repo, et le graphe se filtre par zone
-  (`repos/<repo>`).
-- **Rien dans les repos.** Aucun fichier n'est ajouté à tes repos : rien ne
-  part par erreur dans un commit de l'équipe.
-
-Une KB à part pour un repo n'a de sens que si sa confidentialité ou son public
-diffère (`okb repo add --kb <autre>`).
-
-**Mise en place**, une fois :
+Si tes repos sont rangés dans un même dossier, fais-en un **espace de travail** :
+une seule KB, un espace par repo, et OKB se concentre tout seul sur le repo et le
+ticket dont tu parles. Un repo isolé a plutôt sa **KB de repo**, dont il est le
+seul sujet : [Choisir son organisation](choisir-son-organisation.md).
 
 ```bash
-okb kb add ~/Documents/<ta KB>
+okb workspace add ~/dev/mon-equipe
 ```
 
-```bash
-okb repo add --all ~/Documents/<tes repos> --kb <ta KB>
-```
-
-```bash
-okb repo landscape --propose --kb <ta KB>
-```
-
-1. `okb kb add` connecte la KB existante (ou `okb new` en crée une). Réponds
-   « oui » à « KB confidentielle ».
-2. `okb repo add --all` enregistre d'un coup chaque repo du dossier et en dresse
-   la carte, sans IA, en quelques secondes par repo. Une KB rangée dans le même
-   dossier n'est pas prise pour un repo.
-3. `okb repo landscape --propose` prépare la note des connexions entre repos.
-4. Si la KB date d'avant OKB, `/okb:convert` dans Claude Code : chaque note qui
-   parle surtout d'un repo va dans `repos/<repo>/`, le reste dans les dossiers
-   généraux.
-5. Ensuite, repo par repo, au moment où tu en as besoin : `/okb:onboard` la
-   première fois, puis `/okb:ticket` au début et à la fin de chaque ticket.
+→ [Plusieurs repos : l'espace de travail](espace-de-travail.md)
 
 ## Plusieurs repos
 
@@ -270,7 +224,8 @@ Montre comment les repos d'une même KB se relient, d'après leurs déclarations
 | `okb repo plan` | le plan de lecture, zone par zone |
 | `okb repo questions` · `answer` · `interview` | les questions d'onboarding et leurs réponses |
 | `okb repo update` | ce qui a changé depuis l'écriture des notes |
-| `okb repo ticket` | le contexte d'une branche terminée (utilisé par `/okb:ticket`) |
+| `okb repo ticket` | le contexte d'une branche terminée, sans ticket suivi |
+| `okb workspace` · `okb scope` · `okb ticket` | l'espace de travail, le périmètre, le suivi des tickets : [voir le guide](espace-de-travail.md#les-commandes) |
 | `okb repo landscape` | les liens entre les repos d'une KB |
 | `okb repo list` · `remove` | les repos suivis ; arrêter d'en suivre un (ses notes restent) |
 

@@ -5,6 +5,9 @@
  * to make: ask the person, with buttons, whether OKB should take over with the
  * matching command. Nothing runs unless the person says yes.
  *
+ * At the top of a workspace, a message naming one repository or a ticket
+ * narrows OKB's scope to it, and Claude gets that repository's brief.
+ *
  * Silent for slash commands, when OKB is not set up, when the profile turns
  * suggestions off (routing.suggest: false) and for requests that name another
  * knowledge tool. Never blocks the prompt; any failure means no suggestion.
@@ -25,7 +28,7 @@ process.stdin.on('end', () => {
   // Notices Claude Code delivers as prompts (a background task that ended…) are not the user.
   if (/^<(task-notification|system-reminder|local-command-[a-z]+|command-[a-z]+)>/.test(prompt)) process.exit(0);
   const args = ['route', '--suggest', '--stdin', '--json', ...(input?.cwd ? ['--cwd', String(input.cwd)] : [])];
-  const child = execFile(okb, args, { timeout: 4000, maxBuffer: 200_000, env: process.env }, (error, stdout) => {
+  const child = execFile(okb, args, { timeout: 6000, maxBuffer: 200_000, env: process.env, ...(input?.cwd ? { cwd: String(input.cwd) } : {}) }, (error, stdout) => {
     if (error) process.exit(0);
     try {
       const out = JSON.parse(String(stdout));

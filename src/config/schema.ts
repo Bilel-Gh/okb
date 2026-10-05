@@ -71,10 +71,17 @@ const kbSchema = z
     requireTemplate: z.boolean().default(false),
     /**
      * Knowledge that must stay on this machine (company code, client work): no
-     * web connector, no GitHub repository from the wizard, and `okb doctor`
-     * warns when the folder is synchronised by a cloud or the KB has a remote.
+     * web connector, and `okb doctor` warns when the folder is synchronised by a
+     * cloud or the KB has a Git remote. OKB itself never commits nor pushes a KB.
      */
     confidential: z.boolean().default(false),
+    /**
+     * What the KB is for: a subject (`topic`), one code repository (`repo`: its
+     * notes at the root of the KB), or the repositories of a team (`workspace`:
+     * one space per repository under `repos/<id>/`, the rest shared). Absent on
+     * KBs made before 0.10: inferred (a KB that holds repositories is a workspace).
+     */
+    kind: z.enum(['topic', 'repo', 'workspace']).optional(),
     /** Treat links to not-yet-written documents as warnings, per OKF §6.1. */
     brokenTargetsAre: z.enum(['error', 'warning']).default('warning'),
   })
@@ -84,7 +91,7 @@ const okfSchema = z
   .object({
     version: z.literal('0.2').default('0.2'),
     /** Actor recorded in `generated.by` for machine-authored content. */
-    machineActor: z.string().default('okb/0.9'),
+    machineActor: z.string().default('okb/0.10'),
     productRules: z
       .object({
         requiredFields: z

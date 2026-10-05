@@ -8,7 +8,6 @@ import { formatDate, relativeTime, t, tn } from '../../i18n/index.js';
 import { capture, findInboxItem, listInbox, settleInboxItem } from '../../inbox/inbox.js';
 import { loadBundleFor } from '../../kb/bundle.js';
 import { obsidianInstalled, obsidianUrl, openExternal } from '../../integrations/system.js';
-import { ask } from '../../pipeline/ask.js';
 import { draftSkill, writeSkillDraft } from '../../skillify/skillify.js';
 import { OkbError } from '../../util/errors.js';
 import { readTextIfExists } from '../../util/fsx.js';
@@ -208,11 +207,17 @@ export async function cmdAsk(ctx: Ctx): Promise<number> {
   let query = args.positionals.join(' ').trim();
   if (!query && canAsk(ctx)) query = await input(t('ask.q'), { placeholder: t('ask.placeholder') });
   if (!query) throw new OkbError('E_INVALID', 'usage: okb ask "<question>"', { key: 'usage', params: { usage: 'okb ask "<question>"' } });
-  const result = await ask(config, query, {
+  // Inside a repository's scope (its folder, or the one chosen in a workspace), its notes come first;
+  // a repository with its own KB in a workspace also gets the workspace's shared notes.
+  const { scopedAsk } = await import('../../work/cli-scope.js');
+  const { result, scope } = await scopedAsk(config, query, {
     ...(flagNumber(args, 'limit') !== undefined ? { limit: flagNumber(args, 'limit')! } : {}),
     ...(flagString(args, 'cursor') ? { cursor: flagString(args, 'cursor')! } : {}),
+    ...(flagString(args, 'repo') ? { repo: flagString(args, 'repo')! } : {}),
+    everywhere: flagBool(args, 'everywhere'),
   });
-  if (ctx.mode === 'json') { out.json({ ok: true, ...result }); return 0; }
+  if (ctx.mode === 'json') { out.json({ ok: true, ...result, scope }); return 0; }
+  if (scope) out.line(paint.dim(t(scope.sharedKb ? 'ask.scopeShared' : 'ask.scope', { repo: scope.name, kb: scope.sharedKb ?? '' })));
   if (!result.hits.length) {
     out.info(t('ask.none'));
     out.tip(t('ask.noneTip'));
@@ -221,10 +226,10 @@ export async function cmdAsk(ctx: Ctx): Promise<number> {
   const useObsidian = await obsidianInstalled();
   out.line(paint.dim(t('ask.found', { n: result.hits.length, query })));
   for (const [i, h] of result.hits.entries()) {
-    const absPath = resolve(config.kb.root, h.path);
+    const absPath = resolve(h.root, h.path);
     const target = useObsidian ? link(paint.bold(h.title), obsidianUrl(absPath)) : fileLink(paint.bold(h.title), absPath);
-    out.line(`\n${paint.dim(`${i + 1}.`)} ${target}  ${paint.dim(h.path)}`);
-    for (const e of result.evidence.filter((x) => x.path === h.path).slice(0, 2)) out.line(`   ${paint.dim('│')} ${e.quote.replace(/\s+/g, ' ').slice(0, 200)} ${paint.dim(`(l.${e.line})`)}`);
+    out.line(`\n${paint.dim(`${i + 1}.`)} ${target}  ${paint.dim(h.kb !== config.profile.id ? `${h.kb} · ${h.path}` : h.path)}`);
+    for (const e of result.evidence.filter((x) => x.path === h.path && (!('kb' in x) || x.kb === h.kb)).slice(0, 2)) out.line(`   ${paint.dim('│')} ${e.quote.replace(/\s+/g, ' ').slice(0, 200)} ${paint.dim(`(l.${e.line})`)}`);
   }
   if (result.prerequisites.length) out.line(`\n${sym.tip()} ${t('ask.prereq')} ${result.prerequisites.map((p) => p.path).join(', ')}`);
   out.truncation(result.truncation, `okb ask "${query}"`);

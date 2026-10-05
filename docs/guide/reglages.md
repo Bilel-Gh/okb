@@ -42,7 +42,13 @@ montre les consignes exactes que suit Claude.
 | `focus.file` · `focus.journal` | où sont ta note de focus et ton journal (hors de la KB) |
 | `focus.sessionStart` | donner le focus à Claude au début de chaque session |
 | `focus.staleDays` | après combien de jours OKB te propose de le mettre à jour |
-| `git.autoCommit` | un commit Git par changement appliqué ; l’envoi (`git push`) reste manuel |
+
+### Tes KB restent locales
+
+Une KB est un simple dossier sur ton ordinateur. OKB ne la met jamais sous Git,
+ne fait aucun commit et n'ajoute aucun remote. L'annulation (`okb undo`) repose
+sur ses propres sauvegardes, dans `~/.okb/`. Si tu veux un historique ou une
+copie ailleurs, c'est toi qui t'en occupes, avec tes propres outils.
 
 ## Plusieurs KB
 

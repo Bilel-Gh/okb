@@ -6,7 +6,7 @@ import { writeTextAtomic } from '../util/fsx.js';
 import { branchBase, commitsBetween, diffNames, gitIdentity, type CommitInfo, type FileChange } from './git.js';
 import { classify } from './inventory.js';
 import { repoNotes, type RepoContext } from './notes.js';
-import { notePath, ticketPath } from './pack.js';
+import { isFlat, notePath, ticketPath } from './pack.js';
 import { loadProgress } from './state.js';
 
 /**
@@ -29,14 +29,28 @@ export type TicketContext = {
   readonly suggested: { readonly ticketNote: string; readonly codemap: string };
 };
 
-export async function ticketContext(ctx: RepoContext, input: { base?: string; title?: string; ticket?: string; by?: string }): Promise<TicketContext> {
+/** What a followed ticket already knows: where it started, its branch, its journal. */
+export type TicketFollow = {
+  readonly from: { readonly ref: string; readonly sha: string };
+  /** The branch's tip (`HEAD` when checked out), or null when the branch is gone. */
+  readonly to: string | null;
+  readonly journal: readonly { readonly kind: string; readonly text: string; readonly sha?: string; readonly repo?: string }[];
+};
+
+export async function ticketContext(ctx: RepoContext, input: { base?: string; title?: string; ticket?: string; by?: string; follow?: TicketFollow }): Promise<TicketContext> {
   const { repo, config, paths } = ctx;
-  const base = await branchBase(repo.path, input.base);
+  const follow = input.follow;
+  const base = follow?.from ?? await branchBase(repo.path, input.base);
   if (!base) throw new OkbError('E_NOT_FOUND', 'cannot find where this branch started', { key: 'repoNoBase', hint: 'Pass the branch it started from: --base main (or origin/develop).' });
   const identity = await gitIdentity(repo.path);
-  const commits = await commitsBetween(repo.path, base.sha);
-  const changes = ((await diffNames(repo.path, base.sha)) ?? []).map((c) => ({ ...c, kind: classify(c.path).kind }));
-  if (!commits.length && !changes.length) throw new OkbError('E_NOT_FOUND', 'nothing changed on this branch yet', { key: 'repoNoChanges', params: { base: base.ref } });
+  const tip = follow ? follow.to : 'HEAD';
+  const commits = tip ? await commitsBetween(repo.path, base.sha, tip) : [];
+  // Without a follow-up, uncommitted work counts too (diff against the working tree).
+  const changes = (tip ? (await diffNames(repo.path, base.sha, follow ? tip : undefined)) ?? [] : []).map((c) => ({ ...c, kind: classify(c.path).kind }));
+  const journal = (follow?.journal ?? []).filter((j) => !j.repo || j.repo === repo.id);
+  const lostCommits = journal.filter((j) => j.kind === 'commit' && j.sha && !commits.some((c) => c.sha === j.sha));
+  const learned = journal.filter((j) => ['decision', 'trap', 'question', 'note'].includes(j.kind));
+  if (!commits.length && !changes.length && !lostCommits.length && !learned.length) throw new OkbError('E_NOT_FOUND', 'nothing changed on this branch yet', { key: 'repoNoChanges', params: { base: base.ref } });
   if (input.ticket) assertNoSecrets({ ticket: input.ticket }, 'ticket text');
   const lang = config.writing.language ?? config.profile.answer.language;
   const fr = lang.startsWith('fr');
@@ -47,7 +61,7 @@ export async function ticketContext(ctx: RepoContext, input: { base?: string; ti
   const progress = await loadProgress(paths);
   const changed = new Set(changes.flatMap((c) => [c.path, ...(c.from ? [c.from] : [])]));
   const prefix = `${repo.name}/`;
-  const affectedNotes = repoNotes(bundle, repo.id).map((n) => {
+  const affectedNotes = repoNotes(bundle, repo.id, isFlat(config)).map((n) => {
     const fromAnchors = Object.keys(progress.anchors[n.path]?.files ?? {});
     const sources = bundle.docs.get(n.path)?.data.sources;
     const fromSources = Array.isArray(sources) ? (sources as { title?: unknown }[]).map((s) => (typeof s?.title === 'string' && s.title.startsWith(prefix) ? s.title.slice(prefix.length) : null)).filter((x): x is string => x !== null) : [];
@@ -71,15 +85,30 @@ export async function ticketContext(ctx: RepoContext, input: { base?: string; ti
     }
     lines.push('');
   }
-  lines.push(`## ${fr ? 'Fichiers modifiés' : 'Changed files'}`, '');
-  for (const c of changes) lines.push(`- ${c.status} ${c.from ? `${c.from} → ` : ''}${c.path}`);
-  lines.push('');
+  if (lostCommits.length) {
+    lines.push(`## ${fr ? 'Commits relevés pendant le travail (plus sur la branche)' : 'Commits seen during the work (no longer on the branch)'}`, '');
+    for (const c of lostCommits) lines.push(`- ${c.sha!.slice(0, 10)} : ${c.text}`);
+    lines.push('');
+  }
+  if (learned.length) {
+    const label: Record<string, string> = fr
+      ? { decision: 'Décision', trap: 'Piège', question: 'Question', note: 'Note' }
+      : { decision: 'Decision', trap: 'Trap', question: 'Question', note: 'Note' };
+    lines.push(`## ${fr ? 'Journal du ticket (noté pendant le travail)' : 'Ticket journal (noted during the work)'}`, '');
+    for (const j of learned) lines.push(`- ${label[j.kind] ?? j.kind} : ${j.text}`);
+    lines.push('');
+  }
+  if (changes.length) {
+    lines.push(`## ${fr ? 'Fichiers modifiés' : 'Changed files'}`, '');
+    for (const c of changes) lines.push(`- ${c.status} ${c.from ? `${c.from} → ` : ''}${c.path}`);
+    lines.push('');
+  }
   const text = lines.join('\n');
   assertNoSecrets({ text }, 'ticket context');
   const file = resolve(paths.tickets, `${day}-${title.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'ticket'}.md`);
   await writeTextAtomic(file, text);
   return {
     file, title, branch: identity.branch, base, head: identity.head, commits, changes, affectedNotes,
-    suggested: { ticketNote: ticketPath(repo.id, title), codemap: notePath(repo.id, 'codemap', lang) },
+    suggested: { ticketNote: ticketPath(repo.id, title, new Date(), isFlat(config)), codemap: notePath(repo.id, 'codemap', lang, isFlat(config)) },
   };
 }

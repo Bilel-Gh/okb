@@ -78,6 +78,8 @@ export class GraphView {
     this.hover = null;
     this.selected = null;
     this.highlight = null;
+    /** Nodes drawn with a ring, without dimming the others (the repository in scope). */
+    this.ringed = new Set();
     this.pointers = new Map();
     /** Keep everything in view while the layout settles, until the person zooms, pans or focuses. */
     this.autoFit = true;
@@ -183,7 +185,8 @@ export class GraphView {
     for (const e of this.edges) { degree.set(e.source.id, (degree.get(e.source.id) ?? 0) + 1); degree.set(e.target.id, (degree.get(e.target.id) ?? 0) + 1); }
     this.adj = new Map(nodes.map((n) => [n.id, new Set()]));
     for (const e of this.edges) { this.adj.get(e.source.id).add(e.target.id); this.adj.get(e.target.id).add(e.source.id); }
-    for (const n of nodes) { n.degree = degree.get(n.id) ?? 0; n.r = (this.mini ? 4 : 4.5) + Math.sqrt(n.degree) * (this.mini ? 1.6 : 2.1) + (n.id === this.filter.focus ? 3 : 0); }
+    // A node may carry a weight (a repository's number of notes, in the workspace view): bigger disc.
+    for (const n of nodes) { n.degree = degree.get(n.id) ?? 0; n.r = (this.mini ? 4 : 4.5) + Math.sqrt(n.degree) * (this.mini ? 1.6 : 2.1) + (n.weight ? Math.min(16, Math.sqrt(n.weight) * 1.8) : 0) + (n.id === this.filter.focus ? 3 : 0); }
 
     // Level 1: the groups.
     const grouped = !this.mini && this.options.groupBy !== 'none';
@@ -308,6 +311,7 @@ export class GraphView {
   }
 
   setHighlight(ids) { this.highlight = ids ? new Set(ids) : null; this.draw(); }
+  setRinged(ids) { this.ringed = new Set(ids ?? []); this.draw(); }
 
   toWorld(px, py) { const t = this.transform; return { x: (px - t.x) / t.k, y: (py - t.y) / t.k }; }
 
@@ -470,7 +474,7 @@ export class GraphView {
       ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
       ctx.fillStyle = this.colorOf(n.category);
       ctx.fill();
-      if (n === this.selected || n.id === this.filter.focus) {
+      if (n === this.selected || n.id === this.filter.focus || this.ringed.has(n.id)) {
         ctx.lineWidth = 2.5 / k;
         ctx.strokeStyle = text;
         ctx.stroke();

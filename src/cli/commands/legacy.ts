@@ -690,8 +690,37 @@ async function routeSuggest(args: ParsedArgs, out: Output, mode: OutputMode): Pr
   const kbs = (await listKbs()).map((k) => ({ id: k.id, name: k.name }));
   const otherTools = [...new Set([...configured, ...(await detectOtherKnowledgeTools(flagString(args, 'cwd')))])];
   const suggestion = enabled ? suggestIntent(message, { kbs, otherTools }) : null;
-  const context = suggestion ? renderOffer(suggestion, lang()) : '';
-  if (mode === 'json') out.json({ ok: true, enabled, suggestion, context });
+  const scope = flagString(args, 'cwd') ? await scopeFromPrompt(message, flagString(args, 'cwd')!) : null;
+  const context = [scope?.text ?? '', suggestion ? renderOffer(suggestion, lang()) : ''].filter(Boolean).join('\n\n');
+  if (mode === 'json') out.json({ ok: true, enabled, suggestion, scope: scope ? { repo: scope.repo, ticket: scope.ticket, changed: scope.changed } : null, context });
   else if (context) out.line(context);
   return 0;
+}
+
+/**
+ * At the top of a workspace, a message naming one repository or a ticket
+ * narrows OKB to it: Claude gets that repository's brief at once. A ticket
+ * OKB does not follow yet comes with how to start following it.
+ */
+async function scopeFromPrompt(message: string, cwd: string): Promise<{ text: string; repo: string; ticket: string | null; changed: boolean } | null> {
+  try {
+    const { resolveScope, scopeFromMessage } = await import('../../work/scope.js');
+    const scope = await resolveScope(resolve(cwd));
+    const hit = await scopeFromMessage(message, scope);
+    if (!hit) return null;
+    const lines: string[] = [];
+    const { buildBrief, renderBrief, startLine } = await import('../../work/brief.js');
+    const newRef = hit.ref && !hit.ticket ? hit.ref : null;
+    if (hit.changed) {
+      const { scopeFor } = await import('../../work/scope.js');
+      const brief = await buildBrief(await scopeFor(scope.workspace, hit.repo, hit.ticket, 'chosen'), { sync: true });
+      lines.push(`OKB narrowed its scope to "${hit.repo.name}"${hit.ticket ? ` and ticket ${hit.ticket.ref}` : ''} because the user named it: say so in one short line (🎯 ${hit.repo.name}${hit.ticket ? ` · 🎫 ${hit.ticket.ref}` : ''}) and work from this brief.`);
+      if (brief) lines.push(renderBrief(brief, { mentionedRef: newRef }));
+    } else if (newRef) {
+      lines.push(startLine(newRef, hit.repo.id));
+    }
+    return lines.length ? { text: lines.join('\n'), repo: hit.repo.id, ticket: hit.ticket?.ref ?? hit.ref, changed: hit.changed } : null;
+  } catch {
+    return null;
+  }
 }

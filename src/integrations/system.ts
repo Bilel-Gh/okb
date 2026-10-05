@@ -118,42 +118,6 @@ export async function installLauncher(dir: string): Promise<string> {
   return path;
 }
 
-/* ---------- Git and GitHub ---------- */
-
-export async function gitAvailable(): Promise<boolean> {
-  return (await which('git')) !== null;
-}
-
-export async function ghState(): Promise<{ cli: string | null; loggedIn: boolean; user: string | null }> {
-  const cli = (await which('gh')) ?? (await access('/opt/homebrew/bin/gh').then(() => '/opt/homebrew/bin/gh', () => null));
-  if (!cli) return { cli: null, loggedIn: false, user: null };
-  const r = await tryRun(cli, ['api', 'user', '--jq', '.login'], { timeout: 15_000 });
-  return { cli, loggedIn: r.ok && Boolean(r.out), user: r.ok ? r.out : null };
-}
-
-/** `git init` with a first commit of what is there (README in `.github/` so OKB never reads it as a note). */
-export async function initKbRepository(root: string, readme: string): Promise<{ ok: boolean; error?: string }> {
-  const { writeTextAtomic } = await import('../util/fsx.js');
-  const already = await tryRun('git', ['-C', root, 'rev-parse', '--show-toplevel']);
-  if (already.ok && resolve(already.out) === resolve(root)) return { ok: true };
-  const init = await tryRun('git', ['-C', root, 'init', '-q', '-b', 'main']);
-  if (!init.ok) return { ok: false, error: init.err };
-  await writeTextAtomic(resolve(root, '.github', 'README.md'), readme);
-  await tryRun('git', ['-C', root, 'add', '-A']);
-  const commit = await tryRun('git', ['-C', root, 'commit', '-q', '-m', 'KB créée avec OKB']);
-  return commit.ok ? { ok: true } : { ok: false, error: commit.err };
-}
-
-/** A private GitHub repository for the KB, pushed. Only with `gh` logged in, only on request. */
-export async function createPrivateRepo(root: string, name: string, description: string): Promise<{ ok: boolean; url?: string; error?: string }> {
-  const gh = await ghState();
-  if (!gh.cli || !gh.loggedIn) return { ok: false, error: 'gh-not-logged-in' };
-  const r = await tryRun(gh.cli, ['repo', 'create', name, '--private', '--description', description, '--source', root, '--remote', 'origin', '--push'], { cwd: root, timeout: 120_000 });
-  if (!r.ok) return { ok: false, error: r.err };
-  const url = await tryRun(gh.cli, ['repo', 'view', name, '--json', 'url', '--jq', '.url'], { cwd: root });
-  return { ok: true, ...(url.ok ? { url: url.out } : {}) };
-}
-
 /* ---------- Opening things ---------- */
 
 export function obsidianUrl(absolutePath: string): string {

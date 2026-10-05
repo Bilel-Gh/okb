@@ -23,13 +23,13 @@ export async function connectKb(input: { folder: string; name: string; confident
   // A folder marked by a KB that is no longer installed (removed earlier) can be taken back.
   const check = await checkFolder(root, id, env);
   if (check.state === 'okb' && check.owner && check.owner !== id && !kbs.some((k) => k.id === check.owner)) await writeOwner(root, id);
-  const wctx = await wizardContext(env, { github: false });
+  const wctx = await wizardContext(env);
   const activate = kbs.length === 0 || Boolean(input.activate);
   const answers = {
     ...defaultAnswers(wctx, name, lang()),
     // Keep the interface language already chosen on this computer.
     uiLanguage: (await readRootConfig(env)).ui?.language ?? ('auto' as Lang | 'auto'),
-    root, adopt: true, focus: 'later' as const, git: false, github: false, plugin: false, launcher: null, activate,
+    root, adopt: true, focus: 'later' as const, plugin: false, launcher: null, activate,
   };
   const created = await runWizard(answers, () => undefined, env);
   if (input.confidential) await writeSetting(created.id, 'kb.confidential', true, env);

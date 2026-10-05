@@ -3,7 +3,6 @@ import { readFile, stat, utimes } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, describe, expect, it } from 'vitest';
-import { commitKbChanges } from '../src/apply/git.js';
 import { focusBody, focusPaths, initFocus, readFocus, readLastSession, recordSession, renderFocusContext, sessionsSince, setFocus } from '../src/focus/focus.js';
 import { listInbox } from '../src/inbox/inbox.js';
 import { loadBundleFor } from '../src/kb/bundle.js';
@@ -193,33 +192,8 @@ describe('okb skillify', () => {
 describe('git.autoCommit', () => {
   const git = (cwd: string, ...args: string[]) => promisify(execFile)('git', ['-C', cwd, ...args]);
 
-  it('commits only the touched files and never anything else', async () => {
-    const { config } = await setup('git');
-    const root = config.kb.root;
-    await git(root, 'init', '-q', '-b', 'main');
-    await git(root, 'config', 'user.email', 'test@example.invalid');
-    await git(root, 'config', 'user.name', 'Test');
-    await git(root, 'add', '-A');
-    await git(root, 'commit', '-q', '-m', 'init');
-    const on = { ...config, git: { ...config.git, autoCommit: true } };
-    expect(await commitKbChanges(config, ['a.md'], 'x')).toEqual({ committed: false, reason: 'git.autoCommit is off' });
-
-    await writeFixture(resolve(root, 'guides/nouveau.md'), '# nouveau\n');
-    await writeFixture(resolve(root, 'brouillon-perso.md'), '# pas à moi\n');
-    const result = await commitKbChanges(on, ['guides/nouveau.md', 'jamais-cree.md'], 'okb: apply p-1');
-    expect(result).toMatchObject({ committed: true, paths: 1 });
-    const { stdout: files } = await git(root, 'show', '--name-only', '--format=%s', 'HEAD');
-    expect(files.trim().split('\n')).toEqual(['okb: apply p-1', '', 'guides/nouveau.md']);
-    const { stdout: status } = await git(root, 'status', '--porcelain');
-    expect(status).toContain('brouillon-perso.md');
-    expect(await commitKbChanges(on, ['guides/nouveau.md'], 'again')).toEqual({ committed: false, reason: 'no change to commit' });
-  });
-
-  it('is a no-op outside a repository and the bundle ignores hidden folders', async () => {
+  it('ignores hidden folders in the bundle', async () => {
     const { config } = await setup('git2');
-    const on = { ...config, git: { ...config.git, autoCommit: true } };
-    const result = await commitKbChanges(on, ['x.md'], 'm');
-    expect(result.committed).toBe(false);
     await writeFixture(resolve(config.kb.root, '.github/README.md'), '# Pour GitHub, pas une note\n');
     const bundle = await loadBundleFor(config);
     expect(bundle.entries.some((e) => e.path.startsWith('.github'))).toBe(false);

@@ -57,7 +57,7 @@ export async function render({ mount }) {
       h('div', { class: 'row muted' },
         h('span', null, tn('status.notes', s.notes, { concepts: s.concepts })), '·',
         h('span', null, t('status.writing', { lang: langName(s.writingLanguage) })),
-        s.git?.repo ? h('span', { class: 'badge ok' }, '🌿 Git') : null)),
+        null)),
     h('div', { style: { height: '16px' } }),
     h('div', { class: 'grid cols-4' },
       tile(t('status.pending'), String(s.pending.length), s.pending.length ? t('web.home.waitingYou') : t('status.pendingNone'), 'review', () => go('#/review'), s.pending.length ? 'brand' : null),

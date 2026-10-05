@@ -1,4 +1,4 @@
-# OKB — Open Knowledge Brain · 0.9.0
+# OKB — Open Knowledge Brain · 0.10.0
 
 **A local second brain for Claude Code and Obsidian, where nothing enters your
 notes without your approval.**
@@ -7,7 +7,7 @@ Claude reads your sources (meeting transcripts, documents, web pages, code) and
 writes the synthesis. A TypeScript core checks every sentence against an exact
 quotation of its source, prepares a reviewable diff, and applies it only after
 you approve, with a receipt you can roll back. The knowledge base stays a folder
-of plain Markdown files that you open in Obsidian and version with Git.
+of plain Markdown files on your computer, that you open in Obsidian or in the web app.
 
 **En français :** [démarrer](DEMARRER.md) · [guide d’utilisation](docs/guide/README.md).
 
@@ -61,12 +61,24 @@ repository, type `/okb:onboard` (or just say “I'm new to this repo”):
    - delivery;
    - open questions.
 
-A whole team's repositories: `okb repo add --all <folder> --kb <kb>` maps them all
-into one work KB, one room per repository. `/okb:ticket` at the start of a ticket
-gathers what the KB knows about it. After each ticket, `/okb:ticket` adds what you learned (a ticket note, “to change X
-→ this file” entries, traps). `okb repo update` tells which notes the code moved
-under. Company code goes into a **confidential KB** that stays on your machine.
-→ [Guide (FR)](docs/guide/repos.md) · [Design](docs/dev/REPOS.md)
+**Three kinds of KB**: a subject, one code repository (its notes at the root), or
+a team's repositories — a workspace. `okb repo add` advises which one fits.
+
+**A whole team's repositories — a workspace.** `okb workspace add <folder>` maps
+every repository of a folder into one KB, one space per repository plus a shared
+part (business concepts, features across repositories, decisions, how the
+repositories connect). OKB then narrows by itself to the repository and ticket
+you name (“I have ticket ABC-123 on orders-service”): Claude gets a short brief
+(its notes, the shared notes tied to it, its neighbours, the ticket), and
+`okb ask` ranks that scope first. A ticket is followed without AI — branch,
+commits, a journal of decisions and traps — and `/okb:ticket` turns it into
+cited updates at two levels: the repository's notes and the shared KB.
+`okb repo update` tells which notes the code moved under. Company code goes into
+a **confidential KB** that stays on your machine.
+A repository with its own KB can stay attached to a workspace (it gets the shared
+part) or be merged into it (`okb kb merge`). The web graph of a workspace shows it
+from above: one disc per repository, how their code connects, the scope.
+→ [Guide (FR)](docs/guide/repos.md) · [Workspace (FR)](docs/guide/espace-de-travail.md) · [Which organisation (FR)](docs/guide/choisir-son-organisation.md) · [Design](docs/dev/REPOS.md)
 
 ## Know what it costs, and whether it writes what you want
 
@@ -146,7 +158,8 @@ okb doctor     # check everything; --fix repairs what it can
 | Weekly review with spaced re-reading | “weekly review” | Weekly review | `okb weekly` |
 | Revise by active recall | “quiz me on this note” | Revise | `/okb:learn` |
 | Get started on a code repository | “I'm new to this repo” · `/okb:onboard` | Repositories | `okb repo add` · `okb repo status` |
-| Feed the repository's KB after a ticket | “I finished my ticket” · `/okb:ticket` | Repositories | `okb repo ticket` · `okb repo update` |
+| Feed the repository's KB after a ticket | “I finished my ticket” · `/okb:ticket` | Repositories | `okb ticket done` · `okb repo update` |
+| Work across a team's repositories | “I have ticket ABC-123 on orders-service” · `/okb:workspace` | Repositories | `okb workspace add` · `okb scope` · `okb ticket` |
 | Turn a procedure into a Claude skill | “turn this procedure into a skill” | Procedures → skills | `okb skillify` |
 | See all notes and how they connect | “show me my graph” | Graph | `okb categories` |
 | Check and repair the KB | “check my KB” | Health · Diagnostics | `okb maintain` · `okb doctor` |
@@ -167,7 +180,7 @@ okb doctor     # check everything; --fix repairs what it can
 | **Templates** | Guide, concept, procedure, tutorial, process, tool, automation, experience, client case, decision, meeting, learning path, and seven repository templates — fixed sections, headings and order |
 | **Style** | Presets `standard`, `pedagogique`, `expert` plus eight knobs and a reader level; a style change never rewrites existing notes |
 | **Languages** | Interface in French or English (automatic by default); notes written in French, English, Spanish, German, Italian or Portuguese, per KB |
-| **Review & apply** | Exact diffs, partial selection, signed approval, path policy, lock, receipts, undo, optional Git commit per apply |
+| **Review & apply** | Exact diffs, partial selection, signed approval, path policy, lock, receipts, undo (OKB never commits or pushes a KB) |
 | **Second-brain rituals** | Private inbox, weekly review with spaced re-reading (J+1, 7, 30, 90), active recall, focus note and end-of-session journal |
 | **Natural language** | A prompt hook recognises OKB requests in plain French or English and offers the matching command; it stays silent for other tools' knowledge bases |
 | **Web app** | Local only, every terminal feature, light and dark themes, keyboard palette, readable on a phone |
@@ -195,7 +208,7 @@ search of the existing KB → proposal → independent evidence review (a subage
 |---|---|
 | This repository | Generic code, plugin, web app, fictitious tests, example settings |
 | `~/.okb/` | Your settings and, per KB, the private state: proposals, approvals, receipts, backups, inbox |
-| Each KB folder | Your notes — versionable on its own, marked as OKB's by `.okb/owner.yaml` |
+| Each KB folder | Your notes, local, marked as OKB's by `.okb/owner.yaml` |
 | Beside your KBs | The focus note and the session journal |
 
 ## Several knowledge bases
@@ -207,8 +220,8 @@ second-brain/            ← Obsidian vault
 ├── 00 Home.md            hand-written, links every KB
 ├── 01 Focus.md           focus note shared by the KBs
 ├── journal/              session journal
-├── kb-work/              KB "work"      · its own Git repository
-└── kb-project-x/         KB "project-x" · its own Git repository
+├── kb-work/              KB "work"
+└── kb-project-x/         KB "project-x"
 ```
 
 Separate KBs when sharing, confidentiality or reader level differ; otherwise one
@@ -252,7 +265,7 @@ filesystem transaction.
   [templates](docs/dev/TEMPLATES.md) · [style](docs/dev/STYLE.md) ·
   [installation details](docs/dev/INSTALL.md) · [context budget](docs/dev/CONTEXT.md) · [cost and quality](docs/dev/COSTS.md) ·
   [Claude compatibility](docs/dev/CLAUDE-COMPATIBILITY.md) · [evaluation](docs/dev/EVALUATION.md)
-- **Release notes:** [0.9.0](docs/releases/RELEASE-0.9.0.md) · [0.8.0](docs/releases/RELEASE-0.8.0.md) · [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
+- **Release notes:** [0.10.0](docs/releases/RELEASE-0.10.0.md) · [0.9.0](docs/releases/RELEASE-0.9.0.md) · [0.8.0](docs/releases/RELEASE-0.8.0.md) · [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
   [0.4.0](docs/releases/RELEASE-0.4.0.md) · [0.3.0](docs/releases/RELEASE-0.3.0.md) ·
   [0.2.0](docs/releases/RELEASE-0.2.0.md)
 

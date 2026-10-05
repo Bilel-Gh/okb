@@ -16,7 +16,7 @@ import { resolve } from 'node:path';
 export type IntentId =
   | 'done' | 'ingest' | 'ask' | 'capture' | 'inbox' | 'focus' | 'weekly' | 'learn' | 'review'
   | 'undo' | 'maintain' | 'revise' | 'skillify' | 'setup' | 'switch' | 'status' | 'serve' | 'onboard' | 'ticket'
-  | 'usage' | 'feedback' | 'convert';
+  | 'usage' | 'feedback' | 'convert' | 'workspace';
 
 type Rule = {
   readonly id: IntentId;
@@ -39,7 +39,17 @@ export const INTENT_RULES: readonly Rule[] = [
     /\b(onboard me|get me started|help me (understand|get started (on|with))) (on |with )?(this|the) (repo|repository|codebase|project)\b/i,
     /\b(explain|walk me through) (this|the) (repo|repository|codebase)\b/i,
   ], not: [/\b(cr[ée]e|initialise|clone)[-\s]?(moi )?(un |le )?(nouveau )?(repo|d[ée]p[ôo]t)\b/i, /\b(create|init|clone) (a |the )?(new )?(repo|repository)\b/i] },
+  { id: 'workspace', command: '/okb:workspace', okbOnly: false, patterns: [
+    /\b(dossier|r[ée]pertoire)\b.{0,40}\b(tous|toutes|plein de|avec) (mes |les |nos )?(repos|d[ée]p[ôo]ts|projets|microservices)\b/i,
+    /\b(organise[rz]?|ranger|structure[rz]?)\b.{0,30}\b(mes |les |nos )?(repos|d[ée]p[ôo]ts)\b.{0,40}\b(kb|okb|base de connaissances?)\b/i,
+    /\b(une|la) kb (pour|de) (toute l['’][ée]quipe|tous (mes|les|nos) repos|l['’]ensemble des repos)\b/i,
+    /\b(folder|directory) (with|of|holding) (all )?(my |our |the )?(repos|repositories)\b/i,
+    /\b(one|a) (kb|knowledge base) for (all )?(my |our |the team['’]s )?(repos|repositories)\b/i,
+  ] },
   { id: 'ticket', command: '/okb:ticket', okbOnly: false, patterns: [
+    /\b(je )?(commence|d[ée]marre|attaque|prends) (le |un |mon |ce |la |une )?(nouveau |nouvelle )?(ticket|story|user story|t[âa]che|issue)\b/i,
+    /\b(on )?(m['’]a|nous a) (donn[ée]|assign[ée]|attribu[ée]) (un |le |ce |une )?(ticket|story|bug|t[âa]che|issue)\b/i,
+    /\bi('| a)m (starting|picking up|taking) (a |the |this |my )?(new )?(ticket|story|issue|task)\b/i,
     /\b(j['’]ai|on a) (fini|termin[ée]|boucl[ée]|livr[ée]|merg[ée]) (le |mon |ce |la |ma )?(ticket|story|user story|bug|fix|feature|t[âa]che|issue|pr|pull request)\b/i,
     /\b(ticket|story|bug|feature|issue|pr) (fini|termin[ée]|boucl[ée]|livr[ée]|merg[ée])\b/i,
     /\b(ajoute|mets|enregistre|retiens)\b.{0,30}\b(dans |à )?(la )?kb (du|de ce) (repo|d[ée]p[ôo]t|projet)\b/i,
@@ -263,7 +273,8 @@ export function renderOffer(s: IntentSuggestion, lang: 'fr' | 'en'): string {
     serve: ['ouvrir l’application web OKB (notes, graphe, relecture)', 'open the OKB web app (notes, graph, review)'],
     status: ['montrer où en est ton second cerveau', 'show where your second brain stands'],
     onboard: ['te faire découvrir ce repo et lui créer sa KB (notes sourcées dans le code)', 'onboard you on this repository and build its KB (notes cited from the code)'],
-    ticket: ['enrichir la KB de ce repo avec ce ticket', 'enrich this repository’s KB with this ticket'],
+    ticket: ['suivre ce ticket avec OKB (ce que la KB sait, puis la note du ticket à la fin)', 'follow this ticket with OKB (what the KB knows, then the ticket note at the end)'],
+    workspace: ['organiser ce dossier de repos en espace de travail OKB (une KB, un espace par repo)', 'turn this folder of repositories into an OKB workspace (one KB, one space per repository)'],
     convert: ['connecter cette ancienne KB à OKB et la convertir au format OKB (par une proposition que tu relis)', 'connect this old KB to OKB and convert it to the OKB format (through a proposal you review)'],
     usage: ['montrer ce que coûte OKB (lu dans les journaux locaux, sans dépenser de token)', 'show what OKB costs (read from local logs, no token spent)'],
     feedback: ['noter ce retour pour le rapport d’amélioration d’OKB (okb feedback "…")', 'note this remark for OKB’s improvement report (okb feedback "…")'],

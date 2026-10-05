@@ -30,7 +30,7 @@ describe('after a ticket, and across repositories', () => {
     const service = resolve(root, 'srv', 'orders-service.js');
     await writeFile(service, (await readFile(service, 'utf8')).replace('|| 50', '|| 100'));
     git(root, 'commit', '-qam', 'Raise the item limit to 100\n\nThe warehouse can now ship bigger orders.');
-    const t = await ticketContext(ctx, { ticket: 'ORD-42: allow orders of 100 lines', by: 'Bilel' });
+    const t = await ticketContext(ctx, { ticket: 'ORD-42: allow orders of 100 lines', by: 'dev senior' });
     expect(t.base.ref).toBe('main');
     expect(t.title).toBe('Raise the item limit to 100');
     expect(t.changes).toEqual([{ status: 'M', path: 'srv/orders-service.js', kind: 'source' }]);

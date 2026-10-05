@@ -2,7 +2,6 @@ import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { applyProposal, rollback } from '../apply/apply.js';
 import { approvalPath, grantApproval } from '../apply/approval.js';
-import { commitKbChanges } from '../apply/git.js';
 import { guardApply } from '../apply/guard.js';
 import { expandHome, loadConfig } from '../config/load.js';
 import type { OkbConfig } from '../config/schema.js';
@@ -126,10 +125,16 @@ function categoryOfText(path: string, text: string, cx: Awaited<ReturnType<typeo
   }
 }
 
+/** Every KB with its kind (subject, repository, workspace), for the KB page. */
+async function kbsWithKind(env: NodeJS.ProcessEnv) {
+  const { kindOf } = await import('../work/kinds.js');
+  return Promise.all((await listKbs(env)).map(async (k) => ({ ...k, kind: await kindOf(k.id, null, env).catch(() => 'topic') })));
+}
+
 export const ROUTES: Record<string, Handler> = {
   /* ---------- session ---------- */
   'GET /api/session': async (ctx) => ({
-    token: ctx.token, ui: lang(), version: await productVersion(), kbs: await listKbs(ctx.env), active: ctx.defaultConfig?.profile.id ?? (await activeKb(ctx)) ?? null,
+    token: ctx.token, ui: lang(), version: await productVersion(), kbs: await kbsWithKind(ctx.env), active: ctx.defaultConfig?.profile.id ?? (await activeKb(ctx)) ?? null,
     build: ctx.build?.boot ?? null, outdated: ctx.build ? ctx.build.now() !== ctx.build.boot : false, canStop: Boolean(ctx.stop),
     presence: presenceMethod(), obsidian: await obsidianInstalled(),
   }),
@@ -151,7 +156,16 @@ export const ROUTES: Record<string, Handler> = {
       const [status, map] = await Promise.all([repoStatus(rctx, { bundle }), loadMap(rctx.paths)]);
       out.push({ ...repo, description: map?.repo.description ?? null, stack: map?.stack.slice(0, 5).map((x) => x.label) ?? [], status });
     }
-    return { repos: out, kbConfidential: config.kb.confidential };
+    // Tickets OKB follows in this KB, and the workspaces that use it.
+    const { listTickets } = await import('../work/tickets.js');
+    const { listWorkspaces } = await import('../work/workspaces.js');
+    const tickets = (await listTickets(config)).filter((tk) => tk.status === 'active' || Date.now() - Date.parse(tk.updatedAt) < 30 * 86_400_000).slice(0, 30).map((tk) => ({
+      ref: tk.ref, title: tk.title, status: tk.status, updatedAt: tk.updatedAt, repos: tk.repos.map((r) => ({ id: r.id, branch: r.branch })),
+      commits: tk.journal.filter((j) => j.kind === 'commit').length,
+      journal: tk.journal.filter((j) => ['note', 'decision', 'trap', 'question'].includes(j.kind)).slice(-6).map((j) => ({ at: j.at, kind: j.kind, text: j.text })),
+    }));
+    const workspaces = (await listWorkspaces(ctx.env)).filter((w) => w.kb === config.profile.id).map((w) => ({ id: w.id, name: w.name, roots: w.roots.map((r) => (ctx.env.HOME && r.startsWith(`${ctx.env.HOME}/`) ? `~${r.slice(ctx.env.HOME.length)}` : r)), prefixes: w.tickets.prefixes }));
+    return { repos: out, kbConfidential: config.kb.confidential, tickets, workspaces };
   },
   'GET /api/repo': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
@@ -162,7 +176,7 @@ export const ROUTES: Record<string, Handler> = {
     const { questionById } = await import('../repo/questions.js');
     const { askWho, riskText, landscapeNote } = await import('../repo/generated.js');
     const { compact } = await import('../cli/commands/repo.js');
-    const { notePath, PACK } = await import('../repo/pack.js');
+    const { notePath, PACK, isFlat } = await import('../repo/pack.js');
     const repo = await findRepo(q.get('id') ?? '', ctx.env);
     if (!repo || repo.kb !== config.profile.id) throw new OkbError('E_NOT_FOUND', 'repository not found in this KB', { key: 'repoUnknown', params: { id: q.get('id') ?? '' } });
     const rctx = await repoContext(config, repo);
@@ -173,16 +187,22 @@ export const ROUTES: Record<string, Handler> = {
       const def = questionById(v.id)!;
       const hint = map?.questions.find((x) => x.id === v.id);
       const files = v.looked?.length ? v.looked : hint?.hints.map((x) => x.file) ?? [];
-      return { ...v, text: pick(def.text, writing), why: v.why ?? pick(def.why, writing), target: notePath(repo.id, def.note, writing), askWho: v.askWho ?? (map ? askWho(map, files, writing) : null), hints: hint?.hints.slice(0, 4) ?? [] };
+      return { ...v, text: pick(def.text, writing), why: v.why ?? pick(def.why, writing), target: notePath(repo.id, def.note, writing, isFlat(config)), askWho: v.askWho ?? (map ? askWho(map, files, writing) : null), hints: hint?.hints.slice(0, 4) ?? [] };
     });
     const landscape = await landscapeNote(config).catch(() => null);
     const mermaid = landscape && landscape.repos.length > 1 ? /```mermaid\n([\s\S]*?)```/.exec(landscape.content)?.[1] ?? null : null;
     const home = ctx.env.HOME ?? '';
+    const { listTickets } = await import('../work/tickets.js');
+    const tickets = (await listTickets(config)).filter((tk) => tk.repos.some((r) => r.id === repo.id)).slice(0, 12).map((tk) => ({
+      ref: tk.ref, title: tk.title, status: tk.status, updatedAt: tk.updatedAt, branch: tk.repos.find((r) => r.id === repo.id)?.branch ?? null,
+      commits: tk.journal.filter((j) => j.kind === 'commit' && j.repo === repo.id).length,
+      journal: tk.journal.filter((j) => ['note', 'decision', 'trap', 'question'].includes(j.kind)).slice(-6).map((j) => ({ at: j.at, kind: j.kind, text: j.text })),
+    }));
     return {
-      repo: { ...repo, displayPath: home && repo.path.startsWith(`${home}/`) ? `~${repo.path.slice(home.length)}` : repo.path }, status, freshness: fresh, questions,
+      repo: { ...repo, displayPath: home && repo.path.startsWith(`${home}/`) ? `~${repo.path.slice(home.length)}` : repo.path }, status, freshness: fresh, questions, tickets,
       map: map ? compact(map) : null,
       risks: map ? map.risks.map((r) => ({ kind: r.kind, text: riskText(r, writing) })) : [],
-      pack: PACK.map((p) => ({ kind: p.kind, emoji: p.emoji, path: notePath(repo.id, p.kind, writing), title: bundle.byPath.get(notePath(repo.id, p.kind, writing))?.title ?? null })),
+      pack: PACK.map((p) => ({ kind: p.kind, emoji: p.emoji, path: notePath(repo.id, p.kind, writing, isFlat(config)), title: bundle.byPath.get(notePath(repo.id, p.kind, writing, isFlat(config)))?.title ?? null })),
       landscape: mermaid,
     };
   },
@@ -205,7 +225,10 @@ export const ROUTES: Record<string, Handler> = {
   'GET /api/graph': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
     const [bundle, cx] = await Promise.all([loadBundleFor(config), categoryContext(config)]);
-    return buildGraph(bundle, cx.categories, cx.templates, { includeNav: q.get('nav') === '1' });
+    // A workspace KB is also drawn from above: its repositories, their connections, the scope.
+    const { workspaceGraph } = await import('../work/graph-view.js');
+    const workspace = await workspaceGraph(config, bundle, q.get('focus')).catch(() => null);
+    return { ...buildGraph(bundle, cx.categories, cx.templates, { includeNav: q.get('nav') === '1' }), workspace };
   },
   'GET /api/categories': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
@@ -308,7 +331,6 @@ export const ROUTES: Record<string, Handler> = {
     const owner = await readOwner(config.kb.root);
     const foreign = owner ? [] : await foreignNotes(config.kb.root, 1);
     const focus = await readFocus(config);
-    const git = await gitState(config.kb.root);
     const version = await productVersion();
     const checks = [
       ...report.checks.map((c) => ({ name: c.name, status: c.status, detail: c.hint ? `${c.detail} — ${c.hint}` : c.detail, fix: null as string | null })),
@@ -316,7 +338,6 @@ export const ROUTES: Record<string, Handler> = {
       { name: 'okb-command', status: launcher.onPath ? 'ok' : 'warn', detail: launcher.onPath ?? t('doctor.noLauncher'), fix: !launcher.onPath && launcher.candidates[0] ? 'launcher' : null },
       { name: 'kb-owner', status: owner === config.profile.id ? 'ok' : owner ? 'fail' : 'warn', detail: owner === config.profile.id ? t('doctor.ownerOk') : owner ? t('err.kbOtherOwner.why', { owner, root: config.kb.root }) : foreign.length ? t('doctor.ownerForeign') : t('doctor.ownerMissing'), fix: !owner && !foreign.length ? 'owner' : null },
       { name: 'focus', status: focus.exists ? (focus.stale ? 'warn' : 'ok') : 'warn', detail: focus.exists ? focus.path : t('focus.none'), fix: focus.exists ? null : 'focus' },
-      { name: 'kb-git', status: git.repo ? (git.dirty || (git.ahead ?? 0) > 0 ? 'warn' : 'ok') : 'unknown', detail: git.repo ? (git.dirty ? `${git.dirty} ✎` : (git.ahead ?? 0) > 0 ? `${git.ahead} ↑` : t('status.gitClean')) : t('doctor.noGit'), fix: null },
     ];
     return { checks: checks.map((c) => ({ ...c, label: has(`doctor.check.${c.name}`) ? t(`doctor.check.${c.name}`) : c.name })), support: report.support, version };
   },
@@ -341,7 +362,7 @@ export const ROUTES: Record<string, Handler> = {
   },
   'GET /api/wizard/folder': async (ctx, q) => {
     const name = q.get('name') ?? '';
-    const wctx = await wizardContext(ctx.env, { github: false });
+    const wctx = await wizardContext(ctx.env);
     const root = q.get('root') ? resolve(expandHome(q.get('root')!.trim())) : suggestedRoot(wctx, name, lang());
     const { kbNames } = await import('../kb/registry.js');
     return { root, names: kbNames(name), check: await checkFolder(root, kbNames(name).id, ctx.env) };
@@ -443,24 +464,19 @@ export const ROUTES: Record<string, Handler> = {
     await grantApproval(config, proposal, accepted, config.profile.humanActor);
     if (b.apply === false) return { ok: true, presence, applied: false };
     const receipt = await applyProposal(config, proposal, accepted.length < proposal.changes.length ? { only: accepted } : {});
-    const written = receipt.results.filter((r) => r.action !== 'skipped').map((r) => r.path);
-    const git = await commitKbChanges(config, written, `okb: apply ${proposal.id} (${written.length} file(s))\n\n${proposalTitle(proposal)}\nReceipt: ${receipt.id}`);
-    return { ok: true, presence, applied: true, receipt: { id: receipt.id, results: receipt.results }, git };
+    return { ok: true, presence, applied: true, receipt: { id: receipt.id, results: receipt.results } };
   },
   'POST /api/proposal/apply': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);
     const proposal = await loadProposal(config, str(b.id, 'id', 80));
     const receipt = await applyProposal(config, proposal);
-    const written = receipt.results.filter((r) => r.action !== 'skipped').map((r) => r.path);
-    const git = await commitKbChanges(config, written, `okb: apply ${proposal.id} (${written.length} file(s))\n\n${proposalTitle(proposal)}\nReceipt: ${receipt.id}`);
-    return { ok: true, receipt: { id: receipt.id, results: receipt.results }, git };
+    return { ok: true, receipt: { id: receipt.id, results: receipt.results } };
   },
   'POST /api/undo': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);
     const id = str(b.receipt, 'receipt', 120);
     const restored = await rollback(config, id);
-    const git = await commitKbChanges(config, restored.map((r) => r.path), `okb: roll back ${id}\n\n${restored.length} file(s) restored.`);
-    return { ok: true, restored, git };
+    return { ok: true, restored };
   },
   'POST /api/nav': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);

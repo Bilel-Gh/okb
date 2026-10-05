@@ -17,20 +17,23 @@ key the user added.
 ## The easy way: `okb init`
 
 In a terminal, `okb init` (first KB) or `okb new` (another KB) is a guided
-wizard: quick or custom mode, detected Obsidian vaults, the naming convention,
-Git and GitHub, the Claude plugin and the `okb` command. Recommend it first
-when the user has a terminal at hand.
+wizard: what the KB is for, quick or custom mode, detected Obsidian vaults, the
+naming convention, the Claude plugin and the `okb` command. Recommend it first
+when the user has a terminal at hand. A KB is a plain local folder: OKB never
+puts it under Git, never commits, never adds a remote.
 
 ## In this conversation — one question at a time, with buttons
 
 Ask ONE question per message with AskUserQuestion, the recommended answer first.
 Skip what the user already said. Keep a short running summary.
 
-1. **What is this KB about?** A subject (lasting knowledge) or a project (shared
-   with others, ends one day)? Ask its **name**: suggest one from the subject
-   (never a person's first name) and use the one the user gives. A folder of
-   notes that already exists: `okb kb add "<folder>" --name "<name>"`, then
-   `/okb:convert`.
+1. **What is this KB for?** « Un sujet » (course, domain, project) ·
+   « Un seul repo de code » · « Les repos d'une équipe (espace de travail) ».
+   For code, stop here and use `/okb:workspace` (team) or `/okb:onboard` (one
+   repository): they create the right kind of KB. Ask its **name**: suggest one
+   from the subject (never a person's first name) and use the one the user gives.
+   A folder of notes that already exists: `okb kb add "<folder>" --name "<name>"`,
+   then `/okb:convert`.
 2. **Where?** If the user has an Obsidian vault with other `kb-*` folders,
    recommend `<vault>/kb-<name>`. A folder holding notes another tool wrote may
    belong to another agent: say so, and only continue on an explicit yes
@@ -40,16 +43,14 @@ Skip what the user already said. Keep a short running summary.
 4. **Quick or custom?** Quick keeps safe defaults. Custom asks: reader level
    (`beginner`, `intermediate`, `expert`), style (`standard`, `pedagogique`,
    `expert`), help with notions (`targeted` recommended, `pedagogical`, `off`).
-5. **Git history** (recommended when Git exists), a **private GitHub repository**
-   (only if `gh` is logged in and the user wants it), the **Claude plugin** and the
-   **okb command** on the PATH.
+5. The **Claude plugin** and the **okb command** on the PATH.
 
 Then show the whole configuration as a short table and ask for one confirmation.
 Run it without questions:
 
 ```bash
 okb init --yes --name "<Name>" --dir "<folder>" --lang fr --writing-lang fr \
-  --preset standard [--git] [--github] [--adopt]
+  --preset standard [--adopt]
 okb settings set reader.level=intermediate conceptAssist.level=targeted --kb <id>
 okb doctor --kb <id>
 ```
@@ -65,7 +66,6 @@ One name per KB, used everywhere so it is easy to tell KBs apart:
 |---|---|---|
 | Folder | `kb-<name>` | `kb-atlas` |
 | Profile id | `<name>` | `atlas` |
-| Git repository | `kb-<name>` | `kb-atlas` |
 
 `<name>` is one or two lowercase words the user would say aloud: a subject
 (`ia`, `finance-perso`) or a project (`atlas`). Keep all KBs as sibling folders of

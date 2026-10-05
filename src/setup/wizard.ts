@@ -5,7 +5,7 @@ import { expandHome } from '../config/load.js';
 import { initFocus, focusPaths } from '../focus/focus.js';
 import { systemLanguage, type Lang } from '../i18n/index.js';
 import { foreignNotes, kbFoldersIn, kbNames, listKbs, obsidianVaults, overlappingKb, readOwner, setUiLanguage, writeOwner, type KbSummary } from '../kb/registry.js';
-import { claudeState, createPrivateRepo, ghState, gitAvailable, initKbRepository, installClaudePlugin, installLauncher, launcherState, type ClaudeState, type LauncherState } from '../integrations/system.js';
+import { claudeState, installClaudePlugin, installLauncher, launcherState, type ClaudeState, type LauncherState } from '../integrations/system.js';
 import { OkbError } from '../util/errors.js';
 import { ensureDir } from '../util/fsx.js';
 import { runSetup, switchProfile } from './setup.js';
@@ -13,26 +13,24 @@ import { runSetup, switchProfile } from './setup.js';
 /**
  * The setup wizard's model, shared by `okb init`, `okb new` and the web page:
  * what the machine already tells us, recommended answers, and the steps that
- * turn answers into a working KB. Every step that reaches outside OKB (Git,
- * GitHub, Claude, the PATH) runs only when its answer says so.
+ * turn answers into a working KB. Every step that reaches outside OKB (Claude,
+ * the PATH) runs only when its answer says so. A KB is a plain local folder:
+ * OKB never puts it under Git, never commits and never adds a remote.
  */
 export type WizardContext = {
   readonly systemLanguage: Lang;
   readonly vaults: readonly { path: string; open: boolean; kbs: readonly string[] }[];
   readonly kbs: readonly KbSummary[];
-  readonly git: boolean;
-  readonly gh: { cli: string | null; loggedIn: boolean; user: string | null };
   readonly claude: ClaudeState;
   readonly launcher: LauncherState;
   readonly person: string;
   readonly sharedFocus: { file: string; journal: string } | null;
 };
 
-export async function wizardContext(env: NodeJS.ProcessEnv = process.env, options: { github?: boolean } = {}): Promise<WizardContext> {
-  const [vaults, kbs, git, claude, launcher] = await Promise.all([obsidianVaults(env), listKbs(env), gitAvailable(), claudeState(), launcherState()]);
+export async function wizardContext(env: NodeJS.ProcessEnv = process.env): Promise<WizardContext> {
+  const [vaults, kbs, claude, launcher] = await Promise.all([obsidianVaults(env), listKbs(env), claudeState(), launcherState()]);
   const roots = kbs.map((k) => k.root).filter((r): r is string => Boolean(r));
   const withKbs = await Promise.all(vaults.map(async (v) => ({ ...v, kbs: await kbFoldersIn(v.path, roots) })));
-  const gh = options.github === false ? { cli: null, loggedIn: false, user: null } : await ghState();
   // Nobody's name is read: approvals are recorded as `human:me` unless the person sets one.
   const person = 'me';
   // A focus note another KB already uses is offered again: one person, one focus.
@@ -44,7 +42,7 @@ export async function wizardContext(env: NodeJS.ProcessEnv = process.env, option
       if (config.focus.file) { const p = focusPaths(config); sharedFocus = { file: p.file, journal: p.journal }; break; }
     } catch { /* skip a broken profile */ }
   }
-  return { systemLanguage: systemLanguage(env), vaults: withKbs, kbs, git, gh, claude, launcher, person, sharedFocus };
+  return { systemLanguage: systemLanguage(env), vaults: withKbs, kbs, claude, launcher, person, sharedFocus };
 }
 
 export type WizardAnswers = {
@@ -58,8 +56,8 @@ export type WizardAnswers = {
   conceptAssist: 'off' | 'targeted' | 'pedagogical';
   requireTemplate: boolean;
   focus: 'shared' | 'create' | 'later';
-  git: boolean;
-  github: boolean;
+  /** What the KB is for (absent: inferred later, e.g. for a connected folder). */
+  kind?: 'topic' | 'repo' | 'workspace';
   plugin: boolean;
   launcher: string | null;
   activate: boolean;
@@ -97,8 +95,6 @@ export function defaultAnswers(ctx: WizardContext, name: string, lang: Lang): Wi
     conceptAssist: 'targeted',
     requireTemplate: true,
     focus: ctx.sharedFocus ? 'shared' : 'create',
-    git: ctx.git,
-    github: false,
     plugin: Boolean(ctx.claude.cli) && !ctx.claude.installed,
     launcher: ctx.launcher.onPath ? null : ctx.launcher.candidates[0] ?? null,
     activate: true,
@@ -127,14 +123,8 @@ export async function checkFolder(root: string, id: string, env: NodeJS.ProcessE
   return { state: 'empty' };
 }
 
-export type WizardStep = 'profile' | 'folder' | 'language' | 'focus' | 'git' | 'github' | 'plugin' | 'launcher' | 'activate';
+export type WizardStep = 'profile' | 'folder' | 'language' | 'focus' | 'plugin' | 'launcher' | 'activate';
 export type StepResult = { readonly step: WizardStep; readonly ok: boolean; readonly detail?: string };
-
-function readme(name: string, lang: Lang): string {
-  return lang === 'fr'
-    ? `# ${name}\n\nBase de connaissances construite avec OKB : chaque note y entre par une proposition approuvée, et chaque application est un commit.\n`
-    : `# ${name}\n\nKnowledge base built with OKB: every note enters through an approved proposal, and every apply is a commit.\n`;
-}
 
 /** Turn answers into a working KB. Steps report one by one; a failed optional step does not undo the KB. */
 export async function runWizard(answers: WizardAnswers, onStep: (r: StepResult) => void, env: NodeJS.ProcessEnv = process.env): Promise<{ id: string; root: string }> {
@@ -153,7 +143,7 @@ export async function runWizard(answers: WizardAnswers, onStep: (r: StepResult) 
   if (check.state === 'foreign' || check.state === 'new' || check.state === 'empty') await writeOwner(root, id);
   onStep({ step: 'folder', ok: true, detail: root });
 
-  const ctx = await wizardContext(env, { github: false });
+  const ctx = await wizardContext(env);
   const focus = answers.focus === 'shared' && ctx.sharedFocus
     ? { file: ctx.sharedFocus.file, journal: ctx.sharedFocus.journal }
     : answers.focus === 'create'
@@ -173,11 +163,14 @@ export async function runWizard(answers: WizardAnswers, onStep: (r: StepResult) 
     reader: { level: answers.readerLevel, byDomain: Object.fromEntries(answers.beginnerDomains.map((d) => [d, 'beginner'])) },
     conceptsFolder: 'concepts',
     ...(focus ? { focus: { file: focus.file, journal: focus.journal } } : {}),
-    ...(answers.git ? { git: { autoCommit: true } } : {}),
   }, { env });
   // requireTemplate is not a setup flag: write it through the settings model.
   const { writeSetting } = await import('../settings/settings.js');
   await writeSetting(id, 'kb.requireTemplate', answers.requireTemplate, env);
+  if (answers.kind) {
+    const { setKbKind } = await import('../work/kinds.js');
+    await setKbKind(id, answers.kind, env);
+  }
   onStep({ step: 'profile', ok: true, detail: id });
 
   if (answers.focus === 'create') {
@@ -191,15 +184,6 @@ export async function runWizard(answers: WizardAnswers, onStep: (r: StepResult) 
     }
   } else if (answers.focus === 'shared') {
     onStep({ step: 'focus', ok: true, detail: focus?.file ?? '' });
-  }
-
-  if (answers.git) {
-    const r = await initKbRepository(root, readme(display, answers.writingLanguage === 'fr' ? 'fr' : 'en'));
-    onStep({ step: 'git', ok: r.ok, ...(r.error ? { detail: r.error } : {}) });
-    if (r.ok && answers.github) {
-      const gh = await createPrivateRepo(root, `kb-${id}`, `${display} — OKB knowledge base`);
-      onStep({ step: 'github', ok: gh.ok, ...(gh.url ? { detail: gh.url } : gh.error ? { detail: gh.error } : {}) });
-    }
   }
 
   if (answers.plugin) {

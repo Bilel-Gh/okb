@@ -5,6 +5,7 @@ import { detectConcepts } from '../concepts/detect.js';
 import { buildPrereqChain } from '../concepts/prereq.js';
 import { paginate, type Truncation } from '../util/context-meter.js';
 import type { BundlePath } from '../util/paths.js';
+import { scopeFactor, type ScopeRank } from '../work/rank.js';
 
 export type AnswerEvidence = {
   readonly path: BundlePath;
@@ -41,13 +42,21 @@ export type AskResult = {
 export async function ask(
   config: OkbConfig,
   query: string,
-  options: { limit?: number; cursor?: string | null; bundle?: Bundle } = {},
+  options: { limit?: number; cursor?: string | null; bundle?: Bundle; scope?: ScopeRank } = {},
 ): Promise<AskResult> {
   const bundle = options.bundle ?? (await loadBundleFor(config));
   const limit = options.limit ?? config.context.pageSize;
   const notes: string[] = [];
 
-  const all = searchBundle(bundle, query, { limit: 200 });
+  const found = searchBundle(bundle, query, { limit: 200 });
+  // In a repository's scope, its notes and the shared notes tied to it come first.
+  const scope = options.scope;
+  const all = scope
+    ? found.map((h) => {
+      const f = scopeFactor(bundle, scope, h.entry.path);
+      return f.why ? { ...h, score: h.score * f.factor + f.bonus, why: [f.why, ...h.why] } : h;
+    }).sort((a, b) => b.score - a.score || a.entry.path.localeCompare(b.entry.path))
+    : found;
   const { page, truncation } = paginate(all, { limit, cursor: options.cursor ?? null });
 
   const evidence: AnswerEvidence[] = [];

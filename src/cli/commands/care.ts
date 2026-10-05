@@ -111,11 +111,8 @@ export async function cmdDoctor(ctx: Ctx): Promise<number> {
     rows.push(focus.exists
       ? { name: 'focus', status: focus.stale ? 'warn' : 'ok', detail: focus.stale ? t('focus.stale', { days: focus.ageDays ?? 0 }) : focus.path }
       : { name: 'focus', status: 'warn', detail: t('focus.none'), fix: { label: t('doctor.fix.focus'), run: async () => t('focus.created', { path: await initFocus(cfg) }) } });
-    const git = await gitState(cfg.kb.root);
-    rows.push(git.repo
-      ? { name: 'kb-git', status: git.dirty || (git.ahead ?? 0) > 0 ? 'warn' : 'ok', detail: git.dirty ? tn('status.gitDirty', git.dirty) : (git.ahead ?? 0) > 0 ? tn('status.gitAhead', git.ahead!) : t('status.gitClean'),
-        ...(git.dirty ? { hint: t('doctor.hint.commit', { root: tilde(cfg.kb.root) }) } : (git.ahead ?? 0) > 0 ? { hint: `git -C ${tilde(cfg.kb.root)} push` } : {}) }
-      : { name: 'kb-git', status: 'unknown', detail: t('doctor.noGit') });
+    // OKB never commits nor pushes a KB; a confidential one is only checked for ways out (cloud sync, a Git remote).
+    const git = cfg.kb.confidential ? await gitState(cfg.kb.root) : null;
     const { listRepos } = await import('../../repo/registry.js');
     const repos = (await listRepos()).filter((r) => r.kb === cfg.profile.id);
     if (repos.length) {
@@ -127,7 +124,7 @@ export async function cmdDoctor(ctx: Ctx): Promise<number> {
     if (cfg.kb.confidential) {
       const { cloudSyncedFolder, kbRemotes } = await import('../../repo/confidential.js');
       const synced = cloudSyncedFolder(cfg.kb.root);
-      const remotes = git.repo ? await kbRemotes(cfg.kb.root) : [];
+      const remotes = git?.repo ? await kbRemotes(cfg.kb.root) : [];
       rows.push(synced || remotes.length
         ? { name: 'kb-private', status: 'warn', detail: synced ? t('doctor.private.synced', { where: synced }) : t('doctor.private.remote', { remote: remotes[0]! }), hint: t('doctor.hint.private') }
         : { name: 'kb-private', status: 'ok', detail: t('doctor.private.ok') });

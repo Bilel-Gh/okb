@@ -14,7 +14,7 @@ import { asBundlePath, type BundlePath } from '../util/paths.js';
 import { locateQuote, resolveDossier, type DossierV3 } from './dossier.js';
 import { getTemplate, sectionHeading } from '../templates/registry.js';
 import { gitIdentity } from './git.js';
-import { notePath, noteDescription, noteTitle, packNote, repoFolder, ticketPath } from './pack.js';
+import { isFlat, notePath, noteDescription, noteTitle, packNote, repoFolder, REPOS_FOLDER, ticketPath } from './pack.js';
 import { questionById, type NoteKind } from './questions.js';
 import type { RepoEntry } from './registry.js';
 import { addCoverage, ensureRepoState, listJson, loadProgress, repoPaths, saveProgress, type RepoPaths } from './state.js';
@@ -35,17 +35,21 @@ function language(config: OkbConfig): string {
 
 export type RepoNote = { readonly path: BundlePath; readonly title: string; readonly kind: string; readonly commit: string | null };
 
-/** Notes of this repository in the KB: by `x_okb.repo.id`, or by living under `repos/<id>/`. */
-export function repoNotes(bundle: Bundle, id: string): RepoNote[] {
+/**
+ * Notes of this repository in the KB: by `x_okb.repo.id`, or by living under
+ * `repos/<id>/` — in a repository KB (`flat`), its notes and its `tickets/`.
+ */
+export function repoNotes(bundle: Bundle, id: string, flat = false): RepoNote[] {
   const out: RepoNote[] = [];
   for (const [path, doc] of bundle.docs) {
     const meta = (doc.data.x_okb as { repo?: { id?: unknown; kind?: unknown; commit?: unknown } } | undefined)?.repo;
-    if (meta?.id !== id && !path.startsWith(`${repoFolder(id)}/`)) continue;
+    const inFolder = flat ? path.startsWith('tickets/') : path.startsWith(`${repoFolder(id)}/`);
+    if (meta?.id !== id && !inFolder) continue;
     if (/(^|\/)index\.md$/.test(path)) continue;
     out.push({
       path,
       title: typeof doc.data.title === 'string' ? doc.data.title : path,
-      kind: typeof meta?.kind === 'string' ? meta.kind : path.includes('/tickets/') ? 'ticket' : 'other',
+      kind: typeof meta?.kind === 'string' ? meta.kind : /(^|\/)tickets\//.test(path) ? 'ticket' : 'other',
       commit: typeof meta?.commit === 'string' ? meta.commit : null,
     });
   }
@@ -54,7 +58,7 @@ export function repoNotes(bundle: Bundle, id: string): RepoNote[] {
 
 /** Pending proposals that create or change notes of this repository. */
 export async function pendingRepoProposals(config: OkbConfig, id: string): Promise<{ id: string; paths: string[]; createdAt: string }[]> {
-  const prefix = `${repoFolder(id)}/`;
+  const prefix = isFlat(config) ? '' : `${repoFolder(id)}/`;
   return (await listProposals(config))
     .filter((p) => p.status === 'prepared' || p.status === 'partially-applied')
     .map((p) => ({ id: p.id, createdAt: p.createdAt, paths: [...new Set(p.changes.map((c) => c.path as string))].filter((x) => x.startsWith(prefix)) }))
@@ -74,6 +78,8 @@ export type WriteOptions = {
   readonly conceptAssistLevel?: 'off' | 'targeted' | 'pedagogical';
   readonly linkInto?: readonly BundlePath[];
   readonly reprocess?: boolean;
+  /** Other private folders the dossier may cite (the repository's own KB state, when writing into its workspace's KB). */
+  readonly sourceDirs?: readonly string[];
 };
 
 export type WriteResult = {
@@ -90,8 +96,9 @@ export type WriteResult = {
 export async function writeRepoNote(ctx: RepoContext, raw: unknown, options: WriteOptions = {}): Promise<WriteResult> {
   const { config, repo, paths } = ctx;
   const lang = language(config);
-  const { dossier, resolved } = await resolveDossier(config, raw, repo, [paths.dir]);
+  const { dossier, resolved } = await resolveDossier(config, raw, repo, [paths.dir, ...(options.sourceDirs ?? [])]);
   const kind = options.kind ?? dossier.note ?? 'other';
+  const flat = isFlat(config);
   const pack = kind !== 'ticket' && kind !== 'other' ? packNote(kind) : null;
   if (kind === 'questions') throw new OkbError('E_INVALID', 'the open-questions note is generated: use okb repo questions --propose', { key: 'repoQuestionsGenerated' });
   const template = dossier.template ?? pack?.template ?? (kind === 'ticket' ? 'repo-ticket' : undefined);
@@ -104,20 +111,20 @@ export async function writeRepoNote(ctx: RepoContext, raw: unknown, options: Wri
   if (options.append) {
     target = { mode: 'append', path: asBundlePath(options.append), heading: options.heading ?? defaultHeading(lang) };
   } else if (options.create) {
-    target = createTarget(asBundlePath(options.create), options, kind, repo, lang, repoMeta);
+    target = createTarget(asBundlePath(options.create), options, kind, repo, lang, repoMeta, flat);
   } else if (pack) {
-    const path = notePath(repo.id, pack.kind, lang);
+    const path = notePath(repo.id, pack.kind, lang, flat);
     if (bundle.byPath.has(path) || options.pending?.files.has(path)) {
       if (!options.heading) {
         throw new OkbError('E_CONFLICT', `${path} already exists`, { key: 'repoNoteExists', params: { path }, hint: `Add a dated section with --heading "…", or revise it with okb revise ${path}.` });
       }
       target = { mode: 'append', path, heading: options.heading };
     } else {
-      target = createTarget(path, options, kind, repo, lang, repoMeta);
+      target = createTarget(path, options, kind, repo, lang, repoMeta, flat);
     }
   } else if (kind === 'ticket') {
     if (!options.title) throw new OkbError('E_INVALID', 'a ticket note needs --title', { key: 'repoTicketTitle' });
-    target = createTarget(ticketPath(repo.id, options.title), options, kind, repo, lang, repoMeta);
+    target = createTarget(ticketPath(repo.id, options.title, new Date(), flat), options, kind, repo, lang, repoMeta, flat);
   } else {
     throw new OkbError('E_INVALID', 'choose where the note goes: --note <kind>, --create <path> or --append <path>', { key: 'repoWriteTarget' });
   }
@@ -128,7 +135,8 @@ export async function writeRepoNote(ctx: RepoContext, raw: unknown, options: Wri
     analysis,
     notes: resolved.notes,
     notice: noticeFor(lang, repo.name, identity.head, identity.dirty, resolved.docs.some((d) => d.source.adapter !== 'repo-excerpt')),
-    ...(target.mode === 'append' ? { xOkbPatch: { repo: { ...repoMeta, kind: existingKind(bundle, target.path) ?? kind } } } : {}),
+    // A shared note (concepts, guides, decisions…) keeps belonging to the whole KB: no repository stamp.
+    ...(target.mode === 'append' && !isShared(bundle, target.path, repo.id, flat) ? { xOkbPatch: { repo: { ...repoMeta, kind: existingKind(bundle, target.path) ?? kind } } } : {}),
     ...(options.pending ? { pending: options.pending } : {}),
     ...(options.conceptAssistLevel ? { conceptAssistLevel: options.conceptAssistLevel } : {}),
     ...(options.linkInto?.length ? { linkInto: options.linkInto } : {}),
@@ -195,15 +203,27 @@ function defaultHeading(lang: string): string {
   return lang.startsWith('fr') ? `Mise à jour du ${day}` : `Update of ${day}`;
 }
 
-function createTarget(path: BundlePath, options: WriteOptions, kind: string, repo: RepoEntry, lang: string, repoMeta: Record<string, unknown>): IngestTarget {
+/**
+ * A note outside the repository's folder that no repository claims: it belongs
+ * to the whole KB. In a repository KB every note is the repository's.
+ */
+function isShared(bundle: Bundle, path: BundlePath, id: string, flat: boolean): boolean {
+  if (flat || path.startsWith(`${repoFolder(id)}/`) || path.startsWith(`${REPOS_FOLDER}/`)) return false;
+  const meta = (bundle.docs.get(path)?.data.x_okb as { repo?: { id?: unknown } } | undefined)?.repo;
+  return !meta || meta.id === '*';
+}
+
+function createTarget(path: BundlePath, options: WriteOptions, kind: string, repo: RepoEntry, lang: string, repoMeta: Record<string, unknown>, flat: boolean): IngestTarget {
   const pack = kind !== 'ticket' && kind !== 'other' && kind !== 'questions' ? packNote(kind as NoteKind) : null;
   const title = options.title ?? (pack ? noteTitle(pack.kind, repo.name, lang) : null);
   if (!title) throw new OkbError('E_INVALID', 'this note needs --title', { key: 'repoTicketTitle' });
+  // Created outside `repos/` (a business concept, a feature across repositories): a shared note.
+  const shared = !flat && !path.startsWith(`${REPOS_FOLDER}/`);
   return {
     mode: 'create', path, title,
     description: options.description ?? (pack ? noteDescription(pack.kind, repo.name, lang) : title),
-    tags: ['repo', repo.id, ...(kind === 'ticket' ? ['ticket'] : [])],
-    xOkb: { repo: repoMeta },
+    tags: shared ? [repo.id] : ['repo', repo.id, ...(kind === 'ticket' ? ['ticket'] : [])],
+    ...(shared ? {} : { xOkb: { repo: repoMeta } }),
   };
 }
 

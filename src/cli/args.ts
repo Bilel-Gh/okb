@@ -11,7 +11,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   const positionals: string[] = [];
   const flags: Record<string, string | boolean | string[]> = {};
 
-  const booleans = new Set(['json','help','list','diff','approve','discard','resume','reprocess','extract-only','dry-run','write','defaults','allow-bundle-absolute','raw-digest','template','skeleton','check-sources','yes','verbose','quiet','all','fix','brief','context','force','adopt','print','open','git','github','plugin','version','suggest','stdin']);
+  const booleans = new Set(['json','help','list','diff','approve','discard','resume','reprocess','extract-only','dry-run','write','defaults','allow-bundle-absolute','raw-digest','template','skeleton','check-sources','yes','verbose','quiet','all','fix','brief','context','force','adopt','print','open','plugin','version','suggest','stdin','everywhere','keep-open','retire','finish','auto','in-repo']);
   for (let i = 0; i < rest.length; i += 1) {
     const token = rest[i]!;
     if (!token.startsWith('--')) {

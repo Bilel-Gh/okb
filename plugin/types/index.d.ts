@@ -8,6 +8,8 @@ export type OkbSnapshot = {
   inbox: number;
   pending: { number: number | null; title: string; files: number }[];
   notes: number;
+  /** The repository and ticket OKB is narrowed to, if any. */
+  scope: { repo: string | null; ticket: string | null } | null;
 };
 
 declare module 'claude-code' {
