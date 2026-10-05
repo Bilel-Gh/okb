@@ -167,8 +167,55 @@ async function repoList(ctx: Ctx): Promise<number> {
 
 /* -------------------------------------------------------------------- add */
 
+/** Git repositories in a folder (its subfolders, and theirs one level down): a team's whole workspace. */
+async function reposIn(folder: string): Promise<string[]> {
+  const { readdir, stat } = await import('node:fs/promises');
+  // A KB kept beside the repositories (even under Git) is not one of them.
+  const kbRoots = new Set((await listKbs()).map((k) => resolve(k.root)));
+  const isKb = async (dir: string) => kbRoots.has(resolve(dir)) || stat(resolve(dir, '.okb', 'owner.yaml')).then(() => true, () => false);
+  const isRepo = async (dir: string) => !(await isKb(dir)) && stat(resolve(dir, '.git')).then(() => true, () => false);
+  const found: string[] = [];
+  const children = (await readdir(folder, { withFileTypes: true }).catch(() => [])).filter((d) => d.isDirectory() && !d.name.startsWith('.') && d.name !== 'node_modules');
+  for (const child of children) {
+    const dir = resolve(folder, child.name);
+    if (await isRepo(dir)) { found.push(dir); continue; }
+    const grand = (await readdir(dir, { withFileTypes: true }).catch(() => [])).filter((d) => d.isDirectory() && !d.name.startsWith('.') && d.name !== 'node_modules');
+    for (const g of grand) if (await isRepo(resolve(dir, g.name))) found.push(resolve(dir, g.name));
+  }
+  return found.sort();
+}
+
+/** `okb repo add --all <folder>`: every repository of a workspace into one KB, mapped without AI. */
+async function repoAddAll(ctx: Ctx, folder: string): Promise<number> {
+  const { args, out } = ctx;
+  const roots = await reposIn(resolve(folder));
+  if (!roots.length) throw new OkbError('E_NOT_FOUND', `no Git repository in ${folder}`, { key: 'repoNoneInFolder', params: { folder } });
+  const kb = await chooseKb(ctx, resolve(folder));
+  const { config } = await loadConfig({ profileId: kb });
+  const scan = flagBool(args, 'scan', true);
+  const rows: { name: string; id: string; stack: string; created: boolean; error?: string }[] = [];
+  const s = canAsk(ctx) ? spin(t('repo.addAll.running', { n: String(roots.length) })) : null;
+  for (const root of roots) {
+    try {
+      const { repo, created } = await addRepo({ path: root, kb });
+      const result = scan ? await scanAndStore(config, repo) : null;
+      rows.push({ name: repo.name, id: repo.id, created, stack: result ? result.map.stack.slice(0, 3).map((x) => x.label).join(', ') : '' });
+    } catch (e) {
+      rows.push({ name: root.split('/').pop() ?? root, id: '', created: false, stack: '', error: (e as Error).message });
+    }
+  }
+  s?.done();
+  if (ctx.mode === 'json') { out.json({ ok: true, kb, repos: rows }); return 0; }
+  out.ok(t('repo.addAll.done', { n: String(rows.filter((r) => !r.error).length), kb: paint.name(config.profile.displayName || kb) }));
+  out.grid(rows.map((r) => [r.error ? sym.err() : r.created ? sym.ok() : '·', paint.bold(r.name), r.error ? paint.err(r.error) : paint.dim(r.stack || '—')]));
+  out.next([`okb repo landscape --propose --kb ${kb}`, t('repo.addAll.next')]);
+  return 0;
+}
+
 async function repoAdd(ctx: Ctx): Promise<number> {
   const { args, out } = ctx;
+  // `--all` is a switch: the folder is the argument (default: here).
+  if (flagBool(args, 'all')) return repoAddAll(ctx, args.positionals[1] ?? process.cwd());
   const path = resolve(args.positionals[1] ?? process.cwd());
   const root = (await gitRoot(path)) ?? path;
   const existing = (await listRepos()).find((r) => resolve(r.path) === root);
@@ -227,7 +274,8 @@ async function chooseKb(ctx: Ctx, root: string): Promise<string> {
     })),
   ]);
   if (choice !== '__new') return choice;
-  const name = await input(t('repo.add.newKbName'), { initial: t('repo.add.newKbDefault') });
+  // The person names the KB; « Travail » is only a hint.
+  const name = await input(t('repo.add.newKbName'), { placeholder: t('repo.add.newKbDefault'), validate: (v) => (v.trim() ? undefined : t('wiz.required')) });
   return createWorkKb(ctx, name, null, kbs);
 }
 

@@ -24,7 +24,9 @@ rewritten. Everything goes into one proposal the user approves.
    - `keep: true` for what must stay as is: other tools' files, daily logs,
      templates, attachment lists;
    - `folder` (default: the template's) or `"."` to leave it where it is;
-     `name` to rename (default: the file name in kebab-case).
+     `name` to rename (default: the file name in kebab-case). A note about one
+     of the KB's repositories (`repos` in the scan; `guess.repo`) goes to
+     `repos/<id>/`; what spans several repositories stays in the general folders.
    Ask the user only about real doubts (one question, buttons): a whole family
    of notes, a duplicate, a note with no clear subject.
 4. **Write the plan** (`version: 1`, `links`, `move`, `notes`) to `planPath`,

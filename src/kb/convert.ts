@@ -45,7 +45,8 @@ export type LegacyNote = {
   /** The start of the note, to judge what it is about without opening it. */
   readonly excerpt: string;
   readonly wikilinks: number;
-  readonly guess: { readonly template: string | null; readonly folder: string };
+  /** `repo`: the KB's repository this note is about, when one clearly dominates. */
+  readonly guess: { readonly template: string | null; readonly folder: string; readonly repo?: string };
 };
 
 export type ConversionScan = {
@@ -61,6 +62,8 @@ export type ConversionScan = {
   readonly truncation: Truncation;
   readonly planPath: string;
   readonly templates: readonly { id: string; folder: string; type: string }[];
+  /** Repositories documented in this KB: a note about one of them goes to `repos/<id>/`. */
+  readonly repos: readonly { id: string; name: string }[];
 };
 
 const REQUIRED = ['type', 'title', 'description', 'status', 'generated'] as const;
@@ -96,6 +99,18 @@ function plain(markdown: string): string {
 export async function scanConversion(config: OkbConfig, options: { limit?: number; cursor?: string | null } = {}): Promise<ConversionScan> {
   const [bundle, categories, templates] = await Promise.all([loadBundleFor(config), loadCategories(config), loadTemplates(config)]);
   const byTemplate = templateCategories(templates);
+  const { listRepos } = await import('../repo/registry.js');
+  const repos = (await listRepos().catch(() => [])).filter((r) => r.kb === config.profile.id).map((r) => ({ id: r.id, name: r.name }));
+  const repoOf = (path: string, title: string, body: string): string | undefined => {
+    const scores = repos.map((r) => {
+      const words = [...new Set([r.id, r.name])].filter((w) => w.length >= 3).map((w) => w.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const re = new RegExp(`(^|[^a-z0-9])(${words.join('|')})($|[^a-z0-9])`, 'gi');
+      const head = `${path} ${title}`.toLowerCase();
+      return { id: r.id, score: (re.test(head) ? 5 : 0) + (body.toLowerCase().match(re)?.length ?? 0) };
+    }).filter((x) => x.score >= 2).sort((a, b) => b.score - a.score);
+    // Clearly about one repository: it leads, and by a margin.
+    return scores[0] && (!scores[1] || scores[0].score >= 2 * scores[1].score) ? scores[0].id : undefined;
+  };
   const folderOf = new Map(templates.map((t) => [t.id, t.folder]));
   const legacy: LegacyNote[] = [];
   let alreadyOkb = 0;
@@ -112,10 +127,12 @@ export async function scanConversion(config: OkbConfig, options: { limit?: numbe
     const { category } = categorise({ path, type: data.type, template: ext.template, explicit: ext.category }, categories, byTemplate);
     const template = typeof ext.template === 'string' ? ext.template : TEMPLATE_OF[category] ?? null;
     const text = plain(doc.body);
+    const repo = repos.length ? repoOf(path, entry.title, text) : undefined;
+    const folder = repo ? `repos/${repo}` : template ? folderOf.get(template) ?? '' : posix.dirname(path) === '.' ? '' : posix.dirname(path);
     legacy.push({
       path, title: entry.title, hasFrontmatter: doc.hasFrontmatter, missing, tags: entry.tags,
       words: text ? text.split(' ').length : 0, headings: entry.headings.slice(0, 6), excerpt: text.slice(0, 360),
-      wikilinks: links, guess: { template, folder: template ? folderOf.get(template) ?? '' : posix.dirname(path) === '.' ? '' : posix.dirname(path) },
+      wikilinks: links, guess: { template, folder, ...(repo ? { repo } : {}) },
     });
   }
   legacy.sort((a, b) => a.path.localeCompare(b.path));
@@ -125,6 +142,7 @@ export async function scanConversion(config: OkbConfig, options: { limit?: numbe
     kb: config.profile.id, root: config.kb.root, notes: bundle.docs.size, legacy: legacy.length, alreadyOkb, wikilinks, otherFiles,
     unreadable: bundle.unreadable, page, truncation, planPath: planPathFor(config),
     templates: templates.map((t) => ({ id: t.id, folder: t.folder, type: t.okfType })),
+    repos,
   };
 }
 
@@ -133,7 +151,7 @@ export async function writePlanSkeleton(config: OkbConfig): Promise<{ path: stri
   const path = planPathFor(config);
   if ((await readTextIfExists(path)) !== null) return { path, notes: 0, existed: true };
   const all = await scanConversion(config, { limit: 100_000 });
-  const notes = all.page.map((n) => ({ path: n.path, template: n.guess.template ?? '', title: n.title, description: '', tags: [...n.tags] }));
+  const notes = all.page.map((n) => ({ path: n.path, template: n.guess.template ?? '', title: n.title, description: '', tags: [...n.tags], ...(n.guess.repo ? { folder: `repos/${n.guess.repo}` } : {}) }));
   await writeJsonAtomic(path, { version: 1, links: true, move: true, notes });
   return { path, notes: notes.length, existed: false };
 }

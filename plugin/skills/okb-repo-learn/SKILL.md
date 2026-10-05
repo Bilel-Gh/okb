@@ -13,6 +13,15 @@ description: Keep a code repository's OKB knowledge base current after the user 
 
 Not registered → offer `/okb:onboard` and stop.
 
+## Starting a ticket
+
+When the user starts one (« je commence le ticket … »): save its text in the
+drafts folder, `okb repo ticket --json --ticket-file <file>`, then
+`okb ask "<what it touches>" --json` across the whole KB (other repositories and
+general notes included). Answer: the notes to read first, the files likely to
+change (`path:line`), the open questions it meets, a short plan. Write nothing;
+the ticket note comes when the work is done.
+
 ## After a ticket
 
 1. **The need.** If the ticket text is not in the conversation, ask once:

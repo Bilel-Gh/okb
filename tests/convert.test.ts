@@ -128,4 +128,22 @@ describe('converting a KB written before OKB', () => {
     expect(await updateProduct((step, okStep, detail) => notOkb.push({ step, ok: okStep, ...(detail ? { detail } : {}) }), { from: tmpdir() })).toBe(false);
     expect(notOkb[0]).toMatchObject({ step: 'package', ok: false, detail: 'not an OKB package' });
   });
+
+  it('files a note about one of the KB’s repositories with that repository', async () => {
+    const { s: sb, config } = await legacyKb();
+    const saved = process.env.OKB_HOME;
+    process.env.OKB_HOME = sb.home;
+    try {
+      const { addRepo } = await import('../src/repo/registry.js');
+      const repoDir = await mkdtemp(resolve(tmpdir(), 'orders-service-'));
+      await addRepo({ path: repoDir, kb: 'old', name: 'orders-service' });
+      await writeFile(resolve(sb.vault, 'Notes commandes.md'), '# Déployer\n\norders-service se déploie avec cf deploy. orders-service appelle S/4.\n');
+      const scan = await scanConversion(config, { limit: 100 });
+      expect(scan.repos.map((r) => r.name)).toEqual(['orders-service']);
+      expect(scan.page.find((n) => n.path === 'Notes commandes.md')!.guess).toMatchObject({ repo: 'orders-service', folder: 'repos/orders-service' });
+      expect(scan.page.find((n) => n.path === 'Journal.md')!.guess.repo).toBeUndefined();
+    } finally {
+      if (saved === undefined) delete process.env.OKB_HOME; else process.env.OKB_HOME = saved;
+    }
+  });
 });

@@ -1,5 +1,5 @@
 ---
-description: After a ticket or a piece of work, enrich the repository's knowledge base with what changed and what was learned.
+description: Start a ticket with what the KB knows about it, or after it, enrich the repository's knowledge base with what changed and what was learned.
 argument-hint: "[ticket reference or text]"
 disable-model-invocation: true
 ---

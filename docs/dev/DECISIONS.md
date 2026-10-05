@@ -3,11 +3,11 @@
 Trace courte pour reprendre le projet sans l’historique de conversation.
 Format : problème → décision → conséquence → condition de réexamen.
 
-## État au 5 octobre 2026 (version 0.8.0)
+## État au 5 octobre 2026 (version 0.9.0)
 
 | Contrôle | Résultat |
 |---|---|
-| `npm run release:check` (Node 24.4) | voir [RELEASE-0.8.0.md](../releases/RELEASE-0.8.0.md) : tests, plugin, paquet installé proprement |
+| `npm run release:check` (Node 24.4) | voir [RELEASE-0.9.0.md](../releases/RELEASE-0.9.0.md) : tests, plugin, paquet installé proprement |
 | `claude plugin validate ./plugin` (Claude Code du poste) | Validation passée |
 | Évaluations natives `claude plugin eval` | Non exécutées (cas prêts dans `plugin/evals/`) |
 

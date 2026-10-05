@@ -116,6 +116,21 @@ Une réponse devient une **source datée** (« Réponse de Marie, 4 octobre ») 
 note peut citer. Au prochain `/okb:onboard`, Claude l'intègre dans la bonne note.
 Dans l'application web, chaque question ouverte a un bouton « Répondre ».
 
+## Commencer un ticket
+
+```text
+/okb:ticket je commence le ticket …
+```
+
+Claude garde le texte du ticket et cherche dans toute la KB ce qu'il touche, y
+compris les autres repos et les notes générales. Il te donne :
+- les notes à lire d'abord ;
+- les fichiers qui vont sans doute changer ;
+- les questions ouvertes que le ticket rencontre ;
+- un plan court.
+
+Il n'écrit rien : la note de ticket vient quand le travail est fini.
+
 ## Après un ticket
 
 ```text
@@ -166,6 +181,70 @@ découvres.
 
 Les commandes `okb` lancées depuis un repo documenté visent automatiquement sa
 KB : `okb status`, `okb ask`, `okb doctor`…
+
+## Tous les repos d'une équipe : une KB de travail
+
+Quand tu travailles sur beaucoup de repos qui se parlent, le plus simple est
+**une seule KB de travail, avec une pièce par repo** :
+
+```text
+~/Documents/<tes repos>/        les repos, intacts : OKB n'y écrit rien
+~/Documents/<ta KB>/            la KB de travail, confidentielle, sur cet ordinateur
+  concepts/                    le vocabulaire métier et technique, une fiche par notion
+  guides/                      l'application, ses fonctionnalités, l'architecture d'ensemble
+  procedures/  tutos/          faire : poste de travail, déployer, débugger, accès
+  decisions/  reunions/        pourquoi c'est ainsi ; démos, passations
+  parcours/                    par où commencer sur un sujet
+  repos/
+    paysage.md                 qui appelle qui, d'après le code
+    <repo>/                    la KB du repo : comprendre, démarrer, architecture,
+                               interfaces, livrer, carte du code, questions ouvertes,
+                               et une note par ticket
+```
+
+Pourquoi une seule KB plutôt qu'une par repo :
+- **Les liens.** Une fonctionnalité traverse plusieurs repos : sa note générale
+  pointe vers les interfaces de chacun. La recherche et le graphe voient tout.
+- **Pas de doublons.** Une notion comme XSUAA a une seule fiche, utilisée par
+  tous les repos.
+- **Le paysage.** OKB calcule les connexions entre repos (services, événements,
+  destinations), mais seulement entre les repos d'une même KB.
+- **Ça se vit quand même comme une KB par repo.** Ouvre Claude Code dans un
+  repo : OKB reconnaît le repo par son chemin et donne à Claude ses notes et ses
+  questions ouvertes. `/okb:onboard` crée sa pièce, `/okb:ticket` la nourrit. Dans
+  l'app web, la page Repos montre chaque repo, et le graphe se filtre par zone
+  (`repos/<repo>`).
+- **Rien dans les repos.** Aucun fichier n'est ajouté à tes repos : rien ne
+  part par erreur dans un commit de l'équipe.
+
+Une KB à part pour un repo n'a de sens que si sa confidentialité ou son public
+diffère (`okb repo add --kb <autre>`).
+
+**Mise en place**, une fois :
+
+```bash
+okb kb add ~/Documents/<ta KB>
+```
+
+```bash
+okb repo add --all ~/Documents/<tes repos> --kb <ta KB>
+```
+
+```bash
+okb repo landscape --propose --kb <ta KB>
+```
+
+1. `okb kb add` connecte la KB existante (ou `okb new` en crée une). Réponds
+   « oui » à « KB confidentielle ».
+2. `okb repo add --all` enregistre d'un coup chaque repo du dossier et en dresse
+   la carte, sans IA, en quelques secondes par repo. Une KB rangée dans le même
+   dossier n'est pas prise pour un repo.
+3. `okb repo landscape --propose` prépare la note des connexions entre repos.
+4. Si la KB date d'avant OKB, `/okb:convert` dans Claude Code : chaque note qui
+   parle surtout d'un repo va dans `repos/<repo>/`, le reste dans les dossiers
+   généraux.
+5. Ensuite, repo par repo, au moment où tu en as besoin : `/okb:onboard` la
+   première fois, puis `/okb:ticket` au début et à la fin de chaque ticket.
 
 ## Plusieurs repos
 
