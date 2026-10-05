@@ -52,7 +52,9 @@ step "$(say 'OKB built' 'OKB compilé') ($(node dist/cli/index.js version))"
 # 3. First KB and connections, or a check when OKB is already set up.
 if node dist/cli/index.js kb list --json 2>/dev/null | node -e 'let s="";process.stdin.on("data",c=>s+=c).on("end",()=>{try{process.exit(JSON.parse(s).kbs.length?0:1)}catch{process.exit(1)}})'; then
   step "$(say 'Already set up: checking' 'Déjà configuré : vérification')"
-  node dist/cli/index.js doctor || true
+  # Offer the repairs here: the `okb` command may not exist yet.
+  if [ -z "$YES" ] && [ -t 0 ]; then node dist/cli/index.js doctor --fix || true
+  else node dist/cli/index.js doctor || true; fi
   printf '\n%s%s%s okb update\n' "$D" "$(say 'To update later:' 'Pour mettre à jour plus tard :')" "$N"
 else
   printf '\n'

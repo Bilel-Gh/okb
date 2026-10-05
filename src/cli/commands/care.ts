@@ -155,7 +155,9 @@ export async function cmdDoctor(ctx: Ctx): Promise<number> {
     if (done) out.ok(tn('doctor.fixedCount', done));
   } else if (attention) {
     out.warn(tn('doctor.attention', attention));
-    if (fixable.length) out.next([`okb doctor --fix${kbFlag(args)}`]);
+    // Before the `okb` command exists, the next step must not need it.
+    const self = launcher.onPath ? 'okb' : `node ${tilde(resolve(PRODUCT_ROOT, 'dist', 'cli', 'index.js'))}`;
+    if (fixable.length) out.next([`${self} doctor --fix${kbFlag(args)}`]);
   } else if (report.ok) out.ok(paint.bold(t('doctor.allGood')));
   if (flagBool(args, 'verbose')) {
     out.heading(t('doctor.support'));
