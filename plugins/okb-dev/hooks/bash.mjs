@@ -9,6 +9,9 @@
 import { execFile } from 'node:child_process';
 import { okbPath } from './okb-path.mjs';
 
+// A model OKB itself runs in the background (src/ai/provider.ts) needs no context: stay silent.
+if (process.env.OKB_HEADLESS === '1') process.exit(0);
+
 const okb = okbPath();
 if (!okb) process.exit(0);
 let raw = '';

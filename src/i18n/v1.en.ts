@@ -410,4 +410,11 @@ export const EN_V1 = {
   'concepts.missingTitle': '{n} concept card(s) without a valid short sentence (3 to 25 words):',
   'concepts.suggested': '{n} « complete » suggestion card(s) added: you choose which to write.',
   'concepts.checkTip': 'okb concepts check --suggest makes a « complete » card for each.',
+  'settings.label.ai.provider': 'AI used by OKB (translate…)',
+  'err.aiUnavailable.title': 'No AI available',
+  'err.aiUnavailable.why': 'OKB found neither Claude Code on this computer nor an API key, or AI is turned off.',
+  'err.aiUnavailable.fix': 'Install Claude Code, or put your key in ANTHROPIC_API_KEY, then okb settings set ai.provider auto.',
+  'err.aiFailed.title': 'The AI did not answer',
+  'err.aiFailed.why': 'The call failed: {error}',
+  'err.aiFailed.fix': 'Check that Claude Code is signed in (claude) or that your API key is valid, then try again.',
 } as const;

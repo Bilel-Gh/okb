@@ -404,4 +404,11 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'concepts.missingTitle': '{n} fiche(s) concept sans phrase courte valide (3 à 25 mots) :',
   'concepts.suggested': '{n} carte(s) de suggestion « compléter » ajoutée(s) : tu choisis lesquelles écrire.',
   'concepts.checkTip': 'okb concepts check --suggest crée une carte « compléter » pour chacune.',
+  'settings.label.ai.provider': 'IA utilisée par OKB (traduire…)',
+  'err.aiUnavailable.title': 'Pas d’IA disponible',
+  'err.aiUnavailable.why': 'OKB n’a trouvé ni Claude Code sur cet ordinateur, ni clé d’API, ou l’IA est désactivée.',
+  'err.aiUnavailable.fix': 'Installe Claude Code, ou mets ta clé dans ANTHROPIC_API_KEY, puis okb settings set ai.provider auto.',
+  'err.aiFailed.title': 'L’IA n’a pas répondu',
+  'err.aiFailed.why': 'L’appel a échoué : {error}',
+  'err.aiFailed.fix': 'Vérifie que Claude Code est connecté (claude) ou que ta clé d’API est valide, puis réessaie.',
 };

@@ -14,6 +14,9 @@ import { execFile } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// A model OKB itself runs in the background (src/ai/provider.ts) needs no context: stay silent.
+if (process.env.OKB_HEADLESS === '1') process.exit(0);
+
 const okb = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'okb');
 
 // The session's folder comes on stdin: inside a repository OKB documents, Claude
