@@ -9,3 +9,4 @@ coverage/
 !.env.example
 plugin/evals/results/
 evals/results/
+web/app/

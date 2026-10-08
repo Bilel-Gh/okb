@@ -178,7 +178,14 @@ describe('OKB web app', () => {
     const page = await fetch(url);
     expect(page.headers.get('Content-Security-Policy')).toContain("script-src 'self'");
     expect(page.headers.get('Content-Security-Policy')).toContain("frame-ancestors 'none'");
-    expect(await page.text()).toContain('/js/main.js');
+    // The new app (React, built into web/app) answers on « / » once built; the classic one stays on « /classic ».
+    const built = await access(resolve(TEST_ROOT, '..', 'web', 'app', 'index.html')).then(() => true, () => false);
+    const home = await page.text();
+    if (built) {
+      expect(home).toContain('/app/assets/');
+      expect(home).not.toMatch(/<script(?![^>]*\bsrc=)[^>]*>/);
+    } else expect(home).toContain('/js/main.js');
+    expect(await (await fetch(`${url}/classic`)).text()).toContain('/js/main.js');
     expect((await fetch(`${url}/app.css`)).status).toBe(200);
     const webJs = resolve(TEST_ROOT, '..', 'web', 'js');
     for (const file of [...(await readdir(webJs)).map((f) => resolve(webJs, f)), ...(await readdir(resolve(webJs, 'views'))).map((f) => resolve(webJs, 'views', f))]) {

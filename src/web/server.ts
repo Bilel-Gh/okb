@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { statSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { createRequire } from 'node:module';
@@ -20,7 +20,7 @@ import { MUTATING, routeFor, type ApiContext } from './api.js';
  * - Notes are rendered through a sanitizer; the page loads nothing from outside.
  */
 const WEB_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
-const TYPES: Record<string, string> = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.json': 'application/json', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2' };
+const TYPES: Record<string, string> = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.json': 'application/json', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff' };
 
 /** d3-force and the three modules it needs, as browser globals (`window.d3`), in load order. */
 function forcePaths(): string[] | null {
@@ -138,7 +138,9 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
         res.end(await readFile(mermaid));
         return;
       }
-      const rel = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
+      // The new app (web-app/, built into web/app) answers on « / » once built; the classic app stays on « /classic ».
+      const hasApp = assets ? assets.has('app/index.html') : existsSync(resolve(WEB_ROOT, 'app', 'index.html'));
+      const rel = url.pathname === '/' ? (hasApp ? 'app/index.html' : 'index.html') : url.pathname === '/classic' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
       const file = resolve(WEB_ROOT, rel);
       if (!file.startsWith(WEB_ROOT + sep) || rel.includes('\0')) { json({ error: 'Not found.' }, 404); return; }
       const content = assets ? assets.get(rel.split(sep).join('/')) ?? null : await readFile(file).catch(() => null);
