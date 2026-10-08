@@ -81,6 +81,46 @@ export async function installClaudePlugin(): Promise<{ ok: boolean; steps: strin
   return r.ok ? { ok: true, steps } : { ok: false, steps, error: r.err };
 }
 
+/** OKB plugins (the core and each module) Claude Code has installed, by plugin name. */
+export async function claudeModules(home: string = process.env.HOME ?? ''): Promise<Record<string, { installed: boolean; version: string | null }>> {
+  const { MODULES } = await import('../modules/catalog.js');
+  let plugins: Record<string, { version?: string }[]> = {};
+  try {
+    plugins = (JSON.parse(await readFile(resolve(home, '.claude', 'plugins', 'installed_plugins.json'), 'utf8')) as { plugins?: typeof plugins }).plugins ?? {};
+  } catch { /* Claude Code never installed a plugin */ }
+  const out: Record<string, { installed: boolean; version: string | null }> = {};
+  for (const m of MODULES) {
+    if (!m.plugin) continue;
+    const entry = plugins[`${m.plugin}@okb`];
+    out[m.plugin] = { installed: Boolean(entry), version: entry?.[0]?.version ?? null };
+  }
+  return out;
+}
+
+/**
+ * Install a module's plugin in Claude Code (on the person's click): register
+ * this folder as the `okb` catalogue when needed, then install or update the
+ * plugin. The core plugin goes first when it is missing: a module depends on it.
+ */
+export async function installClaudeModule(id: string): Promise<{ ok: boolean; steps: string[]; error?: string }> {
+  const { moduleDef } = await import('../modules/catalog.js');
+  const def = moduleDef(id);
+  if (!def?.plugin) return { ok: false, steps: [], error: 'no-plugin' };
+  if (def.plugin === 'okb') return installClaudePlugin();
+  const state = await claudeState();
+  if (!state.cli) return { ok: false, steps: [], error: 'claude-missing' };
+  const steps: string[] = [];
+  if (!state.installed) {
+    const core = await installClaudePlugin();
+    steps.push(...core.steps);
+    if (!core.ok) return { ok: false, steps, ...(core.error ? { error: core.error } : {}) };
+  }
+  const installed = (await claudeModules())[def.plugin]?.installed;
+  const r = await tryRun(state.cli, installed ? ['plugin', 'update', `${def.plugin}@okb`] : ['plugin', 'install', `${def.plugin}@okb`], { timeout: 120_000 });
+  steps.push(`${installed ? 'update' : 'install'} ${def.plugin}: ${r.ok ? 'ok' : r.err}`);
+  return r.ok ? { ok: true, steps } : { ok: false, steps, error: r.err };
+}
+
 /* ---------- The `okb` command on the PATH ---------- */
 
 export type LauncherState = { readonly onPath: string | null; readonly candidates: readonly string[] };

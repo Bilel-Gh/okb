@@ -43,6 +43,7 @@ import { weeklyReport } from '../weekly/weekly.js';
 import { confirmPresence, presenceMethod } from './presence.js';
 import { renderMarkdown } from './render.js';
 import { brainRoutes, crumbsOf, scoresFor } from './api-brain.js';
+import { nextRoutes } from './api-next.js';
 
 export type ApiContext = {
   readonly env: NodeJS.ProcessEnv;
@@ -136,6 +137,7 @@ async function kbsWithKind(env: NodeJS.ProcessEnv) {
 }
 
 const BRAIN = brainRoutes(kbConfig);
+const NEXT = nextRoutes(kbConfig);
 
 export const ROUTES: Record<string, Handler> = {
   /* ---------- session ---------- */
@@ -627,7 +629,7 @@ export const ROUTES: Record<string, Handler> = {
 };
 
 // Every change, the brain's included, carries the session token and a JSON body.
-export const MUTATING = new Set([...Object.keys(ROUTES), ...Object.keys(BRAIN)].filter((k) => k.startsWith('POST ')));
+export const MUTATING = new Set([...Object.keys(ROUTES), ...Object.keys(BRAIN), ...Object.keys(NEXT)].filter((k) => k.startsWith('POST ')));
 export function routeFor(method: string, pathname: string): Handler | undefined {
-  return ROUTES[`${method} ${pathname}`] ?? (BRAIN as Record<string, Handler>)[`${method} ${pathname}`];
+  return ROUTES[`${method} ${pathname}`] ?? (BRAIN as Record<string, Handler>)[`${method} ${pathname}`] ?? (NEXT as Record<string, Handler>)[`${method} ${pathname}`];
 }

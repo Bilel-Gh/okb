@@ -54,6 +54,8 @@ export const SETTINGS: readonly SettingDef[] = [
   // Daily backups of every KB and its state (src/brain/backup.ts). An external disk is safest.
   { key: 'backup.enabled', group: 'history', type: 'bool', scope: 'global', path: ['backup', 'enabled'], recommended: true, fallback: true },
   { key: 'backup.dir', group: 'history', type: 'text', scope: 'global', path: ['backup', 'dir'], fallback: '' },
+  // Modules for a job (src/modules/catalog.ts): the core is always on.
+  { key: 'modules.enabled', group: 'advanced', type: 'list', scope: 'global', path: ['modules', 'enabled'], fallback: ['dev'] },
   { key: 'profile.humanActor', group: 'advanced', type: 'text', scope: 'profile', path: ['profile', 'humanActor'], fallback: 'human:anonymous' },
   { key: 'context.pageSize', group: 'advanced', type: 'number', scope: 'profile', path: ['context', 'pageSize'], fallback: 25 },
 ];

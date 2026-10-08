@@ -61,6 +61,7 @@ const HANDLERS: Record<string, Handler> = {
   journal: (c) => import('./commands/learn.js').then((m) => m.cmdJournal(c)),
   secret: (c) => import('./commands/learn.js').then((m) => m.cmdSecret(c)),
   metrics: (c) => import('./commands/metrics.js').then((m) => m.cmdMetrics(c)),
+  modules: (c) => import('./commands/modules.js').then((m) => m.cmdModules(c)),
   suggest: (c) => import('./commands/suggest.js').then((m) => m.cmdSuggest(c)),
   scores: (c) => import('./commands/suggest.js').then((m) => m.cmdScores(c)),
   rate: (c) => import('./commands/suggest.js').then((m) => m.cmdRate(c)),
