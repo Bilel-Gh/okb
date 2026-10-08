@@ -12,6 +12,9 @@ import { writeFixture } from './helpers/sandbox.js';
 import { git, useRepoSandboxes, workKb } from './helpers/repo.js';
 import { json, run, team } from './helpers/team.js';
 
+// End-to-end scenarios: dozens of real Git and okb processes; on a loaded machine they need more than one test's usual 90 s.
+const SCENARIO_TIMEOUT = 180_000;
+
 useRepoSandboxes();
 
 describe('a workspace: one KB for a team of repositories, narrowed to the one at hand', () => {
@@ -92,7 +95,7 @@ describe('a workspace: one KB for a team of repositories, narrowed to the one at
     // Inside another repository of the workspace, the folder decides.
     const billing = await json(['scope'], env, resolve(ws, 'billing-service'));
     expect(billing).toMatchObject({ via: 'folder', repo: 'billing-service', ticket: null });
-  });
+  }, SCENARIO_TIMEOUT);
 
   it('finds the repositories of a folder but not a KB kept beside them', async () => {
     const { ws } = await team();

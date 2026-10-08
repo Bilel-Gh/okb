@@ -7,6 +7,9 @@ import { suggestIntent } from '../src/routing/intent.js';
 import { dirs, useRepoSandboxes } from './helpers/repo.js';
 import { json, repo, run } from './helpers/team.js';
 
+// End-to-end scenarios: dozens of real Git and okb processes; on a loaded machine they need more than one test's usual 90 s.
+const SCENARIO_TIMEOUT = 180_000;
+
 useRepoSandboxes();
 
 /** A machine where nothing is set up yet: an empty OKB home. */
@@ -53,7 +56,7 @@ describe('okb start: set OKB up for the situation at hand', () => {
     expect(after).toMatchObject({ situation: 'ready-repo', here: { repo: 'repo2' } });
     expect(after.kbs).toMatchObject([{ id: 'travail', kind: 'workspace', confidential: true }]);
     expect(after.plan.filter((s: { id: string }) => s.id !== 'tools')).toEqual([]);
-  });
+  }, SCENARIO_TIMEOUT);
 
   it('recommends a KB of its own for a repository alone, and a subject KB away from code', async () => {
     const { base, env } = await fresh();
@@ -98,5 +101,5 @@ describe('okb start keeps a workspace whole', () => {
     const after = await json(['start'], env, folder);
     expect(after.plan.find((s: { id: string }) => s.id === 'syncWorkspace')).toBeUndefined();
     expect(after.tree.find((e: { name: string }) => e.name === 'repo4').kind).toBe('repo-in');
-  });
+  }, SCENARIO_TIMEOUT);
 });

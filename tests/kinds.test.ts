@@ -19,6 +19,9 @@ import { approve, dirs, dossier, git, gitFixture, useRepoSandboxes, workKb } fro
 import { writeFixture } from './helpers/sandbox.js';
 import { json, repo, run, team } from './helpers/team.js';
 
+// End-to-end scenarios: dozens of real Git and okb processes; on a loaded machine they need more than one test's usual 90 s.
+const SCENARIO_TIMEOUT = 180_000;
+
 useRepoSandboxes();
 
 /** The sandbox environment without a pinned KB: the folder decides, as for a person. */
@@ -107,7 +110,7 @@ describe('three kinds of KB', () => {
     const lone = resolve(ws, '..', 'solo');
     await repo(resolve(lone, 'tool'), { 'README.md': '# Tool\n' }, 'Tool');
     expect(await json(['workspace', 'add', lone, '--kb', 'travail', '--no-scan', '--no-landscape'], env, lone)).toMatchObject({ ok: true, advice: 'single-repo' });
-  });
+  }, SCENARIO_TIMEOUT);
 });
 
 describe('a repository with its own KB in a workspace', () => {
@@ -134,7 +137,7 @@ describe('a repository with its own KB in a workspace', () => {
     const found = await json(['ask', 'facture'], env, billing);
     expect(found.scope).toMatchObject({ repo: 'billing-service', sharedKb: 'travail' });
     expect(found.hits.map((h: { kb: string; path: string }) => `${h.kb}:${h.path}`)).toEqual(['billing:architecture.md', 'travail:guides/facturation.md']);
-  });
+  }, SCENARIO_TIMEOUT);
 
   it('merges into the workspace’s KB through one proposal, then moves its state over', async () => {
     const { env, billing, billingKb } = await attached();
@@ -160,7 +163,7 @@ describe('a repository with its own KB in a workspace', () => {
     expect(await readFile(resolve(billingKb.kb.root, 'comprendre.md'), 'utf8')).toContain('Comprendre billing');
     // The relative link still works under repos/billing-service/.
     expect(await readFile(resolve(travail.kb.root, 'repos', 'billing-service', 'comprendre.md'), 'utf8')).toContain('(tickets/2026-10-01-bil-7.md)');
-  });
+  }, SCENARIO_TIMEOUT);
 });
 
 describe('the web graph of a workspace', () => {

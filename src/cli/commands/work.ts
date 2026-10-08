@@ -132,6 +132,7 @@ export async function workspaceAdd(ctx: Ctx, folderArg: string): Promise<number>
   const registered = await listRepos();
   const rows: { name: string; id: string; stack: string; created: boolean; attached?: string; error?: string }[] = [];
   const s = canAsk(ctx) ? spin(t('repo.addAll.running', { n: String(roots.length) })) : null;
+  const toScan: { repo: Awaited<ReturnType<typeof addRepo>>['repo']; row: number }[] = [];
   for (const root of roots) {
     try {
       // A repository that has its own KB keeps it: attached to the workspace, it gets the shared part from here.
@@ -141,11 +142,26 @@ export async function workspaceAdd(ctx: Ctx, folderArg: string): Promise<number>
         continue;
       }
       const { repo, created } = await addRepo({ path: root, kb });
-      const result = scan ? await scanAndStore(config, repo) : null;
-      rows.push({ name: repo.name, id: repo.id, created, stack: result ? result.map.stack.slice(0, 3).map((x) => x.label).join(', ') : '' });
+      toScan.push({ repo, row: rows.length });
+      rows.push({ name: repo.name, id: repo.id, created, stack: '' });
     } catch (e) {
       rows.push({ name: basename(root), id: '', created: false, stack: '', error: (e as Error).message });
     }
+  }
+  // Registering writes one shared list, so it goes one by one; each scan writes only its own repository's state: four at a time.
+  if (scan) {
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(4, toScan.length) }, async () => {
+      while (next < toScan.length) {
+        const item = toScan[next++]!;
+        try {
+          const result = await scanAndStore(config, item.repo);
+          rows[item.row] = { ...rows[item.row]!, stack: result.map.stack.slice(0, 3).map((x) => x.label).join(', ') };
+        } catch (e) {
+          rows[item.row] = { ...rows[item.row]!, error: (e as Error).message };
+        }
+      }
+    }));
   }
   const given = flagList(args, 'prefixes').map((p) => p.toUpperCase());
   const prefixes = given.length ? given : await learnPrefixes(roots).catch(() => [] as string[]);
