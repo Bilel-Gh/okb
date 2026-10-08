@@ -71,3 +71,29 @@ describe('repositories in the web app', () => {
     }
   }, 90_000);
 });
+
+describe('the Repos page reads Git once per repository (review I4)', () => {
+  it('does not compute the status and freshness of a repository again for its level', async () => {
+    const { vi } = await import('vitest');
+    const gitModule = await import('../src/repo/git.js');
+    const notesModule = await import('../src/repo/notes.js');
+    const { serve } = await import('../src/web/serve.js');
+    const { config, env, dir } = await demoBrain();
+    const [first] = await brainRepos(config, env);
+    await linkBrainRepo(config, first!.folder!, await codeFolder(dir, first!.name), env);
+    const { server, url } = await serve(config, { port: 0, env });
+    const identity = vi.spyOn(gitModule, 'gitIdentity');
+    const notes = vi.spyOn(notesModule, 'repoNotes');
+    try {
+      const list = (await (await fetch(`${url}/api/repos`)).json()) as { repos: { level: { percent: number } }[] };
+      expect(list.repos).toHaveLength(1);
+      expect(list.repos[0]!.level.percent).toBeGreaterThanOrEqual(0);
+      // Before: status, then status again and freshness again for the level (3 each).
+      expect(identity.mock.calls.length).toBeLessThanOrEqual(2);
+      expect(notes.mock.calls.length).toBeLessThanOrEqual(2);
+    } finally {
+      identity.mockRestore(); notes.mockRestore();
+      server.closeAllConnections(); server.close();
+    }
+  }, 90_000);
+});

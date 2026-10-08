@@ -21,6 +21,14 @@ import * as legacy from './commands/legacy.js';
 const wrap = (fn: (args: Ctx['args'], out: Output, mode: OutputMode) => Promise<number> | number): Handler => (c) => fn(c.args, c.out, c.mode);
 
 /** Every command by canonical name; aliases resolve through the help catalogue. */
+/** Refuse a function of a module the person turned off, saying how to turn it back on. */
+async function requireFeature(feature: string): Promise<void> {
+  const { featureOn, MODULES } = await import('../modules/catalog.js');
+  if (await featureOn(feature)) return;
+  const id = MODULES.find((m) => m.features.includes(feature))?.id ?? feature;
+  throw new OkbError('E_CONFIG', `module ${id} is turned off`, { key: 'moduleOff', params: { id }, hint: `okb modules on ${id}` });
+}
+
 const HANDLERS: Record<string, Handler> = {
   home: (c) => import('./commands/home.js').then((m) => m.cmdHome(c, dispatch)),
   start: (c) => import('./commands/start.js').then((m) => m.cmdStart(c, dispatch)),
@@ -43,10 +51,11 @@ const HANDLERS: Record<string, Handler> = {
   // `okb convert` is `okb kb convert`: the word people use first.
   convert: (c) => cmdKb({ ...c, args: { ...c.args, positionals: ['convert', ...c.args.positionals] } }),
   categories: (c) => import('./commands/categories.js').then((m) => m.cmdCategories(c)),
-  repo: (c) => import('./commands/repo.js').then((m) => m.cmdRepo(c)),
-  workspace: (c) => import('./commands/work.js').then((m) => m.cmdWorkspace(c)),
+  // The developer module's commands (src/modules/catalog.ts): off when the person turned the module off.
+  repo: (c) => requireFeature('repos').then(() => import('./commands/repo.js')).then((m) => m.cmdRepo(c)),
+  workspace: (c) => requireFeature('repos').then(() => import('./commands/work.js')).then((m) => m.cmdWorkspace(c)),
   scope: (c) => import('./commands/work.js').then((m) => m.cmdScope(c)),
-  ticket: (c) => import('./commands/work.js').then((m) => m.cmdTicket(c)),
+  ticket: (c) => requireFeature('tickets').then(() => import('./commands/work.js')).then((m) => m.cmdTicket(c)),
   brain: (c) => import('./commands/brain.js').then((m) => m.cmdBrain(c)),
   where: (c) => import('./commands/brain.js').then((m) => m.cmdWhere(c)),
   now: (c) => import('./commands/brain.js').then((m) => m.cmdNow(c)),

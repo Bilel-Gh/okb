@@ -41,7 +41,7 @@ export type RepoStatus = {
   readonly next: readonly string[];
 };
 
-export async function repoStatus(ctx: RepoContext, options: { bundle?: Bundle } = {}): Promise<RepoStatus> {
+export async function repoStatus(ctx: RepoContext, options: { bundle?: Bundle; fresh?: Freshness } = {}): Promise<RepoStatus> {
   const { config, repo, paths } = ctx;
   const lang = config.writing.language ?? config.profile.answer.language;
   const place = await repoPlace(config, repo);
@@ -57,7 +57,7 @@ export async function repoStatus(ctx: RepoContext, options: { bundle?: Bundle } 
   });
   const questions = questionViews(map, progress, findings.flatMap((f) => f.facts.map((x) => x.question).filter((q): q is string => Boolean(q))), notes, pendingPaths);
   const coverage = coverageOf(map, progress);
-  const fresh = await freshness(ctx, { bundle, notes, progress, head: identity.head });
+  const fresh = options.fresh ?? (await freshness(ctx, { bundle, notes, progress, head: identity.head }));
   const stale = fresh.notes.filter((n) => n.verdict === 'stale' || n.verdict === 'changed').length;
   const next: string[] = [];
   if (!map) next.push(`okb repo scan ${repo.id}`);

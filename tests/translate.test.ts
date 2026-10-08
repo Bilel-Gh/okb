@@ -154,3 +154,78 @@ describe('translation, from the terminal and the web app', () => {
     }
   }, 60_000);
 });
+
+describe('a failed or partial AI answer (review I1)', () => {
+  /** A stand-in for the Anthropic API answering what we decide. */
+  async function stub(reply: (prompt: string) => { text: string; stop?: string }) {
+    const { createServer } = await import('node:http');
+    const server = createServer((req, res) => {
+      let body = '';
+      req.on('data', (c) => { body += String(c); });
+      req.on('end', () => {
+        const prompt = (JSON.parse(body) as { messages: { content: string }[] }).messages[0]!.content;
+        const r = reply(prompt);
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ content: [{ type: 'text', text: r.text }], stop_reason: r.stop ?? 'end_turn', usage: { input_tokens: 50, output_tokens: 60 } }));
+      });
+    });
+    await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+    const port = (server.address() as { port: number }).port;
+    return { server, env: { OKB_AI: '', ANTHROPIC_API_KEY: 'test-key', ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`, PATH: '/nonexistent' } };
+  }
+
+  it('an answer with no translated block is an error, and nothing is cached', async () => {
+    const { server, env } = await stub(() => ({ text: 'I am sorry, I cannot help with that.' }));
+    try {
+      const b = await brain(env);
+      await expect(translateNote(b.config, b.path, 'en', 'brief', b.env)).rejects.toMatchObject({ key: 'aiFailed' });
+      const again = await estimateTranslation(b.config, b.path, 'en', 'brief', b.env);
+      expect(again.toTranslate).toBeGreaterThan(0);
+    } finally { server.close(); }
+  }, 60_000);
+
+  it('an answer cut short is an error', async () => {
+    const { server, env } = await stub((p) => ({ text: p.split('\n').slice(0, 2).join('\n'), stop: 'max_tokens' }));
+    try {
+      const b = await brain(env);
+      await expect(translateNote(b.config, b.path, 'en', 'full', b.env)).rejects.toMatchObject({ key: 'aiFailed' });
+    } finally { server.close(); }
+  }, 60_000);
+
+  it('only the blocks that came back are kept; the others are tried again next time', async () => {
+    let calls = 0;
+    // First answer: only the title and description; second: everything.
+    const { server, env } = await stub((p) => {
+      calls++;
+      const blocks = p.split(/^(<<<\d+>>>)$/m);
+      const out: string[] = [];
+      for (let i = 1; i < blocks.length; i += 2) {
+        if (calls === 1 && i > 3) break;
+        out.push(blocks[i]!, `EN ${blocks[i + 1]!.trim()}`);
+      }
+      return { text: out.join('\n') };
+    });
+    try {
+      const b = await brain(env);
+      const first = await translateNote(b.config, b.path, 'en', 'brief', b.env);
+      expect(first.translated).toBe(0);
+      expect(first.failed).toBeGreaterThan(0);
+      expect(first.title).toBe('EN Livrer une version');
+      const second = await translateNote(b.config, b.path, 'en', 'brief', b.env);
+      expect(second.translated).toBe(1);
+      expect(second.markdown).toContain('EN ');
+    } finally { server.close(); }
+  }, 60_000);
+});
+
+describe('saving the translation of a 🔒 note (review I2)', () => {
+  it('keeps the note confidential', async () => {
+    const { config, path, env, kb } = await brain();
+    await writeFile(resolve(kb, path), NOTE.replace("x_okb:\n", 'x_okb:\n  confidentiality: secret\n'));
+    await translateNote(config, path, 'en', 'full', env, { confirmSecret: true });
+    const proposal = await proposeTranslation(config, path, 'en');
+    const { materializeFile } = await import('../src/proposal/materialize.js');
+    const content = materializeFile(proposal.changes[0]!.path, null, proposal.changes);
+    expect(content).toMatch(/confidentiality: secret/);
+  }, 60_000);
+});

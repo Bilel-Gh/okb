@@ -438,4 +438,7 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'err.noteUnknown.title': 'Note introuvable',
   'err.noteUnknown.why': 'Aucune note « {path} » dans cette KB.',
   'err.noteUnknown.fix': 'Donne son chemin dans la KB ou son titre exact (okb find pour la chercher).',
+  'err.moduleOff.title': 'Module désactivé',
+  'err.moduleOff.why': 'Le module {id} est désactivé sur cet ordinateur : ses commandes et ses pages sont masquées.',
+  'err.moduleOff.fix': 'Réactive-le avec okb modules on {id} (tes notes n’ont pas bougé).',
 };

@@ -203,12 +203,14 @@ export async function estimateTranslation(config: OkbConfig, path: BundlePath, l
   return { tokens, cached: p.sections.length - r.sections.length, toTranslate: r.sections.length };
 }
 
-export async function translateNote(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: boolean; now?: Date } = {}): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; tokens: number }> {
+export async function translateNote(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: boolean; now?: Date } = {}): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
   const now = options.now ?? new Date();
   const p = await plan(config, path, lang, scope, options);
   const terms = glossary(layoutOf(config), p.bundle).flatMap((g) => [g.term, ...g.aliases]);
   const r = requestFor(p, lang, terms);
   let tokens = 0;
+  let done = 0;
+  let failed = 0;
   const cache = p.cache;
   if (r.blocks.length) {
     const cost = estimateTokens(r.system + r.prompt) * 2;
@@ -218,14 +220,20 @@ export async function translateNote(config: OkbConfig, path: BundlePath, lang: s
     tokens = answer.tokens.input + answer.tokens.output;
     await recordAiUsage(config, { tokens, purpose: 'translate', provider: answer.provider }, now);
     const parsed = parseBlocks(answer.text, r.blocks.length);
-    const value = (i: number) => {
-      const b = r.blocks[i]!;
+    // Only what came back whole is kept: a block missing, cut, or that lost a link target is asked again next time.
+    const results = r.blocks.map((b, i) => {
       const t = parsed[i];
-      return t === null || t === undefined ? b.source : restore(t, b.protected.parts, b.source).text;
-    };
-    if (r.metaNeeded) cache.meta = { hash: p.meta.hash, title: value(0), description: p.meta.description ? value(1) : '' };
+      if (t === null || t === undefined || !t.trim()) return null;
+      const back = restore(t, b.protected.parts, b.source);
+      return back.ok ? back.text : null;
+    });
+    if (!results.some((x) => x !== null)) throw new OkbError('E_IO', 'the AI gave no translation', { key: 'aiFailed', params: { error: answer.text.trim().slice(0, 160) || 'empty answer' } });
+    if (r.metaNeeded && results[0] !== null && (!p.meta.description || results[1] !== null)) {
+      cache.meta = { hash: p.meta.hash, title: results[0]!, description: p.meta.description ? results[1]! : '' };
+    }
     for (const s of r.sections) {
-      cache.sections[s.hash] = s.texts.map((_, i) => value(r.blocks.findIndex((b) => b.key === `${s.hash}:${i}`)));
+      const texts = s.texts.map((_, i) => results[r.blocks.findIndex((b) => b.key === `${s.hash}:${i}`)] ?? null);
+      if (texts.every((x) => x !== null)) { cache.sections[s.hash] = texts as string[]; done++; } else failed++;
     }
   }
   // Keep only what the current note still holds (old versions of a section go).
@@ -251,7 +259,7 @@ export async function translateNote(config: OkbConfig, path: BundlePath, lang: s
   return {
     title, description: cache.meta?.description ?? p.meta.description,
     markdown: scope === 'brief' ? `# ${title}\n\n${body}\n` : `${body}\n`,
-    cached: p.sections.length - r.sections.length, translated: r.sections.length, tokens,
+    cached: p.sections.length - r.sections.length, translated: done, failed, tokens,
   };
 }
 
@@ -271,7 +279,8 @@ export async function proposeTranslation(config: OkbConfig, path: BundlePath, la
   const front = {
     type: entry.type, title: `${translated.title} (${tag})`, description: translated.description || translated.title, status: 'draft',
     generated: { by: config.okf.machineActor, at: new Date().toISOString() },
-    x_okb: { translation: { of: path, lang } },
+    // The translation of a 🔒 or private note stays as protected as the note.
+    x_okb: { ...(isSecret(entry.ext) || (entry.ext as { confidentiality?: string }).confidentiality === 'private' ? { confidentiality: (entry.ext as { confidentiality: string }).confidentiality } : {}), translation: { of: path, lang } },
   };
   const link = `./${encodeURI(`${base}.md`)}`;
   const content = `---\n${YAML.stringify(front, { lineWidth: 0 })}---\n\n> 🌐 ${TRANSLATION_OF[lang] ?? 'Translation of'} [${entry.title}](${link})\n\n${translated.markdown}`;

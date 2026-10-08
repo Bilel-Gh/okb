@@ -121,3 +121,15 @@ describe('the knowledge level, shown', () => {
     }
   }, 60_000);
 });
+
+describe('answers age with their notes (review I5)', () => {
+  it('an answered question whose note went stale counts as half', async () => {
+    const { questionCounts } = await import('../src/knowledge/level.js');
+    const verdict = new Map([['a.md', 'stale'], ['b.md', 'fresh'], ['c.md', 'changed']]);
+    const counts = questionCounts([
+      { state: 'answered', note: 'a.md' }, { state: 'answered', note: 'b.md' }, { state: 'answered', note: 'c.md' },
+      { state: 'found' }, { state: 'open' },
+    ], verdict);
+    expect(counts).toEqual({ answered: 2, half: 2 });
+  });
+});

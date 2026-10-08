@@ -106,3 +106,24 @@ describe('modules in the web app', () => {
     }
   }, 60_000);
 });
+
+describe('a module turned off is off (review I3)', () => {
+  it('the developer commands and pages say the module is off, and work again once it is on', async () => {
+    const { makeSandbox } = await import('./helpers/sandbox.js');
+    const { serve } = await import('../src/web/serve.js');
+    const s = await makeSandbox({ profileId: 'reader' });
+    try {
+      await setModule('dev', false, s.env);
+      const r = await json(['repo', 'list'], s.env, s.dir);
+      expect(r).toMatchObject({ ok: false, error: { key: 'moduleOff' } });
+      const { server, url } = await serve(await s.config(), { port: 0, env: s.env });
+      try {
+        const res = await fetch(`${url}/api/repos`);
+        expect(res.status).toBe(400);
+        expect(((await res.json()) as { title: string }).title).toBeTruthy();
+      } finally { server.closeAllConnections(); server.close(); }
+      await setModule('dev', true, s.env);
+      expect((await json(['repo', 'list'], s.env, s.dir)).ok).toBe(true);
+    } finally { await s.cleanup(); }
+  }, 90_000);
+});

@@ -162,10 +162,13 @@ export const ROUTES: Record<string, Handler> = {
     // How well OKB knows each repository (src/knowledge/level.ts): scores computed once for all.
     const { repoLevel } = await import('../knowledge/level.js');
     const scores = await scoresFor(config, bundle);
+    const { freshness } = await import('../repo/status.js');
     for (const repo of repos) {
       const rctx = await repoContext(config, repo);
-      const [status, map] = await Promise.all([repoStatus(rctx, { bundle }), loadMap(rctx.paths)]);
-      const level = await repoLevel(config, repo, { env: ctx.env, bundle, scores });
+      // Git is read once per repository: the freshness serves the status and the level.
+      const fresh = await freshness(rctx, { bundle });
+      const [status, map] = await Promise.all([repoStatus(rctx, { bundle, fresh }), loadMap(rctx.paths)]);
+      const level = await repoLevel(config, repo, { env: ctx.env, bundle, scores, status, fresh });
       out.push({ ...repo, description: map?.repo.description ?? null, stack: map?.stack.slice(0, 5).map((x) => x.label) ?? [], status, level });
     }
     // Tickets OKB follows in this KB, and the workspaces that use it.
@@ -199,9 +202,10 @@ export const ROUTES: Record<string, Handler> = {
     const rctx = await repoContext(config, repo);
     const bundle = await loadBundleFor(config);
     const place = await repoPlace(config, repo);
-    const [status, map, fresh] = await Promise.all([repoStatus(rctx, { bundle }), loadMap(rctx.paths), freshness(rctx, { bundle })]);
+    const fresh = await freshness(rctx, { bundle });
+    const [status, map] = await Promise.all([repoStatus(rctx, { bundle, fresh }), loadMap(rctx.paths)]);
     const { repoLevel } = await import('../knowledge/level.js');
-    const level = await repoLevel(config, repo, { env: ctx.env, bundle, scores: await scoresFor(config, bundle) });
+    const level = await repoLevel(config, repo, { env: ctx.env, bundle, scores: await scoresFor(config, bundle), status, fresh });
     const writing = config.writing.language ?? config.profile.answer.language;
     const questions = status.questions.map((v) => {
       const def = questionById(v.id)!;
@@ -640,6 +644,16 @@ export const ROUTES: Record<string, Handler> = {
 
 // Every change, the brain's included, carries the session token and a JSON body.
 export const MUTATING = new Set([...Object.keys(ROUTES), ...Object.keys(BRAIN), ...Object.keys(NEXT)].filter((k) => k.startsWith('POST ')));
+/** Routes of the developer module (repositories, workspaces): off when the person turned the module off. */
+const DEV_ROUTE = /^(GET|POST) \/api\/(repos?|workspaces?)(\/|$)/;
+
 export function routeFor(method: string, pathname: string): Handler | undefined {
-  return ROUTES[`${method} ${pathname}`] ?? (BRAIN as Record<string, Handler>)[`${method} ${pathname}`] ?? (NEXT as Record<string, Handler>)[`${method} ${pathname}`];
+  const key = `${method} ${pathname}`;
+  const handler = ROUTES[key] ?? (BRAIN as Record<string, Handler>)[key] ?? (NEXT as Record<string, Handler>)[key];
+  if (!handler || !DEV_ROUTE.test(key)) return handler;
+  return async (ctx, q, b) => {
+    const { featureOn } = await import('../modules/catalog.js');
+    if (!(await featureOn('repos', ctx.env))) throw new OkbError('E_CONFIG', 'module dev is turned off', { key: 'moduleOff', params: { id: 'dev' } });
+    return handler(ctx, q, b);
+  };
 }

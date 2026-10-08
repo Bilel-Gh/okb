@@ -46,7 +46,7 @@ export function claudeArgs(size: AiRequest['size'], system: string): string[] {
 export function parseClaudeJson(stdout: string): { text: string; tokens: { input: number; output: number } } {
   let data: { is_error?: boolean; result?: unknown; usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number; output_tokens?: number } };
   try { data = JSON.parse(stdout.trim().split('\n').filter(Boolean).pop() ?? '{}'); } catch { throw new OkbError('E_IO', `Claude Code gave an unreadable answer: ${stdout.slice(0, 200)}`, { key: 'aiFailed', params: { error: stdout.slice(0, 200) } }); }
-  if (data.is_error || typeof data.result !== 'string') throw new OkbError('E_IO', `Claude Code: ${String(data.result ?? 'no answer')}`, { key: 'aiFailed', params: { error: String(data.result ?? 'no answer').slice(0, 200) } });
+  if (data.is_error || typeof data.result !== 'string' || !data.result.trim()) throw new OkbError('E_IO', `Claude Code: ${String(data.result || 'no answer')}`, { key: 'aiFailed', params: { error: String(data.result || 'no answer').slice(0, 200) } });
   const u = data.usage ?? {};
   return { text: data.result, tokens: { input: (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0), output: u.output_tokens ?? 0 } };
 }
@@ -72,6 +72,8 @@ function runClaude(cli: string, req: AiRequest, env: NodeJS.ProcessEnv): Promise
         fail(answered || code === 0 ? e : new OkbError('E_IO', `Claude Code: ${(err || out).slice(0, 300)}`, { key: 'aiFailed', params: { error: (err || out).trim().slice(0, 200) } }));
       }
     });
+    // Claude Code may stop before reading everything (not signed in, killed): its exit says why, not a crash.
+    child.stdin.on('error', () => { /* reported by 'close' */ });
     child.stdin.end(req.prompt);
   });
 }
@@ -84,9 +86,13 @@ async function callApi(req: AiRequest, env: NodeJS.ProcessEnv): Promise<AiResult
     body: JSON.stringify({ model: env.OKB_AI_MODEL ?? API_MODELS[req.size], max_tokens: req.maxTokens, system: req.system, messages: [{ role: 'user', content: req.prompt }] }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   }).catch((e: Error) => { throw new OkbError('E_IO', `the AI service cannot be reached: ${e.message}`, { key: 'aiFailed', params: { error: e.message } }); });
-  const body = (await r.json().catch(() => ({}))) as { content?: { type: string; text?: string }[]; usage?: { input_tokens?: number; output_tokens?: number }; error?: { message?: string } };
+  const body = (await r.json().catch(() => ({}))) as { content?: { type: string; text?: string }[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number }; error?: { message?: string } };
   if (!r.ok) throw new OkbError('E_IO', `AI service: ${body.error?.message ?? r.status}`, { key: 'aiFailed', params: { error: String(body.error?.message ?? r.status) } });
-  return { text: (body.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join(''), tokens: { input: body.usage?.input_tokens ?? 0, output: body.usage?.output_tokens ?? 0 }, provider: 'api' };
+  // A cut or refused answer is not an answer: say so rather than use half of it.
+  if (body.stop_reason === 'max_tokens' || body.stop_reason === 'refusal') throw new OkbError('E_IO', `AI service stopped: ${body.stop_reason}`, { key: 'aiFailed', params: { error: body.stop_reason } });
+  const text = (body.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('');
+  if (!text.trim()) throw new OkbError('E_IO', 'AI service: empty answer', { key: 'aiFailed', params: { error: 'empty answer' } });
+  return { text, tokens: { input: body.usage?.input_tokens ?? 0, output: body.usage?.output_tokens ?? 0 }, provider: 'api' };
 }
 
 /** The echo provider: the input comes back, each line marked — for tests and offline demos. */

@@ -444,4 +444,7 @@ export const EN_V1 = {
   'err.noteUnknown.title': 'Note not found',
   'err.noteUnknown.why': 'No note “{path}” in this KB.',
   'err.noteUnknown.fix': 'Give its path in the KB or its exact title (okb find to look for it).',
+  'err.moduleOff.title': 'Module turned off',
+  'err.moduleOff.why': 'Module {id} is turned off on this computer: its commands and pages are hidden.',
+  'err.moduleOff.fix': 'Turn it back on with okb modules on {id} (your notes did not move).',
 } as const;

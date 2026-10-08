@@ -95,3 +95,16 @@ describe('hooks during an AI call made by OKB', () => {
     expect(r.stdout + r.stderr).toMatch(/deny|refus|human|personne/i);
   });
 });
+
+describe('Claude Code that stops early (review M9)', () => {
+  it('a claude that exits before reading the prompt is a clean error, not a crash', async () => {
+    const { chmod } = await import('node:fs/promises');
+    const { env, dir } = await home('ai:\n  provider: claude-code\n');
+    const bin = resolve(dir, 'bin');
+    await mkdir(bin, { recursive: true });
+    await writeFile(resolve(bin, 'claude'), '#!/bin/sh\nexit 3\n');
+    await chmod(resolve(bin, 'claude'), 0o755);
+    const big = 'x'.repeat(4_000_000);
+    await expect(complete({ system: 's', prompt: big, size: 'small', maxTokens: 10 }, { ...env, PATH: `${bin}:/usr/bin:/bin` })).rejects.toMatchObject({ key: 'aiFailed' });
+  }, 30_000);
+});

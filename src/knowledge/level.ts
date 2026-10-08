@@ -5,7 +5,7 @@ import { repoContext, repoNotes } from '../repo/notes.js';
 import { isBrainPlace, type RepoPlace } from '../repo/pack.js';
 import { QUESTIONS } from '../repo/questions.js';
 import { findRepo, type RepoEntry } from '../repo/registry.js';
-import { freshness, repoStatus } from '../repo/status.js';
+import { freshness, repoStatus, type Freshness, type RepoStatus } from '../repo/status.js';
 import { repoPlace } from '../brain/products.js';
 import { scoreBundle } from '../scores/scores.js';
 
@@ -138,7 +138,25 @@ function averageQuality(scores: ReadonlyMap<string, { quality: number }>, paths:
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
 
-export type LevelOptions = { readonly env?: NodeJS.ProcessEnv; readonly bundle?: Bundle; readonly scores?: ReadonlyMap<string, { quality: number }> };
+/**
+ * Onboarding questions, answered or half-answered. An answer whose note went
+ * stale (a quote or a file it cites is gone) counts as half: knowledge ages.
+ */
+export function questionCounts(questions: readonly { state: string; note?: string }[], verdict: ReadonlyMap<string, string>): { answered: number; half: number } {
+  let answered = 0;
+  let half = 0;
+  for (const q of questions) {
+    if (q.state === 'answered') { if (q.note && verdict.get(q.note) === 'stale') half++; else answered++; }
+    else if (q.state === 'pending' || q.state === 'received' || q.state === 'found') half++;
+  }
+  return { answered, half };
+}
+
+export type LevelOptions = {
+  readonly env?: NodeJS.ProcessEnv; readonly bundle?: Bundle; readonly scores?: ReadonlyMap<string, { quality: number }>;
+  /** Already computed by the caller (the Repos page): no second pass over Git. */
+  readonly status?: RepoStatus; readonly fresh?: Freshness;
+};
 
 /** The level of one repository: from its code and notes when linked here, from its notes otherwise. */
 export async function repoLevel(config: OkbConfig, repo: RepoRef, options: LevelOptions = {}): Promise<KnowledgeLevel> {
@@ -160,7 +178,8 @@ export async function repoLevel(config: OkbConfig, repo: RepoRef, options: Level
   }
   const rctx = await repoContext(config, entry);
   const place: RepoPlace = await repoPlace(config, entry);
-  const [status, fresh] = await Promise.all([repoStatus(rctx, { bundle }), freshness(rctx, { bundle })]);
+  const fresh = options.fresh ?? (await freshness(rctx, { bundle }));
+  const status = options.status ?? (await repoStatus(rctx, { bundle, fresh }));
   const verdict = new Map(fresh.notes.map((n) => [n.path as string, n.verdict]));
   const stateOf = (path: string | undefined): PageState => {
     if (!path) return 'missing';
@@ -184,8 +203,7 @@ export async function repoLevel(config: OkbConfig, repo: RepoRef, options: Level
     workCount = notes.filter((n) => n.kind === 'ticket' || n.kind === 'other').length;
     notePaths = notes.map((n) => n.path as string);
   }
-  const answered = status.questions.filter((x) => x.state === 'answered').length;
-  const half = status.questions.filter((x) => x.state === 'pending' || x.state === 'received' || x.state === 'found').length;
+  const { answered, half } = questionCounts(status.questions, verdict);
   return levelFromFacts({
     questions: { answered, half, total: QUESTIONS.length },
     pages,
