@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { loadConfig } from '../../config/load.js';
 import type { OkbConfig } from '../../config/schema.js';
-import { t, tn } from '../../i18n/index.js';
+import { lang as uiLang, t, tn } from '../../i18n/index.js';
 import { kbNames, listKbs, readRootConfig, type KbSummary } from '../../kb/registry.js';
 import { saveProposal } from '../../proposal/store.js';
 import { cloudSyncedFolder, confidentialDefaultRoot, kbRemotes } from '../../repo/confidential.js';
@@ -29,7 +29,9 @@ import { loadBundleFor } from '../../kb/bundle.js';
 import { flagBool, flagList, flagNumber, flagString, flagValues } from '../args.js';
 import { choose, input, intro, outro, spin } from '../ui/prompt.js';
 import { columns, paint, sym, tilde, truncate, width } from '../ui/term.js';
-import { canAsk, type Ctx } from './common.js';
+import { canAsk, effective, type Ctx } from './common.js';
+import { layoutOf } from '../../brain/layout.js';
+import { noteType } from '../../brain/types.js';
 
 /**
  * `okb repo` — a code repository's own knowledge base, kept inside one of the
@@ -58,6 +60,7 @@ export async function cmdRepo(ctx: Ctx): Promise<number> {
     case 'landscape': case 'map': return repoLandscape(ctx);
     case 'context': return repoContextCmd(ctx);
     case 'remove': case 'forget': return repoRemove(ctx);
+    case 'level': case 'niveau': return repoLevelCmd(ctx);
     default: {
       if (await findRepo(sub)) return repoStatusCmd({ ...ctx, args: { ...ctx.args, positionals: ['status', sub] } });
       throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { key: 'unknownSub', params: { sub, usage: 'okb repo [add|scan|status|questions|answer|update|ticket|landscape|list]' } });
@@ -491,6 +494,47 @@ function groupIfaces(list: readonly { kind: string; name: string }[]): string {
 }
 
 /* ----------------------------------------------------------------- status */
+
+/** A text bar: ██████░░░░ */
+export function levelBar(percent: number, size = 20): string {
+  const full = Math.round((Math.max(0, Math.min(100, percent)) / 100) * size);
+  return '█'.repeat(full) + '░'.repeat(size - full);
+}
+
+/** A gap of the knowledge level, in the person's words (`knowledge.gap.*`). */
+export function gapText(g: { key: string; points: number; params: Readonly<Record<string, string | number>> }, l: string): string {
+  const params: Record<string, string | number> = { ...g.params, points: g.points };
+  if (typeof g.params.kind === 'string') params.page = pick(noteType(g.params.kind)?.label ?? { fr: g.params.kind, en: g.params.kind }, l);
+  return t(g.key, params);
+}
+
+/** `okb repo level [<repo>]` — how well OKB knows each repository, and what to do to know it better. */
+async function repoLevelCmd(ctx: Ctx): Promise<number> {
+  const { config } = await effective(ctx.args);
+  const { brainRepos } = await import('../../knowledge/brain-repos.js');
+  const { repoLevel } = await import('../../knowledge/level.js');
+  const { listRepos } = await import('../../repo/registry.js');
+  const wanted = ctx.args.positionals[1];
+  const repos = layoutOf(config)
+    ? await brainRepos(config)
+    : (await listRepos()).filter((r) => r.kb === config.profile.id).map((r) => ({ id: r.id, name: r.name, product: r.product ?? '', folder: null, linked: true, path: r.path }));
+  const chosen = wanted ? repos.filter((r) => r.id === wanted || r.name === wanted) : repos;
+  if (wanted && !chosen.length) throw new OkbError('E_NOT_FOUND', `no repository ${wanted} in this KB`, { key: 'repoUnknown', params: { id: wanted } });
+  const bundle = await loadBundleFor(config);
+  const { scoreBundle } = await import('../../scores/scores.js');
+  const scores = new Map((await scoreBundle(config, bundle)).map((x) => [x.path as string, x]));
+  const levels = [];
+  for (const r of chosen) levels.push({ repo: r, level: await repoLevel(config, r, { bundle, scores }) });
+  if (ctx.mode === 'json') { ctx.out.json({ ok: true, repos: levels.map(({ repo, level }) => ({ id: repo.id, name: repo.name, product: repo.product, linked: repo.linked, ...level })) }); return 0; }
+  if (!levels.length) { ctx.out.line(t('knowledge.none')); return 0; }
+  // Page names in the language of OKB's messages, like the rest of the line.
+  const l = uiLang();
+  for (const { repo, level } of levels) {
+    ctx.out.line(`📦 ${paint.name(repo.name)}  ${paint.info(levelBar(level.percent))} ${paint.bold(`${level.percent} %`)} · ${t(`knowledge.tier.${level.tier}`)}${level.partial ? paint.dim(`  ${t('knowledge.partial')}`) : ''}`);
+    for (const g of level.next) ctx.out.line(paint.dim(`   ${t('knowledge.points', { n: Math.max(1, Math.round(g.points)) })} · ${gapText(g, l)}`));
+  }
+  return 0;
+}
 
 async function repoStatusCmd(ctx: Ctx): Promise<number> {
   const { repo, config, ctx: rctx } = await pickRepo(ctx, ctx.args.positionals[1]);

@@ -159,10 +159,14 @@ export const ROUTES: Record<string, Handler> = {
     const bundle = await loadBundleFor(config);
     const repos = (await listRepos(ctx.env)).filter((r) => r.kb === config.profile.id);
     const out = [];
+    // How well OKB knows each repository (src/knowledge/level.ts): scores computed once for all.
+    const { repoLevel } = await import('../knowledge/level.js');
+    const scores = await scoresFor(config, bundle);
     for (const repo of repos) {
       const rctx = await repoContext(config, repo);
       const [status, map] = await Promise.all([repoStatus(rctx, { bundle }), loadMap(rctx.paths)]);
-      out.push({ ...repo, description: map?.repo.description ?? null, stack: map?.stack.slice(0, 5).map((x) => x.label) ?? [], status });
+      const level = await repoLevel(config, repo, { env: ctx.env, bundle, scores });
+      out.push({ ...repo, description: map?.repo.description ?? null, stack: map?.stack.slice(0, 5).map((x) => x.label) ?? [], status, level });
     }
     // Tickets OKB follows in this KB, and the workspaces that use it.
     const { listTickets } = await import('../work/tickets.js');
@@ -175,7 +179,8 @@ export const ROUTES: Record<string, Handler> = {
     const workspaces = (await listWorkspaces(ctx.env)).filter((w) => w.kb === config.profile.id).map((w) => ({ id: w.id, name: w.name, roots: w.roots.map((r) => (ctx.env.HOME && r.startsWith(`${ctx.env.HOME}/`) ? `~${r.slice(ctx.env.HOME.length)}` : r)), prefixes: w.tickets.prefixes }));
     // A brain's repository folders not linked to code on this computer (a brain received, the demo).
     const { brainRepos } = await import('../knowledge/brain-repos.js');
-    const unlinked = (await brainRepos(config, ctx.env)).filter((r) => !r.linked).map((r) => ({ name: r.name, product: r.product, folder: r.folder }));
+    const unlinked = [];
+    for (const r of (await brainRepos(config, ctx.env)).filter((x) => !x.linked)) unlinked.push({ name: r.name, product: r.product, folder: r.folder, level: await repoLevel(config, r, { env: ctx.env, bundle, scores }) });
     return { repos: out, unlinked, kbConfidential: config.kb.confidential, tickets, workspaces };
   },
   'GET /api/repo': async (ctx, q) => {
@@ -195,6 +200,8 @@ export const ROUTES: Record<string, Handler> = {
     const bundle = await loadBundleFor(config);
     const place = await repoPlace(config, repo);
     const [status, map, fresh] = await Promise.all([repoStatus(rctx, { bundle }), loadMap(rctx.paths), freshness(rctx, { bundle })]);
+    const { repoLevel } = await import('../knowledge/level.js');
+    const level = await repoLevel(config, repo, { env: ctx.env, bundle, scores: await scoresFor(config, bundle) });
     const writing = config.writing.language ?? config.profile.answer.language;
     const questions = status.questions.map((v) => {
       const def = questionById(v.id)!;
@@ -212,7 +219,7 @@ export const ROUTES: Record<string, Handler> = {
       journal: tk.journal.filter((j) => ['note', 'decision', 'trap', 'question'].includes(j.kind)).slice(-6).map((j) => ({ at: j.at, kind: j.kind, text: j.text })),
     }));
     return {
-      repo: { ...repo, displayPath: home && repo.path.startsWith(`${home}/`) ? `~${repo.path.slice(home.length)}` : repo.path }, status, freshness: fresh, questions, tickets,
+      repo: { ...repo, displayPath: home && repo.path.startsWith(`${home}/`) ? `~${repo.path.slice(home.length)}` : repo.path }, status, level, freshness: fresh, questions, tickets,
       map: map ? compact(map) : null,
       risks: map ? map.risks.map((r) => ({ kind: r.kind, text: riskText(r, writing) })) : [],
       pack: PACK.map((p) => ({ kind: p.kind, emoji: p.emoji, path: notePath(repo.id, p.kind, writing, place), title: bundle.byPath.get(notePath(repo.id, p.kind, writing, place))?.title ?? null })),
