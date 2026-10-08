@@ -74,6 +74,14 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
       const { passages } = passagesFor(config, await loadBundleFor(config), question);
       return { ok: true, passages, ...(await composeAnswer(config, question, passages, ctx.env)) };
     },
+    'GET /api/progress': async (ctx, q) => {
+      const config = await kbConfig(ctx, q.get('kb'));
+      const { readRootConfig } = await import('../kb/registry.js');
+      const show = ((await readRootConfig(ctx.env).catch(() => ({}))) as { progress?: { show?: unknown } }).progress?.show !== false;
+      if (!show) return { show: false };
+      const { progress } = await import('../progress/progress.js');
+      return { show: true, ...(await progress(config)) };
+    },
     'POST /api/repos/link': async (ctx, _q, b) => {
       const config = await kbConfig(ctx, b.kb);
       if (typeof b.folder !== 'string' || typeof b.path !== 'string' || !b.path.trim()) throw new OkbError('E_INVALID', 'folder and path are required', { key: 'usage', params: { usage: '{ folder, path }' } });

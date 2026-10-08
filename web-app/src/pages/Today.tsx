@@ -6,6 +6,7 @@ import { recentNotes, useCategories } from '../app/data';
 import { tn, useT } from '../app/i18n';
 import { hrefFor } from '../app/router';
 import { toast } from '../app/toast';
+import { ProgressLine, useProgress } from '../ui/Progress';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 
 export type Suggestion = {
@@ -112,6 +113,7 @@ export default function Today() {
   const cats = useCategories();
   const brain = useQuery({ queryKey: ['brain'], queryFn: () => get<Brain>('/api/brain') });
   const learn = useQuery({ queryKey: ['learn'], queryFn: () => get<Learn>('/api/learn') });
+  const progress = useProgress();
   const recent = recentNotes();
   const now = brain.data?.now;
   const due = learn.data ? learn.data.counts.due + Math.min(10, learn.data.counts.newLeft) : 0;
@@ -155,6 +157,12 @@ export default function Today() {
               {now?.lastSession?.next ? <p className="small"><span className="muted">{t('app.today.next')} </span>{now.lastSession.next}</p> : null}
             </div>
           </section>
+          {progress.data?.show ? (
+            <section className="panel" aria-labelledby="progress-h">
+              <div className="panel-head"><h2 id="progress-h">{t('app.progress.title')}</h2><span className="spacer" /><a className="btn sm ghost" href={hrefFor({ name: 'learn' })}>{t('app.progress.badges')}</a></div>
+              <div className="panel-body"><ProgressLine data={progress.data} /></div>
+            </section>
+          ) : null}
           {brain.data?.shape ? (
             <section className="panel" aria-labelledby="map-h">
               <div className="panel-head"><h2 id="map-h">{brain.data.name}</h2></div>

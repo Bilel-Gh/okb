@@ -5,6 +5,7 @@ import { get, post } from '../app/api';
 import { tn, useT } from '../app/i18n';
 import { hrefFor } from '../app/router';
 import { toast } from '../app/toast';
+import { Badges, ProgressLine, useProgress } from '../ui/Progress';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 
 type Card = { id: string; path: string; title: string; front: string; back: string; kind: string; subject: string; level: string };
@@ -20,13 +21,14 @@ export default function Learn() {
   const t = useT();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['learn'], queryFn: () => get<LearnData>('/api/learn') });
+  const progress = useProgress();
   const [index, setIndex] = useState(0);
   const [shown, setShown] = useState(false);
   const queue = q.data ? [...q.data.due, ...q.data.fresh] : [];
   const card = queue[index];
   const grade = useMutation({
     mutationFn: (rating: (typeof RATINGS)[number]) => post<{ ok: true; level: string }>('/api/learn/grade', { id: card!.id, rating }),
-    onSuccess: () => { setShown(false); setIndex((i) => i + 1); },
+    onSuccess: () => { setShown(false); setIndex((i) => i + 1); void qc.invalidateQueries({ queryKey: ['progress'] }); },
     onError: (e) => toast((e as Error).message, 'err'),
   });
   useEffect(() => {
@@ -71,6 +73,15 @@ export default function Learn() {
           <Empty title={t('app.learn.doneTitle')}>{d.counts.cards ? t('app.learn.done') : t('app.learn.noCards')}</Empty>
         )}
       </section>
+      {progress.data?.show ? (
+        <section className="panel" aria-labelledby="prog-h">
+          <div className="panel-head"><h2 id="prog-h">{t('app.progress.title')}</h2></div>
+          <div className="panel-body grid-2">
+            <div className="stack"><ProgressLine data={progress.data} /><p className="xs muted">{t('app.progress.why')}</p></div>
+            <Badges badges={progress.data.badges} />
+          </div>
+        </section>
+      ) : null}
       <section className="panel" aria-labelledby="map-h">
         <div className="panel-head"><h2 id="map-h">{t('app.learn.map')}</h2></div>
         {d.map.some((m) => m.percent > 0 || m.levels.learning + m.levels.known + m.levels.mastered > 0) ? (

@@ -181,3 +181,17 @@
 .passages li.used .cite-n { color: var(--info); background: var(--info-soft); }
 .cite-n { align-self: start; padding: 2px 6px; border-radius: 6px; background: var(--sunk); color: var(--ink-3); font-size: var(--t-xs); font-weight: 600; text-align: center; }
 .passages blockquote { margin: 0; padding: 0 0 0 var(--s3); border-left: 1px solid var(--hair-strong); color: var(--ink); line-height: var(--lh-read); }
+
+/* ---------------------------------------------------------- progress */
+.progress-line { --line: var(--info); display: flex; align-items: center; gap: 0; }
+.progress-line .roundel { background: var(--line); }
+.progress-line .roundel.ghost { background: var(--surface); color: var(--ink-3); border: 3px solid var(--hair-strong); }
+.progress-track { position: relative; flex: 1; height: 4px; margin: 0 -2px; background: var(--hair); }
+.progress-run { position: absolute; inset: 0; background: var(--line); transform-origin: left center; transform: scaleX(var(--k, 0)); }
+@media (prefers-reduced-motion: no-preference) { .progress-run { transition: transform 600ms var(--ease); } }
+.badges { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s3); }
+.badge-item { display: flex; align-items: center; gap: var(--s3); }
+.badge-icon { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; border: 2px dashed var(--hair-strong); color: var(--ink-3); }
+.tier-bronze .badge-icon { border: 3px solid #a0612d; color: #a0612d; }
+.tier-silver .badge-icon { border: 3px solid #7d8a9c; color: #6b7789; }
+.tier-gold .badge-icon { border: 3px solid #9a7412; color: #9a7412; background: color-mix(in srgb, #9a7412 10%, var(--surface)); }

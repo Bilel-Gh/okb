@@ -52,6 +52,8 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: 'dev.attribution', group: 'assistant', type: 'choice', scope: 'global', path: ['dev', 'attribution'], options: ['off', 'on'], recommended: 'off', fallback: 'off' },
   // How OKB itself asks a model (src/ai/provider.ts): Claude Code when installed, else ANTHROPIC_API_KEY.
   { key: 'ai.provider', group: 'assistant', type: 'choice', scope: 'global', path: ['ai', 'provider'], options: ['auto', 'claude-code', 'api', 'off'], recommended: 'auto', fallback: 'auto' },
+  // Personal progress (src/progress): experience and badges shown in the web app; local, never shared.
+  { key: 'progress.show', group: 'help', type: 'bool', scope: 'global', path: ['progress', 'show'], recommended: true, fallback: true },
   { key: 'budget.daily', group: 'assistant', type: 'number', scope: 'global', path: ['budget', 'daily'], recommended: 50000, fallback: 50000 },
   // Daily backups of every KB and its state (src/brain/backup.ts). An external disk is safest.
   { key: 'backup.enabled', group: 'history', type: 'bool', scope: 'global', path: ['backup', 'enabled'], recommended: true, fallback: true },
