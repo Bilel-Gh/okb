@@ -21,6 +21,10 @@ Grade on the template's grid, each part with one reason:
 | links | 15 | the note links up to its subject, to the concept cards it uses, and to nothing missing |
 | justness | 20 | what it says is what the sources say: open each cited file at the cited lines; a diagram matches the text |
 
+A concept card needs « En une phrase »: one sentence of 3 to 25 plain words,
+without the term itself, readable alone. It is the only text shown when a reader
+hovers the word; without it, structure loses 4 points.
+
 Also check the template's own `checks` (« Ce que vérifie la relecture »), and that
 the draft is at least as clear as the perfect example. A passing linter is not proof.
 

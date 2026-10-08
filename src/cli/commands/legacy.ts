@@ -544,6 +544,31 @@ export async function cmdConcepts(args: ParsedArgs, out: Output, mode: OutputMod
   const { config } = await effective(args);
   const sub = args.positionals[0] ?? 'list';
 
+  // `okb concepts check [--suggest]`: cards without a valid « En une phrase », the text shown on hover.
+  if (sub === 'check') {
+    const { t } = await import('../../i18n/index.js');
+    const { paint } = await import('../ui/term.js');
+    const bundle = await loadBundleFor(config);
+    const { conceptsWithoutOneLiner } = await import('../../concepts/one-liner.js');
+    const missing = conceptsWithoutOneLiner(config, bundle);
+    const suggestions = [];
+    if (flagBool(args, 'suggest') && missing.length) {
+      const { addSuggestion, contextFor } = await import('../../suggest/suggest.js');
+      const ctx = await contextFor(config, bundle);
+      for (const m of missing.slice(0, 20)) {
+        const { suggestion } = await addSuggestion(config, { type: 'concept', title: m.title, why: t(`concepts.why.${m.reason}`), signal: 'concept', source: 'okb concepts check' }, ctx);
+        suggestions.push(suggestion);
+      }
+    }
+    if (mode === 'json') { out.json({ ok: true, missing, suggestions }); return 0; }
+    if (!missing.length) { out.ok(t('concepts.allGood')); return 0; }
+    out.line(t('concepts.missingTitle', { n: missing.length }));
+    for (const m of missing) out.line(`  • ${m.title}  ${paint.dim(`${t(`concepts.reason.${m.reason}`)} · ${m.path}`)}`);
+    if (suggestions.length) out.ok(t('concepts.suggested', { n: suggestions.length }));
+    else out.tip(t('concepts.checkTip'));
+    return 0;
+  }
+
   if (sub === 'list') {
     const bundle = await loadBundleFor(config);
     const prefix = `${config.kb.layout.concepts}/`;

@@ -1,0 +1,86 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { glossary } from '../src/brain/views.js';
+import { layoutOf } from '../src/brain/layout.js';
+import { conceptsWithoutOneLiner, oneLiner } from '../src/concepts/one-liner.js';
+import { loadBundleFor } from '../src/kb/bundle.js';
+import { scoreBundle } from '../src/scores/scores.js';
+import { demoBrain } from './helpers/brain.js';
+
+describe('a concept in one sentence', () => {
+  it('takes the first sentence under « En une phrase »', () => {
+    expect(oneLiner('# SLA\n\n## 🎯 En une phrase\n\nUn contrat qui fixe le niveau de service promis. Il dit aussi les pénalités.\n\n## Exemple\n\nTexte.', 'SLA'))
+      .toEqual({ text: 'Un contrat qui fixe le niveau de service promis.', reason: 'ok' });
+  });
+
+  it('falls back on « En bref » and drops a leading « Term : »', () => {
+    expect(oneLiner('## En bref\n\nSLA : un contrat qui fixe le niveau de service.', 'SLA'))
+      .toEqual({ text: 'Un contrat qui fixe le niveau de service.', reason: 'ok' });
+    expect(oneLiner('## In one sentence\n\nIdempotence — calling twice changes nothing more than calling once.', 'Idempotence'))
+      .toEqual({ text: 'Calling twice changes nothing more than calling once.', reason: 'ok' });
+  });
+
+  it('keeps the readable text of bold, links and inline code', () => {
+    expect(oneLiner('## En une phrase\n\n**SLA** est un [contrat](x.md) de service avec un `délai` garanti.', 'SLA').text)
+      .toBe('SLA est un contrat de service avec un délai garanti.');
+  });
+
+  it('refuses a sentence that is too long, too short, or missing', () => {
+    const long = `## En une phrase\n\n${Array.from({ length: 30 }, (_, i) => `mot${i}`).join(' ')}.`;
+    expect(oneLiner(long, 'X')).toEqual({ text: null, reason: 'too-long' });
+    expect(oneLiner('## En une phrase\n\nSLA.', 'SLA')).toEqual({ text: null, reason: 'too-short' });
+    expect(oneLiner('## Exemple\n\nUn exemple concret ici.', 'SLA')).toEqual({ text: null, reason: 'missing' });
+  });
+
+  it('never reads a code block as the sentence', () => {
+    expect(oneLiner('## En une phrase\n\n```\nnot a sentence at all here\n```\n\nLe vrai texte qui explique la notion.', 'X').text)
+      .toBe('Le vrai texte qui explique la notion.');
+  });
+});
+
+describe('concept cards in a brain', () => {
+  const card = (title: string, body: string) => `---\ntype: Concept\ntitle: ${title}\ndescription: ${title} expliqué en une minute.\nstatus: stable\ngenerated:\n  by: human:test\n  at: 2026-09-01T10:00:00Z\nx_okb:\n  brain:\n    type: concept\n---\n\n# ${title}\n\n${body}\n`;
+
+  async function brainWith() {
+    const b = await demoBrain();
+    const dir = resolve(b.kb, '3 Boîte à outils', 'Concepts');
+    await mkdir(dir, { recursive: true });
+    await writeFile(resolve(dir, 'Notion Alpha.md'), card('Notion Alpha', '## 🎯 En une phrase\n\nRefaire la même action ne change rien de plus.'));
+    await writeFile(resolve(dir, 'Notion Beta.md'), card('Notion Beta', '## Exemple\n\nUne commande en plusieurs étapes.'));
+    return { ...b, bundle: await loadBundleFor(b.config) };
+  }
+
+  it('gives each glossary entry its one-line definition, or none', async () => {
+    const { config, bundle } = await brainWith();
+    const entries = glossary(layoutOf(config), bundle);
+    expect(entries.find((e) => e.term === 'Notion Alpha')!.oneLiner).toBe('Refaire la même action ne change rien de plus.');
+    expect(entries.find((e) => e.term === 'Notion Beta')!.oneLiner).toBeNull();
+  }, 60_000);
+
+  it('lists the cards without a valid sentence, and the quality score says so', async () => {
+    const { config, bundle } = await brainWith();
+    const missing = conceptsWithoutOneLiner(config, bundle);
+    expect(missing.some((m) => m.title === 'Notion Beta' && m.reason === 'missing')).toBe(true);
+    expect(missing.some((m) => m.title === 'Notion Alpha')).toBe(false);
+    const scores = await scoreBundle(config, bundle);
+    expect(scores.find((s) => s.path.endsWith('Notion Beta.md'))!.notes).toContain('no one-line definition');
+    expect(scores.find((s) => s.path.endsWith('Notion Alpha.md'))!.notes).not.toContain('no one-line definition');
+  }, 60_000);
+});
+
+describe('okb concepts check', () => {
+  it('lists the cards without a sentence and, asked to, makes a « complete » suggestion for each', async () => {
+    const { json } = await import('./helpers/team.js');
+    const b = await demoBrain();
+    const dir = resolve(b.kb, '3 Boîte à outils', 'Concepts');
+    await mkdir(dir, { recursive: true });
+    await writeFile(resolve(dir, 'Notion Beta.md'), `---\ntype: Concept\ntitle: Notion Beta\ndescription: x\nstatus: stable\ngenerated:\n  by: human:test\n  at: 2026-09-01T10:00:00Z\nx_okb:\n  brain:\n    type: concept\n---\n\n# Notion Beta\n\n## Exemple\n\nUn exemple.\n`);
+    const r = await json(['concepts', 'check'], b.env, b.dir);
+    expect(r.ok).toBe(true);
+    expect(r.missing.map((m: { title: string }) => m.title)).toContain('Notion Beta');
+    const s = await json(['concepts', 'check', '--suggest'], b.env, b.dir);
+    const card = s.suggestions.find((x: { title: string }) => x.title === 'Notion Beta');
+    expect(card).toMatchObject({ recommendation: 'complete', signal: 'concept', status: 'pending' });
+  }, 60_000);
+});

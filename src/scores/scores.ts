@@ -1,3 +1,4 @@
+import { isConceptEntry, oneLiner } from '../concepts/one-liner.js';
 import { resolve } from 'node:path';
 import type { OkbConfig } from '../config/schema.js';
 import type { Bundle, KbEntry } from '../kb/bundle.js';
@@ -81,7 +82,12 @@ export async function qualityOf(config: OkbConfig, bundle: Bundle, entry: KbEntr
   if (/^#{2,3}\s+(?:\S+\s+)?(en bref|in short)/im.test(body) || (entry.description && entry.description.length >= 20)) structure += 4;
   else notes.push('no « En bref »');
   if (entry.bodyLength >= 200) structure += 2;
-  structure = Math.min(20, structure);
+  // A concept card's one-line definition is what readers see on hover: without it, the card is incomplete.
+  if (isConceptEntry(entry) && !oneLiner(body, entry.title).text) {
+    structure -= 4;
+    notes.push('no one-line definition');
+  }
+  structure = Math.max(0, Math.min(20, structure));
   // Sources (25): declared sources, cited claims, a level of confidence.
   const declared = Array.isArray(doc.data.sources) && doc.data.sources.length > 0;
   const citations = (body.match(/\[\^[^\]]+\]/g) ?? []).length;

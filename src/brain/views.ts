@@ -1,3 +1,4 @@
+import { oneLiner } from '../concepts/one-liner.js';
 import { posix } from 'node:path';
 import type { OkbConfig } from '../config/schema.js';
 import type { Bundle, KbEntry } from '../kb/bundle.js';
@@ -95,7 +96,11 @@ export function brainShape(layout: BrainLayout, bundle: Bundle): { drawers: Draw
   return { drawers, outside: outside.sort() };
 }
 
-export type GlossaryEntry = { readonly term: string; readonly path: BundlePath; readonly description: string; readonly aliases: readonly string[]; readonly theme: string | null };
+export type GlossaryEntry = {
+  readonly term: string; readonly path: BundlePath; readonly description: string; readonly aliases: readonly string[]; readonly theme: string | null;
+  /** The card's checked one-line definition (src/concepts/one-liner.ts): the only text shown on hover, null without one. */
+  readonly oneLiner: string | null;
+};
 
 const CONCEPT_TYPES = new Set(['concept', 'acronym', 'Concept', 'Glossary']);
 
@@ -108,6 +113,7 @@ export function glossary(layout: BrainLayout | null, bundle: Bundle): GlossaryEn
     if (!CONCEPT_TYPES.has(t) && !CONCEPT_TYPES.has(e.type)) continue;
     out.push({
       term: e.title, path: e.path, description: e.description, aliases: e.ext.aliases ?? [],
+      oneLiner: oneLiner(bundle.docs.get(e.path)?.body ?? '', e.title).text,
       theme: layout ? positionOf(layout, e.path).theme : null,
     });
   }

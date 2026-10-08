@@ -80,7 +80,7 @@ export const COMMANDS: readonly CommandInfo[] = [
   { name: 'template', group: 'advanced', aliases: ['templates'], usage: 'okb template [list|show <id>]', subcommands: ['list', 'show'], examples: ['okb template list'] },
   { name: 'style', group: 'advanced', usage: 'okb style [presets] [--set knob=value]', examples: ['okb style'] },
   { name: 'setup', group: 'advanced', usage: 'okb setup --profile <id> --kb-root <path> --concept-assist <level>', examples: [] },
-  { name: 'concepts', group: 'advanced', usage: 'okb concepts list | detect <source>', subcommands: ['list', 'detect'], examples: [] },
+  { name: 'concepts', group: 'advanced', usage: 'okb concepts list | check [--suggest] | detect <source>', subcommands: ['list', 'check', 'detect'], examples: ['okb concepts check', 'okb concepts check --suggest'], flags: ['--suggest'] },
   { name: 'migrate', group: 'advanced', usage: 'okb migrate portable-links', examples: [] },
   { name: 'route', group: 'advanced', usage: 'okb route "<request>"', examples: ['okb route "on a fini pour aujourd’hui"'] },
   { name: 'context', group: 'advanced', usage: 'okb context', examples: [] },
