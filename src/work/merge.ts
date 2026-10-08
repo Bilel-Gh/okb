@@ -5,7 +5,8 @@ import { loadBundleFor } from '../kb/bundle.js';
 import { proposeFiles } from '../proposal/files.js';
 import type { Proposal } from '../proposal/model.js';
 import { listProposals } from '../proposal/store.js';
-import { REPOS_FOLDER } from '../repo/pack.js';
+import { isBrainPlace, REPOS_FOLDER } from '../repo/pack.js';
+import { repoPlace } from '../brain/products.js';
 import { addRepo, listRepos, type RepoEntry } from '../repo/registry.js';
 import { repoPaths } from '../repo/state.js';
 import { OkbError } from '../util/errors.js';
@@ -60,12 +61,15 @@ export async function planMerge(source: OkbConfig, target: OkbConfig): Promise<M
     throw new OkbError('E_NOT_FOUND', `no repository in KB "${source.profile.id}"`, { key: 'mergeNoRepo', params: { id: source.profile.id } });
   }
   const bundle = await loadBundleFor(target);
+  // Into a brain: the repository's folder in its product.
+  const place = await repoPlace(target, repo);
+  const base = isBrainPlace(place) ? place.folder : `${REPOS_FOLDER}/${repo.id}`;
   const desired = new Map<string, string>();
   const conflicts: string[] = [];
   const binaries: string[] = [];
   let present = 0;
   for (const rel of await filesOf(source.kb.root)) {
-    const to = `${REPOS_FOLDER}/${repo.id}/${rel}`;
+    const to = `${base}/${rel}`;
     if (!TEXT.has(extname(rel).toLowerCase())) { binaries.push(rel); continue; }
     const content = await readFile(resolve(source.kb.root, rel), 'utf8');
     const existing = bundle.snapshot.files.get(to as never) ?? null;

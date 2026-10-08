@@ -216,24 +216,43 @@ export async function cmdAsk(ctx: Ctx): Promise<number> {
     ...(flagString(args, 'repo') ? { repo: flagString(args, 'repo')! } : {}),
     everywhere: flagBool(args, 'everywhere'),
   });
-  if (ctx.mode === 'json') { out.json({ ok: true, ...result, scope }); return 0; }
+  // A 🔒 note is the person's alone: an answer Claude asks for leaves it out, quotes included.
+  const { invokedBy } = await import('../../usage/events.js');
+  let hidden = 0;
+  let shown = result;
+  if (invokedBy() === 'claude') {
+    const { readFile } = await import('node:fs/promises');
+    const secret = new Set<string>();
+    for (const h of result.hits) {
+      const head = await readFile(resolve(h.root, h.path), 'utf8').then((x) => x.slice(0, 4000), () => '');
+      if (/^---[\s\S]*?\bconfidentiality:\s*['"]?secret\b[\s\S]*?\n---/.test(head)) secret.add(`${h.root}\u0000${h.path}`);
+    }
+    if (secret.size) {
+      hidden = secret.size;
+      const keep = (x: { root?: string; path: string }) => !secret.has(`${x.root ?? config.kb.root}\u0000${x.path}`);
+      const roots = new Map(result.hits.map((h) => [`${h.kb}\u0000${h.path}`, h.root]));
+      shown = { ...result, hits: result.hits.filter(keep), evidence: result.evidence.filter((e) => keep({ root: roots.get(`${'kb' in e ? (e as { kb: string }).kb : config.profile.id}\u0000${e.path}`) ?? config.kb.root, path: e.path })) };
+    }
+  }
+  if (ctx.mode === 'json') { out.json({ ok: true, ...shown, scope, ...(hidden ? { hidden, hiddenNote: t('find.hidden', { count: String(hidden) }) } : {}) }); return 0; }
+  if (hidden) out.info(t('find.hidden', { count: String(hidden) }));
   if (scope) out.line(paint.dim(t(scope.sharedKb ? 'ask.scopeShared' : 'ask.scope', { repo: scope.name, kb: scope.sharedKb ?? '' })));
-  if (!result.hits.length) {
+  if (!shown.hits.length) {
     out.info(t('ask.none'));
     out.tip(t('ask.noneTip'));
     return 0;
   }
   const useObsidian = await obsidianInstalled();
-  out.line(paint.dim(t('ask.found', { n: result.hits.length, query })));
-  for (const [i, h] of result.hits.entries()) {
+  out.line(paint.dim(t('ask.found', { n: shown.hits.length, query })));
+  for (const [i, h] of shown.hits.entries()) {
     const absPath = resolve(h.root, h.path);
     const target = useObsidian ? link(paint.bold(h.title), obsidianUrl(absPath)) : fileLink(paint.bold(h.title), absPath);
     out.line(`\n${paint.dim(`${i + 1}.`)} ${target}  ${paint.dim(h.kb !== config.profile.id ? `${h.kb} · ${h.path}` : h.path)}`);
-    for (const e of result.evidence.filter((x) => x.path === h.path && (!('kb' in x) || x.kb === h.kb)).slice(0, 2)) out.line(`   ${paint.dim('│')} ${e.quote.replace(/\s+/g, ' ').slice(0, 200)} ${paint.dim(`(l.${e.line})`)}`);
+    for (const e of shown.evidence.filter((x) => x.path === h.path && (!('kb' in x) || x.kb === h.kb)).slice(0, 2)) out.line(`   ${paint.dim('│')} ${e.quote.replace(/\s+/g, ' ').slice(0, 200)} ${paint.dim(`(l.${e.line})`)}`);
   }
-  if (result.prerequisites.length) out.line(`\n${sym.tip()} ${t('ask.prereq')} ${result.prerequisites.map((p) => p.path).join(', ')}`);
-  out.truncation(result.truncation, `okb ask "${query}"`);
-  out.next([`okb open ${result.hits[0]!.path}${kbFlag(args)}`]);
+  if (shown.prerequisites.length) out.line(`\n${sym.tip()} ${t('ask.prereq')} ${shown.prerequisites.map((p) => p.path).join(', ')}`);
+  out.truncation(shown.truncation, `okb ask "${query}"`);
+  out.next([`okb open ${shown.hits[0]!.path}${kbFlag(args)}`]);
   return 0;
 }
 

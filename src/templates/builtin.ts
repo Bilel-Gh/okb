@@ -8,6 +8,8 @@
  * keeps a bundle navigable after hundreds of imports. Anything that fits no role
  * goes into a free section with its own heading.
  */
+import { V1_TEMPLATES } from './v1.js';
+
 export type Localized = { readonly fr: string; readonly en: string };
 
 export type TemplateSection = {
@@ -32,13 +34,15 @@ export type NoteTemplate = {
   readonly tips: readonly Localized[];
   /** Note category (src/categories) for templates a KB adds; built-ins are mapped by the categories. */
   readonly category?: string;
+  /** What a good note of this kind checks: the grid the quality reviewer applies (OKB 1.0). */
+  readonly checks?: readonly Localized[];
 };
 
 const s = (role: string, emoji: string, fr: string, en: string, required: boolean, guideFr: string, guideEn: string): TemplateSection => ({
   role, emoji, heading: { fr, en }, required, guide: { fr: guideFr, en: guideEn },
 });
 
-export const BUILTIN_TEMPLATES: readonly NoteTemplate[] = [
+const LEGACY_TEMPLATES: readonly NoteTemplate[] = [
   {
     id: 'guide',
     okfType: 'Guide',
@@ -433,7 +437,7 @@ export const BUILTIN_TEMPLATES: readonly NoteTemplate[] = [
     ],
   },
 
-  /* ---- Code repositories: the onboarding pack (okb repo, /okb:onboard) ---- */
+  /* ---- Code repositories: the onboarding pack (okb repo, /okb-dev:onboard) ---- */
   {
     id: 'repo-overview',
     okfType: 'Guide',
@@ -666,4 +670,18 @@ export const BUILTIN_TEMPLATES: readonly NoteTemplate[] = [
       { fr: 'Ce qui sert à tous les tickets (où modifier quoi, un piège) va aussi dans la carte du code.', en: 'What helps every ticket (where changes go, a trap) also goes into the code map.' },
     ],
   },
+];
+
+const BRIEF_SECTION: TemplateSection = s('brief', '⚡', 'En bref', 'In short', false,
+  'Trois lignes au plus : ce que c’est, pourquoi ça compte, la chose à retenir. Lisible seul.',
+  'Three lines at most: what it is, why it matters, the one thing to keep. Readable on its own.');
+
+/**
+ * Every template: the ones before 1.0, each opening with an optional « En bref »
+ * (the 30-second read; the concept card's definition already is one), then the
+ * 1.0 catalogue (src/templates/v1.ts).
+ */
+export const BUILTIN_TEMPLATES: readonly NoteTemplate[] = [
+  ...LEGACY_TEMPLATES.map((t) => (t.id === 'concept' || t.sections.some((x) => x.role === 'brief') ? t : { ...t, sections: [BRIEF_SECTION, ...t.sections] })),
+  ...V1_TEMPLATES,
 ];

@@ -31,6 +31,10 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: 'profile.displayName', group: 'writing', type: 'text', scope: 'profile', path: ['profile', 'displayName'], fallback: '' },
   { key: 'writing.preset', group: 'writing', type: 'choice', scope: 'profile', path: ['writing', 'preset'], options: ['standard', 'pedagogique', 'expert'], recommended: 'standard', fallback: 'standard' },
   { key: 'reader.level', group: 'writing', type: 'choice', scope: 'profile', path: ['reader', 'level'], options: ['beginner', 'intermediate', 'expert'], recommended: 'intermediate', fallback: 'intermediate' },
+  // The reading profile (OKB 1.0): with reader.level, how visual, how long, how many examples.
+  { key: 'writing.diagrams', group: 'writing', type: 'choice', scope: 'profile', path: ['writing', 'diagrams'], options: ['off', 'when-useful', 'prefer'], recommended: 'when-useful', fallback: 'when-useful' },
+  { key: 'writing.detail', group: 'writing', type: 'choice', scope: 'profile', path: ['writing', 'detail'], options: ['essential', 'standard', 'thorough'], recommended: 'standard', fallback: 'standard' },
+  { key: 'writing.examples', group: 'writing', type: 'choice', scope: 'profile', path: ['writing', 'examples'], options: ['none', 'generic', 'project'], recommended: 'project', fallback: 'project' },
   { key: 'kb.requireTemplate', group: 'writing', type: 'bool', scope: 'profile', path: ['kb', 'requireTemplate'], recommended: true, fallback: false },
   { key: 'conceptAssist.level', group: 'help', type: 'choice', scope: 'profile', path: ['conceptAssist', 'level'], options: ['off', 'targeted', 'pedagogical'], recommended: 'targeted', fallback: 'targeted' },
   { key: 'focus.file', group: 'memory', type: 'text', scope: 'profile', path: ['focus', 'file'], fallback: '' },
@@ -43,6 +47,13 @@ export const SETTINGS: readonly SettingDef[] = [
   // company gateway may not offer every model. Writing and the evidence reviewer keep the session's model.
   { key: 'agents.model', group: 'assistant', type: 'choice', scope: 'global', path: ['agents', 'model'], options: ['inherit', 'sonnet', 'haiku', 'opus'], recommended: 'inherit', fallback: 'inherit' },
   { key: 'routing.otherKnowledgeTools', group: 'assistant', type: 'list', scope: 'profile', path: ['routing', 'otherKnowledgeTools'], fallback: [] },
+  // Suggestions before writing (src/suggest): when cards are shown, and the daily writing budget in tokens.
+  { key: 'suggest.mode', group: 'assistant', type: 'choice', scope: 'global', path: ['suggest', 'mode'], options: ['live', 'session', 'never'], recommended: 'live', fallback: 'live' },
+  { key: 'dev.attribution', group: 'assistant', type: 'choice', scope: 'global', path: ['dev', 'attribution'], options: ['off', 'on'], recommended: 'off', fallback: 'off' },
+  { key: 'budget.daily', group: 'assistant', type: 'number', scope: 'global', path: ['budget', 'daily'], recommended: 50000, fallback: 50000 },
+  // Daily backups of every KB and its state (src/brain/backup.ts). An external disk is safest.
+  { key: 'backup.enabled', group: 'history', type: 'bool', scope: 'global', path: ['backup', 'enabled'], recommended: true, fallback: true },
+  { key: 'backup.dir', group: 'history', type: 'text', scope: 'global', path: ['backup', 'dir'], fallback: '' },
   { key: 'profile.humanActor', group: 'advanced', type: 'text', scope: 'profile', path: ['profile', 'humanActor'], fallback: 'human:anonymous' },
   { key: 'context.pageSize', group: 'advanced', type: 'number', scope: 'profile', path: ['context', 'pageSize'], fallback: 25 },
 ];
@@ -128,4 +139,22 @@ export async function writeSetting(profileId: string, key: string, raw: unknown,
     throw new OkbError('E_CONFIG', `the new value of ${key} makes the profile invalid; nothing changed`, { key: 'settingRejected', params: { name: key }, cause });
   }
   return value;
+}
+
+/**
+ * Reading profiles: four settings at once, chosen in one question at setup —
+ * « Débutant, visuel », « Équilibré », « Expert, concis ».
+ */
+export const READING_PROFILES = {
+  'beginner-visual': { 'reader.level': 'beginner', 'writing.preset': 'pedagogique', 'writing.diagrams': 'prefer', 'writing.detail': 'standard', 'writing.examples': 'project' },
+  balanced: { 'reader.level': 'intermediate', 'writing.preset': 'standard', 'writing.diagrams': 'when-useful', 'writing.detail': 'standard', 'writing.examples': 'project' },
+  'expert-concise': { 'reader.level': 'expert', 'writing.preset': 'expert', 'writing.diagrams': 'when-useful', 'writing.detail': 'essential', 'writing.examples': 'none' },
+} as const;
+export type ReadingProfile = keyof typeof READING_PROFILES;
+
+export async function applyReadingProfile(profileId: string, profile: ReadingProfile, env: NodeJS.ProcessEnv = process.env): Promise<Record<string, string>> {
+  const values = READING_PROFILES[profile];
+  if (!values) throw new OkbError('E_INVALID', `unknown reading profile "${profile}"`, { key: 'settingUnknown', params: { name: profile } });
+  for (const [key, value] of Object.entries(values)) await writeSetting(profileId, key, value, env);
+  return { ...values };
 }

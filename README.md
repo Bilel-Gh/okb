@@ -1,4 +1,4 @@
-# OKB — Open Knowledge Brain · 0.11.0
+# OKB — Open Knowledge Brain · 1.0.0
 
 **A local second brain for Claude Code and Obsidian, where nothing enters your
 notes without your approval.**
@@ -12,6 +12,31 @@ of plain Markdown files on your computer, that you open in Obsidian or in the we
 **En français :** [démarrer](DEMARRER.md) · [guide d’utilisation](docs/guide/README.md).
 
 ![The OKB web app: home](docs/images/web-home.png)
+
+## Version 1: you work, OKB suggests what to keep, files it, and brings it back
+
+- **Brains** organised in five drawers, zoomed product → repository → ticket, with
+  a 5-minute page per subject and a breadcrumb on every note. An address engine
+  files ~90 kinds of note the same way every time.
+- ✨ **Nothing is written without your yes.** Claude shows a suggestion card
+  first — kind, exact place, why, what already exists, relevance, cost — and OKB
+  records your answer itself. A daily budget keeps tokens in check.
+- **Find in three seconds**: typos, accents, both languages, error messages, the
+  notes about the file you opened; a graph by levels.
+- **Templates and quality**: ~60 templates with perfect examples, Mermaid
+  diagrams checked, a quality reviewer, scores out of 100 on every note.
+- **The `okb-dev` module**: product, repository, ticket, explain, debug,
+  pre-review with the team's rules, commit and PR text, support cases.
+- **Learn and grow**: spaced review (FSRS) of your concept cards, a skills map,
+  STAR achievements, one-on-one and annual review preparation, a portable career
+  copy checked for company mentions.
+- **Robust and private**: history without Git, trash, verified daily backups,
+  🔒 notes Claude reads only when you name them, personal data flagged at review.
+- `okb metrics` measures the 1.0 criteria on your own brain, locally.
+
+Details: [release notes 1.0.0](docs/releases/RELEASE-1.0.0.md) · guide (FR):
+[ton cerveau](docs/guide/cerveau.md), [rien sans ton oui](docs/guide/demander-avant-ecrire.md),
+[le module développeur](docs/guide/module-developpeur.md).
 
 ## Three ways to use it
 
@@ -39,7 +64,7 @@ flowchart LR
 ## A knowledge base for every code repository you work on
 
 New on a repository and know nothing about it? In Claude Code, inside the
-repository, type `/okb:onboard` (or just say “I'm new to this repo”):
+repository, type `/okb-dev:onboard` (or just say “I'm new to this repo”):
 
 1. **A deterministic map in seconds** (`okb repo scan`, no AI, nothing executed):
    - stack and modules;
@@ -73,7 +98,7 @@ repositories connect). OKB then narrows by itself to the repository and ticket
 you name (“I have ticket ABC-123 on orders-service”): Claude gets a short brief
 (its notes, the shared notes tied to it, its neighbours, the ticket), and
 `okb ask` ranks that scope first. A ticket is followed without AI — branch,
-commits, a journal of decisions and traps — and `/okb:ticket` turns it into
+commits, a journal of decisions and traps — and `/okb-dev:ticket` turns it into
 cited updates at two levels: the repository's notes and the shared KB.
 `okb repo update` tells which notes the code moved under. Company code goes into
 a **confidential KB** that stays on your machine.
@@ -159,9 +184,9 @@ okb doctor     # check everything; --fix repairs what it can
 | End a work session without losing anything | “ok, end of session” | Focus & journal | `okb done` |
 | Weekly review with spaced re-reading | “weekly review” | Weekly review | `okb weekly` |
 | Revise by active recall | “quiz me on this note” | Revise | `/okb:learn` |
-| Get started on a code repository | “I'm new to this repo” · `/okb:onboard` | Repositories | `okb repo add` · `okb repo status` |
-| Feed the repository's KB after a ticket | “I finished my ticket” · `/okb:ticket` | Repositories | `okb ticket done` · `okb repo update` |
-| Work across a team's repositories | “I have ticket ABC-123 on orders-service” · `/okb:workspace` | Repositories | `okb workspace add` · `okb scope` · `okb ticket` |
+| Get started on a code repository | “I'm new to this repo” · `/okb-dev:onboard` | Repositories | `okb repo add` · `okb repo status` |
+| Feed the repository's KB after a ticket | “I finished my ticket” · `/okb-dev:ticket` | Repositories | `okb ticket done` · `okb repo update` |
+| Work across a team's repositories | “I have ticket ABC-123 on orders-service” · `/okb-dev:workspace` | Repositories | `okb workspace add` · `okb scope` · `okb ticket` |
 | Turn a procedure into a Claude skill | “turn this procedure into a skill” | Procedures → skills | `okb skillify` |
 | See all notes and how they connect | “show me my graph” | Graph | `okb categories` |
 | Check and repair the KB | “check my KB” | Health · Diagnostics | `okb maintain` · `okb doctor` |
@@ -267,7 +292,7 @@ filesystem transaction.
   [templates](docs/dev/TEMPLATES.md) · [style](docs/dev/STYLE.md) ·
   [installation details](docs/dev/INSTALL.md) · [context budget](docs/dev/CONTEXT.md) · [cost and quality](docs/dev/COSTS.md) ·
   [Claude compatibility](docs/dev/CLAUDE-COMPATIBILITY.md) · [evaluation](docs/dev/EVALUATION.md)
-- **Release notes:** [0.11.0](docs/releases/RELEASE-0.11.0.md) · [0.10.0](docs/releases/RELEASE-0.10.0.md) · [0.9.0](docs/releases/RELEASE-0.9.0.md) · [0.8.0](docs/releases/RELEASE-0.8.0.md) · [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
+- **Release notes:** [1.0.0](docs/releases/RELEASE-1.0.0.md) · [0.11.0](docs/releases/RELEASE-0.11.0.md) · [0.10.0](docs/releases/RELEASE-0.10.0.md) · [0.9.0](docs/releases/RELEASE-0.9.0.md) · [0.8.0](docs/releases/RELEASE-0.8.0.md) · [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
   [0.4.0](docs/releases/RELEASE-0.4.0.md) · [0.3.0](docs/releases/RELEASE-0.3.0.md) ·
   [0.2.0](docs/releases/RELEASE-0.2.0.md)
 

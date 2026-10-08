@@ -85,7 +85,7 @@ des divergences avec la KB existante.
 Capturer ne coûte rien, décider reste délibéré. `okb capture "texte"` (ou
 `--from-file`, `--title`, `--source`, `--tag`) range une capture dans l'**inbox
 privée** du profil (`<état>/inbox/`), hors de la KB : ce n'est pas encore une
-connaissance. La skill `okb-inbox` propose ensuite, élément par élément, une
+connaissance. La skill `okb-capture` propose ensuite, élément par élément, une
 destination (compléter une note, nouvelle note avec son modèle, fiche concept,
 abandon) ; seul `okb ingest` crée une proposition, approuvée par l'utilisateur.
 `okb inbox done <id> --proposal <p>` ou `okb inbox drop <id> --reason …` déplace
@@ -95,7 +95,7 @@ l'élément dans `done/` ou `dropped/` : rien n'est supprimé.
 en attente (signalées à partir de 21 jours), propositions non relues (anciennes
 après 7 jours), notes appliquées pendant la période, notes **à relire** parce
 qu'elles ont été créées il y a 1, 7, 30 ou 90 jours (relire au bon moment fixe la
-mémoire), et synthèse de `okb maintain`. La skill `okb-weekly` déroule ce rituel ;
+mémoire), et synthèse de `okb maintain`. La skill `okb-today` déroule ce rituel ;
 `okb-learn` pose des questions courtes sur une note et corrige en montrant le
 passage cité, sans rien écrire par défaut.
 
@@ -109,7 +109,7 @@ version dans l'état du profil. Par défaut elle vit dans l'état du profil ;
 `focus.file` peut la placer ailleurs, par exemple à la racine d'un coffre Obsidian,
 et plusieurs profils peuvent la partager.
 
-En fin de session, `/okb:done` (skill `okb-focus`) relit la conversation et appelle
+En fin de session, `/okb:done` (skill `okb-today`) relit la conversation et appelle
 `okb done` : une entrée dans le **journal des sessions** (un fichier par mois :
 résumé, fait, décidé, prochaine fois) et une capture d'inbox par connaissance à
 garder (`--keep`). Rien n'entre dans la KB : les captures suivent le tri habituel.

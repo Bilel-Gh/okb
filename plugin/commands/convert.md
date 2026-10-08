@@ -4,4 +4,4 @@ argument-hint: "[folder of notes]"
 disable-model-invocation: true
 ---
 
-Use the `okb-maintain` skill to convert a KB to the OKB format ([procedure](../skills/okb-maintain/references/convert.md)). Folder, if given: $ARGUMENTS
+Use the `okb-garden` skill to convert a KB to the OKB format ([procedure](../skills/okb-garden/references/convert.md)). Folder, if given: $ARGUMENTS

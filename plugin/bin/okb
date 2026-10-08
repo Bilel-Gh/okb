@@ -6,6 +6,8 @@ here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 # Commands run for Claude never ask questions (an agent cannot answer for the
 # person), and say which plugin version called them so a mismatch is reported.
 export OKB_NO_INTERACTIVE=1
+# Commands Claude runs: a note it prepares needs the person's accepted suggestion (src/suggest/guard.ts).
+export OKB_VIA_CLAUDE=1
 OKB_PLUGIN_VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$here/../.claude-plugin/plugin.json" 2>/dev/null | head -1)
 export OKB_PLUGIN_VERSION
 cli="$here/../../dist/cli/index.js"
@@ -26,5 +28,5 @@ for dir in $PATH; do
   exec "$dir/okb" "$@"
 done
 IFS=$old_ifs
-echo "okb: no CLI next to this plugin ($cli), no launcher at ~/.okb/bin/okb, none on PATH. Link one: ln -s /path/to/okb/bin/launcher ~/.okb/bin/okb (or set OKB_CLI)." >&2
+echo "okb: the OKB engine is not installed on this machine yet. Install it with: sh \"$here/../scripts/engine.sh\" (Claude does it when you say « configure OKB »)." >&2
 exit 127

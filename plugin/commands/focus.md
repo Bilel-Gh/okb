@@ -4,4 +4,4 @@ argument-hint: "[new focus or change]"
 disable-model-invocation: true
 ---
 
-Use the `okb-focus` skill to show or update the focus. Request, if any: $ARGUMENTS
+Use the `okb-today` skill to show or update the focus. Request, if any: $ARGUMENTS

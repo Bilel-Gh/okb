@@ -18,12 +18,16 @@ export async function cmdKb(ctx: Ctx): Promise<number> {
 
   if (sub === 'list' || sub === 'menu') {
     const kinds = new Map(await Promise.all(kbs.map(async (k) => [k.id, await kindOf(k.id).catch(() => 'topic' as const)] as const)));
-    if (ctx.mode === 'json') { out.json({ ok: true, kbs: kbs.map((k) => ({ ...k, kind: kinds.get(k.id) })) }); return 0; }
+    // A brain says so, with its preset (work, projects, topics, career).
+    const { loadConfig } = await import('../../config/load.js');
+    const brains = new Map(await Promise.all(kbs.map(async (k) => [k.id, (await loadConfig({ profileId: k.id }).catch(() => null))?.config.kb.brain?.preset ?? null] as const)));
+    const kindLabel = (id: string) => brains.get(id) ? `🧠 ${t(`brain.preset.${brains.get(id)}`)}` : `${KIND_ICON[kinds.get(id) ?? 'topic']} ${t(`kb.kind.${kinds.get(id) ?? 'topic'}`)}`;
+    if (ctx.mode === 'json') { out.json({ ok: true, kbs: kbs.map((k) => ({ ...k, kind: kinds.get(k.id), brain: brains.get(k.id) })) }); return 0; }
     if (!kbs.length) { out.info(t('kb.none')); out.next(['okb new', 'okb kb add <dossier>']); return 0; }
     out.grid(kbs.map((k) => [
       k.active ? sym.star() : ' ',
       paint.bold(k.name) + (k.name !== k.id ? paint.dim(` (${k.id})`) : ''),
-      `${KIND_ICON[kinds.get(k.id) ?? 'topic']} ${t(`kb.kind.${kinds.get(k.id) ?? 'topic'}`)}`,
+      kindLabel(k.id),
       languageName(k.writingLanguage),
       k.exists ? tilde(k.root) : paint.err(`${tilde(k.root)} — ${t('kb.missing')}`),
     ]), ['', t('kb.col.kb'), t('kb.col.kind'), t('kb.col.lang'), t('kb.col.folder')]);

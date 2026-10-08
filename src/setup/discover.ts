@@ -52,7 +52,7 @@ export type Discovery = {
   readonly cwd: string;
   readonly situation: Situation;
   readonly here: { readonly repo: string | null; readonly workspace: string | null; readonly kb: string | null; readonly gitRoot: string | null };
-  readonly kbs: readonly { readonly id: string; readonly name: string; readonly root: string; readonly kind: KbKind; readonly active: boolean; readonly exists: boolean; readonly confidential: boolean; readonly synced: string | null }[];
+  readonly kbs: readonly { readonly id: string; readonly name: string; readonly root: string; readonly kind: KbKind; readonly active: boolean; readonly exists: boolean; readonly confidential: boolean; readonly synced: string | null; readonly brain: string | null }[];
   readonly workspaces: readonly { readonly id: string; readonly name: string; readonly kb: string; readonly roots: readonly string[] }[];
   readonly repos: number;
   readonly reposFolder: { readonly path: string; readonly repos: readonly { readonly name: string; readonly path: string; readonly kb: string | null }[]; readonly workspace: string | null } | null;
@@ -105,7 +105,7 @@ export async function discover(cwdArg = process.cwd(), env: NodeJS.ProcessEnv = 
   const [version, kbList, workspaces, repos, claude, launcher] = await Promise.all([productVersion(), listKbs(env), listWorkspaces(env), listRepos(env), claudeState(), launcherState()]);
   const kbs = await Promise.all(kbList.map(async (k) => {
     const config = await loadConfig({ profileId: k.id, env }).then((r) => r.config, () => null);
-    return { id: k.id, name: k.name, root: k.root, kind: await kindOf(k.id, config, env).catch(() => 'topic' as const), active: k.active, exists: k.exists, confidential: config?.kb.confidential ?? false, synced: cloudSyncedFolder(k.root) };
+    return { id: k.id, name: k.name, root: k.root, kind: await kindOf(k.id, config, env).catch(() => 'topic' as const), active: k.active, exists: k.exists, confidential: config?.kb.confidential ?? false, synced: cloudSyncedFolder(k.root), brain: config?.kb.brain?.preset ?? null };
   }));
   const here = {
     repo: (await repoForDir(cwd, env).catch(() => null))?.repo ?? null,
@@ -200,6 +200,7 @@ export async function discover(cwdArg = process.cwd(), env: NodeJS.ProcessEnv = 
       step({ id: 'connectOld', argv: ['kb', 'add', oldKb.path, '--name', '{name}', '--confidential'], inClaude: null, asksName: true, nameHint: t('repo.add.newKbDefault'), params: { folder: oldKb.path } });
       step({ id: 'workspace', argv: ['workspace', 'add', reposFolder.path, '--kb', '{id}'], inClaude: null, params });
       step({ id: 'convert', argv: null, inClaude: '/okb:convert', optional: true, params: { folder: oldKb.path } });
+      step({ id: 'brain', argv: null, inClaude: '/okb:maintain', optional: true, params: { folder: oldKb.path } });
     } else if (connectedHere) {
       step({ id: 'workspace', argv: ['workspace', 'add', reposFolder.path, '--kb', connectedHere.kb!], inClaude: null, params });
     } else {
@@ -211,17 +212,18 @@ export async function discover(cwdArg = process.cwd(), env: NodeJS.ProcessEnv = 
     situation = 'single-repo';
     say('singleRepo', 'do', { repo: basename(here.gitRoot) });
     step({ id: 'repoKb', argv: ['repo', 'add', here.gitRoot, '--new-repo-kb', '{name}'], inClaude: null, asksName: true, nameHint: basename(here.gitRoot), params: { repo: basename(here.gitRoot) } });
-    step({ id: 'onboard', argv: null, inClaude: '/okb:onboard', optional: true, params: { repo: basename(here.gitRoot) } });
+    step({ id: 'onboard', argv: null, inClaude: '/okb-dev:onboard', optional: true, params: { repo: basename(here.gitRoot) } });
     next.push(t('start.next.ticketHere'));
   } else if (oldKb) {
     situation = 'notes';
     say('oldKb', 'do', { folder: oldKb.path, n: String(oldKb.notes) });
     step({ id: 'connectOld', argv: ['kb', 'add', oldKb.path, '--name', '{name}'], inClaude: null, asksName: true, nameHint: kbNames(basename(oldKb.path)).display, params: { folder: oldKb.path } });
     step({ id: 'convert', argv: null, inClaude: '/okb:convert', optional: true, params: { folder: oldKb.path } });
+    step({ id: 'brain', argv: null, inClaude: '/okb:maintain', optional: true, params: { folder: oldKb.path } });
   } else if (!kbs.length) {
     situation = 'subject';
     say('subject', 'do');
-    step({ id: 'topic', argv: ['init', '--yes', '--name', '{name}', '--kind', 'topic'], inClaude: null, asksName: true, nameHint: null });
+    step({ id: 'topic', argv: ['init', '--yes', '--name', '{name}', '--kind', 'topic', '--brain', 'topics'], inClaude: null, asksName: true, nameHint: null });
   } else {
     situation = 'kb-only';
     say('kbOnly', 'advice', { n: String(kbs.length) });

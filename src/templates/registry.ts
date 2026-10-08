@@ -29,6 +29,7 @@ const templateSchema = z.object({
   }).strict()).min(1),
   tips: z.array(localized).default([]),
   category: z.string().regex(/^[a-z][a-z0-9-]*$/).optional(),
+  checks: z.array(localized).optional(),
 }).strict().superRefine((t, context) => {
   const seen = new Set<string>();
   for (const [i, section] of t.sections.entries()) {
@@ -129,6 +130,10 @@ export function renderTemplateGuide(t: NoteTemplate, language: string): string {
     ? 'Dans le dossier, une section de rôle porte `role` et pas de `heading` : le titre vient du modèle. Une section libre porte `heading` et pas de `role`.'
     : 'In the dossier, a role section has `role` and no `heading`: the heading comes from the template. A free section has `heading` and no `role`.');
   for (const tip of t.tips) lines.push(`- ${pick(tip, language)}`);
+  if (t.checks?.length) {
+    lines.push('', `## ${fr ? 'Ce que vérifie la relecture' : 'What the review checks'}`, '');
+    for (const c of t.checks) lines.push(`- ${pick(c, language)}`);
+  }
   return `${lines.join('\n')}\n`;
 }
 
@@ -151,4 +156,24 @@ export function renderSkeleton(t: NoteTemplate, language: string, emojis: boolea
     '',
   ]);
   return `${[...front, ...body].join('\n').trimEnd()}\n`;
+}
+
+/**
+ * The perfect example of a template, written once with care: Claude reads it
+ * before writing a note of this kind (it imitates an example better than it
+ * follows a rule). In `templates/examples/<id>.<lang>.md` of the package;
+ * the other language when this one has none; null when the template has none.
+ */
+export async function templateExample(id: string, language: string): Promise<{ lang: string; text: string } | null> {
+  const { fileURLToPath } = await import('node:url');
+  const { dirname } = await import('node:path');
+  const here = dirname(fileURLToPath(import.meta.url));
+  const want = language.toLowerCase().startsWith('fr') ? ['fr', 'en'] : ['en', 'fr'];
+  for (const base of [resolve(here, '..', '..', 'templates', 'examples'), resolve(here, '..', '..', '..', 'templates', 'examples')]) {
+    for (const l of want) {
+      const text = await readTextIfExists(resolve(base, `${id}.${l}.md`));
+      if (text !== null) return { lang: l, text };
+    }
+  }
+  return null;
 }

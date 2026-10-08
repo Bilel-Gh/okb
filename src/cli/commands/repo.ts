@@ -10,7 +10,8 @@ import { freshness, repoStatus, type QuestionView, type RepoStatus } from '../..
 import { gitIdentity, gitRoot } from '../../repo/git.js';
 import { proposeLandscape, proposeQuestionsNote, askWho, riskText } from '../../repo/generated.js';
 import { addFindings, loadFindings, recordAnswer, repoContext, repoNotes, writeRepoNote, type RepoContext } from '../../repo/notes.js';
-import { isFlat, notePath, PACK, READING_ORDER } from '../../repo/pack.js';
+import { isBrainPlace, notePath, PACK, READING_ORDER } from '../../repo/pack.js';
+import { repoPlace } from '../../brain/products.js';
 import { KIND_ICON, kindOf } from '../../work/kinds.js';
 import { QUESTIONS, THEMES, questionById, type NoteKind } from '../../repo/questions.js';
 import { addRepo, findRepo, listRepos, removeRepo, repoForDir, type RepoEntry } from '../../repo/registry.js';
@@ -25,7 +26,7 @@ import { OkbError } from '../../util/errors.js';
 import { writeJsonAtomic } from '../../util/fsx.js';
 import { asBundlePath } from '../../util/paths.js';
 import { loadBundleFor } from '../../kb/bundle.js';
-import { flagBool, flagList, flagString, flagValues } from '../args.js';
+import { flagBool, flagList, flagNumber, flagString, flagValues } from '../args.js';
 import { choose, input, intro, outro, spin } from '../ui/prompt.js';
 import { columns, paint, sym, tilde, truncate, width } from '../ui/term.js';
 import { canAsk, type Ctx } from './common.js';
@@ -34,8 +35,8 @@ import { canAsk, type Ctx } from './common.js';
  * `okb repo` — a code repository's own knowledge base, kept inside one of the
  * person's KBs (`repos/<id>/`): a deterministic map of the code, a reading plan,
  * the onboarding questions, notes written from cited code, and the follow-up
- * after each ticket. Claude does the reading and writing through /okb:onboard
- * and /okb:ticket; every note goes through a proposal the person approves.
+ * after each ticket. Claude does the reading and writing through /okb-dev:onboard
+ * and /okb-dev:ticket; every note goes through a proposal the person approves.
  */
 export async function cmdRepo(ctx: Ctx): Promise<number> {
   const sub = ctx.args.positionals[0];
@@ -153,7 +154,7 @@ async function repoList(ctx: Ctx): Promise<number> {
   if (ctx.mode === 'json') { ctx.out.json({ ok: true, repos }); return 0; }
   if (!repos.length) {
     ctx.out.info(t('repo.list.none'));
-    ctx.out.next(['cd <repo> && okb repo add', '/okb:onboard']);
+    ctx.out.next(['cd <repo> && okb repo add', '/okb-dev:onboard']);
     return 0;
   }
   ctx.out.line(paint.bold(t('repo.list.title', { n: repos.length })));
@@ -201,7 +202,8 @@ async function repoAdd(ctx: Ctx): Promise<number> {
     out.json({ ok: true, created, repo, kb: { id: config.profile.id, root: config.kb.root, confidential: config.kb.confidential, kind: await kindOf(config.profile.id, config) }, ...(result ? { mapPath: result.mapPath, factsPath: result.factsPath, summary: compact(result.map) } : {}) });
     return 0;
   }
-  const folder = isFlat(config) ? config.kb.root : `${config.kb.root}/repos/${repo.id}`;
+  const place = await repoPlace(config, repo);
+  const folder = place === true ? config.kb.root : `${config.kb.root}/${isBrainPlace(place) ? place.folder : `repos/${repo.id}`}`;
   out.ok(t(created ? 'repo.add.done' : 'repo.add.again', { name: paint.name(repo.name), kb: paint.name(config.profile.displayName || config.profile.id), folder: paint.path(folder) }));
   if (result) {
     out.line();
@@ -326,6 +328,12 @@ export async function createCodeKb(ctx: Ctx, input: { name: string; dir: string 
     kind: input.kind, plugin: false, launcher: null, activate: false, adopt: false,
   }, () => {});
   await writeSetting(id, 'kb.confidential', true);
+  // OKB 1.0: a KB for code is a work brain — products, their repositories, their tickets.
+  // A KB kept inside its repository stays the repository's own (flat) KB.
+  if (!input.inRepo) {
+    const { setBrainConfig } = await import('../../brain/config.js');
+    await setBrainConfig(id, { preset: 'work', names: writing === 'fr' ? 'fr' : 'en' });
+  }
   if (ctx.mode === 'text') ctx.out.ok(t(input.kind === 'repo' ? 'repo.add.repoKbCreated' : 'repo.add.kbCreated', { name: paint.name(input.name), root: paint.path(root) }));
   return id;
 }
@@ -521,7 +529,7 @@ function renderStatus(ctx: Ctx, s: RepoStatus, config: OkbConfig, repo: RepoEntr
   if (s.stale) out.line(`  ${sym.warn()} ${paint.warn(tn('repo.status.stale', s.stale))}`);
   if (s.pending.length) out.line(`  ${paint.info('◐')} ${tn('repo.status.pending', s.pending.length)}`);
   void l;
-  out.next(s.next.map((n) => (n === '/okb:onboard' ? t('repo.next.onboard') : n)));
+  out.next(s.next.map((n) => (n === '/okb-dev:onboard' ? t('repo.next.onboard') : n)));
 }
 
 function bar(done: number, total: number, w = 12): string {
@@ -653,6 +661,8 @@ async function repoWrite(ctx: Ctx): Promise<number> {
     ...(flagString(args, 'concept-assist') ? { conceptAssistLevel: flagString(args, 'concept-assist') as never } : {}),
     ...(flagList(args, 'link-into').length ? { linkInto: flagList(args, 'link-into').map(asBundlePath) } : {}),
     ...(flagBool(args, 'reprocess') ? { reprocess: true } : {}),
+    ...(flagString(args, 'suggestion') ? { suggestion: flagString(args, 'suggestion')! } : {}),
+    ...(flagNumber(args, 'quality') !== undefined ? { quality: flagNumber(args, 'quality')! } : {}),
   });
   const p = result.report.proposal;
   if (ctx.mode === 'json') {
@@ -675,12 +685,13 @@ async function repoQuestions(ctx: Ctx): Promise<number> {
   const { repo, config, ctx: rctx } = await pickRepo(ctx, ctx.args.positionals[1]);
   const map = await loadMap(rctx.paths);
   if (!map) throw new OkbError('E_NOT_FOUND', 'scan the repository first', { key: 'repoNoScan', params: { id: repo.id }, hint: `okb repo scan ${repo.id}` });
+  const place = await repoPlace(config, repo);
   if (flagBool(ctx.args, 'propose')) {
     const proposal = await proposeQuestionsNote(rctx);
     if (proposal.changes.length) await saveProposal(config, proposal);
-    if (ctx.mode === 'json') ctx.out.json({ ok: true, proposalId: proposal.id, changes: proposal.changes.length, path: notePath(repo.id, 'questions', lang(config), isFlat(config)) });
+    if (ctx.mode === 'json') ctx.out.json({ ok: true, proposalId: proposal.id, changes: proposal.changes.length, path: notePath(repo.id, 'questions', lang(config), place) });
     else if (!proposal.changes.length) ctx.out.info(t('repo.questions.upToDate'));
-    else { ctx.out.ok(t('repo.questions.proposed', { path: paint.code(notePath(repo.id, 'questions', lang(config), isFlat(config))) })); ctx.out.next([`okb review ${proposal.id} --diff`]); }
+    else { ctx.out.ok(t('repo.questions.proposed', { path: paint.code(notePath(repo.id, 'questions', lang(config), place)) })); ctx.out.next([`okb review ${proposal.id} --diff`]); }
     return 0;
   }
   const status = await repoStatus(rctx);
@@ -691,7 +702,7 @@ async function repoQuestions(ctx: Ctx): Promise<number> {
     ctx.out.json({ ok: true, repo: repo.id, questions: views.map((v) => {
       const hint = map.questions.find((h) => h.id === v.id);
       const files = v.looked?.length ? v.looked : hint?.hints.map((h) => h.file) ?? [];
-      return { ...v, text: pick(questionById(v.id)!.text, l), why: v.why ?? pick(questionById(v.id)!.why, l), note: v.note ?? notePath(repo.id, questionById(v.id)!.note, l, isFlat(config)), hints: hint?.hints ?? [], askWho: v.askWho ?? askWho(map, files, l) };
+      return { ...v, text: pick(questionById(v.id)!.text, l), why: v.why ?? pick(questionById(v.id)!.why, l), note: v.note ?? notePath(repo.id, questionById(v.id)!.note, l, place), hints: hint?.hints ?? [], askWho: v.askWho ?? askWho(map, files, l) };
     }) });
     return 0;
   }
@@ -863,16 +874,17 @@ export async function repoContextText(cwd: string): Promise<string> {
     const { config } = await loadConfig({ profileId: found.repo.kb });
     const rctx = await repoContext(config, found.repo);
     const bundle = await loadBundleFor(config);
-    const notes = repoNotes(bundle, found.repo.id, isFlat(config));
+    const place = await repoPlace(config, found.repo);
+    const notes = repoNotes(bundle, found.repo.id, place);
     const status = await repoStatus(rctx, { bundle });
     const counts = countQuestions(status.questions);
     const lines = [
-      `OKB knows this repository: "${found.repo.name}" (KB "${config.profile.displayName || config.profile.id}", folder ${config.kb.root}/repos/${found.repo.id}).`,
+      `OKB knows this repository: "${found.repo.name}" (KB "${config.profile.displayName || config.profile.id}", folder ${config.kb.root}/${isBrainPlace(place) ? place.folder : place ? '' : `repos/${found.repo.id}`}).`,
       notes.length
         ? `Its notes, written from the code and approved by the user — read the relevant one before exploring the code, and cite it when you use it:\n${notes.slice(0, 12).map((n) => `- ${config.kb.root}/${n.path} — ${n.title}`).join('\n')}`
-        : 'No note has been written yet: /okb:onboard reads the repository and writes its onboarding notes (offer it if the user is discovering the code).',
+        : 'No note has been written yet: /okb-dev:onboard reads the repository and writes its onboarding notes (offer it if the user is discovering the code).',
       `Onboarding questions: ${counts.answered}/${QUESTIONS.length} covered, ${counts.unknown + counts.open} open (okb repo questions).${status.stale ? ` ${status.stale} note(s) may be outdated since the code changed (okb repo update).` : ''}`,
-      'When the user finishes a ticket or a piece of work in this repository, offer /okb:ticket (ask first) so its KB keeps up with the code. Never write in the KB directly.',
+      'When the user finishes a ticket or a piece of work in this repository, offer /okb-dev:ticket (ask first) so its KB keeps up with the code. Never write in the KB directly.',
     ];
     text = lines.join('\n');
   } else {
@@ -882,16 +894,16 @@ export async function repoContextText(cwd: string): Promise<string> {
     const kb = kbs.find((k) => isInside(cwd, k.root));
     if (kb) {
       // The folder of an OKB KB: its notes, not code to onboard.
-      return `OKB: this folder is the OKB KB "${kb.name}" (id ${kb.id}): notes, not a code repository — never offer /okb:onboard here. If its notes were written before OKB (no front matter), offer /okb:convert to convert them through a proposal (ask first).`;
+      return `OKB: this folder is the OKB KB "${kb.name}" (id ${kb.id}): notes, not a code repository — never offer /okb-dev:onboard here. If its notes were written before OKB (no front matter), offer /okb:convert to convert them through a proposal (ask first).`;
     }
     let suggest = kbs.length > 0;
     if (suggest) try { suggest = (await loadConfig({})).config.routing.suggest; } catch { /* no active KB */ }
     if (root && (await readOwner(root).catch(() => null))) return '';
     const { looksLikeNotes } = await import('../../work/workspaces.js');
     if (root && (await looksLikeNotes(root))) {
-      text = `OKB: this folder looks like a knowledge base written before OKB ("${root.split('/').pop()}": Markdown notes, not code). Never offer /okb:onboard for it (that is for code repositories). If the user wants it in OKB, offer /okb:convert: it connects the folder as a KB (asking its name) and converts its notes through a proposal they review.`;
+      text = `OKB: this folder looks like a knowledge base written before OKB ("${root.split('/').pop()}": Markdown notes, not code). Never offer /okb-dev:onboard for it (that is for code repositories). If the user wants it in OKB, offer /okb:convert: it connects the folder as a KB (asking its name) and converts its notes through a proposal they review.`;
     } else if (root && suggest) {
-      text = `OKB: this folder is a Git repository OKB does not document yet ("${root.split('/').pop()}"). If the user says they are discovering or starting on it, offer /okb:onboard to build its knowledge base (ask first; never run it unasked).`;
+      text = `OKB: this folder is a Git repository OKB does not document yet ("${root.split('/').pop()}"). If the user says they are discovering or starting on it, offer /okb-dev:onboard to build its knowledge base (ask first; never run it unasked).`;
     }
   }
   return text;

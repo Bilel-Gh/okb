@@ -4,4 +4,4 @@ argument-hint: "[anything to add]"
 disable-model-invocation: true
 ---
 
-Use the `okb-focus` skill to close this session (end-of-session workflow). The user adds: $ARGUMENTS
+Use the `okb-today` skill to close this session (end-of-session workflow). The user adds: $ARGUMENTS

@@ -1,6 +1,6 @@
 {
   "name": "okb",
-  "version": "0.11.0",
+  "version": "1.0.0",
   "description": "Open Knowledge Brain — a local, profile-driven second brain that ingests sources and proposes reviewed, traceable changes to an OKF knowledge bundle.",
   "license": "MIT",
   "type": "module",
@@ -13,6 +13,8 @@
   "files": [
     "dist",
     "plugin",
+    "plugins",
+    "templates",
     "web",
     "docs",
     "!docs/images",
@@ -40,6 +42,7 @@
     "d3-force": "^3.0.0",
     "mammoth": "^1.8.0",
     "mermaid": "^12.1.0",
+    "minisearch": "^7.2.0",
     "node-html-parser": "^6.1.13",
     "picocolors": "^1.1.1",
     "rehype-sanitize": "^6.0.0",
@@ -47,6 +50,7 @@
     "remark-gfm": "^4.0.0",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "ts-fsrs": "^5.4.2",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
     "unpdf": "1.8.1",

@@ -3,13 +3,14 @@
 Trace courte pour reprendre le projet sans l’historique de conversation.
 Format : problème → décision → conséquence → condition de réexamen.
 
-## État au 5 octobre 2026 (version 0.11.0)
+## État au 7 octobre 2026 (version 1.0.0)
 
 | Contrôle | Résultat |
 |---|---|
-| `npm run release:check` (Node 24.4) | voir [RELEASE-0.11.0.md](../releases/RELEASE-0.11.0.md) : tests, plugin, paquet installé proprement |
-| `claude plugin validate ./plugin` (Claude Code du poste) | Validation passée |
-| Évaluations natives `claude plugin eval` | Non exécutées (cas prêts dans `plugin/evals/`) |
+| `npm run release:check` (Node 24.4) | voir [RELEASE-1.0.0.md](../releases/RELEASE-1.0.0.md) : tests, deux plugins, paquet installé proprement |
+| `claude plugin validate ./plugin` et `./plugins/okb-dev` | Validation passée |
+| Évaluations natives `claude plugin eval` | Non exécutées : la session de développement n'a pas d'accès à la connexion Claude ; cas prêts dans `plugin/evals/` (étiquettes `quality`, `consent`, `routing`) |
+| Bêta de deux semaines | À faire par la personne, avec `okb metrics` chaque semaine |
 
 ## D1 — Le style de rédaction devient un paramètre du produit
 
@@ -199,8 +200,8 @@ Le diagnostic et les contrats Claude consultés sont dans
   profil, jamais dans la KB, triée élément par élément vers des propositions ;
   les éléments traités sont déplacés, jamais supprimés. `okb weekly` : un rapport
   en lecture seule (inbox, propositions en attente, notes appliquées, notes à
-  relire à J+1, 7, 30, 90, maintenance). Trois skills (`okb-inbox`,
-  `okb-weekly`, `okb-learn`) et quatre commandes. L'approbation humaine reste le
+  relire à J+1, 7, 30, 90, maintenance). Trois skills (`okb-capture`,
+  `okb-today`, `okb-learn`) et quatre commandes. L'approbation humaine reste le
   seul chemin vers la KB.
 - **Inspirations.** Pratiques courantes de gestion des connaissances (boîte de
   réception, revue hebdomadaire, répétition espacée, rappel actif), réécrites pour
@@ -245,7 +246,7 @@ Le diagnostic et les contrats Claude consultés sont dans
   l'inbox). Un hook `SessionStart` du plugin donne à Claude la note de focus et la
   dernière « prochaine fois » (`okb focus --context`), en les marquant comme
   données de l'utilisateur. `okb weekly` signale un focus de plus de
-  `focus.staleDays` jours et liste les sessions de la période. Skill `okb-focus`,
+  `focus.staleDays` jours et liste les sessions de la période. Skill `okb-today`,
   commandes `/okb:done` et `/okb:focus`.
 - **Conséquence.** La mémoire entre sessions ne passe pas par la KB : une
   connaissance n'y entre toujours que par une proposition approuvée. Plusieurs
@@ -589,4 +590,193 @@ Le diagnostic et les contrats Claude consultés sont dans
   modifiable avant tout changement.
 - **Réexamen.** Si des organisations plus profondes que deux niveaux sont
   courantes, étendre la recherche ou demander le dossier.
+
+
+## D36 — Le cerveau et le Zoom
+
+- **Problème.**
+  - Les notes d'un repo, d'un produit et les notes globales se mélangeaient ;
+    on ne savait pas où ranger une information ni où la retrouver.
+  - Le rangement par type de note (`guides/`, `concepts/`) ne suit pas la façon
+    dont on travaille (produit → repo → ticket).
+- **Décision.**
+  - Un **cerveau** (`kb.brain`) a cinq tiroirs numérotés : `0 Entrée`,
+    `1 Écosystème`, `2 Produits`, `3 Boîte à outils`, `4 Activité` (les noms
+    changent selon le préréglage : travail, projets, sujets, carrière).
+  - Le **Zoom** : produit → `Code/<repo>` → `Tickets/<année>`. Chaque dossier a
+    sa page « en 5 min » (`<dossier>/<dossier>.md`).
+  - Un **moteur d'adresse** calcule le chemin exact de chaque type de note
+    (~90 types) : la même note est toujours rangée au même endroit.
+  - **L'ascenseur** : un fait va au niveau le plus bas qui le porte ; une leçon
+    monte au niveau le plus haut où elle reste vraie.
+  - Chaque nouvelle note reçoit un identifiant stable (`x_okb.id`) et un fil
+    d'Ariane ; les pages des sujets manquants sont créées dans la même proposition.
+  - Une KB classique reste inchangée jusqu'à `okb brain migrate`, qui prépare
+    une proposition de déplacements (liens réécrits) que la personne approuve.
+- **Conséquence.** Une adresse prévisible pour 3 000 notes et plus ; Claude lit
+  le contexte vertical d'un sujet (`okb brain context`) au lieu de tout chercher.
+- **Réexamen.** Si un métier ne tient pas dans cinq tiroirs, ajouter un préréglage.
+
+## D37 — Demander avant d'écrire
+
+- **Problème.** Écrire une note coûte des tokens et peut être inutile ou en
+  double ; une écriture automatique fait perdre le contrôle.
+- **Décision.**
+  - Claude montre d'abord une **carte de suggestion** (`okb suggest add`) : type,
+    place exacte, raison, notes qui couvrent déjà le sujet, recommandation,
+    pertinence /100, coût estimé.
+  - Le **oui** est enregistré par les hooks du plugin, à partir de ce que la
+    personne a fait (son clic dans AskUserQuestion, son « oui », un identifiant
+    tapé) ; un appel d'outil ne peut pas l'enregistrer (le garde le refuse).
+  - Dans un cerveau, `okb ingest` et `okb repo write` lancés par Claude refusent
+    une note sans suggestion acceptée qui couvre son chemin.
+  - Un budget quotidien (`budget.daily`, 50 000 tokens par défaut) ; au-delà,
+    il faut demander.
+  - Les cartes à chaud seulement au-dessus de 80 de pertinence ; le reste en fin
+    de ticket ou de session (`suggest.mode`).
+- **Conséquence.** 0 note sans oui, mesuré par `okb metrics`.
+- **Réexamen.** Si les cartes gênent, monter le seuil ou passer en mode session.
+
+## D38 — Noter les notes
+
+- **Décision.** Chaque note a deux notes sur 100, calculées sans IA :
+  **qualité** (structure, sources, clarté, liens, justesse donnée par le
+  relecteur) et **valeur** (lectures, recherches, liens entrants, 👍/👎).
+  Global = 60 % qualité + 40 % valeur, affiché en étoiles et en pourcentage.
+- **Conséquence.** La revue de la semaine montre les notes faibles ; la
+  recherche favorise un peu les bonnes notes.
+
+## D39 — Un stockage robuste sans Git
+
+- **Problème.** OKB n'utilise plus Git pour les KB (D33) : il fallait quand même
+  un historique, une corbeille et des sauvegardes.
+- **Décision.**
+  - L'historique d'une note vient des reçus et des copies `.bak` ; les
+    déplacements sont notés dans la proposition, l'historique les suit.
+  - Corbeille de 30 jours à partir des reçus ; une restauration est une proposition.
+  - Sauvegardes quotidiennes par liens physiques, avec manifeste sha256,
+    rotation 7 jours / 4 semaines / 12 mois, vérification, restauration dans un
+    nouveau dossier seulement. La clé d'approbation n'est jamais copiée.
+  - `okb brain check` : copies de synchronisation, identifiants en double, liens
+    cassés, notes déplacées, chiffrement du disque, sauvegardes.
+
+## D40 — Retrouver en trois secondes
+
+- **Décision.**
+  - MiniSearch en mémoire : fautes de frappe, accents, pluriels, débuts de mots,
+    titres et alias favorisés, recherche dans les deux langues (lexique FR/EN).
+  - Les messages d'erreur sont normalisés : une erreur déjà vue retrouve sa note.
+  - Les notes viennent à soi : celles d'un fichier ouvert, celles d'une erreur.
+  - Une recherche vide deux fois devient une suggestion.
+  - L'index et les liens entre notes sont calculés une fois par version de la KB.
+- **Conséquence.** p95 de 6 ms sur 4 600 notes ; 93 % de bonnes notes dans le
+  top 3 avec une faute de frappe (jeu de démonstration).
+
+## D41 — Modèles, exemples et relecture qualité
+
+- **Décision.**
+  - Un catalogue d'environ 60 modèles, chacun commençant par « En bref » et avec
+    sa grille de vérification ; des exemples parfaits fictifs que Claude imite.
+  - Les diagrammes Mermaid sont vérifiés avant d'enregistrer une proposition.
+  - Un agent `okb-quality-reviewer` note le brouillon sur la grille ; sa note de
+    justesse est gardée (`x_okb.review`).
+  - Un profil de lecture règle quatre curseurs à la fois (niveau, schémas,
+    détail, exemples).
+  - Des évaluations `claude plugin eval` (étiquettes `quality`, `consent`)
+    se lancent sur Sonnet et sur Opus.
+
+## D42 — Des modules : le cœur et le module développeur
+
+- **Décision.**
+  - Le plugin `okb` est le cœur ; `okb-dev` est un module qui dépend de lui
+    (`dependencies: ["okb"]`), dans la même marketplace.
+  - Le module développeur a huit compétences : produit, repo, ticket,
+    expliquer, déboguer, pré-revue, commit/PR, support.
+  - `okb dev review` et `okb dev ship` donnent à Claude des faits sans IA
+    (règles d'équipe, pièges, style de commit, modèle de PR).
+  - Les mentions « généré avec » et les co-auteurs sont désactivées par défaut
+    dans ce que Claude rédige (`dev.attribution`).
+  - L'installation passe par Claude seulement : ajout de la marketplace, plugin,
+    puis « configure OKB » qui installe le moteur (`engine.sh`).
+- **Réexamen.** D'autres modules (support, formation) quand le cœur sera stable.
+
+## D43 — Apprendre et la carrière
+
+- **Décision.**
+  - Les cartes de révision sont calculées à partir des notes (fiches concepts,
+    lignes « Q : … — R : … ») ; l'état de révision (FSRS, `ts-fsrs`) vit dans le
+    dossier d'état d'OKB, jamais dans la KB.
+  - Carte des compétences par sujet, quiz sur un repo ou un produit, objectifs
+    d'apprentissage.
+  - Carrière : histoires STAR avec preuves, retours, objectifs, préparation des
+    entretiens. `okb career check` liste ce qui partirait de l'entreprise
+    (produits, clients, repos, tickets, emails, liens, montants) ;
+    `okb career export` copie seulement quand plus rien ne fuit.
+
+## D44 — Confidentialité
+
+- **Décision.**
+  - `x_okb.confidentiality: secret` (🔒) : la recherche lancée par Claude laisse
+    la note de côté, et un hook refuse à Claude de lire le fichier.
+  - La personne l'ouvre à Claude en la nommant dans son propre message : le hook
+    l'enregistre pour 30 minutes. Un appel d'outil ne peut pas le faire.
+  - Les données personnelles (emails, téléphones, IBAN, numéros d'identité, de
+    carte) sont signalées dans la proposition, pas refusées : la personne décide.
+  - Marquer une note passe par une proposition (`okb secret set`).
+- **Limites.** Un garde contre la lecture accidentelle, pas un coffre-fort : les
+  lecteurs courants du shell et `Read` sont couverts.
+
+## D45 — Les vues dans l'application
+
+- **Décision.** Les index, « Maintenant », les glossaires et le graphe par niveaux
+  sont calculés dans l'application web et la CLI, pas écrits dans la KB.
+  Le mode `files` les écrit, mais par une proposition comme le reste.
+- **Conséquence.** Aucune écriture de fond ; la KB ne contient que des notes.
+
+## D46 — Mesurer la 1.0
+
+- **Décision.** `okb metrics` mesure en local et sans IA les critères de la 1.0 :
+  contrôle, rangement, recherche (top 3 et vitesse), qualité, coût du résumé de
+  démarrage, robustesse, discrétion, usage. La bêta de deux semaines le relit
+  chaque semaine.
+
+## Travail restant après la 1.0 (noté le 8 octobre 2026, rien de commencé)
+
+Décidé (voir D47) : le site local d'abord ; l'IA par Claude Code local ou par
+une clé. À décider : l'interface en React + TypeScript, migrée page par page.
+
+Pistes, par ordre proposé :
+- **1.1** : la page Repos montre les repos d'un cerveau non enregistrés sur la
+  machine ; une page Modules ; la phrase courte obligatoire des concepts (bulle
+  au survol) ; un bouton Traduire (vue en cache, enregistrement par proposition) ;
+  une page « Utiliser OKB dans Claude Code » avec installation en un clic ; le
+  niveau de connaissance de chaque repo (barre qui baisse quand le code change).
+- **1.2** : la nouvelle page Notes (arbre, filtres, aperçu) ; une recherche
+  hybride (mots, sens par embeddings locaux, structure) et « Demande à ton cerveau » ;
+  XP et badges personnels.
+- **1.3** : des diagrammes d'architecture calculés depuis le code (correspondance
+  appels ↔ routes, événements, preuves des deux côtés), auto-évalués et mesurés
+  sur un jeu de test multi-repos ; l'examen de connaissance d'un repo ; exporter,
+  comparer et fusionner des KB.
+- **2.0** : un serveur d'équipe (comptes, partage, relecture commune, réputation
+  des relecteurs, classements à activer par l'équipe).
+
+## D47 — Local d'abord, l'IA de deux façons, des modules par profil
+
+- **Décision (8 octobre 2026, à implémenter).**
+  - Le site reste **local d'abord** ; le partage passera par un échange de
+    packs, puis par un serveur d'équipe auto-hébergé.
+  - Le site appelle l'IA **de deux façons** : Claude Code installé sur la machine
+    (l'abonnement de la personne), ou une clé d'API (Claude Agent SDK), derrière
+    une même couche « fournisseur ».
+  - Un **module par profil** (dev aujourd'hui ; devops, commercial ensuite) : le
+    moteur et le site connaîtront les modules, pas seulement le plugin Claude.
+  - Prévoir tôt un **identifiant stable par personne** et un **rôle** sur les notes
+    et les relectures, pour le travail d'équipe.
+- **Conséquences pour les fonctions à venir.**
+  - **Traduire** : sur un clic seulement, gardé en cache, sections modifiées
+    seules retraduites, petit modèle.
+  - **Bulle des concepts** : affiche seulement la phrase courte de la fiche.
+  - **Diagrammes** : vérifiés après génération (noms compréhensibles, schéma
+    cohérent) en plus des preuves.
 

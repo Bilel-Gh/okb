@@ -51,7 +51,7 @@ Ton dossier `~/dev/mon-equipe` contient `repo1`, `repo2`, `repo3` et une ancienn
 « configure OKB pour moi » (ou `okb start` dans un terminal). OKB trouve les repos
 et l'ancienne KB, te recommande de la reprendre comme KB de travail, te demande
 son nom, te montre le plan, puis le lance après ton accord. Il ne reste qu'à taper
-`/okb:ticket ABC-123`.
+`/okb-dev:ticket ABC-123`.
 
 **À la main**, dans l'ordre :
 
@@ -67,7 +67,7 @@ son nom, te montre le plan, puis le lance après ton accord. Il ne reste qu'à t
    tape `/okb:convert`, relis, approuve. Les notes qui parlent surtout de `repo2`
    vont dans son espace. Cette étape peut attendre, mais toujours après l'étape 2.
 4. **Ouvrir Claude Code dans `~/dev/mon-equipe/repo2`** :
-   - la première fois, `/okb:onboard` (Claude lit le code et prépare ses notes) ;
+   - la première fois, `/okb-dev:onboard` (Claude lit le code et prépare ses notes) ;
    - crée une branche qui contient la référence du ticket (`feature/ABC-123-…`) ;
    - dis « je commence le ticket ABC-123 » et colle son texte.
 5. **Travailler normalement.** Claude note les décisions et les pièges dans le

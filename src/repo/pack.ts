@@ -55,21 +55,48 @@ export function packNote(kind: NoteKind): PackNote {
 }
 
 /**
- * Where a repository's notes go: `repos/<id>/` in a KB of several repositories,
- * the root of the KB in a repository KB (`flat`).
+ * Where a repository's notes go. `false`: `repos/<id>/` in a KB of several
+ * repositories; `true`: the root of a repository KB (`flat`); a brain place:
+ * the repository's folder in its product (`2 Produits/<product>/Code/<repo>`),
+ * where the notes are named after the repository (`repo2 — Démarrer.md`) and
+ * the overview is the repository's page (`repo2.md`).
  */
-export function repoFolder(id: string, flat = false): string {
-  return flat ? '' : `${REPOS_FOLDER}/${id}`;
+export type BrainRepoPlace = { readonly folder: string; readonly name: string; readonly lang: 'fr' | 'en'; readonly tickets: string };
+export type RepoPlace = boolean | BrainRepoPlace;
+
+export function isBrainPlace(place: RepoPlace | undefined): place is BrainRepoPlace {
+  return typeof place === 'object' && place !== null;
+}
+
+export function repoFolder(id: string, place: RepoPlace = false): string {
+  if (isBrainPlace(place)) return place.folder;
+  return place ? '' : `${REPOS_FOLDER}/${id}`;
 }
 
 /** `folder/file`, or `file` at the root. */
-export function inRepoFolder(id: string, file: string, flat = false): string {
-  const folder = repoFolder(id, flat);
+export function inRepoFolder(id: string, file: string, place: RepoPlace = false): string {
+  const folder = repoFolder(id, place);
   return folder ? `${folder}/${file}` : file;
 }
 
-export function notePath(id: string, kind: NoteKind, language: string, flat = false): BundlePath {
-  return asBundlePath(inRepoFolder(id, pick(packNote(kind).file, language), flat));
+/** Brain file names of the pack: the overview is the repository's page. */
+const BRAIN_FILE: Readonly<Record<NoteKind, Localized | null>> = {
+  overview: null,
+  start: { fr: 'Démarrer', en: 'Getting started' },
+  architecture: { fr: 'Architecture', en: 'Architecture' },
+  interfaces: { fr: 'Interfaces', en: 'Interfaces' },
+  delivery: { fr: 'Livrer', en: 'Delivery' },
+  codemap: { fr: 'Carte du code', en: 'Code map' },
+  questions: { fr: 'Questions ouvertes', en: 'Open questions' },
+};
+
+export function notePath(id: string, kind: NoteKind, language: string, place: RepoPlace = false): BundlePath {
+  if (isBrainPlace(place)) {
+    const label = BRAIN_FILE[kind];
+    const file = label ? `${place.name} — ${place.lang === 'fr' ? label.fr : label.en}.md` : `${place.name}.md`;
+    return asBundlePath(`${place.folder}/${file}`);
+  }
+  return asBundlePath(inRepoFolder(id, pick(packNote(kind).file, language), place));
 }
 
 export function noteTitle(kind: NoteKind, name: string, language: string): string {
@@ -80,10 +107,19 @@ export function noteDescription(kind: NoteKind, name: string, language: string):
   return pick(packNote(kind).description, language).replaceAll('{name}', name);
 }
 
-/** `repos/<id>/tickets/2026-10-04-fix-cancel-order.md` (`tickets/…` in a repository KB) */
-export function ticketPath(id: string, title: string, date = new Date(), flat = false): BundlePath {
+/**
+ * `repos/<id>/tickets/2026-10-04-fix-cancel-order.md` (`tickets/…` in a repository KB);
+ * in a brain `…/Code/<repo>/Tickets/2026/ABC-123 — Export CSV.md`, or dated when the title has no reference.
+ */
+export function ticketPath(id: string, title: string, date = new Date(), place: RepoPlace = false): BundlePath {
+  const day = date.toISOString().slice(0, 10);
+  if (isBrainPlace(place)) {
+    const clean = title.normalize('NFC').replace(/[\\/:*?"<>|#^[\]{}\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90).trim() || 'ticket';
+    const hasRef = /^[A-Za-z][A-Za-z0-9]{0,15}[-_]\d{1,7}\b/.test(clean);
+    return asBundlePath(`${place.folder}/${place.tickets}/${day.slice(0, 4)}/${hasRef ? clean : `${day} ${clean}`}.md`);
+  }
   const slug = title.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'ticket';
-  return asBundlePath(inRepoFolder(id, `tickets/${date.toISOString().slice(0, 10)}-${slug}.md`, flat));
+  return asBundlePath(inRepoFolder(id, `tickets/${day}-${slug}.md`, place));
 }
 
 /** Pack order for reading: overview first, questions last. */

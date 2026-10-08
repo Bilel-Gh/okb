@@ -42,6 +42,7 @@ import { asBundlePath } from '../util/paths.js';
 import { weeklyReport } from '../weekly/weekly.js';
 import { confirmPresence, presenceMethod } from './presence.js';
 import { renderMarkdown } from './render.js';
+import { brainRoutes, crumbsOf, scoresFor } from './api-brain.js';
 
 export type ApiContext = {
   readonly env: NodeJS.ProcessEnv;
@@ -128,8 +129,13 @@ function categoryOfText(path: string, text: string, cx: Awaited<ReturnType<typeo
 /** Every KB with its kind (subject, repository, workspace), for the KB page. */
 async function kbsWithKind(env: NodeJS.ProcessEnv) {
   const { kindOf } = await import('../work/kinds.js');
-  return Promise.all((await listKbs(env)).map(async (k) => ({ ...k, kind: await kindOf(k.id, null, env).catch(() => 'topic') })));
+  return Promise.all((await listKbs(env)).map(async (k) => {
+    const brain = await loadConfig({ env, profileId: k.id }).then((r) => r.config.kb.brain?.preset ?? null, () => null);
+    return { ...k, kind: await kindOf(k.id, null, env).catch(() => 'topic'), brain };
+  }));
 }
+
+const BRAIN = brainRoutes(kbConfig);
 
 export const ROUTES: Record<string, Handler> = {
   /* ---------- session ---------- */
@@ -176,18 +182,20 @@ export const ROUTES: Record<string, Handler> = {
     const { questionById } = await import('../repo/questions.js');
     const { askWho, riskText, landscapeNote } = await import('../repo/generated.js');
     const { compact } = await import('../cli/commands/repo.js');
-    const { notePath, PACK, isFlat } = await import('../repo/pack.js');
+    const { notePath, PACK } = await import('../repo/pack.js');
+    const { repoPlace } = await import('../brain/products.js');
     const repo = await findRepo(q.get('id') ?? '', ctx.env);
     if (!repo || repo.kb !== config.profile.id) throw new OkbError('E_NOT_FOUND', 'repository not found in this KB', { key: 'repoUnknown', params: { id: q.get('id') ?? '' } });
     const rctx = await repoContext(config, repo);
     const bundle = await loadBundleFor(config);
+    const place = await repoPlace(config, repo);
     const [status, map, fresh] = await Promise.all([repoStatus(rctx, { bundle }), loadMap(rctx.paths), freshness(rctx, { bundle })]);
     const writing = config.writing.language ?? config.profile.answer.language;
     const questions = status.questions.map((v) => {
       const def = questionById(v.id)!;
       const hint = map?.questions.find((x) => x.id === v.id);
       const files = v.looked?.length ? v.looked : hint?.hints.map((x) => x.file) ?? [];
-      return { ...v, text: pick(def.text, writing), why: v.why ?? pick(def.why, writing), target: notePath(repo.id, def.note, writing, isFlat(config)), askWho: v.askWho ?? (map ? askWho(map, files, writing) : null), hints: hint?.hints.slice(0, 4) ?? [] };
+      return { ...v, text: pick(def.text, writing), why: v.why ?? pick(def.why, writing), target: notePath(repo.id, def.note, writing, place), askWho: v.askWho ?? (map ? askWho(map, files, writing) : null), hints: hint?.hints.slice(0, 4) ?? [] };
     });
     const landscape = await landscapeNote(config).catch(() => null);
     const mermaid = landscape && landscape.repos.length > 1 ? /```mermaid\n([\s\S]*?)```/.exec(landscape.content)?.[1] ?? null : null;
@@ -202,7 +210,7 @@ export const ROUTES: Record<string, Handler> = {
       repo: { ...repo, displayPath: home && repo.path.startsWith(`${home}/`) ? `~${repo.path.slice(home.length)}` : repo.path }, status, freshness: fresh, questions, tickets,
       map: map ? compact(map) : null,
       risks: map ? map.risks.map((r) => ({ kind: r.kind, text: riskText(r, writing) })) : [],
-      pack: PACK.map((p) => ({ kind: p.kind, emoji: p.emoji, path: notePath(repo.id, p.kind, writing, isFlat(config)), title: bundle.byPath.get(notePath(repo.id, p.kind, writing, isFlat(config)))?.title ?? null })),
+      pack: PACK.map((p) => ({ kind: p.kind, emoji: p.emoji, path: notePath(repo.id, p.kind, writing, place), title: bundle.byPath.get(notePath(repo.id, p.kind, writing, place))?.title ?? null })),
       landscape: mermaid,
     };
   },
@@ -253,8 +261,19 @@ export const ROUTES: Record<string, Handler> = {
     const graph = buildGraph(bundle, cx.categories, cx.templates, { includeNav: entry.reserved });
     const { incoming, outgoing } = neighbours(graph, path);
     const pickNode = (n: { id: string; title: string; category: string }) => ({ path: n.id, title: n.title, category: n.category });
+    // A brain: the note's breadcrumb, its score, and the concept cards of the words it uses (shown on hover).
+    const { glossary } = await import('../brain/views.js');
+    const { layoutOf } = await import('../brain/layout.js');
+    const { noteEvent } = await import('../scores/scores.js');
+    const body = doc.body.toLowerCase();
+    const terms = glossary(layoutOf(config), bundle).filter((g) => g.path !== path && [g.term, ...g.aliases].some((w) => w.length >= 2 && new RegExp(`(^|[^\\p{L}\\p{N}])${w.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'u').test(body))).slice(0, 40);
+    const score = (await scoresFor(config, bundle)).get(path) ?? null;
+    await noteEvent(config, path, 'open');
     return {
+      crumbs: crumbsOf(config, bundle, path), terms,
+      score: score ? { stars: score.stars, global: score.global, quality: score.quality, value: score.value, young: score.young, parts: score.parts, notes: score.notes } : null,
       path, title: entry.title, type: entry.type, status: entry.status, description: entry.description,
+      confidentiality: (entry.ext as { confidentiality?: string }).confidentiality ?? 'normal',
       category: graph.nodes.find((n) => n.id === path)?.category ?? 'other',
       sources: Array.isArray((doc.data as { sources?: unknown[] }).sources) ? (doc.data as { sources: unknown[] }).sources.length : 0,
       html: await renderMarkdown(doc.raw, path), raw: doc.raw,
@@ -607,7 +626,8 @@ export const ROUTES: Record<string, Handler> = {
   },
 };
 
-export const MUTATING = new Set(Object.keys(ROUTES).filter((k) => k.startsWith('POST ')));
+// Every change, the brain's included, carries the session token and a JSON body.
+export const MUTATING = new Set([...Object.keys(ROUTES), ...Object.keys(BRAIN)].filter((k) => k.startsWith('POST ')));
 export function routeFor(method: string, pathname: string): Handler | undefined {
-  return ROUTES[`${method} ${pathname}`];
+  return ROUTES[`${method} ${pathname}`] ?? (BRAIN as Record<string, Handler>)[`${method} ${pathname}`];
 }

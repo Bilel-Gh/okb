@@ -4,4 +4,4 @@ argument-hint: "[folder to focus on]"
 disable-model-invocation: true
 ---
 
-Use the `okb-maintain` skill. Focus, if given: $ARGUMENTS
+Use the `okb-garden` skill. Focus, if given: $ARGUMENTS

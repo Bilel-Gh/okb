@@ -4,4 +4,4 @@ argument-hint: "[item id]"
 disable-model-invocation: true
 ---
 
-Use the `okb-inbox` skill to triage the inbox. Start with: $ARGUMENTS
+Use the `okb-capture` skill to triage the inbox. Start with: $ARGUMENTS

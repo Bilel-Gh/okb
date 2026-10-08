@@ -4,13 +4,19 @@
     "name": "OKB contributors"
   },
   "metadata": {
-    "description": "Catalogue to install the OKB plugin from this repository."
+    "description": "OKB, a second brain for Claude: the core plugin and its modules."
   },
   "plugins": [
     {
       "name": "okb",
       "source": "./plugin",
-      "description": "Open Knowledge Brain: ingest sources, search with evidence, and propose reviewed changes to an OKF knowledge bundle."
+      "description": "OKB core: your brains (drawers, subjects, notes), capture with your yes, search, learning, career, backups. Install a module for your job on top."
+    },
+    {
+      "name": "okb-dev",
+      "source": "./plugins/okb-dev",
+      "description": "OKB for developers: products, repositories and tickets — understand a repository, follow a ticket, explain code, debug, pre-review, write PRs.",
+      "dependencies": ["okb"]
     }
   ]
 }

@@ -8,6 +8,10 @@ export type OkbSnapshot = {
   inbox: number;
   pending: { number: number | null; title: string; files: number }[];
   notes: number;
+  /** Suggestion cards waiting for the person's decision. */
+  suggestions: number;
+  /** Review cards due now. */
+  due: number;
   /** The repository and ticket OKB is narrowed to, if any. */
   scope: { repo: string | null; ticket: string | null } | null;
 };

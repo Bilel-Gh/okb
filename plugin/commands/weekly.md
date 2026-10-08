@@ -4,4 +4,4 @@ argument-hint: "[number of days]"
 disable-model-invocation: true
 ---
 
-Use the `okb-weekly` skill. Period, if given: $ARGUMENTS
+Use the `okb-today` skill. Period, if given: $ARGUMENTS

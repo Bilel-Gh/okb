@@ -20,13 +20,25 @@ const okb = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'okb')
 let raw = '';
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (c) => { raw += c; });
-process.stdin.on('end', () => {
+process.stdin.on('end', async () => {
   let input;
   try { input = JSON.parse(raw); } catch { process.exit(0); }
   const prompt = String(input?.prompt ?? '').trim();
-  if (!prompt || prompt.startsWith('/') || prompt.length < 4) process.exit(0);
+  // The person's own yes to a suggestion card (« oui », « garde-la », or a card id they typed):
+  // OKB records it, Claude never can (src/suggest/consent.ts).
+  const yes = /^\s*(oui|yes|ok(ay)?|d['’]accord|vas[- ]y|go|cr[ée]e[- ]?la|garde[- ]?(la|le|ça|les)?|[ée]cris[- ]?la|ajoute[- ]?la|create( it)?|keep( it)?|write( it)?|sure|yep|ouais)\b/i.test(prompt) && prompt.length <= 60;
+  const recorded = yes || /\bS-[0-9a-f]{6}\b/i.test(prompt)
+    ? new Promise((done) => execFile(okb, ['suggest', 'consent', '--prompt', prompt.slice(0, 400)], { timeout: 4000, env: process.env, ...(input?.cwd ? { cwd: String(input.cwd) } : {}) }, () => done(null)))
+    : Promise.resolve(null);
+  // The person named a 🔒 note (« ouvre ma note … », "read my … note"): OKB opens it to Claude for 30 minutes.
+  const unlocking = /\b(ouvre|lis|lire|montre|regarde|utilise|open|read|show|use|look at)\b/i.test(prompt) && prompt.length <= 600
+    ? new Promise((done) => execFile(okb, ['secret', 'allow', '--prompt', prompt.slice(0, 600), '--json'], { timeout: 4000, env: process.env }, () => done(null)))
+    : Promise.resolve(null);
+  await unlocking;
+  if (!prompt || prompt.startsWith('/') || prompt.length < 4) { await recorded; process.exit(0); }
   // Notices Claude Code delivers as prompts (a background task that ended…) are not the user.
   if (/^<(task-notification|system-reminder|local-command-[a-z]+|command-[a-z]+)>/.test(prompt)) process.exit(0);
+  await recorded;
   const args = ['route', '--suggest', '--stdin', '--json', ...(input?.cwd ? ['--cwd', String(input.cwd)] : [])];
   const child = execFile(okb, args, { timeout: 6000, maxBuffer: 200_000, env: process.env, ...(input?.cwd ? { cwd: String(input.cwd) } : {}) }, (error, stdout) => {
     if (error) process.exit(0);

@@ -122,6 +122,7 @@ describe('shareable package', () => {
       'd3-force',
       'mammoth',
       'mermaid',
+      'minisearch',
       'node-html-parser',
       'picocolors',
       'rehype-sanitize',
@@ -129,6 +130,7 @@ describe('shareable package', () => {
       'remark-gfm',
       'remark-parse',
       'remark-rehype',
+      'ts-fsrs',
       'unified',
       'unist-util-visit',
       'unpdf',
@@ -159,6 +161,14 @@ describe('context footprint', () => {
     // No single workflow blows the budget when it is loaded.
     for (const m of footprint.perWorkflow) expect(m.tokensEstimated).toBeLessThan(2_000);
     for (const m of footprint.perAgent) expect(m.tokensEstimated).toBeLessThan(1_500);
+  });
+
+  it('keeps the developer module just as light: modules add skills, not resident weight', async () => {
+    const footprint = await measureContext(resolve(pluginRoot(), '..', 'plugins', 'okb-dev'));
+    expect(footprint.perWorkflow.length).toBeGreaterThanOrEqual(8);
+    expect(footprint.alwaysOn.tokensEstimated).toBeLessThan(2_500);
+    for (const m of footprint.perWorkflow) expect(m.tokensEstimated, m.label).toBeLessThan(2_000);
+    for (const m of footprint.perAgent) expect(m.tokensEstimated, m.label).toBeLessThan(1_500);
   });
 
   it('makes truncated output identifiable and resumable', () => {
@@ -221,6 +231,12 @@ describe('approval hook', () => {
     expect(await run('curl -s http://127.0.0.1:4317/api/proposal?id=p-1')).toBe('');
   });
 
+  it('denies opening a 🔒 note or recording a yes from a tool call', async () => {
+    for (const command of ['okb secret allow --prompt "ouvre ma note Retour"', 'echo x > ~/.okb/unlocked.json', 'okb suggest consent --prompt oui']) {
+      expect(JSON.parse(await run(command)).hookSpecificOutput.permissionDecision, command).toBe('deny');
+    }
+  });
+
   it('lets the ordinary workflow through', async () => {
     for (const command of [
       'okb ingest notes.vtt --append flows/a.md --heading Notes --json',
@@ -229,6 +245,43 @@ describe('approval hook', () => {
       'okb maintain --json',
     ]) {
       expect(await run(command)).toBe('');
+    }
+  });
+});
+
+describe('confidential notes hook', () => {
+  const hook = resolve(pluginRoot(), 'hooks', 'secret.mjs');
+  async function run(payload: unknown, env: NodeJS.ProcessEnv): Promise<string> {
+    return new Promise((done, reject) => {
+      const child = spawn(process.execPath, [hook], { stdio: ['pipe', 'pipe', 'inherit'], env });
+      let out = '';
+      child.stdout.on('data', (c) => { out += String(c); });
+      child.on('error', reject);
+      child.on('close', () => done(out));
+      child.stdin.end(JSON.stringify(payload));
+    });
+  }
+
+  it('refuses Claude a 🔒 note until the person opened it, and lets every other file through', async () => {
+    const { mkdtemp, writeFile, realpath, rm } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const dir = await realpath(await mkdtemp(resolve(tmpdir(), 'okb-secret-')));
+    try {
+      const env = { ...process.env, OKB_HOME: resolve(dir, 'home') };
+      const secret = resolve(dir, 'Retour.md');
+      await writeFile(secret, '---\ntitle: Retour\nx_okb:\n  confidentiality: secret\n---\n\n# Retour\n');
+      await writeFile(resolve(dir, 'Libre.md'), '---\ntitle: Libre\n---\n\n# Libre\n');
+      const denied = (out: string) => out !== '' && JSON.parse(out).hookSpecificOutput.permissionDecision === 'deny';
+      expect(denied(await run({ tool_name: 'Read', tool_input: { file_path: secret }, cwd: dir }, env))).toBe(true);
+      expect(denied(await run({ tool_name: 'Bash', tool_input: { command: 'cat Retour.md | head' }, cwd: dir }, env))).toBe(true);
+      expect(await run({ tool_name: 'Read', tool_input: { file_path: resolve(dir, 'Libre.md') }, cwd: dir }, env)).toBe('');
+      expect(await run({ tool_name: 'Bash', tool_input: { command: 'ls -la' }, cwd: dir }, env)).toBe('');
+      const { mkdir } = await import('node:fs/promises');
+      await mkdir(resolve(dir, 'home'), { recursive: true });
+      await writeFile(resolve(dir, 'home', 'unlocked.json'), JSON.stringify({ entries: [{ path: secret, until: new Date(Date.now() + 60_000).toISOString() }] }));
+      expect(await run({ tool_name: 'Read', tool_input: { file_path: secret }, cwd: dir }, env)).toBe('');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
     }
   });
 });

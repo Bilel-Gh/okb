@@ -4,6 +4,7 @@ import type { OkbConfig } from '../config/schema.js';
 import type { Bundle } from '../kb/bundle.js';
 import { branchBase, commitsBetween, currentBranch, gitIdentity, isAncestor, revParse } from '../repo/git.js';
 import type { RepoEntry } from '../repo/registry.js';
+import { isBrainPlace, type RepoPlace } from '../repo/pack.js';
 import { assertNoSecrets } from '../security/guard.js';
 import { statePaths } from '../state/paths.js';
 import { OkbError } from '../util/errors.js';
@@ -277,12 +278,13 @@ function slugOf(ref: string): string {
   return ref.toLowerCase().replace(/^t-/, '');
 }
 
-/** The ticket's note in the KB (`tickets/…` at the root of a repository KB). */
-export function ticketNoteIn(bundle: Bundle, record: TicketRecord, flat = false): string | null {
+/** The ticket's note in the KB (`tickets/…` at the root of a repository KB, `…/Tickets/<year>/` in a brain). */
+export function ticketNoteIn(bundle: Bundle, record: TicketRecord, place: RepoPlace | ((repoId: string) => RepoPlace) = false): string | null {
   const slug = slugOf(record.ref);
   for (const tr of record.repos) {
-    const prefix = flat ? 'tickets/' : `repos/${tr.id}/tickets/`;
-    const hit = bundle.entries.find((e) => e.path.startsWith(prefix) && (e.path.includes(slug) || e.title.toUpperCase().includes(record.ref)));
+    const where = typeof place === 'function' ? place(tr.id) : place;
+    const prefix = isBrainPlace(where) ? `${where.folder}/${where.tickets}/` : where ? 'tickets/' : `repos/${tr.id}/tickets/`;
+    const hit = bundle.entries.find((e) => e.path.startsWith(prefix) && (e.path.toLowerCase().includes(slug) || e.title.toUpperCase().includes(record.ref)));
     if (hit) return hit.path;
   }
   return null;

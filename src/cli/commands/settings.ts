@@ -65,6 +65,17 @@ export async function cmdSettings(ctx: Ctx): Promise<number> {
     return 0;
   }
 
+  // `okb settings profile beginner-visual|balanced|expert-concise`: four reading settings in one go.
+  if (sub === 'profile') {
+    const { applyReadingProfile, READING_PROFILES } = await import('../../settings/settings.js');
+    const name = args.positionals[1] as keyof typeof READING_PROFILES | undefined;
+    if (!name || !(name in READING_PROFILES)) throw new OkbError('E_INVALID', `okb settings profile ${Object.keys(READING_PROFILES).join('|')}`, { key: 'usage', params: { usage: `okb settings profile ${Object.keys(READING_PROFILES).join('|')}` } });
+    const values = await applyReadingProfile(id, name);
+    if (ctx.mode === 'json') out.json({ ok: true, profile: name, values });
+    else out.ok(t('settings.profileApplied', { profile: name, values: Object.entries(values).map(([k, v]) => `${k}=${v}`).join(', ') }));
+    return 0;
+  }
+
   if (sub === 'set') {
     let pairs = args.positionals.slice(1);
     // `okb settings set key value` reads like a sentence: accept it for a single setting.

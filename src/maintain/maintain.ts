@@ -114,7 +114,7 @@ export async function maintain(
         level: 'info',
         path: entry.path,
         message: `written with preset "${written.preset}", the configuration now says "${config.writing.preset}"`,
-        hint: 'Nothing is rewritten automatically. Revise a note on request with the okb-revise workflow.',
+        hint: 'Nothing is rewritten automatically. Revise a note on request with the okb-garden workflow.',
       });
     }
   }

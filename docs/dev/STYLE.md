@@ -58,7 +58,7 @@ pas l’imposer techniquement.
 Le style n’est ni dans `CLAUDE.md`, ni dans un *output style* : ces mécanismes
 sont envoyés à chaque requête de la session et s’appliqueraient aussi à des
 tâches sans rapport. `okb style --json` produit un brief d’environ 2 Ko, lu
-seulement par les workflows qui écrivent (`okb-ingest`, `okb-revise`, et
+seulement par les workflows qui écrivent (`okb-ingest`, `okb-garden`, et
 `okb-ask` lorsqu’une explication est demandée). Il remplace dans l’import la
 lecture de la configuration complète.
 

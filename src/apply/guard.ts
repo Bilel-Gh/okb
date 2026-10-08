@@ -62,11 +62,15 @@ export async function guardApply(
   const paths = [...new Set(changes.map((c) => c.path))];
   const alreadyWritten = options.alreadyWritten ?? new Map<string, string>();
 
-  if (paths.length > config.policy.maxApplyFiles) {
+  // One indivisible operation (every change in the `operation` group: a migration's moves and their links)
+  // has its own ceiling; any other proposal stays under maxApplyFiles.
+  const operation = changes.length > 0 && changes.every((c) => c.group === 'operation');
+  const ceiling = operation ? config.policy.maxOperationFiles : config.policy.maxApplyFiles;
+  if (paths.length > ceiling) {
     violations.push({
       code: 'E_CONFLICT',
       path: '(proposal)',
-      message: `${paths.length} files exceed policy.maxApplyFiles (${config.policy.maxApplyFiles})`,
+      message: `${paths.length} files exceed policy.${operation ? 'maxOperationFiles' : 'maxApplyFiles'} (${ceiling})`,
     });
   }
 

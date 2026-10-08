@@ -6,7 +6,8 @@ import type { BundlePath } from '../util/paths.js';
 import { commitExists, diffNames, gitIdentity, type FileChange } from './git.js';
 import { classify } from './inventory.js';
 import { loadFindings, pendingRepoProposals, repoNotes, type RepoContext, type RepoNote } from './notes.js';
-import { isFlat, notePath, PACK } from './pack.js';
+import { notePath, PACK } from './pack.js';
+import { repoPlace } from '../brain/products.js';
 import { QUESTIONS, type NoteKind } from './questions.js';
 import { linesCovered, loadMap, loadProgress, type Progress } from './state.js';
 import type { RepoMap } from './types.js';
@@ -43,13 +44,14 @@ export type RepoStatus = {
 export async function repoStatus(ctx: RepoContext, options: { bundle?: Bundle } = {}): Promise<RepoStatus> {
   const { config, repo, paths } = ctx;
   const lang = config.writing.language ?? config.profile.answer.language;
+  const place = await repoPlace(config, repo);
   const [map, progress, identity, bundle, pending, findings] = await Promise.all([
-    loadMap(paths), loadProgress(paths), gitIdentity(repo.path), options.bundle ?? loadBundleFor(config), pendingRepoProposals(config, repo.id), loadFindings(ctx),
+    loadMap(paths), loadProgress(paths), gitIdentity(repo.path), options.bundle ?? loadBundleFor(config), pendingRepoProposals(config, repo.id, place), loadFindings(ctx),
   ]);
-  const notes = repoNotes(bundle, repo.id, isFlat(config));
+  const notes = repoNotes(bundle, repo.id, place);
   const pendingPaths = new Set(pending.flatMap((p) => p.paths));
   const pack = PACK.map((p) => {
-    const path = notePath(repo.id, p.kind, lang, isFlat(config));
+    const path = notePath(repo.id, p.kind, lang, place);
     const written = notes.find((n) => n.path === path || n.kind === p.kind);
     return { kind: p.kind, path: written?.path ?? path, state: written ? 'written' as const : pendingPaths.has(path) ? 'pending' as const : 'missing' as const, commit: written?.commit ?? null };
   });
@@ -59,7 +61,7 @@ export async function repoStatus(ctx: RepoContext, options: { bundle?: Bundle } 
   const stale = fresh.notes.filter((n) => n.verdict === 'stale' || n.verdict === 'changed').length;
   const next: string[] = [];
   if (!map) next.push(`okb repo scan ${repo.id}`);
-  else if (!pack.some((p) => p.state !== 'missing')) next.push('/okb:onboard');
+  else if (!pack.some((p) => p.state !== 'missing')) next.push('/okb-dev:onboard');
   if (pending.length) next.push('okb review');
   if (stale) next.push(`okb repo update ${repo.id}`);
   if (questions.some((q) => q.state === 'unknown' || q.state === 'open')) next.push(`okb repo questions ${repo.id}`);
@@ -152,7 +154,7 @@ function citedFiles(ctx: RepoContext, bundle: Bundle, path: BundlePath, progress
 
 export async function freshness(ctx: RepoContext, options: { bundle?: Bundle; notes?: readonly RepoNote[]; progress?: Progress; head?: string | null } = {}): Promise<Freshness> {
   const bundle = options.bundle ?? (await loadBundleFor(ctx.config));
-  const notes = options.notes ?? repoNotes(bundle, ctx.repo.id, isFlat(ctx.config));
+  const notes = options.notes ?? repoNotes(bundle, ctx.repo.id, await repoPlace(ctx.config, ctx.repo));
   const progress = options.progress ?? (await loadProgress(ctx.paths));
   const head = options.head !== undefined ? options.head : (await gitIdentity(ctx.repo.path)).head;
   const diffs = new Map<string, FileChange[] | null>();

@@ -4,4 +4,4 @@ argument-hint: "<note path> [style wishes]"
 disable-model-invocation: true
 ---
 
-Use the `okb-revise` skill. Note and style wishes: $ARGUMENTS
+Use the `okb-garden` skill. Note and style wishes: $ARGUMENTS

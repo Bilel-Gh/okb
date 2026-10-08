@@ -3,6 +3,9 @@ import { state, h, t, get, post, icon, clear, overlay, errorToast, toast } from 
 
 const VIEWS = {
   home: () => import('./views/home.js'),
+  brain: () => import('./views/brain.js'),
+  suggestions: () => import('./views/brain.js'),
+  versions: () => import('./views/versions.js'),
   notes: () => import('./views/notes.js'),
   note: () => import('./views/notes.js'),
   repos: () => import('./views/repos.js'),
@@ -17,6 +20,7 @@ const VIEWS = {
   focus: () => import('./views/focus.js'),
   weekly: () => import('./views/weekly.js'),
   learn: () => import('./views/learn.js'),
+  career: () => import('./views/career.js'),
   health: () => import('./views/health.js'),
   usage: () => import('./views/usage.js'),
   source: () => import('./views/tools.js'),
@@ -30,9 +34,9 @@ const VIEWS = {
 };
 
 const NAV = [
-  ['space', [['home', 'home'], ['notes', 'notes'], ['graph', 'graph'], ['repos', 'repo'], ['search', 'search']]],
-  ['work', [['review', 'review'], ['inbox', 'inbox'], ['focus', 'focus']]],
-  ['rhythm', [['weekly', 'weekly'], ['learn', 'learn']]],
+  ['space', [['home', 'home'], ['brain', 'kb'], ['notes', 'notes'], ['graph', 'graph'], ['repos', 'repo'], ['search', 'search']]],
+  ['work', [['suggestions', 'sparkles'], ['review', 'review'], ['inbox', 'inbox'], ['focus', 'focus']]],
+  ['rhythm', [['weekly', 'weekly'], ['learn', 'learn'], ['career', 'sparkles']]],
   ['care', [['health', 'health'], ['usage', 'usage'], ['history', 'history'], ['source', 'source'], ['skills', 'skill'], ['templates', 'template']]],
 ];
 
@@ -136,8 +140,16 @@ async function toggleLanguage() {
 async function palette() {
   const input = h('input', { placeholder: t('web.palette.placeholder'), 'aria-label': t('web.palette.placeholder') });
   const results = h('div', { class: 'results' });
-  let notes = [];
-  get('/api/notes').then((r) => { notes = r.notes; render(); }).catch(() => undefined);
+  // Notes come from the same search as `okb find`: typos, accents, acronyms, both languages.
+  let found = { best: null, hits: [] };
+  let timer = null;
+  const search = () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (!q) { found = { best: null, hits: [] }; render(); return; }
+    timer = setTimeout(() => get('/api/find', { q, limit: 12 }).then((r) => { if (input.value.trim() === q) { found = r; render(); } }).catch(() => undefined), 110);
+  };
+  const openNote = (path) => { get('/api/find', { q: input.value.trim(), limit: 3, final: 1 }).catch(() => undefined); go(`#/note/${encodeURIComponent(path)}`); };
   const actions = [
     ...NAV.flatMap(([, items]) => items.map(([id]) => ({ group: 'pages', label: t(`web.nav.${id}`), run: () => go(`#/${id === 'home' ? '' : id}`) }))),
     { group: 'pages', label: t('web.nav.settings'), run: () => go('#/settings') },
@@ -152,9 +164,13 @@ async function palette() {
   function render() {
     const q = input.value.trim().toLowerCase();
     const match = (s) => !q || s.toLowerCase().includes(q);
+    const noteItems = q ? found.hits.map((n) => ({ group: n === found.hits[0] && found.best ? 'best' : n.concept ? 'concepts' : 'notes', label: `${n.concept ? '💡 ' : ''}${n.title}${n.stars !== null && n.stars !== undefined ? `  ${'★'.repeat(n.stars)}` : ''}`, hint: n.crumbs.join(' › '), run: () => openNote(n.path) })) : [];
+    // Typing words: the notes first (Enter opens the best one), then the pages and actions that match.
     items = [
+      ...noteItems.filter((i) => i.group === 'best'),
+      ...noteItems.filter((i) => i.group === 'concepts'),
+      ...noteItems.filter((i) => i.group === 'notes'),
       ...actions.filter((a) => match(a.label)),
-      ...(q ? notes.filter((n) => match(`${n.title} ${n.path}`)).slice(0, 20).map((n) => ({ group: 'notes', label: n.title, hint: n.path, run: () => go(`#/note/${encodeURIComponent(n.path)}`) })) : []),
       ...(q ? [{ group: 'search', label: `${t('web.palette.searchFor')} « ${input.value.trim()} »`, run: () => go(`#/search?q=${encodeURIComponent(input.value.trim())}`) }] : []),
     ];
     sel = Math.min(sel, Math.max(0, items.length - 1));
@@ -165,7 +181,7 @@ async function palette() {
       results.append(h('div', { class: `p-item${i === sel ? ' sel' : ''}`, onclick: () => { close(); it.run(); } }, h('span', null, it.label), it.hint ? h('span', { class: 'k mono' }, it.hint) : null));
     });
   }
-  input.addEventListener('input', () => { sel = 0; render(); });
+  input.addEventListener('input', () => { sel = 0; render(); search(); });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown') { sel = Math.min(sel + 1, items.length - 1); render(); e.preventDefault(); }
     if (e.key === 'ArrowUp') { sel = Math.max(sel - 1, 0); render(); e.preventDefault(); }

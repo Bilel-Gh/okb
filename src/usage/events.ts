@@ -47,9 +47,9 @@ export async function readEvents(env: NodeJS.ProcessEnv = process.env): Promise<
   return out;
 }
 
-/** Claude Code sets CLAUDECODE=1 in the shell of its tools. */
+/** Claude Code sets CLAUDECODE=1 in the shell of its tools; the plugin's `okb` adds OKB_VIA_CLAUDE=1. */
 export function invokedBy(env: NodeJS.ProcessEnv = process.env): 'claude' | 'person' {
-  return env.CLAUDECODE === '1' || env.CLAUDE_CODE_ENTRYPOINT ? 'claude' : 'person';
+  return env.OKB_VIA_CLAUDE === '1' || env.CLAUDECODE === '1' || env.CLAUDE_CODE_ENTRYPOINT ? 'claude' : 'person';
 }
 
 export type Feedback = { readonly at: string; readonly text: string; readonly kb?: string; readonly where: 'cli' | 'web' };

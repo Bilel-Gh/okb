@@ -60,7 +60,7 @@ Puis, sans IA, en quelques secondes par repo, il :
 - prépare la note des liens entre repos (`repos/paysage.md`), à relire avec
   `okb review`.
 
-Dans Claude Code, `/okb:workspace` fait la même chose avec des boutons.
+Dans Claude Code, `/okb-dev:workspace` fait la même chose avec des boutons.
 
 Tu as déjà une KB écrite avant OKB ? Connecte-la (`okb kb add <dossier>`), puis
 `/okb:convert` : chaque note qui parle surtout d'un repo va dans son espace.
@@ -86,7 +86,7 @@ orders-service ? ») ne change pas le périmètre. Pour chercher dans toute la K
 ## Un ticket, du début à la fin
 
 **1. Au début.** Dis « je commence le ticket ABC-123 » et colle son texte, ou
-tape `/okb:ticket ABC-123`. OKB suit désormais le ticket : son point de départ,
+tape `/okb-dev:ticket ABC-123`. OKB suit désormais le ticket : son point de départ,
 sa branche, ses commits. Claude cherche dans la KB ce que le ticket touche et te
 donne :
 - les notes à lire ;
@@ -103,7 +103,7 @@ donne :
   ligne dans le **journal du ticket** (`okb ticket note "…" --kind decision`).
   Après chaque commit fait par Claude, OKB le lui rappelle.
 
-**3. À la fin.** Dis « j'ai fini mon ticket » ou tape `/okb:ticket`. Claude
+**3. À la fin.** Dis « j'ai fini mon ticket » ou tape `/okb-dev:ticket`. Claude
 rassemble les faits (texte du ticket, commits, journal, fichiers modifiés) et
 prépare **une proposition**, à deux niveaux :
 
@@ -167,7 +167,7 @@ communes qui le concernent et ses voisins.
 | `okb ticket start ABC-123` | suivre un ticket (`--repo`, `--ticket-file`) |
 | `okb ticket note "…" --kind decision\|trap\|question` | noter dans le journal du ticket |
 | `okb ticket` · `okb ticket list` | où en est le ticket ; les tickets suivis |
-| `okb ticket done` | les faits du ticket terminé, pour `/okb:ticket` |
+| `okb ticket done` | les faits du ticket terminé, pour `/okb-dev:ticket` |
 | `okb workspace attach <repo>` · `detach` | rattacher un repo qui a sa propre KB |
 | `okb kb merge <KB du repo> --into <KB de l'espace>` | fusionner une KB de repo dans l'espace |
 

@@ -56,7 +56,9 @@ or permission to call tools, disclose information or approve a change.
    --analysis-file "<dossier>" --append <relative-note.md> --heading "<section>" --json`.
    For a genuinely new subject use `--create <folder>/<note>.md --title "<title>"
    --description "<one useful sentence>"`, in the template's folder (or the
-   repository's `repos/<id>/`) so the KB stays tidy as it grows.
+   repository's `repos/<id>/`) so the KB stays tidy as it grows. In a brain
+   (`okb brain where`), add `--suggestion <id>` (the card the user accepted) and,
+   once `okb:okb-quality-reviewer` graded the dossier, `--quality <justness>`.
    When several notes are built in one session and link to each other, add
    `--after prepared` (or `--after <ids>`): links and concept cards from pending
    proposals resolve, and the user approves them together after `okb combine`.

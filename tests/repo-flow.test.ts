@@ -99,13 +99,13 @@ describe('okb repo in the terminal', () => {
 
     const context = await run(['repo', 'context'], env, root);
     expect(context.stdout).toContain('OKB knows this repository: "orders-service" (KB "Travail"');
-    expect(context.stdout).toContain('/okb:onboard');
+    expect(context.stdout).toContain('/okb-dev:onboard');
     const text = await run(['repo', 'status'], env, root);
     expect(text.stdout).toContain('📦 orders-service');
     expect(text.stdout).toContain('Comprendre en 10 minutes');
     const questions = await run(['repo', 'questions', '--json'], env, root);
     const q = JSON.parse(questions.stdout).questions.find((x: { id: string }) => x.id === 'q-deploy');
-    expect(q).toMatchObject({ state: 'open', note: 'repos/orders-service/delivery.md' }); // the work KB writes in the language of the existing KBs
+    expect(q).toMatchObject({ state: 'open', note: '2 Products/To sort/Code/orders-service/orders-service — Delivery.md' }); // a work brain, named in the language of the existing KBs
     expect(q.askWho).toContain('@acme/platform-team (CODEOWNERS)');
     const answered = await run(['repo', 'answer', 'q-deploy', 'Par', "l'équipe", 'plateforme', '--by', 'Marie', '--json'], env, root);
     expect(JSON.parse(answered.stdout)).toMatchObject({ ok: true, question: 'q-deploy' });

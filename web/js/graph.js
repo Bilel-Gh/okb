@@ -541,7 +541,8 @@ export class GraphView {
     ctx.font = `500 ${font}px Inter, system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    const important = (n) => n === active || (near && near.has(n.id)) || n.id === this.filter.focus || n === this.selected;
+    // `all`: every node carries its title (a few big bubbles, as in the brain seen from above).
+    const important = (n) => mode === 'all' || n === active || (near && near.has(n.id)) || n.id === this.filter.focus || n === this.selected;
     // Zoomed out, only the hubs carry a title; zooming in reveals the others.
     const candidates = this.nodes
       .filter((n) => important(n) || (!active && marked(n) && (mode === 'always' || this.mini || n.r * k >= 7 || k >= 1.3)))

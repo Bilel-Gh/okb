@@ -32,7 +32,9 @@ export function noteRepo(bundle: Bundle, path: BundlePath): string | null {
   const meta = (bundle.docs.get(path)?.data.x_okb as { repo?: { id?: unknown } } | undefined)?.repo;
   if (typeof meta?.id === 'string' && meta.id !== '*') return meta.id;
   const parts = path.split('/');
-  return parts[0] === REPOS_FOLDER && parts.length > 2 ? parts[1]! : null;
+  if (parts[0] === REPOS_FOLDER && parts.length > 2) return parts[1]!;
+  // A brain: `2 Produits/<product>/Code/<repo>/…`.
+  return /^\d+ [^/]+$/.test(parts[0] ?? '') && parts[2] === 'Code' && parts.length > 4 ? parts[3]! : null;
 }
 
 function escape(text: string): string {

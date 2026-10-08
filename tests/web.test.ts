@@ -94,6 +94,13 @@ describe('OKB web app', () => {
     expect((await post('/api/capture', { text: 'x' }, { Origin: 'https://hostile.example' })).status).toBe(403);
     expect((await fetch(`${url}/api/status`, { method: 'POST' })).status).toBe(405);
     expect((await fetch(`${url}/api/nope`)).status).toBe(404);
+    // The brain's own actions too (a card accepted, a review graded, a restore): token first, then their body.
+    for (const path of ['/api/suggestions/decide', '/api/learn/grade', '/api/history/restore', '/api/rate']) {
+      expect((await fetch(`${url}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, path).toBe(403);
+    }
+    const graded = await post('/api/learn/grade', { id: 'c-0000000000', rating: 'good' });
+    expect(graded.status).toBe(200);
+    expect(await graded.json()).toMatchObject({ ok: true, id: 'c-0000000000', level: 'learning' });
   });
 
   it('acts with the token: capture, focus, end of session, settings', async () => {

@@ -126,7 +126,7 @@ describe('note categories', () => {
     const notes = await (await fetch(`${url}/api/notes`)).json();
     expect(notes.notes.find((n: { path: string }) => n.path === 'flows/run-a-delivery-job.md').category).toBe('howto');
     const cats = await (await fetch(`${url}/api/categories`)).json();
-    expect(cats.categories.find((c: { id: string }) => c.id === 'howto').templates.map((t: { id: string }) => t.id)).toEqual(['procedure', 'tutorial', 'repo-start', 'repo-delivery']);
+    expect(cats.categories.find((c: { id: string }) => c.id === 'howto').templates.map((t: { id: string }) => t.id)).toEqual(['procedure', 'tutorial', 'repo-start', 'repo-delivery', 'environments', 'repo-test', 'repo-debug', 'method', 'recipe', 'checklist', 'cheatsheet']);
     for (const asset of ['/vendor/d3-force.js', '/js/graph.js', '/js/views/graph.js', '/js/views/categories.js']) {
       const r = await fetch(`${url}${asset}`);
       expect(r.status, asset).toBe(200);

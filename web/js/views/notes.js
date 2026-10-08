@@ -155,12 +155,21 @@ export async function render({ view, arg, mount }) {
     const article = h('article', { class: 'reader', html: note.html });
     const outline = await enhance(article);
     if (!article.querySelector('h1')) article.prepend(h('h1', null, note.title));
+    // Words of the note that have a concept card: the card on hover, one click to open it.
+    if (note.terms?.length) glossaryHover(article, note.terms);
+    const crumbs = note.crumbs?.length ? h('div', { class: 'row small muted', style: { gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } },
+      h('a', { href: '#/brain' }, '🧠'), note.crumbs.map((c) => [' › ', c.path ? h('a', { href: `#/note/${encodeURIComponent(c.path)}` }, c.title) : c.title])) : null;
+    const stars = note.score ? h('span', { class: 'badge', title: `${t('web.score.quality')} ${note.score.quality}/100 · ${t('web.score.value')} ${note.score.value}/100${note.score.young ? ` · ${t('web.score.young')}` : ''}${note.score.notes.length ? `\n• ${note.score.notes.join('\n• ')}` : ''}`, style: { color: 'var(--warn)' } }, `${'★'.repeat(note.score.stars)}${'☆'.repeat(5 - note.score.stars)} ${note.score.global} %`) : null;
+    const rate = (verdict) => h('button', { class: 'btn sm ghost', title: t(`web.score.${verdict}`), onclick: async () => { try { await post('/api/rate', { path, verdict }); toast(t('scores.rated')); } catch (e) { errorToast(e); } } }, verdict === 'up' ? '👍' : '👎');
     const chip = h('button', { class: 'chip-btn', title: `${t('web.categories.change')}${note.type ? ` · type ${note.type}` : ''}`, onclick: (e) => categoryMenu(e.currentTarget, path, note.category, cats) }, catChip(catOf(cats, note.category)), icon('chevron', 13));
     const head = h('div', { class: 'note-head' },
       chip,
       badge(note.status, note.status === 'stable' ? 'ok' : ''),
+      note.confidentiality === 'secret' ? h('span', { class: 'badge warn', title: t('web.notes.secretHint') }, `🔒 ${t('web.notes.secret')}`) : null,
       note.sources ? badge(`📌 ${note.sources} ${t('web.notes.sources')}`) : null,
+      stars, note.score ? rate('up') : null, note.score ? rate('down') : null,
       h('span', { class: 'spacer' }),
+      h('a', { class: 'btn sm', href: `#/versions/${encodeURIComponent(path)}` }, icon('history', 14), t('web.notes.versions')),
       h('a', { class: 'btn sm', href: `#/graph?focus=${encodeURIComponent(path)}` }, icon('graph', 14), t('web.graph.see')),
       h('button', { class: 'btn sm', onclick: () => post('/api/open', { path }).catch(errorToast) }, icon('external', 14), t('web.notes.openObsidian')),
       h('button', { class: 'btn sm ghost', onclick: () => copy(path), title: t('web.copy') }, icon('copy', 14), path));
@@ -173,7 +182,7 @@ export async function render({ view, arg, mount }) {
     const toc = outline.length > 3 ? h('div', { class: 'toc-col' }, h('div', { class: 'side-panel' },
       h('div', { class: 'nav-label' }, t('web.notes.onThisPage')),
       h('div', { class: 'toc' }, outline.map((o) => h('a', { class: o.level === 3 ? 'l3' : '', href: '#', onclick: (e) => { e.preventDefault(); document.getElementById(o.id)?.scrollIntoView({ behavior: 'smooth' }); } }, o.text))))) : h('div', { class: 'toc-col' });
-    readerCol.replaceChildren(h('div', { class: `reader-layout${toc.childElementCount ? '' : ' solo'}` }, h('div', null, head, article, back), toc));
+    readerCol.replaceChildren(h('div', { class: `reader-layout${toc.childElementCount ? '' : ' solo'}` }, h('div', null, crumbs, head, article, back), toc));
     if (anchor) {
       const target = [...article.querySelectorAll('h1,h2,h3,h4')].find((x) => x.textContent.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').includes(decodeURIComponent(anchor).toLowerCase()));
       target?.scrollIntoView({ block: 'start' });
@@ -182,4 +191,27 @@ export async function render({ view, arg, mount }) {
     readerCol.replaceChildren(empty('🔎', e?.body?.title ?? t('code.E_NOT_FOUND.title'), path, h('button', { class: 'btn', onclick: () => go('#/notes') }, t('web.notes.backHome'))));
   }
   void state;
+}
+
+/** The first occurrence of each known term becomes a link to its card, with its one-line definition on hover. */
+function glossaryHover(article, terms) {
+  const done = new Set();
+  const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentElement?.closest('a, code, pre, h1, h2, h3, h4, .mermaid, svg') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const term of terms) {
+    const words = [term.term, ...(term.aliases ?? [])].filter((w) => w && w.length >= 2).sort((a, b) => b.length - a.length);
+    const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${words.map(esc).join('|')})(?=$|[^\\p{L}\\p{N}])`, 'iu');
+    for (const node of nodes) {
+      if (done.has(term.path) || !node.parentNode) continue;
+      const m = re.exec(node.nodeValue ?? '');
+      if (!m) continue;
+      const start = m.index + m[1].length;
+      const after = node.splitText(start);
+      after.nodeValue = after.nodeValue.slice(m[2].length);
+      node.parentNode.insertBefore(h('a', { class: 'term', href: `#/note/${encodeURIComponent(term.path)}`, title: term.description || term.term }, m[2]), after);
+      done.add(term.path);
+    }
+  }
 }

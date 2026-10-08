@@ -34,6 +34,7 @@ import { proposeRevision } from '../../revise/revise.js';
 import { getTemplate, loadTemplates, pick, renderSkeleton, renderTemplateGuide } from '../../templates/registry.js';
 import { statePaths } from '../../state/paths.js';
 import { estimateTokens, paginate } from '../../util/context-meter.js';
+import { reviewOf } from '../../repo/notes.js';
 import { OkbError } from '../../util/errors.js';
 import { ensureDir, readTextIfExists, writeJsonAtomic } from '../../util/fsx.js';
 import { shortId } from '../../util/hash.js';
@@ -241,9 +242,15 @@ export async function cmdCombine(args: ParsedArgs, out: Output, mode: OutputMode
 
 /** Note templates: what sections each kind of note has, and what goes in them. */
 export async function cmdTemplate(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
-  const { config } = await effective(args);
-  const language = config.writing.language ?? config.profile.answer.language;
   const sub = args.positionals[0] ?? 'list';
+  // The built-in catalogue can be read before any KB exists (to discover OKB, or to write a draft).
+  const loaded = await effective(args).catch((e: unknown) => {
+    if (sub === 'show' && e instanceof OkbError && e.code === 'E_CONFIG') return null;
+    throw e;
+  });
+  if (!loaded) return showBuiltinTemplate(args, out, mode);
+  const { config } = loaded;
+  const language = config.writing.language ?? config.profile.answer.language;
   if (sub === 'list') {
     const all = await loadTemplates(config);
     const { loadCategories, templateCategories } = await import('../../categories/categories.js');
@@ -270,12 +277,35 @@ export async function cmdTemplate(args: ParsedArgs, out: Output, mode: OutputMod
     if (!id) throw new OkbError('E_INVALID', 'usage: okb template show <id> [--skeleton]');
     const t = await getTemplate(config, id);
     const emojis = resolveStyle(config).style.emojis === 'landmarks';
-    const text = flagBool(args, 'skeleton') ? renderSkeleton(t, language, emojis) : renderTemplateGuide(t, language);
-    if (mode === 'json') out.json({ ok: true, template: t, text });
+    let text = flagBool(args, 'skeleton') ? renderSkeleton(t, language, emojis) : renderTemplateGuide(t, language);
+    const { templateExample } = await import('../../templates/registry.js');
+    const example = await templateExample(t.id, language);
+    if (flagBool(args, 'example')) {
+      text = example ? example.text : `${language.startsWith('fr') ? 'Pas encore d’exemple pour ce modèle.' : 'No example for this template yet.'}\n`;
+    }
+    if (mode === 'json') out.json({ ok: true, template: t, text, example: example?.text ?? null });
     else out.line(text.trimEnd());
     return 0;
   }
   throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { hint: 'okb template list | show <id> [--skeleton]' });
+}
+
+/** `okb template show <id>` without a KB: the built-in template, in `--lang` or the system's language. */
+async function showBuiltinTemplate(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
+  const { BUILTIN_TEMPLATES } = await import('../../templates/builtin.js');
+  const { templateExample } = await import('../../templates/registry.js');
+  const id = args.positionals[1];
+  if (!id) throw new OkbError('E_INVALID', 'usage: okb template show <id> [--skeleton] [--example]');
+  const t = BUILTIN_TEMPLATES.find((x) => x.id === id);
+  if (!t) throw new OkbError('E_INVALID', `unknown note template "${id}"`, { hint: `Templates: ${BUILTIN_TEMPLATES.map((x) => x.id).join(', ')}` });
+  const language = flagString(args, 'lang') ?? (/^fr/i.test(process.env.LC_ALL || process.env.LANG || '') ? 'fr' : 'en');
+  const example = await templateExample(t.id, language);
+  const text = flagBool(args, 'example')
+    ? example?.text ?? (language.startsWith('fr') ? 'Pas encore d’exemple pour ce modèle.\n' : 'No example for this template yet.\n')
+    : flagBool(args, 'skeleton') ? renderSkeleton(t, language, true) : renderTemplateGuide(t, language);
+  if (mode === 'json') out.json({ ok: true, template: t, text, example: example?.text ?? null });
+  else out.line(text.trimEnd());
+  return 0;
 }
 
 /** One note rewritten in another style, as a reviewable proposal. */
@@ -286,6 +316,8 @@ export async function cmdRevise(args: ParsedArgs, out: Output, mode: OutputMode)
   if (!target || !file) throw new OkbError('E_INVALID', 'usage: okb revise <note.md> --file <revised.md> [--reason <text>]');
   const bundle = await loadBundleFor(config);
   const style = resolveStyle(config, styleRequest(args)).style;
+  const { requireAccepted, linkProposal } = await import('../../suggest/guard.js');
+  const accepted = await requireAccepted(config, target, flagString(args, 'suggestion'));
   const { proposal, check } = proposeRevision(config, bundle, {
     path: asBundlePath(target),
     revised: await readFile(resolve(file), 'utf8'),
@@ -294,6 +326,7 @@ export async function cmdRevise(args: ParsedArgs, out: Output, mode: OutputMode)
   });
   assertGuard(await guardApply(config, proposal, proposal.changes));
   await saveProposal(config, proposal);
+  await linkProposal(config, accepted, proposal.id);
   if (mode === 'json') {
     out.json({ ok: true, proposalId: proposal.id, path: target, kept: check.kept, frontmatterChanges: check.frontmatterChanges, notes: proposal.notes });
     return 0;
@@ -356,6 +389,9 @@ export async function cmdIngest(args: ParsedArgs, out: Output, mode: OutputMode)
   if (sectionFile && analysisFile) throw new OkbError('E_INVALID', 'choose --analysis-file only for sourced prose');
   if (sectionFile) throw new OkbError('E_INVALID', '--section-file was replaced by --analysis-file: claims need located evidence');
   const pending = await pendingCreations(config, flagList(args, 'after'));
+  // In a brain, a note Claude writes needs the person's accepted suggestion.
+  const { requireAccepted, linkProposal } = await import('../../suggest/guard.js');
+  const accepted = await requireAccepted(config, appendPath ?? createPath!, flagString(args, 'suggestion'));
   const report = await prepareProposal(config, docs, {
     ...(pending ? { pending } : {}),
     target: appendPath
@@ -370,6 +406,8 @@ export async function cmdIngest(args: ParsedArgs, out: Output, mode: OutputMode)
           title: flagString(args, 'title') ?? doc.source.title ?? 'Notes importées',
           ...(flagString(args, 'description') ? { description: flagString(args, 'description')! } : {}),
           ...(flagString(args, 'type') ? { type: flagString(args, 'type')! } : {}),
+          // The quality reviewer's justness grade (out of 20), kept with the note for its score.
+          ...(flagNumber(args, 'quality') !== undefined ? { xOkb: { review: reviewOf(flagNumber(args, 'quality')!) } } : {}),
         },
     ...(analysisFile ? { analysis: JSON.parse(await readFile(resolve(analysisFile), 'utf8')) } : {}),
     ...(flagString(args, 'concept-assist')
@@ -383,6 +421,7 @@ export async function cmdIngest(args: ParsedArgs, out: Output, mode: OutputMode)
   });
 
   await saveProposal(config, report.proposal);
+  await linkProposal(config, accepted, report.proposal.id);
 
   if (mode === 'json') {
     out.json({

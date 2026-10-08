@@ -150,9 +150,9 @@ describe('confidentiality and routing', () => {
 
   it('offers onboarding and the ticket follow-up from plain words', () => {
     const ctx = { kbs: [], otherTools: [] };
-    expect(suggestIntent('je découvre ce repo, je n’y connais rien', ctx)?.command).toBe('/okb:onboard');
-    expect(suggestIntent("I'm new to this codebase", ctx)?.command).toBe('/okb:onboard');
-    expect(suggestIntent("ok j'ai fini mon ticket", ctx)?.command).toBe('/okb:ticket');
+    expect(suggestIntent('je découvre ce repo, je n’y connais rien', ctx)?.command).toBe('/okb-dev:onboard');
+    expect(suggestIntent("I'm new to this codebase", ctx)?.command).toBe('/okb-dev:onboard');
+    expect(suggestIntent("ok j'ai fini mon ticket", ctx)?.command).toBe('/okb-dev:ticket');
     expect(suggestIntent('crée un nouveau repo pour ce projet', ctx)).toBeNull();
   });
 });

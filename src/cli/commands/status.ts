@@ -68,7 +68,12 @@ export async function cmdStatus(ctx: Ctx): Promise<number> {
   const sc = await resolveScope(process.cwd()).catch(() => null);
   const scope = sc && sc.kb === cfg.profile.id ? { repo: sc.repo?.name ?? null, ticket: sc.ticket?.status === 'active' ? sc.ticket.ref : null } : null;
   if (ctx.mode === 'json') {
-    ctx.out.json({ ok: true, ...s, scope, line: statusLine(s, scope), ui: lang() });
+    // For the panel in Claude Code: suggestion cards waiting for a decision, cards to review.
+    const { loadQueue } = await import('../../suggest/suggest.js');
+    const { dueCount } = await import('../../learn/learn.js');
+    const suggestions = (await loadQueue(cfg).catch(() => [])).filter((q) => q.status === 'pending' || q.status === 'later').length;
+    const due = await dueCount(cfg).catch(() => 0);
+    ctx.out.json({ ok: true, ...s, scope, suggestions, due, line: statusLine(s, scope), ui: lang() });
     return 0;
   }
   if (flagBool(ctx.args, 'brief')) {

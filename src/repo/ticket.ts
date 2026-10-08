@@ -6,7 +6,8 @@ import { writeTextAtomic } from '../util/fsx.js';
 import { branchBase, commitsBetween, diffNames, gitIdentity, type CommitInfo, type FileChange } from './git.js';
 import { classify } from './inventory.js';
 import { repoNotes, type RepoContext } from './notes.js';
-import { isFlat, notePath, ticketPath } from './pack.js';
+import { notePath, ticketPath } from './pack.js';
+import { repoPlace } from '../brain/products.js';
 import { loadProgress } from './state.js';
 
 /**
@@ -61,7 +62,8 @@ export async function ticketContext(ctx: RepoContext, input: { base?: string; ti
   const progress = await loadProgress(paths);
   const changed = new Set(changes.flatMap((c) => [c.path, ...(c.from ? [c.from] : [])]));
   const prefix = `${repo.name}/`;
-  const affectedNotes = repoNotes(bundle, repo.id, isFlat(config)).map((n) => {
+  const place = await repoPlace(config, repo);
+  const affectedNotes = repoNotes(bundle, repo.id, place).map((n) => {
     const fromAnchors = Object.keys(progress.anchors[n.path]?.files ?? {});
     const sources = bundle.docs.get(n.path)?.data.sources;
     const fromSources = Array.isArray(sources) ? (sources as { title?: unknown }[]).map((s) => (typeof s?.title === 'string' && s.title.startsWith(prefix) ? s.title.slice(prefix.length) : null)).filter((x): x is string => x !== null) : [];
@@ -109,6 +111,6 @@ export async function ticketContext(ctx: RepoContext, input: { base?: string; ti
   await writeTextAtomic(file, text);
   return {
     file, title, branch: identity.branch, base, head: identity.head, commits, changes, affectedNotes,
-    suggested: { ticketNote: ticketPath(repo.id, title, new Date(), isFlat(config)), codemap: notePath(repo.id, 'codemap', lang, isFlat(config)) },
+    suggested: { ticketNote: ticketPath(repo.id, title, new Date(), place), codemap: notePath(repo.id, 'codemap', lang, place) },
   };
 }

@@ -60,8 +60,8 @@ flowchart LR
 | `pack.ts` | les sept notes du pack, leurs fichiers et titres |
 | `confidential.ts` | dossiers synchronisés, remotes |
 
-Plugin : skills `okb-onboard` et `okb-repo-learn`, agent `okb-repo-explorer`,
-commandes `/okb:onboard`, `/okb:ticket`, `/okb:repo`, `/okb:workspace`, brief du
+Plugin : skills `okb-dev-repo` et `okb-dev-ticket`, agent `okb-repo-explorer`,
+commandes `/okb-dev:onboard`, `/okb-dev:ticket`, `/okb-dev:repo`, `/okb-dev:workspace`, brief du
 périmètre au démarrage de session, intentions « je découvre ce repo », « je
 commence / j’ai fini mon ticket » et « un dossier avec tous mes repos ».
 

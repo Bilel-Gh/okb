@@ -82,6 +82,27 @@ const kbSchema = z
      * KBs made before 0.10: inferred (a KB that holds repositories is a workspace).
      */
     kind: z.enum(['topic', 'repo', 'workspace']).optional(),
+    /**
+     * A brain (OKB 1.0): the KB is organised in numbered drawers and subjects
+     * (src/brain). Absent on KBs made before 1.0 until `okb brain migrate`.
+     */
+    brain: z
+      .object({
+        /** Which drawers and note types: a work brain with products and repositories, personal projects, topics to learn, a portable career. */
+        preset: z.enum(['work', 'projects', 'topics', 'career']),
+        /** Language of folder and file names (defaults to the writing language). */
+        names: z.enum(['fr', 'en']).optional(),
+        /**
+         * Dashboards and indexes (Maintenant, Glossaire, journal, subject indexes) are
+         * computed without AI and shown in the web app, the terminal and to Claude
+         * (`app`). With `files`, OKB also prepares them as files through a proposal you
+         * approve: nothing is written into a KB without one.
+         */
+        views: z.enum(['app', 'files']).default('app'),
+        version: z.literal(1).default(1),
+      })
+      .strict()
+      .optional(),
     /** Treat links to not-yet-written documents as warnings, per OKF §6.1. */
     brokenTargetsAre: z.enum(['error', 'warning']).default('warning'),
   })
@@ -91,7 +112,7 @@ const okfSchema = z
   .object({
     version: z.literal('0.2').default('0.2'),
     /** Actor recorded in `generated.by` for machine-authored content. */
-    machineActor: z.string().default('okb/0.11'),
+    machineActor: z.string().default('okb/1.0'),
     productRules: z
       .object({
         requiredFields: z
@@ -308,6 +329,8 @@ export const policySchema = z
     writeAllowGroups: z.array(z.array(z.string())).default([]),
     writeDeny: z.array(z.string()).default(['.git/**', '.okb/**', 'node_modules/**']),
     maxApplyFiles: z.number().int().min(1).default(50),
+    /** Ceiling for one indivisible mechanical operation (a migration, a conversion: moves and their links). */
+    maxOperationFiles: z.number().int().min(1).default(2000),
     allowDirectApply: z.boolean().default(false),
     allowedRemotes: z.array(z.string()).nullable().default(null),
     allowedSourceKinds: z.array(z.enum(SOURCE_KINDS)).nullable().default(null),

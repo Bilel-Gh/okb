@@ -20,6 +20,8 @@ export type RepoEntry = {
   /** The OKB KB (profile id) whose `repos/<id>/` folder holds this repository's notes. */
   readonly kb: string;
   readonly addedAt: string;
+  /** In a brain: the product (or project) this repository belongs to. */
+  readonly product?: string;
 };
 
 type RepoFile = { repos?: RepoEntry[] };
@@ -96,7 +98,7 @@ export async function findRepo(idOrPath: string, env: NodeJS.ProcessEnv = proces
   return found?.repo ?? null;
 }
 
-export type AddRepoInput = { readonly path: string; readonly kb: string; readonly name?: string; readonly id?: string };
+export type AddRepoInput = { readonly path: string; readonly kb: string; readonly name?: string; readonly id?: string; readonly product?: string };
 
 /** Register a repository (or move an existing registration to a new path or KB). */
 export async function addRepo(input: AddRepoInput, env: NodeJS.ProcessEnv = process.env): Promise<{ repo: RepoEntry; created: boolean }> {
@@ -114,9 +116,21 @@ export async function addRepo(input: AddRepoInput, env: NodeJS.ProcessEnv = proc
     const taken = new Set(repos.map((r) => r.id));
     for (let n = 2; taken.has(id); n++) id = `${repoSlug(name)}-${n}`;
   }
-  const repo: RepoEntry = { id, name, path: root, remote: identity.remote, kb: input.kb, addedAt: existing?.addedAt ?? new Date().toISOString() };
+  const product = input.product?.trim() || existing?.product;
+  const repo: RepoEntry = { id, name, path: root, remote: identity.remote, kb: input.kb, addedAt: existing?.addedAt ?? new Date().toISOString(), ...(product ? { product } : {}) };
   await save([...repos.filter((r) => r !== existing), repo].sort((a, b) => a.id.localeCompare(b.id)), env);
   return { repo, created: !existing };
+}
+
+/** Give a repository its product (or project) in a brain; `null` takes it out of any product. */
+export async function setRepoProduct(id: string, product: string | null, env: NodeJS.ProcessEnv = process.env): Promise<RepoEntry> {
+  const repos = await listRepos(env);
+  const found = repos.find((r) => r.id === id || r.name === id);
+  if (!found) throw new OkbError('E_NOT_FOUND', `repository "${id}" is not registered`, { key: 'repoUnknown', params: { id } });
+  const { product: _old, ...rest } = found;
+  const next: RepoEntry = product?.trim() ? { ...rest, product: product.trim() } : rest;
+  await save(repos.map((r) => (r === found ? next : r)), env);
+  return next;
 }
 
 /** Forget a repository. Its notes and its private scan state stay where they are. */

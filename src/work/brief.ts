@@ -4,7 +4,9 @@ import type { OkbConfig } from '../config/schema.js';
 import { loadBundleFor, type Bundle } from '../kb/bundle.js';
 import { landscapeEdges, type Edge } from '../repo/generated.js';
 import { repoNotes } from '../repo/notes.js';
-import { isFlat, READING_ORDER } from '../repo/pack.js';
+import { READING_ORDER, type RepoPlace } from '../repo/pack.js';
+import { repoPlace } from '../brain/products.js';
+import { drawerFolder, layoutOf } from '../brain/layout.js';
 import { listRepos, type RepoEntry } from '../repo/registry.js';
 import { loadMap, repoPaths } from '../repo/state.js';
 import type { RepoMap } from '../repo/types.js';
@@ -132,7 +134,11 @@ export async function buildBrief(scope: Scope, options: { sync?: boolean; bundle
   const sharedBundle = scope.shared ? await loadBundleFor(scope.shared).catch(() => null) : null;
   const sharedKb = scope.shared && sharedBundle ? { id: scope.shared.profile.id, name: scope.shared.profile.displayName || scope.shared.profile.id, root: scope.shared.kb.root } : null;
   const mapBundle = sharedBundle ?? bundle;
-  const landscapePath = ['repos/paysage.md', 'repos/landscape.md'].find((p) => mapBundle.byPath.has(p as BundlePath)) ?? null;
+  const mapLayout = layoutOf(scope.shared ?? config);
+  const landscapeCandidates = mapLayout ? [`${drawerFolder(mapLayout, 'world')}/Paysage des repos.md`, `${drawerFolder(mapLayout, 'world')}/Repository landscape.md`] : ['repos/paysage.md', 'repos/landscape.md'];
+  const landscapePath = landscapeCandidates.find((p) => mapBundle.byPath.has(p as BundlePath)) ?? null;
+  const places = new Map<string, RepoPlace>();
+  for (const r of allRepos) places.set(r.id, await repoPlace(config, r));
   const base = { workspace, kb, sharedKb, via: scope.via, landscape: landscapePath };
 
   let ticket: TicketBrief | null = null;
@@ -144,7 +150,7 @@ export async function buildBrief(scope: Scope, options: { sync?: boolean; bundle
       repos: synced?.progress ?? record.repos.map((r) => ({ id: r.id, branch: r.branch, commits: record.journal.filter((j) => j.kind === 'commit' && j.repo === r.id).length, merged: false, gone: false })),
       journal: record.journal.filter((j) => ['note', 'decision', 'trap', 'question'].includes(j.kind)).slice(-6),
       textFile: record.textFile,
-      note: ticketNoteIn(bundle, record, isFlat(config)),
+      note: ticketNoteIn(bundle, record, (id) => places.get(id) ?? false),
     };
   }
 
@@ -163,7 +169,7 @@ export async function buildBrief(scope: Scope, options: { sync?: boolean; bundle
   }
 
   const repo = scope.repo;
-  const notes = repoNotes(bundle, repo.id, isFlat(config));
+  const notes = repoNotes(bundle, repo.id, places.get(repo.id) ?? await repoPlace(config, repo));
   const pack = notes.filter((n) => n.kind !== 'ticket')
     .sort((a, b) => (KIND_ORDER.get(a.kind) ?? 50) - (KIND_ORDER.get(b.kind) ?? 50) || a.path.localeCompare(b.path))
     .slice(0, 10)
@@ -220,10 +226,10 @@ export function renderBrief(brief: Brief, options: { mentionedRef?: string | nul
     lines.push(`Ticket ${t.ref} "${t.title}"${t.status === 'done' ? ' (finished)' : ''} — ${progress}.${t.textFile ? ` Its text: ${t.textFile}` : ''}`);
     if (t.journal.length) lines.push(`Ticket journal: ${t.journal.map(journalLine).join(' | ')}`);
     if (t.note) lines.push(`Its note: ${root}/${t.note}`);
-    else if (t.status === 'done' || t.repos.some((p) => p.merged)) lines.push(`This ticket looks finished and has no note yet: offer /okb:ticket to write it (ask first).`);
+    else if (t.status === 'done' || t.repos.some((p) => p.merged)) lines.push(`This ticket looks finished and has no note yet: offer /okb-dev:ticket to write it (ask first).`);
   }
   if (brief.notes.length) lines.push('Read before exploring the code (approved notes, cite them):', ...list(root, brief.notes));
-  else lines.push('This repository has no note yet: offer /okb:onboard if the user is discovering it (ask first).');
+  else lines.push('This repository has no note yet: offer /okb-dev:onboard if the user is discovering it (ask first).');
   if (brief.recentTickets.length) lines.push('Recent tickets here:', ...list(root, brief.recentTickets));
   if (brief.shared.length) lines.push(`Shared notes tied to it (business, features, other repositories)${brief.sharedKb ? `, in the workspace's KB "${brief.sharedKb.name}"` : ''}:`, ...list(brief.sharedKb?.root ?? root, brief.shared));
   const edges = [
@@ -236,15 +242,15 @@ export function renderBrief(brief: Brief, options: { mentionedRef?: string | nul
       ? `In this scope: \`okb ask "<question>" --json\` searches this repository's KB first, then the shared notes of "${brief.sharedKb.name}" (--everywhere for the whole of both).`
       : 'In this scope: `okb ask "<question>" --json` ranks this repository and the shared notes tied to it first (--everywhere for the whole KB).',
     t
-      ? 'While working, record each decision, trap or open question in one line: `okb ticket note "<text>" --kind decision|trap|question` (a local journal; nothing is written in the KB). When the ticket is done, offer /okb:ticket.'
+      ? 'While working, record each decision, trap or open question in one line: `okb ticket note "<text>" --kind decision|trap|question` (a local journal; nothing is written in the KB). When the ticket is done, offer /okb-dev:ticket.'
       : options.mentionedRef
         ? startLine(options.mentionedRef, r.id)
-        : `No ticket in progress. When the user starts one, run \`okb ticket start <ref> --repo ${r.id}\` (local follow-up of branch, commits and journal; nothing is written in the KB), then follow /okb:ticket's start mode.`,
+        : `No ticket in progress. When the user starts one, run \`okb ticket start <ref> --repo ${r.id}\` (local follow-up of branch, commits and journal; nothing is written in the KB), then follow /okb-dev:ticket's start mode.`,
   );
   return lines.join('\n');
 }
 
 /** What Claude does with a ticket the user names and OKB does not follow yet. */
 export function startLine(ref: string, repoId: string): string {
-  return `The user mentions ticket ${ref}, which OKB does not follow yet. If they are starting work on it, save the ticket text they gave to a file in your scratch folder and run \`okb ticket start ${ref} --repo ${repoId} --ticket-file <file>\` (local follow-up of branch, commits and journal; nothing is written in the KB), then follow /okb:ticket's start mode.`;
+  return `The user mentions ticket ${ref}, which OKB does not follow yet. If they are starting work on it, save the ticket text they gave to a file in your scratch folder and run \`okb ticket start ${ref} --repo ${repoId} --ticket-file <file>\` (local follow-up of branch, commits and journal; nothing is written in the KB), then follow /okb-dev:ticket's start mode.`;
 }

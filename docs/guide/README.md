@@ -15,6 +15,14 @@ Tu peux tout faire de trois façons, au choix :
 
 ## Les pages du guide
 
+**Nouveau en version 1 :**
+[ton cerveau et le Zoom](cerveau.md) ·
+[rien n'est écrit sans ton oui](demander-avant-ecrire.md) ·
+[retrouver en trois secondes](retrouver.md) ·
+[le module développeur](module-developpeur.md) ·
+[apprendre et la carrière](apprendre-et-carriere.md) ·
+[stockage et confidentialité](stockage-et-confidentialite.md).
+
 1. [Installer OKB](installer.md) — en 5 minutes, sans toucher à tes réglages Claude.
 2. [Au quotidien](au-quotidien.md) — capturer, importer une source, relire,
    finir une session, revue de la semaine.

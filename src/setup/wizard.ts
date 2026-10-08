@@ -147,7 +147,7 @@ export async function runWizard(answers: WizardAnswers, onStep: (r: StepResult) 
   const focus = answers.focus === 'shared' && ctx.sharedFocus
     ? { file: ctx.sharedFocus.file, journal: ctx.sharedFocus.journal }
     : answers.focus === 'create'
-      ? { file: resolve(dirname(root), dirname(root) === homedir() ? '.okb-focus.md' : '01 Focus.md'), journal: resolve(dirname(root), 'journal') }
+      ? { file: resolve(dirname(root), dirname(root) === homedir() ? '.okb-today.md' : '01 Focus.md'), journal: resolve(dirname(root), 'journal') }
       : null;
   // Anonymous by default: no name taken from Git or the computer account (settings: profile.humanActor).
   const person = 'me';

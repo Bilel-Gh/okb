@@ -30,6 +30,8 @@ const WEB_APPROVE = /\b(curl|wget|http|https|xh|fetch|nc|node|python3?|osascript
 const DIALOG_CLICK = /\bosascript\b[\s\S]*\b(System Events|click button)\b[\s\S]*\b(OKB|Approuver|Approve)\b/i;
 const ENV_ESCAPE = /OKB_APPLY_MODE\s*=\s*allow-direct/;
 const KEY_READ = /(cat|less|more|head|tail|xxd|od|strings|cp|mv)\b[^;&|]*approval\.key/;
+// The person's yes to a suggestion is recorded by OKB's hooks from what they did, never by a tool call.
+const CONSENT = /\bsuggest\s+consent\b|consent\.jsonl|\bsecret\s+allow\b|unlocked\.json/;
 
 let raw = '';
 process.stdin.setEncoding('utf8');
@@ -75,6 +77,9 @@ process.stdin.on('end', () => {
   }
   if (ENV_ESCAPE.test(command)) {
     return deny('OKB_APPLY_MODE=allow-direct bypasses the review step. Ask the user to change it in their profile if they want it.');
+  }
+  if (CONSENT.test(command)) {
+    return deny('A yes to a suggestion, or opening a 🔒 note to Claude, comes from the person (their click or their own message), recorded by OKB itself. Show the card or ask them.');
   }
   if (KEY_READ.test(command)) {
     return deny('The approval key is not readable from a tool call; reading it would defeat the approval signature.');

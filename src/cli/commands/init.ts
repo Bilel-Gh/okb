@@ -105,8 +105,19 @@ export async function cmdInit(ctx: Ctx, options: { first: boolean }): Promise<nu
       kind: 'topic',
     };
     const results: StepResult[] = [];
+    const brainPreset = flagString(args, 'brain');
+    if (brainPreset && !['work', 'projects', 'topics', 'career'].includes(brainPreset)) throw new OkbError('E_INVALID', '--brain must be work, projects, topics or career', { key: 'usage', params: { usage: 'okb init --name <name> --brain work|projects|topics|career' } });
     const created = await runWizard(answers, (r) => results.push(r));
-    if (ctx.mode === 'json') { out.json({ ok: true, ...created, steps: results }); return 0; }
+    // A brain (OKB 1.0): drawers and subjects; a work brain is confidential by default.
+    if (brainPreset) {
+      const { setBrainConfig } = await import('../../brain/config.js');
+      await setBrainConfig(created.id, { preset: brainPreset as 'work', names: answers.writingLanguage.startsWith('fr') ? 'fr' : 'en' });
+    }
+    if (flagBool(args, 'confidential', brainPreset === 'work')) {
+      const { writeSetting } = await import('../../settings/settings.js');
+      await writeSetting(created.id, 'kb.confidential', true);
+    }
+    if (ctx.mode === 'json') { out.json({ ok: true, ...created, ...(brainPreset ? { brain: brainPreset } : {}), steps: results }); return 0; }
     out.ok(t('wiz.done', { name: paint.name(answers.name) }));
     out.line(stepLines(results).split('\n').map((l) => `  ${l}`).join('\n'));
     out.next([`okb status --kb ${created.id}`]);
@@ -296,7 +307,7 @@ async function createForCode(ctx: Ctx, kind: 'repo' | 'workspace', input: { name
     if (!root) throw new OkbError('E_NOT_FOUND', `not a Git repository: ${folder}`, { key: 'repoNotGit', params: { path: folder } });
     const id = await createCodeKb(ctx, { name: input.name, dir: input.dir, kind: 'repo', repoRoot: root, inRepo: input.inRepo });
     const code = await cmdRepo({ ...ctx, args: { ...ctx.args, positionals: ['add', root], flags: { ...flags, kb: id } } });
-    if (code === 0 && ctx.mode === 'text') ctx.out.next([`cd ${tilde(root)} && claude`, '/okb:onboard']);
+    if (code === 0 && ctx.mode === 'text') ctx.out.next([`cd ${tilde(root)} && claude`, '/okb-dev:onboard']);
     return code;
   }
   const id = await createCodeKb(ctx, { name: input.name, dir: input.dir, kind: 'workspace', repoRoot: null });

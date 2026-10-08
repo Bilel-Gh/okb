@@ -14,8 +14,8 @@ const snapshot = atom({ plugin: 'okb', key: 'snapshot' } as const, null)
 const pendingSeen = atom({ plugin: 'okb', key: 'pendingSeen' } as const, 0)
 
 const L = {
-  fr: { title: 'OKB', focus: 'Focus', none: 'pas encore', days: 'j', stale: 'à revoir', next: 'Prochaine fois', inbox: 'Inbox', pending: 'À relire', nothing: 'rien en attente', notes: 'notes', review: 'Relire', done: 'Fin de session', weekly: 'Revue', capture: 'Capturer', focusBtn: 'Focus', refresh: 'Actualiser', scope: 'Périmètre', ticket: 'Ticket', toast: 'OKB : une proposition attend ta relecture — /okb:review', opened: 'Panneau OKB ouvert.', missing: 'OKB n’est pas configuré ici : lance « okb init » dans un terminal.' },
-  en: { title: 'OKB', focus: 'Focus', none: 'none yet', days: 'd', stale: 'outdated', next: 'Next time', inbox: 'Inbox', pending: 'To review', nothing: 'nothing waiting', notes: 'notes', review: 'Review', done: 'End session', weekly: 'Weekly', capture: 'Capture', focusBtn: 'Focus', refresh: 'Refresh', scope: 'Scope', ticket: 'Ticket', toast: 'OKB: a proposal waits for your review — /okb:review', opened: 'OKB pane opened.', missing: 'OKB is not set up here: run “okb init” in a terminal.' },
+  fr: { title: 'OKB', focus: 'Focus', none: 'pas encore', days: 'j', stale: 'à revoir', next: 'Prochaine fois', inbox: 'Inbox', pending: 'À relire', nothing: 'rien en attente', notes: 'notes', review: 'Relire', done: 'Fin de session', weekly: 'Revue', capture: 'Capturer', focusBtn: 'Focus', refresh: 'Actualiser', suggestions: 'Suggestions', suggestBtn: 'Décider', due: 'À réviser', learn: 'Réviser', suggestPrompt: 'Montre-moi les suggestions de notes en attente', scope: 'Périmètre', ticket: 'Ticket', toast: 'OKB : une proposition attend ta relecture — /okb:review', opened: 'Panneau OKB ouvert.', missing: 'OKB n’est pas configuré ici : lance « okb init » dans un terminal.' },
+  en: { title: 'OKB', focus: 'Focus', none: 'none yet', days: 'd', stale: 'outdated', next: 'Next time', inbox: 'Inbox', pending: 'To review', nothing: 'nothing waiting', notes: 'notes', review: 'Review', done: 'End session', weekly: 'Weekly', capture: 'Capture', focusBtn: 'Focus', refresh: 'Refresh', suggestions: 'Suggestions', suggestBtn: 'Decide', due: 'To review', learn: 'Review', suggestPrompt: 'Show me the note suggestions waiting', scope: 'Scope', ticket: 'Ticket', toast: 'OKB: a proposal waits for your review — /okb:review', opened: 'OKB pane opened.', missing: 'OKB is not set up here: run “okb init” in a terminal.' },
 }
 
 async function refresh($: EngineInterface): Promise<OkbSnapshot | null> {
@@ -33,6 +33,8 @@ async function refresh($: EngineInterface): Promise<OkbSnapshot | null> {
       inbox: Number(s.inbox?.open ?? 0),
       pending: (s.pending ?? []).slice(0, 5).map((p: { number: number | null; title: string; files: number }) => ({ number: p.number, title: String(p.title), files: Number(p.files) })),
       notes: Number(s.notes ?? 0),
+      suggestions: Number(s.suggestions ?? 0),
+      due: Number(s.due ?? 0),
       scope: s.scope ? { repo: s.scope.repo ?? null, ticket: s.scope.ticket ?? null } : null,
     }
     await update($, snapshot, () => snap)
@@ -83,12 +85,15 @@ export const register: Register = on => {
         <Text>🎯 {l.focus} : {snap.focus.exists ? `${snap.focus.ageDays ?? 0} ${l.days}${snap.focus.stale ? ` · ${l.stale}` : ''}` : l.none}</Text>
         {snap.next && <Text>↪ {l.next} : {snap.next}</Text>}
         <Text>📥 {l.inbox} : {String(snap.inbox)}</Text>
+        <Text>💡 {l.suggestions} : {String(snap.suggestions)} · 🃏 {l.due} : {String(snap.due)}</Text>
         <Text>⏳ {l.pending} : {snap.pending.length ? '' : l.nothing}</Text>
         {snap.pending.map(p => <Text dimColor>   #{String(p.number ?? '')} {p.title} · {String(p.files)}</Text>)}
         <Text> </Text>
         <Box flexDirection="row">
           {snap.pending.length > 0 && <Button key="review" label={l.review} variant="primary" hotkey="r" onPress={fill('/okb:review')} />}
-          {snap.scope?.ticket && <Button key="ticket" label={l.ticket} hotkey="t" onPress={fill('/okb:ticket')} />}
+          {snap.suggestions > 0 && <Button key="suggest" label={l.suggestBtn} hotkey="s" onPress={fill(l.suggestPrompt)} />}
+          {snap.due > 0 && <Button key="learn" label={l.learn} hotkey="l" onPress={fill('/okb:learn')} />}
+          {snap.scope?.ticket && <Button key="ticket" label={l.ticket} hotkey="t" onPress={fill('/okb-dev:ticket')} />}
           <Button key="done" label={l.done} hotkey="d" onPress={fill('/okb:done')} />
           <Button key="weekly" label={l.weekly} hotkey="w" onPress={fill('/okb:weekly')} />
           <Button key="capture" label={l.capture} hotkey="c" onPress={fill('/okb:capture ')} />

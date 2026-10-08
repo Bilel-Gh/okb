@@ -58,20 +58,25 @@ describe('a KB is a plain local folder', () => {
 });
 
 describe('three kinds of KB', () => {
-  it('a repository KB keeps the repository’s notes at its root', async () => {
+  it('a repository KB is a work brain: the repository’s notes in its folder, its overview as its page', async () => {
     const root = await gitFixture();
     const { s, env } = await person();
     const made = await json(['init', '--yes', '--name', 'Orders', '--kind', 'repo', '--repo', root], env, s.dir);
     expect(made).toMatchObject({ ok: true, created: true, repo: { id: 'orders-service', kb: 'orders' }, kb: { id: 'orders', kind: 'repo', confidential: true } });
     const { config } = await loadConfig({ profileId: 'orders' });
-    const ctx = await repoContext(config, (await listRepos()).find((r) => r.id === 'orders-service')!);
+    expect(config.kb.brain).toMatchObject({ preset: 'work' });
+    const repo = (await listRepos()).find((r) => r.id === 'orders-service')!;
+    const ctx = await repoContext(config, repo);
     const { report, target } = await writeRepoNote(ctx, dossier(config));
-    expect(target.path).toBe('comprendre.md');
+    const folder = config.kb.brain!.names === 'fr' ? '2 Produits/À classer/Code/orders-service' : '2 Products/To sort/Code/orders-service';
+    expect(target.path).toBe(`${folder}/orders-service.md`);
     await approve(config, report.proposal);
-    expect(repoNotes(await loadBundleFor(config), 'orders-service', true).map((n) => n.path)).toEqual(['comprendre.md']);
-    expect(ticketPath('orders-service', 'ORD-1 fix', new Date('2026-10-05'), true)).toBe('tickets/2026-10-05-ord-1-fix.md');
+    const { repoPlace } = await import('../src/brain/products.js');
+    const place = await repoPlace(config, repo);
+    expect(repoNotes(await loadBundleFor(config), 'orders-service', place).map((n) => n.path)).toEqual([`${folder}/orders-service.md`]);
+    expect(ticketPath('orders-service', 'ORD-1 fix', new Date('2026-10-05'), place)).toBe(`${folder}/${config.kb.brain!.names === 'fr' ? 'Tickets' : 'Tickets'}/2026/ORD-1 fix.md`);
     const status = await json(['repo', 'status'], env, root);
-    expect(status.notes.find((n: { kind: string }) => n.kind === 'overview')).toMatchObject({ path: 'comprendre.md', state: 'written' });
+    expect(status.notes.find((n: { kind: string }) => n.kind === 'overview')).toMatchObject({ path: `${folder}/orders-service.md`, state: 'written' });
     // A repository KB has no map of several repositories.
     expect(await json(['repo', 'landscape', '--propose', '--kb', 'orders'], env, root)).toMatchObject({ ok: true, proposalId: null });
   });
@@ -186,7 +191,7 @@ describe('a KB written before OKB, under Git, beside the repositories', () => {
     const before = (await run(['scope', '--context', '--cwd', old], env, old)).stdout;
     expect(before).toContain('looks like a knowledge base written before OKB');
     expect(before).toContain('/okb:convert');
-    expect(before).not.toContain('offer /okb:onboard to build');
+    expect(before).not.toContain('offer /okb-dev:onboard to build');
     const added = await json(['workspace', 'add', ws, '--kb', 'travail', '--name', 'Acme', '--no-landscape'], env, ws);
     expect(added.repos.map((r: { id: string }) => r.id)).not.toContain('old-notes');
     expect(added.notesFolders).toEqual([old]);

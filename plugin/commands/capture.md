@@ -4,4 +4,4 @@ argument-hint: "<text to capture>"
 disable-model-invocation: true
 ---
 
-Use the `okb-inbox` skill to capture exactly this text, unchanged: $ARGUMENTS
+Use the `okb-capture` skill to capture exactly this text, unchanged: $ARGUMENTS

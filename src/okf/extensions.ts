@@ -45,6 +45,18 @@ export type OkbExtension = {
   writing?: { preset: string; language: string };
   /** Verification events that covered an earlier version of the text. */
   prior_verified?: unknown[];
+  /** Stable identity of the note (OKB 1.0): links are repaired from it when a note moves. */
+  id?: string;
+  /** Where the note sits in a brain, as chosen when it was written (src/brain). */
+  brain?: { type?: string; product?: string; repo?: string; theme?: string; ref?: string };
+  /** How sure the note is: checked in the code or a document, heard in a meeting, assumed. */
+  confidence?: 'verified' | 'heard' | 'assumed';
+  /** normal, confidential, or secret (never read by Claude without the person's request). */
+  confidentiality?: 'normal' | 'confidential' | 'secret';
+  /** What the note was born from: a ticket reference, a meeting, a session. */
+  origin?: string;
+  /** Day the note was last checked against its subject. */
+  checked?: string;
 };
 
 export function getExtension(fm: OkfFrontmatter): OkbExtension {

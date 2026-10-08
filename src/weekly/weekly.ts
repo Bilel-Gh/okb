@@ -102,7 +102,7 @@ export async function weeklyReport(
   };
 }
 
-async function readReceipts(config: OkbConfig): Promise<Receipt[]> {
+export async function readReceipts(config: OkbConfig): Promise<Receipt[]> {
   const dir = statePaths(config).receipts;
   let names: string[] = [];
   try { names = (await readdir(dir)).filter((n) => n.endsWith('.json')); } catch { return []; }

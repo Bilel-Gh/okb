@@ -27,8 +27,9 @@ process.stdin.on('end', () => {
   try { cwd = String(JSON.parse(raw)?.cwd ?? ''); } catch { /* no input */ }
   // Run in the session's folder: inside a workspace, its KB is the one meant.
   const run = (args) => new Promise((done) => execFile(okb, args, { timeout: 7000, maxBuffer: 200_000, env: process.env, ...(cwd ? { cwd } : {}) }, (error, stdout) => done(error ? '' : String(stdout).trim())));
-  Promise.all([run(['focus', '--context']), cwd ? run(['scope', '--context', '--cwd', cwd]) : Promise.resolve('')]).then(([focus, repo]) => {
-    const text = [focus, repo].filter(Boolean).join('\n\n');
+  // The focus and the last session, then the brain: its drawers, « Maintenant » and how notes find their place.
+  Promise.all([run(['focus', '--context']), run(['brain', 'session', '--cwd', cwd || process.cwd()])]).then(([focus, brain]) => {
+    const text = [focus, brain].filter(Boolean).join('\n\n');
     if (text) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: text } }));
     process.exit(0);
   });

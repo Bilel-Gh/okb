@@ -41,9 +41,9 @@ describe('okb start: set OKB up for the situation at hand', () => {
     expect(d.notesFolders).toEqual([{ path: resolve(folder, 'old-kb'), notes: 5, kb: null }]);
     expect(d.advice.map((a: { code: string }) => a.code)).toEqual(expect.arrayContaining(['teamRepos', 'oldKb']));
     const steps = d.plan.filter((s: { id: string }) => s.id !== 'tools');
-    expect(steps.map((s: { id: string }) => s.id)).toEqual(['connectOld', 'workspace', 'convert']);
+    expect(steps.map((s: { id: string }) => s.id)).toEqual(['connectOld', 'workspace', 'convert', 'brain']);
     expect(steps[2]).toMatchObject({ argv: null, inClaude: '/okb:convert', optional: true });
-    expect(d.next[0]).toContain('/okb:ticket ABC-123');
+    expect(d.next[0]).toContain('/okb-dev:ticket ABC-123');
 
     // What the skill does after the person said yes and named the KB.
     for (const s of steps.filter((x: { argv: string[] | null }) => x.argv)) {

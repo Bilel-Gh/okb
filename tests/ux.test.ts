@@ -42,6 +42,14 @@ describe('natural-language offers', () => {
     ["fais une capture d'écran de la page", null],
     ['/okb:done', null],
     ['prépare la weekly du sprint pour la PR', null],
+    ['fais une pré-revue de ma branche', 'prereview'],
+    ['relis mes changements avant la PR', 'prereview'],
+    ['rédige le message de commit', 'ship'],
+    ['write the PR description for this branch', 'ship'],
+    ['un client remonte que ses factures arrivent en double', 'support'],
+    ['documente le produit Atlas', 'product', 'atlas'],
+    ['aide-moi à débugger ce test', 'debug'],
+    ['active le mode debug', null],
   ];
   for (const [message, intent, kb] of cases) {
     it(`${intent ?? 'nothing'} ← "${message}"`, () => {

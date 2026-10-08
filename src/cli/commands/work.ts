@@ -9,7 +9,7 @@ import { missingConceptsFor } from '../../pipeline/ask.js';
 import { proposeLandscape } from '../../repo/generated.js';
 import { currentBranch, revParse } from '../../repo/git.js';
 import { repoContext } from '../../repo/notes.js';
-import { isFlat } from '../../repo/pack.js';
+import { repoPlace } from '../../brain/products.js';
 import { kindOf, setKbKind } from '../../work/kinds.js';
 import { addRepo, findRepo, listRepos, type RepoEntry } from '../../repo/registry.js';
 import { scanAndStore } from '../../repo/scan.js';
@@ -32,7 +32,7 @@ import { chooseKb } from './repo.js';
  * repositories; the scope narrows OKB to the repository (and ticket) the
  * person works on; a ticket is followed from its branch and commits, with a
  * journal of what the work taught. All of it is local state: knowledge
- * reaches the KB only through proposals the person approves (/okb:ticket).
+ * reaches the KB only through proposals the person approves (/okb-dev:ticket).
  */
 
 function cwdOf(ctx: Ctx): string {
@@ -390,7 +390,9 @@ async function ticketShow(ctx: Ctx): Promise<number> {
   const { record: synced, progress } = await syncTicket(config, record, await listRepos());
   const bundle = await loadBundleFor(config);
   const { ticketNoteIn } = await import('../../work/tickets.js');
-  const note = ticketNoteIn(bundle, synced, isFlat(config));
+  const all = await listRepos();
+  const places = new Map(await Promise.all(synced.repos.map(async (r) => [r.id, await repoPlace(config, all.find((x) => x.id === r.id) ?? { id: r.id, name: r.id })] as const)));
+  const note = ticketNoteIn(bundle, synced, (id) => places.get(id) ?? false);
   if (ctx.mode === 'json') { ctx.out.json({ ok: true, ticket: synced, progress, note }); return 0; }
   printTicket(ctx, synced, progress, note);
   return 0;
@@ -408,7 +410,7 @@ function printTicket(ctx: Ctx, record: TicketRecord, progress: readonly { id: st
   }
   if (note) out.line(`\n   ${sym.ok()} ${t('ticket.noteWritten', { path: note })}`);
   out.next(record.status === 'done' || progress.some((p) => p.merged)
-    ? [note ? 'okb ticket list' : '/okb:ticket']
+    ? [note ? 'okb ticket list' : '/okb-dev:ticket']
     : ['okb ticket note "…" --kind decision|trap|question', 'okb ticket done']);
 }
 
@@ -449,7 +451,7 @@ async function ticketStart(ctx: Ctx): Promise<number> {
   }
   out.ok(t(created ? 'ticket.started' : attached ? 'ticket.attached' : 'ticket.resumed', { ref: paint.bold(record.ref), repo: paint.name(repo.name) }));
   out.line(paint.dim(`   ${t('ticket.followHow')}`));
-  out.next(['okb ticket note "…" --kind decision', 'okb ticket', '/okb:ticket']);
+  out.next(['okb ticket note "…" --kind decision', 'okb ticket', '/okb-dev:ticket']);
   return 0;
 }
 
@@ -465,7 +467,7 @@ async function ticketNote(ctx: Ctx): Promise<number> {
 }
 
 /**
- * `okb ticket done`: the facts of a finished ticket for /okb:ticket — per
+ * `okb ticket done`: the facts of a finished ticket for /okb-dev:ticket — per
  * repository, a dated context (ticket text, commits, journal, changed files)
  * and the notes that cite changed files; for the shared part of the KB, the
  * notes tied to these repositories, business terms without a card, other
@@ -520,7 +522,7 @@ async function ticketDone(ctx: Ctx): Promise<number> {
   for (const r of perRepo as { name: string; file: string; commits: unknown[]; changes: unknown[] }[]) ctx.out.line(`   📦 ${paint.bold(r.name)} ${paint.dim(`${tn('scope.commits', r.commits.length)} · ${tn('ticket.files', r.changes.length)} · ${tilde(r.file)}`)}`);
   if (missingTerms.length) ctx.out.line(paint.dim(`   ${t('ticket.missingTerms', { terms: missingTerms.join(', ') })}`));
   if (interfacesChanged) ctx.out.line(paint.dim(`   ${t('ticket.interfaces')}`));
-  ctx.out.next(['/okb:ticket']);
+  ctx.out.next(['/okb-dev:ticket']);
   return 0;
 }
 

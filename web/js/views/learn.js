@@ -1,42 +1,59 @@
-import { state, h, t, get, icon, empty, loading } from '../core.js';
+import { h, t, get, post, icon, empty, loading, errorToast } from '../core.js';
 import { setTitle, go } from '../main.js';
 
-/** Flashcards from the KB's concept cards: see the term, recall, reveal, rate. Ratings stay in this browser. */
+/**
+ * Spaced review: the cards due today (concept notes and « Q — R » lines of the
+ * notes), recall, reveal, grade — OKB schedules the next review (FSRS). Below,
+ * the skills map: how much of each subject is known.
+ */
 export async function render({ mount }) {
   setTitle(t('web.nav.learn'));
   mount.append(loading());
-  const { cards } = await get('/api/cards');
+  const data = await get('/api/learn');
   mount.replaceChildren();
-  if (!cards.length) { mount.append(empty('🧠', t('web.learn.empty'), t('web.learn.emptyText'))); return; }
-  const key = `okb-learn-${state.kb}`;
-  let memory = {};
-  try { memory = JSON.parse(localStorage.getItem(key) || '{}'); } catch { memory = {}; }
-  const save = () => { try { localStorage.setItem(key, JSON.stringify(memory)); } catch { /* ignore */ } };
-  // Cards to review first: never seen, then "to review", then the oldest.
-  const order = [...cards].sort((a, b) => (memory[a.path]?.score ?? -1) - (memory[b.path]?.score ?? -1) || (memory[a.path]?.at ?? 0) - (memory[b.path]?.at ?? 0));
-  const session = order.slice(0, 12);
-  let i = 0, known = 0;
+  const session = [...data.due, ...data.fresh];
   const box = h('div');
-  mount.append(h('p', { class: 'lead' }, t('web.learn.lead')), box);
+  mount.append(h('p', { class: 'lead' }, t('web.learn.lead2', { due: data.counts.due, fresh: data.fresh.length, cards: data.counts.cards })), box);
+  if (!data.counts.cards) box.append(empty('🧠', t('web.learn.empty'), t('web.learn.emptyText2')));
+  let i = 0, done = 0;
   const draw = (revealed = false) => {
+    if (!session.length) return;
     if (i >= session.length) {
-      box.replaceChildren(h('div', { class: 'flash' }, h('div', null, h('div', { class: 'term' }, '🎉'), h('div', { class: 'def' }, t('web.learn.done', { known, total: session.length })),
-        h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '18px' } }, h('button', { class: 'btn primary', onclick: () => { i = 0; known = 0; draw(); } }, t('web.learn.again'))))));
+      box.replaceChildren(h('div', { class: 'flash' }, h('div', null, h('div', { class: 'term' }, '🎉'), h('div', { class: 'def' }, t('web.learn.done2', { done })))));
       return;
     }
     const c = session[i];
-    const rate = (score) => { memory[c.path] = { score, at: Date.now() }; save(); if (score > 0) known++; i++; draw(); };
+    const grade = async (rating) => {
+      try { await post('/api/learn/grade', { id: c.id, rating }); done++; i++; draw(); } catch (e) { errorToast(e); }
+    };
     box.replaceChildren(
       h('div', { class: 'progress', style: { marginBottom: '14px' } }, h('div', { style: { width: `${(i / session.length) * 100}%` } })),
       h('div', { class: 'flash' }, h('div', null,
-        h('div', { class: 'small muted' }, `${i + 1} / ${session.length}`),
-        h('div', { class: 'term', style: { marginTop: '8px' } }, c.title),
-        revealed ? h('div', { class: 'def' }, c.definition) : h('div', { class: 'def muted' }, t('web.learn.think')),
-        h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '20px' } },
+        h('div', { class: 'small muted' }, `${i + 1} / ${session.length} · ${c.subject} · ${t(`learn.level.${c.level}`)}`),
+        h('div', { class: 'term', style: { marginTop: '8px' } }, c.front),
+        revealed ? h('div', { class: 'def' }, c.back) : h('div', { class: 'def muted' }, t('web.learn.think')),
+        h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '20px', flexWrap: 'wrap' } },
           revealed
-            ? [h('button', { class: 'btn', onclick: () => rate(0) }, '🔁 ', t('web.learn.again2')), h('button', { class: 'btn primary', onclick: () => rate(1) }, '✔ ', t('web.learn.knew')), h('button', { class: 'btn ghost', onclick: () => go(`#/note/${encodeURIComponent(c.path)}`) }, icon('notes', 15), t('web.learn.open'))]
+            ? [
+              h('button', { class: 'btn', onclick: () => grade('again') }, '🔁 ', t('web.learn.r.again')),
+              h('button', { class: 'btn', onclick: () => grade('hard') }, '😬 ', t('web.learn.r.hard')),
+              h('button', { class: 'btn primary', onclick: () => grade('good') }, '✔ ', t('web.learn.r.good')),
+              h('button', { class: 'btn', onclick: () => grade('easy') }, '⚡ ', t('web.learn.r.easy')),
+              h('button', { class: 'btn ghost', onclick: () => go(`#/note/${encodeURIComponent(c.path)}`) }, icon('notes', 15), t('web.learn.open')),
+            ]
             : h('button', { class: 'btn primary lg', onclick: () => draw(true) }, t('web.learn.reveal'))))));
   };
-  draw();
+  if (session.length) draw();
+  else if (data.counts.cards) box.append(empty('✅', t('web.learn.nothingDue'), t('web.learn.nothingDueText')));
+
+  if (data.map.length) {
+    mount.append(h('h2', { style: { marginTop: '26px' } }, t('web.learn.map')), h('div', { class: 'card' }, h('div', { class: 'list' }, data.map.map((m) => h('div', { class: 'list-item' },
+      h('div', { class: 'grow' }, h('b', null, m.subject), h('div', { class: 'small muted' }, `★ ${m.levels.mastered} · ✓ ${m.levels.known} · … ${m.levels.learning} · ○ ${m.levels.new}`)),
+      h('div', { style: { width: '140px' } }, h('div', { class: 'progress' }, h('div', { style: { width: `${m.percent}%` } }))),
+      h('b', { style: { width: '48px', textAlign: 'right' } }, `${m.percent}%`))))));
+  }
+  if (data.objectives.length) {
+    mount.append(h('h2', { style: { marginTop: '26px' } }, t('web.learn.objectives')), h('div', { class: 'card' }, h('div', { class: 'list' }, data.objectives.map((o) => h('div', { class: 'list-item' }, h('span', null, '🎯'), h('div', { class: 'grow' }, o.text, o.by ? h('div', { class: 'small muted' }, o.by) : null))))));
+  }
   mount.append(h('div', { class: 'note-box info', style: { marginTop: '18px' } }, icon('sparkles', 16), h('div', null, t('web.learn.claude'), ' ', h('code', null, '/okb:learn'))));
 }

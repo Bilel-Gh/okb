@@ -14,7 +14,8 @@ import { asBundlePath, type BundlePath } from '../util/paths.js';
 import { locateQuote, resolveDossier, type DossierV3 } from './dossier.js';
 import { getTemplate, sectionHeading } from '../templates/registry.js';
 import { gitIdentity } from './git.js';
-import { isFlat, notePath, noteDescription, noteTitle, packNote, repoFolder, REPOS_FOLDER, ticketPath } from './pack.js';
+import { isBrainPlace, notePath, noteDescription, noteTitle, packNote, repoFolder, REPOS_FOLDER, ticketPath, type RepoPlace } from './pack.js';
+import { repoPlace } from '../brain/products.js';
 import { questionById, type NoteKind } from './questions.js';
 import type { RepoEntry } from './registry.js';
 import { addCoverage, ensureRepoState, listJson, loadProgress, repoPaths, saveProgress, type RepoPaths } from './state.js';
@@ -39,17 +40,17 @@ export type RepoNote = { readonly path: BundlePath; readonly title: string; read
  * Notes of this repository in the KB: by `x_okb.repo.id`, or by living under
  * `repos/<id>/` — in a repository KB (`flat`), its notes and its `tickets/`.
  */
-export function repoNotes(bundle: Bundle, id: string, flat = false): RepoNote[] {
+export function repoNotes(bundle: Bundle, id: string, place: RepoPlace = false): RepoNote[] {
   const out: RepoNote[] = [];
   for (const [path, doc] of bundle.docs) {
     const meta = (doc.data.x_okb as { repo?: { id?: unknown; kind?: unknown; commit?: unknown } } | undefined)?.repo;
-    const inFolder = flat ? path.startsWith('tickets/') : path.startsWith(`${repoFolder(id)}/`);
+    const inFolder = place === true ? path.startsWith('tickets/') : path.startsWith(`${repoFolder(id, place)}/`);
     if (meta?.id !== id && !inFolder) continue;
     if (/(^|\/)index\.md$/.test(path)) continue;
     out.push({
       path,
       title: typeof doc.data.title === 'string' ? doc.data.title : path,
-      kind: typeof meta?.kind === 'string' ? meta.kind : /(^|\/)tickets\//.test(path) ? 'ticket' : 'other',
+      kind: typeof meta?.kind === 'string' ? meta.kind : /(^|\/)(tickets|Tickets|Tâches)\//.test(path) ? 'ticket' : 'other',
       commit: typeof meta?.commit === 'string' ? meta.commit : null,
     });
   }
@@ -57,8 +58,9 @@ export function repoNotes(bundle: Bundle, id: string, flat = false): RepoNote[] 
 }
 
 /** Pending proposals that create or change notes of this repository. */
-export async function pendingRepoProposals(config: OkbConfig, id: string): Promise<{ id: string; paths: string[]; createdAt: string }[]> {
-  const prefix = isFlat(config) ? '' : `${repoFolder(id)}/`;
+export async function pendingRepoProposals(config: OkbConfig, id: string, place?: RepoPlace): Promise<{ id: string; paths: string[]; createdAt: string }[]> {
+  const where = place ?? config.kb.kind === 'repo';
+  const prefix = where === true ? '' : `${repoFolder(id, where)}/`;
   return (await listProposals(config))
     .filter((p) => p.status === 'prepared' || p.status === 'partially-applied')
     .map((p) => ({ id: p.id, createdAt: p.createdAt, paths: [...new Set(p.changes.map((c) => c.path as string))].filter((x) => x.startsWith(prefix)) }))
@@ -80,6 +82,10 @@ export type WriteOptions = {
   readonly reprocess?: boolean;
   /** Other private folders the dossier may cite (the repository's own KB state, when writing into its workspace's KB). */
   readonly sourceDirs?: readonly string[];
+  /** The accepted suggestion this note answers (required in a brain when Claude writes). */
+  readonly suggestion?: string;
+  /** The quality reviewer's grade out of 20, kept on a created note for its score. */
+  readonly quality?: number;
 };
 
 export type WriteResult = {
@@ -98,10 +104,10 @@ export async function writeRepoNote(ctx: RepoContext, raw: unknown, options: Wri
   const lang = language(config);
   const { dossier, resolved } = await resolveDossier(config, raw, repo, [paths.dir, ...(options.sourceDirs ?? [])]);
   const kind = options.kind ?? dossier.note ?? 'other';
-  const flat = isFlat(config);
+  const place = await repoPlace(config, repo);
   const pack = kind !== 'ticket' && kind !== 'other' ? packNote(kind) : null;
   if (kind === 'questions') throw new OkbError('E_INVALID', 'the open-questions note is generated: use okb repo questions --propose', { key: 'repoQuestionsGenerated' });
-  const template = dossier.template ?? pack?.template ?? (kind === 'ticket' ? 'repo-ticket' : undefined);
+  const template = dossier.template ?? pack?.template ?? (kind === 'ticket' ? (config.kb.brain ? 'ticket' : 'repo-ticket') : undefined);
   let analysis: Record<string, unknown> = { ...resolved.analysis, ...(template ? { template } : {}) };
   const identity = await gitIdentity(repo.path);
   const repoMeta = { id: repo.id, kind, commit: identity.head, ...(identity.dirty ? { dirty: true } : {}) };
@@ -111,24 +117,27 @@ export async function writeRepoNote(ctx: RepoContext, raw: unknown, options: Wri
   if (options.append) {
     target = { mode: 'append', path: asBundlePath(options.append), heading: options.heading ?? defaultHeading(lang) };
   } else if (options.create) {
-    target = createTarget(asBundlePath(options.create), options, kind, repo, lang, repoMeta, flat);
+    target = createTarget(asBundlePath(options.create), options, kind, repo, lang, repoMeta, place);
   } else if (pack) {
-    const path = notePath(repo.id, pack.kind, lang, flat);
+    const path = notePath(repo.id, pack.kind, lang, place);
     if (bundle.byPath.has(path) || options.pending?.files.has(path)) {
       if (!options.heading) {
         throw new OkbError('E_CONFLICT', `${path} already exists`, { key: 'repoNoteExists', params: { path }, hint: `Add a dated section with --heading "…", or revise it with okb revise ${path}.` });
       }
       target = { mode: 'append', path, heading: options.heading };
     } else {
-      target = createTarget(path, options, kind, repo, lang, repoMeta, flat);
+      target = createTarget(path, options, kind, repo, lang, repoMeta, place);
     }
   } else if (kind === 'ticket') {
     if (!options.title) throw new OkbError('E_INVALID', 'a ticket note needs --title', { key: 'repoTicketTitle' });
-    target = createTarget(ticketPath(repo.id, options.title, new Date(), flat), options, kind, repo, lang, repoMeta, flat);
+    target = createTarget(ticketPath(repo.id, options.title, new Date(), place), options, kind, repo, lang, repoMeta, place);
   } else {
     throw new OkbError('E_INVALID', 'choose where the note goes: --note <kind>, --create <path> or --append <path>', { key: 'repoWriteTarget' });
   }
 
+  // In a brain, a note Claude writes needs the person's accepted suggestion (a pack covers the repository's folder).
+  const { requireAccepted, linkProposal } = await import('../suggest/guard.js');
+  const accepted = await requireAccepted(config, target.path, options.suggestion);
   if (target.mode === 'append' && template) analysis = await asUpdateSections(config, analysis, template, lang);
   const report = await prepareProposal(config, resolved.docs, {
     target,
@@ -136,13 +145,13 @@ export async function writeRepoNote(ctx: RepoContext, raw: unknown, options: Wri
     notes: resolved.notes,
     notice: noticeFor(lang, repo.name, identity.head, identity.dirty, resolved.docs.some((d) => d.source.adapter !== 'repo-excerpt')),
     // A shared note (concepts, guides, decisions…) keeps belonging to the whole KB: no repository stamp.
-    ...(target.mode === 'append' && !isShared(bundle, target.path, repo.id, flat) ? { xOkbPatch: { repo: { ...repoMeta, kind: existingKind(bundle, target.path) ?? kind } } } : {}),
+    ...(target.mode === 'append' && !isShared(bundle, target.path, repo.id, place) ? { xOkbPatch: { repo: { ...repoMeta, kind: existingKind(bundle, target.path) ?? kind } } } : {}),
     ...(options.pending ? { pending: options.pending } : {}),
     ...(options.conceptAssistLevel ? { conceptAssistLevel: options.conceptAssistLevel } : {}),
     ...(options.linkInto?.length ? { linkInto: options.linkInto } : {}),
     ...(options.reprocess ? { reprocess: true } : {}),
   });
-  if (report.proposal.changes.length) await saveProposal(config, report.proposal);
+  if (report.proposal.changes.length) { await saveProposal(config, report.proposal); await linkProposal(config, accepted, report.proposal.id); }
 
   const progress = await loadProgress(paths);
   const now = new Date().toISOString();
@@ -207,24 +216,31 @@ function defaultHeading(lang: string): string {
  * A note outside the repository's folder that no repository claims: it belongs
  * to the whole KB. In a repository KB every note is the repository's.
  */
-function isShared(bundle: Bundle, path: BundlePath, id: string, flat: boolean): boolean {
-  if (flat || path.startsWith(`${repoFolder(id)}/`) || path.startsWith(`${REPOS_FOLDER}/`)) return false;
+function isShared(bundle: Bundle, path: BundlePath, id: string, place: RepoPlace): boolean {
+  if (place === true || path.startsWith(`${repoFolder(id, place)}/`) || (!isBrainPlace(place) && path.startsWith(`${REPOS_FOLDER}/`))) return false;
+  // In a brain, every repository lives under `…/Code/<repo>/`: a note there is a repository's.
+  if (isBrainPlace(place) && /\/(Code)\//.test(path)) return false;
   const meta = (bundle.docs.get(path)?.data.x_okb as { repo?: { id?: unknown } } | undefined)?.repo;
   return !meta || meta.id === '*';
 }
 
-function createTarget(path: BundlePath, options: WriteOptions, kind: string, repo: RepoEntry, lang: string, repoMeta: Record<string, unknown>, flat: boolean): IngestTarget {
+function createTarget(path: BundlePath, options: WriteOptions, kind: string, repo: RepoEntry, lang: string, repoMeta: Record<string, unknown>, place: RepoPlace): IngestTarget {
   const pack = kind !== 'ticket' && kind !== 'other' && kind !== 'questions' ? packNote(kind as NoteKind) : null;
   const title = options.title ?? (pack ? noteTitle(pack.kind, repo.name, lang) : null);
   if (!title) throw new OkbError('E_INVALID', 'this note needs --title', { key: 'repoTicketTitle' });
   // Created outside `repos/` (a business concept, a feature across repositories): a shared note.
-  const shared = !flat && !path.startsWith(`${REPOS_FOLDER}/`);
+  const shared = place !== true && (isBrainPlace(place) ? !path.startsWith(`${place.folder}/`) : !path.startsWith(`${REPOS_FOLDER}/`));
   return {
     mode: 'create', path, title,
     description: options.description ?? (pack ? noteDescription(pack.kind, repo.name, lang) : title),
     tags: shared ? [repo.id] : ['repo', repo.id, ...(kind === 'ticket' ? ['ticket'] : [])],
-    ...(shared ? {} : { xOkb: { repo: repoMeta } }),
+    ...(shared && options.quality === undefined ? {} : { xOkb: { ...(shared ? {} : { repo: repoMeta }), ...(options.quality !== undefined ? { review: reviewOf(options.quality) } : {}) } }),
   };
+}
+
+/** The quality reviewer's grade as the note keeps it: out of 20, by whom, when. */
+export function reviewOf(score: number): { score: number; by: string; at: string } {
+  return { score: Math.max(0, Math.min(20, Math.round(score))), by: 'okb-quality-reviewer', at: new Date().toISOString().slice(0, 10) };
 }
 
 /* ------------------------------------------------------------- findings */

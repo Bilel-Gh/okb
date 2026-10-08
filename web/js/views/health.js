@@ -22,6 +22,24 @@ export async function render({ mount, query }) {
       } }, icon('notes', 15), t('web.health.nav')),
       h('a', { class: 'btn ghost', href: sources ? '#/health' : '#/health?sources=1' }, icon('source', 15), sources ? t('web.health.noSources') : t('web.health.sources')))));
   mount.append(h('div', { style: { height: '16px' } }));
+  // The storage: copies made by a sync tool, moved notes, ids, backups, the trash.
+  const storage = h('div', { class: 'card', style: { marginBottom: '16px' } }, h('div', { class: 'card-head' }, h('span', { style: { fontSize: '18px' } }, '🛡️'), h('h2', null, t('web.storage.title'))), loading(2));
+  mount.append(storage);
+  Promise.all([get('/api/storage'), get('/api/trash')]).then(([st, tr]) => {
+    storage.lastChild.remove();
+    const last = st.backups[0];
+    storage.append(h('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', marginBottom: '8px' } },
+      last ? h('span', { class: 'badge ok' }, t('web.storage.lastBackup', { date: last.date, files: last.files })) : h('span', { class: 'badge warn' }, t('backup.none')),
+      h('button', { class: 'btn sm', onclick: async () => { try { const out = await post('/api/backup/run', {}); toast(out.created ? t('web.storage.backupDone') : t('backup.already', { date: out.info.date })); } catch (e) { errorToast(e); } } }, icon('history', 14), t('web.storage.backupNow')),
+      last ? h('button', { class: 'btn sm', onclick: async () => { try { const out = await post('/api/backup/verify', {}); toast(out.bad.length || out.missing.length ? t('backup.broken', { date: out.date, bad: out.bad.length + out.missing.length }) : t('backup.verified', { date: out.date, files: out.files }), out.bad.length || out.missing.length ? 'err' : 'ok'); } catch (e) { errorToast(e); } } }, icon('check', 14), t('web.storage.verify')) : null));
+    const findings = st.findings.filter((f) => !['no-backup', 'old-backup', 'unverified-backup'].includes(f.code) || !last);
+    const by = new Map();
+    for (const f of findings) by.set(f.code, [...(by.get(f.code) ?? []), f]);
+    if (!by.size) storage.append(noteBox('ok', t('brain.check.clean')));
+    for (const [code, list] of by) storage.append(h('div', { class: 'list-item wrap' }, list[0].level === 'error' ? '⛔' : list[0].level === 'warning' ? '⚠️' : 'ℹ️', h('div', { class: 'grow' }, `${t(`brain.check.${code}`)} (${list.length})`, h('div', { class: 'small muted mono' }, list.slice(0, 3).map((f) => f.path ?? '').filter(Boolean).join(' · ')))));
+    if (by.has('sync-copy') || by.has('moved-note') || by.has('missing-id')) storage.append(h('div', { class: 'small muted', style: { marginTop: '6px' } }, t('web.storage.repairHint'), ' ', h('code', null, 'okb brain repair')));
+    if (tr.items.length) storage.append(h('div', { class: 'small', style: { marginTop: '10px' } }, `🗑️ ${t('web.storage.trash', { n: tr.items.length })} `, h('code', null, 'okb trash')));
+  }).catch(() => storage.remove());
   if (!r.groups.length) { mount.append(noteBox('ok', t('maintain.clean'))); return; }
   const order = { error: 0, warning: 1, info: 2 };
   for (const g of r.groups.sort((a, b) => (order[a.items[0].level] ?? 3) - (order[b.items[0].level] ?? 3))) {

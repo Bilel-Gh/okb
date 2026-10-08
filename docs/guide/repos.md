@@ -20,7 +20,7 @@ passation ou des docs, tu les donnes ; sinon OKB part du code et des README.
 Dans Claude Code, ouvert dans le dossier du repo :
 
 ```text
-/okb:onboard
+/okb-dev:onboard
 ```
 
 Une phrase suffit aussi : « je découvre ce repo, aide-moi à démarrer ». OKB
@@ -113,13 +113,13 @@ okb repo interview
   à tout, une question après l'autre.
 
 Une réponse devient une **source datée** (« Réponse du dev senior, 4 octobre ») que la
-note peut citer. Au prochain `/okb:onboard`, Claude l'intègre dans la bonne note.
+note peut citer. Au prochain `/okb-dev:onboard`, Claude l'intègre dans la bonne note.
 Dans l'application web, chaque question ouverte a un bouton « Répondre ».
 
 ## Commencer un ticket
 
 ```text
-/okb:ticket je commence le ticket ABC-123 …
+/okb-dev:ticket je commence le ticket ABC-123 …
 ```
 
 OKB suit désormais le ticket : son point de départ, sa branche, ses commits, et
@@ -136,7 +136,7 @@ notes communes et les autres repos) et te donne :
 ## Après un ticket
 
 ```text
-/okb:ticket
+/okb-dev:ticket
 ```
 
 Ou en clair : « j'ai fini mon ticket ». Claude rassemble le texte du ticket, ses
@@ -151,7 +151,7 @@ voit aussi les notes qui citent ces fichiers. Il prépare alors :
 - dans la partie commune de la KB, ce qui dépasse ce repo : une règle métier,
   un nouveau terme, une fonctionnalité qui traverse plusieurs repos.
 
-`okb done` (fin de session) propose aussi `/okb:ticket` quand tu as travaillé
+`okb done` (fin de session) propose aussi `/okb-dev:ticket` quand tu as travaillé
 dans un repo documenté. Le détail : [Un ticket, du début à la fin](espace-de-travail.md#un-ticket-du-début-à-la-fin).
 
 ## Quand le code bouge
@@ -169,7 +169,7 @@ OKB recartographie le repo, puis classe chaque note :
 | **dépassée** | une citation ou un fichier a disparu |
 
 Il signale aussi les nouveautés : nouveau README, nouveau service, nouveau
-manifeste. `/okb:onboard refresh` met les notes à jour.
+manifeste. `/okb-dev:onboard refresh` met les notes à jour.
 
 ## Dans Claude, au quotidien
 
@@ -181,7 +181,7 @@ Quand tu ouvres Claude dans un repo documenté, il reçoit un court brief :
 - le ticket en cours, avec ses commits et son journal.
 
 Il lit la bonne note avant de fouiller le code, et la cite. Dans un repo pas
-encore documenté, il peut te proposer `/okb:onboard` si tu dis que tu le
+encore documenté, il peut te proposer `/okb-dev:onboard` si tu dis que tu le
 découvres.
 
 Les commandes `okb` lancées depuis un repo documenté visent automatiquement sa
@@ -243,5 +243,5 @@ répond aux questions en un clic.
 
   Le reste est lu comme du code ordinaire.
 - Sur un très gros repo, la première lecture se fait en plusieurs sessions :
-  l'avancement est gardé, `/okb:onboard` reprend où il s'était arrêté.
+  l'avancement est gardé, `/okb-dev:onboard` reprend où il s'était arrêté.
 - Aucune valeur secrète n'est jamais copiée : seulement les noms de variables.

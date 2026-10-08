@@ -16,7 +16,7 @@ import { resolve } from 'node:path';
 export type IntentId =
   | 'done' | 'ingest' | 'ask' | 'capture' | 'inbox' | 'focus' | 'weekly' | 'learn' | 'review'
   | 'undo' | 'maintain' | 'revise' | 'skillify' | 'setup' | 'switch' | 'status' | 'serve' | 'onboard' | 'ticket'
-  | 'usage' | 'feedback' | 'convert' | 'workspace';
+  | 'usage' | 'feedback' | 'convert' | 'workspace' | 'product' | 'prereview' | 'ship' | 'support' | 'debug';
 
 type Rule = {
   readonly id: IntentId;
@@ -30,7 +30,7 @@ type Rule = {
 const W = String.raw`(?:^|[\s,.;:!?«"'(])`;
 
 export const INTENT_RULES: readonly Rule[] = [
-  { id: 'onboard', command: '/okb:onboard', okbOnly: false, patterns: [
+  { id: 'onboard', command: '/okb-dev:onboard', okbOnly: false, patterns: [
     /\b(je )?(d[ée]couvre|arrive sur|commence sur|d[ée]bute sur|reprends?)\b.{0,25}\b(ce |le |un |nouveau )?(repo|d[ée]p[ôo]t|projet|code ?base|composant|microservice|service)\b/i,
     /\b(onboarde?[-\s]?moi|onboarding)\b.{0,30}\b(repo|d[ée]p[ôo]t|projet|code|composant|service)\b/i,
     /\b(explique|pr[ée]sente|fais)[-\s]?(moi )?(le |ce |un )?(tour|fonctionnement|architecture)?\s*(de |du )?(ce |le )?(repo|d[ée]p[ôo]t|projet|code ?base|composant)\b/i,
@@ -39,14 +39,14 @@ export const INTENT_RULES: readonly Rule[] = [
     /\b(onboard me|get me started|help me (understand|get started (on|with))) (on |with )?(this|the) (repo|repository|codebase|project)\b/i,
     /\b(explain|walk me through) (this|the) (repo|repository|codebase)\b/i,
   ], not: [/\b(cr[ée]e|initialise|clone)[-\s]?(moi )?(un |le )?(nouveau )?(repo|d[ée]p[ôo]t)\b/i, /\b(create|init|clone) (a |the )?(new )?(repo|repository)\b/i] },
-  { id: 'workspace', command: '/okb:workspace', okbOnly: false, patterns: [
+  { id: 'workspace', command: '/okb-dev:workspace', okbOnly: false, patterns: [
     /\b(dossier|r[ée]pertoire)\b.{0,40}\b(tous|toutes|plein de|avec) (mes |les |nos )?(repos|d[ée]p[ôo]ts|projets|microservices)\b/i,
     /\b(organise[rz]?|ranger|structure[rz]?)\b.{0,30}\b(mes |les |nos )?(repos|d[ée]p[ôo]ts)\b.{0,40}\b(kb|okb|base de connaissances?)\b/i,
     /\b(une|la) kb (pour|de) (toute l['’][ée]quipe|tous (mes|les|nos) repos|l['’]ensemble des repos)\b/i,
     /\b(folder|directory) (with|of|holding) (all )?(my |our |the )?(repos|repositories)\b/i,
     /\b(one|a) (kb|knowledge base) for (all )?(my |our |the team['’]s )?(repos|repositories)\b/i,
   ] },
-  { id: 'ticket', command: '/okb:ticket', okbOnly: false, patterns: [
+  { id: 'ticket', command: '/okb-dev:ticket', okbOnly: false, patterns: [
     /\b(je )?(commence|d[ée]marre|attaque|prends) (le |un |mon |ce |la |une )?(nouveau |nouvelle )?(ticket|story|user story|t[âa]che|issue)\b/i,
     /\b(on )?(m['’]a|nous a) (donn[ée]|assign[ée]|attribu[ée]) (un |le |ce |une )?(ticket|story|bug|t[âa]che|issue)\b/i,
     /\bi('| a)m (starting|picking up|taking) (a |the |this |my )?(new )?(ticket|story|issue|task)\b/i,
@@ -57,6 +57,29 @@ export const INTENT_RULES: readonly Rule[] = [
     /\b(ticket|issue|story) (is )?(done|finished|merged)\b/i,
     /\b(update|add (this|it) to) the (repo|repository|codebase) (kb|knowledge base)\b/i,
   ] },
+  { id: 'prereview', command: '/okb-dev:review', okbOnly: false, patterns: [
+    /\b(pr[ée]-?revue|pre-?review)\b/i,
+    /\b(relis|relire|v[ée]rifie)[-\s]?(moi )?(mes changements|mon code|ma branche|mon diff)\b.{0,40}\b(avant|pr|pull request|merge request|r[eè]gles?)\b/i,
+    /\b(check|review) my (changes|branch|diff)\b.{0,40}\b(before|pr|pull request|team rules?)\b/i,
+  ], not: [/\b(proposition|proposal)\b/i] },
+  { id: 'ship', command: '/okb-dev:ship', okbOnly: false, patterns: [
+    /\b(r[ée]dige|[ée]cris|pr[ée]pare|g[ée]n[èe]re)[-\s]?(moi )?(le |un |la |une )?(message de commit|description de (la |ma )?(pr|pull request|merge request|mr))\b/i,
+    /\b(write|draft|prepare|generate) (the |a |my )?(commit message|pr description|pull request description|description (of|for) (the |my )?(pr|pull request))\b/i,
+  ] },
+  { id: 'support', command: '/okb-dev:support', okbOnly: false, patterns: [
+    /\b(un |le |une |la )?(client|cliente) (remonte|signale|se plaint|a un probl[eè]me|n['’]arrive pas)\b/i,
+    /\b(cas|ticket) (de )?support\b|\bincident (client|de prod|en prod)\b/i,
+    /\b(a |the )?customer (reports?|complains?|has an issue|cannot|can['’]t)\b|\bsupport (case|ticket)\b/i,
+  ] },
+  { id: 'product', command: '/okb-dev:product', okbOnly: false, patterns: [
+    /\b(documente|d[ée]cris|cartographie)[-\s]?(moi )?(le |ce |notre )?produit\b/i,
+    /\bdiagramme (de )?(contexte|conteneurs?)\b.{0,30}\b(produit|plateforme|application|syst[èe]me)\b/i,
+    /\b(document|describe|map) (the |this |our )product\b/i,
+  ] },
+  { id: 'debug', command: '/okb-dev:debug', okbOnly: false, patterns: [
+    /\b(aide|aider)[-\s]?(moi )?[àa] (d[ée]bugg?u?er|debug|d[ée]boguer|comprendre (cette|l['’]) ?erreur)\b/i,
+    /\bhelp me (debug|understand this error)\b/i,
+  ], not: [/\b(mode debug|debug mode)\b/i] },
   { id: 'done', command: '/okb:done', okbOnly: true, patterns: [
     /(^|\s)\/done\b/i,
     /\bfin de (la )?session\b/i,
@@ -280,6 +303,11 @@ export function renderOffer(s: IntentSuggestion, lang: 'fr' | 'en'): string {
     convert: ['connecter cette ancienne KB à OKB et la convertir au format OKB (par une proposition que tu relis)', 'connect this old KB to OKB and convert it to the OKB format (through a proposal you review)'],
     usage: ['montrer ce que coûte OKB (lu dans les journaux locaux, sans dépenser de token)', 'show what OKB costs (read from local logs, no token spent)'],
     feedback: ['noter ce retour pour le rapport d’amélioration d’OKB (okb feedback "…")', 'note this remark for OKB’s improvement report (okb feedback "…")'],
+    product: ['documenter ce produit note par note (fonctionnel, architecture, repos), avec ton oui avant chaque note', 'document this product note by note (features, architecture, repositories), with your yes before each note'],
+    prereview: ['relire tes changements avec les règles de l’équipe et les pièges connus avant la PR', 'check your changes against the team’s rules and known traps before the PR'],
+    ship: ['rédiger le message de commit et la description de PR depuis le ticket, dans le style de l’équipe', 'draft the commit message and the PR description from the ticket, in the team’s style'],
+    support: ['traiter ce cas support avec la mémoire de l’équipe (déjà vu ?, réponse au client)', 'handle this support case with the team’s memory (seen before?, reply to the client)'],
+    debug: ['chercher d’abord si l’équipe a déjà rencontré cette erreur, puis déboguer avec méthode', 'check first whether the team already met this error, then debug with a method'],
   };
   const what = label[s.intent][lang === 'fr' ? 0 : 1];
   const lines = [

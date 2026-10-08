@@ -5,6 +5,9 @@ import { ROUTING_RULES, route, type SkillId } from '../src/routing/table.js';
 import { TEST_ROOT } from './helpers/sandbox.js';
 
 const PLUGIN = resolve(TEST_ROOT, '..', 'plugin');
+const PLUGINS = [PLUGIN, resolve(TEST_ROOT, '..', 'plugins', 'okb-dev')];
+async function allSkills(): Promise<string[]> { return (await Promise.all(PLUGINS.map((p) => readdir(resolve(p, 'skills'))))).flat(); }
+async function skillDir(skill: string): Promise<string> { for (const p of PLUGINS) if ((await readdir(resolve(p, 'skills'))).includes(skill)) return resolve(p, 'skills', skill); throw new Error(skill); }
 
 /**
  * These cases describe the product's documented routing contract. They verify the
@@ -21,22 +24,48 @@ const CASES: readonly { request: string; expect: SkillId; why: string }[] = [
   { request: 'Retrouve la note où on parle du dispatcher', expect: 'okb-ask', why: 'find a note' },
   { request: 'Show me the diff of proposal a1b2c3 and apply only the article', expect: 'okb-review', why: 'existing proposal' },
   { request: 'Annule la dernière application', expect: 'okb-review', why: 'rollback' },
-  { request: 'Trouve les liens cassés dans ma base', expect: 'okb-maintain', why: 'link audit' },
-  { request: 'I want to rename a note, will the links survive?', expect: 'okb-maintain', why: 'move with inbound links' },
-  { request: "Réécris la fiche sur le dispatcher plus simplement, avec une analogie", expect: 'okb-revise', why: 'restyle one note' },
-  { request: 'Rewrite my note about retries in the expert style', expect: 'okb-revise', why: 'restyle in another preset' },
-  { request: "Capture cette idée pour plus tard : relier les fiches aux procédures", expect: 'okb-inbox', why: 'quick capture' },
-  { request: 'Help me triage my inbox', expect: 'okb-inbox', why: 'inbox triage' },
-  { request: 'On fait la revue de la semaine de mon second cerveau ?', expect: 'okb-weekly', why: 'weekly ritual' },
+  { request: 'Trouve les liens cassés dans ma base', expect: 'okb-garden', why: 'link audit' },
+  { request: 'I want to rename a note, will the links survive?', expect: 'okb-garden', why: 'move with inbound links' },
+  { request: "Réécris la fiche sur le dispatcher plus simplement, avec une analogie", expect: 'okb-garden', why: 'restyle one note' },
+  { request: 'Rewrite my note about retries in the expert style', expect: 'okb-garden', why: 'restyle in another preset' },
+  { request: "Capture cette idée pour plus tard : relier les fiches aux procédures", expect: 'okb-capture', why: 'quick capture' },
+  { request: 'Help me triage my inbox', expect: 'okb-capture', why: 'inbox triage' },
+  { request: 'Garde ça dans mon cerveau', expect: 'okb-capture', why: 'keep an explanation' },
+  { request: 'Fais une fiche sur OData', expect: 'okb-capture', why: 'a concept card' },
+  { request: 'Prépare mon daily', expect: 'okb-today', why: 'daily stand-up' },
+  { request: 'On fait la revue de la semaine de mon second cerveau ?', expect: 'okb-today', why: 'weekly ritual' },
   { request: "Interroge-moi sur la fiche idempotence", expect: 'okb-learn', why: 'active recall' },
-  { request: "On a fini pour aujourd'hui, fais le /done", expect: 'okb-focus', why: 'end of session' },
-  { request: 'Mets à jour mon focus : je prépare le sprint Orion', expect: 'okb-focus', why: 'update the focus note' },
+  { request: "On a fini pour aujourd'hui, fais le /done", expect: 'okb-today', why: 'end of session' },
+  { request: 'Mets à jour mon focus : je prépare le sprint Orion', expect: 'okb-today', why: 'update the focus note' },
   { request: 'Transforme cette procédure de déploiement en skill', expect: 'okb-skillify', why: 'procedure to skill' },
   { request: "Où j'en suis avec mon second cerveau ?", expect: 'okb-guide', why: 'dashboard' },
-  { request: 'Je découvre ce repo, aide-moi à démarrer dessus', expect: 'okb-onboard', why: 'repository onboarding' },
-  { request: "I'm new to this codebase, get me started on this repo", expect: 'okb-onboard', why: 'repository onboarding (en)' },
-  { request: "J'ai fini mon ticket, ajoute ce qu'on a appris à la KB du repo", expect: 'okb-repo-learn', why: 'after a ticket' },
+  { request: 'Je découvre ce repo, aide-moi à démarrer dessus', expect: 'okb-dev-repo', why: 'repository onboarding' },
+  { request: "I'm new to this codebase, get me started on this repo", expect: 'okb-dev-repo', why: 'repository onboarding (en)' },
+  { request: "J'ai fini mon ticket, ajoute ce qu'on a appris à la KB du repo", expect: 'okb-dev-ticket', why: 'after a ticket' },
+  { request: 'Prépare mon entretien annuel avec mon manager', expect: 'okb-career', why: 'annual review' },
+  { request: "Garde ça pour mon entretien : j'ai réduit les erreurs d'export de 30 %", expect: 'okb-career', why: 'an achievement to keep' },
+  { request: 'Mets à jour mon CV avec mes réalisations de cette année', expect: 'okb-career', why: 'living CV' },
+  { request: 'Prépare ma réunion de demain avec l’équipe produit', expect: 'okb-meeting', why: 'meeting preparation' },
+  { request: 'Voilà mes notes de la réunion de ce matin, fais le tri', expect: 'okb-meeting', why: 'after a meeting' },
+  { request: 'Fais-moi ma révision du jour', expect: 'okb-learn', why: 'daily spaced review' },
+  { request: 'Montre-moi la carte des compétences', expect: 'okb-learn', why: 'skills map' },
+  { request: 'Quelle est la carrière du client Dupont dans notre outil ?', expect: 'none', why: 'not the user career' },
   { request: 'Crée un nouveau repo GitHub pour ce projet', expect: 'none', why: 'creating a repository is not onboarding' },
+  { request: 'Documente le produit Atlas : ses fonctionnalités et son architecture', expect: 'okb-dev-product', why: 'a product as a whole' },
+  { request: 'Fais le diagramme de contexte de notre plateforme', expect: 'okb-dev-product', why: 'context diagram' },
+  { request: 'Explique-moi ce fichier, je ne vois pas à quoi il sert', expect: 'okb-dev-explain', why: 'explain a file' },
+  { request: 'How does this module handle retries?', expect: 'okb-dev-explain', why: 'explain a module (en)' },
+  { request: "J'ai une stack trace TypeError au démarrage, aide-moi à débugger", expect: 'okb-dev-debug', why: 'an error to debug' },
+  { request: 'Help me debug this failing test', expect: 'okb-dev-debug', why: 'a failing test' },
+  { request: 'Relis mes changements avant que j’ouvre la PR', expect: 'okb-dev-review', why: 'pre-review' },
+  { request: 'Check my branch against the team rules before I push the PR', expect: 'okb-dev-review', why: 'pre-review (en)' },
+  { request: 'Rédige le message de commit pour ces changements', expect: 'okb-dev-ship', why: 'commit message' },
+  { request: 'Write the pull request description and open the PR', expect: 'okb-dev-ship', why: 'PR description' },
+  { request: 'Un client remonte que ses factures sont en double depuis hier', expect: 'okb-dev-support', why: 'client incident' },
+  { request: 'Prépare la réponse au client pour ce ticket de support', expect: 'okb-dev-support', why: 'reply to a client' },
+  { request: 'Est-ce que Node supporte-t-il les modules ES ?', expect: 'none', why: 'support as a verb, not a case' },
+  { request: 'Active le mode debug de mon éditeur', expect: 'none', why: 'a debug setting, not a bug' },
+  { request: 'Simplifie cette fonction pour la rendre plus lisible', expect: 'none', why: 'a rewrite, not an explanation' },
 
   // negative — the skill must stay out of the way
   { request: 'Just summarise this article for me, do not save anything', expect: 'none', why: 'summary only' },
@@ -71,25 +100,25 @@ describe('routing contract', () => {
 
 describe('plugin descriptions', () => {
   it('ships one skill per routing rule, and no workflow duplicated as a command body', async () => {
-    const skills = await readdir(resolve(PLUGIN, 'skills'));
+    const skills = await allSkills();
     expect(skills.sort()).toEqual(
-      ROUTING_RULES.map((r) => r.skill).sort(),
+      [...new Set(ROUTING_RULES.map((r) => r.skill))].sort(),
     );
 
-    for (const command of await readdir(resolve(PLUGIN, 'commands'))) {
-      const text = await readFile(resolve(PLUGIN, 'commands', command), 'utf8');
+    for (const [dir, command] of (await Promise.all(PLUGINS.map(async (p) => (await readdir(resolve(p, 'commands'))).map((c) => [p, c] as const)))).flat()) {
+      const text = await readFile(resolve(dir, 'commands', command), 'utf8');
       const body = text.split('---').slice(2).join('---');
       // A command delegates; it must not restate a procedure.
       expect(body.split('\n').filter((l) => l.trim()).length).toBeLessThan(12);
       if (command !== 'doctor.md') {
-        expect(body).toMatch(/okb-(setup|ingest|ask|review|maintain|revise|inbox|weekly|learn|focus|skillify|guide|onboard|repo-learn)` skill/);
+        expect(body).toMatch(/okb-(setup|capture|ask|today|learn|meeting|ingest|garden|career|review|guide|skillify|dev-[a-z]+)` skill/);
       }
     }
   });
 
   it('gives every skill a description that states when to use it and when not to', async () => {
-    for (const skill of await readdir(resolve(PLUGIN, 'skills'))) {
-      const text = await readFile(resolve(PLUGIN, 'skills', skill, 'SKILL.md'), 'utf8');
+    for (const skill of await allSkills()) {
+      const text = await readFile(resolve(await skillDir(skill), 'SKILL.md'), 'utf8');
       const frontmatter = /^---\n([\s\S]*?)\n---/.exec(text)?.[1] ?? '';
       expect(frontmatter).toContain(`name: ${skill}`);
       expect(frontmatter).toMatch(/Use when/);
@@ -101,8 +130,8 @@ describe('plugin descriptions', () => {
   });
 
   it('declares agents with a bounded tool set and an explicit output contract', async () => {
-    for (const agent of await readdir(resolve(PLUGIN, 'agents'))) {
-      const text = await readFile(resolve(PLUGIN, 'agents', agent), 'utf8');
+    for (const [dir, agent] of (await Promise.all(PLUGINS.map(async (p) => (await readdir(resolve(p, 'agents'))).map((a) => [p, a] as const)))).flat()) {
+      const text = await readFile(resolve(dir, 'agents', agent), 'utf8');
       const frontmatter = /^---\n([\s\S]*?)\n---/.exec(text)?.[1] ?? '';
       expect(frontmatter).toMatch(/^tools: .+$/m);
       expect(frontmatter).not.toMatch(/\bWrite\b|\bEdit\b/);

@@ -11,6 +11,8 @@ import { asBundlePath, type BundlePath } from '../util/paths.js';
 import { gitIdentity } from './git.js';
 import { repoContext, repoNotes, type RepoContext } from './notes.js';
 import { isFlat, notePath, noteDescription, noteTitle, REPOS_FOLDER } from './pack.js';
+import { repoPlace } from '../brain/products.js';
+import { drawerFolder, layoutOf } from '../brain/layout.js';
 import { QUESTIONS, THEMES } from './questions.js';
 import { listRepos, type RepoEntry } from './registry.js';
 import { coverageOf, repoStatus } from './status.js';
@@ -83,7 +85,7 @@ export async function questionsNote(ctx: RepoContext, bundle?: Bundle): Promise<
   const kb = bundle ?? (await loadBundleFor(config));
   const status = await repoStatus(ctx, { bundle: kb });
   const progress = await loadProgress(paths);
-  const path = notePath(repo.id, 'questions', lang, isFlat(config));
+  const path = notePath(repo.id, 'questions', lang, await repoPlace(config, repo));
   const mapBytes = await readFile(paths.map);
   const identity = await gitIdentity(repo.path);
   const counts = { done: 0, pending: 0, received: 0, unknown: 0, open: 0, found: 0 };
@@ -228,7 +230,13 @@ export async function landscapeNote(config: OkbConfig): Promise<{ path: BundlePa
   // A repository KB has no landscape: its connections show in the workspace it is attached to.
   if (!maps.length || isFlat(config)) return null;
   const bundle = await loadBundleFor(config);
-  const path = asBundlePath(`${REPOS_FOLDER}/${fr ? 'paysage.md' : 'landscape.md'}`);
+  const layout = layoutOf(config);
+  // In a brain, the landscape of the repositories belongs to the world around them.
+  const path = layout
+    ? asBundlePath(`${drawerFolder(layout, 'world')}/${layout.lang === 'fr' ? 'Paysage des repos' : 'Repository landscape'}.md`)
+    : asBundlePath(`${REPOS_FOLDER}/${fr ? 'paysage.md' : 'landscape.md'}`);
+  const places = new Map<string, Awaited<ReturnType<typeof repoPlace>>>();
+  for (const m of maps) places.set(m.repo.id, await repoPlace(config, repos.find((r) => r.id === m.repo.id) ?? { id: m.repo.id, name: m.repo.name }));
   const { edges, external } = landscapeEdges(maps);
   const id = (s: string) => s.replace(/[^A-Za-z0-9_]/g, '_');
   const mermaid = ['flowchart LR'];
@@ -257,8 +265,8 @@ export async function landscapeNote(config: OkbConfig): Promise<{ path: BundlePa
     '|---|---|---|---|',
   ];
   for (const m of maps) {
-    const overview = notePath(m.repo.id, 'overview', lang);
-    const notes = repoNotes(bundle, m.repo.id);
+    const overview = notePath(m.repo.id, 'overview', lang, places.get(m.repo.id));
+    const notes = repoNotes(bundle, m.repo.id, places.get(m.repo.id));
     const link = bundle.byPath.has(overview) ? markdownLink(path, overview, noteTitle('overview', m.repo.name, lang)) : (fr ? 'pas encore de note' : 'no note yet');
     lines.push(`| ${m.repo.name} | ${escapeCell(m.repo.description ?? '—')} | ${escapeCell(m.stack.slice(0, 3).map((s) => s.label).join(', '))} | ${link}${notes.length > 1 ? ` (+${notes.length - 1})` : ''} |`);
   }

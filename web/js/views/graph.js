@@ -12,6 +12,11 @@ function savePrefs(p) {
 }
 
 export async function render({ mount, query }) {
+  // A brain is seen from above first: drawers and products, then a click goes down one level.
+  if (query?.get('brain') === '1' || (state.session?.kbs?.find((k) => k.id === state.kb)?.brain && !query?.get('notes') && !query?.get('focus'))) {
+    const { renderBrainGraph } = await import('./brain-graph.js');
+    return renderBrainGraph({ mount, query: query ?? new URLSearchParams() });
+  }
   setTitle(t('web.nav.graph'));
   mount.append(loading(3));
   const prefs = { hidden: [], orphans: true, labels: 'auto', groupBy: 'theme', area: '', nav: false, depth: 1, mode: '', ...loadPrefs() };

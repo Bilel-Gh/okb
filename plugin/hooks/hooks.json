@@ -9,6 +9,16 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard-approval.mjs\""
           }
         ]
+      },
+      {
+        "matcher": "Read|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/secret.mjs\"",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -36,12 +46,23 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "AskUserQuestion",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/commit.mjs\"",
-            "timeout": 8
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/consent.mjs\"",
+            "timeout": 6
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/stop.mjs\"",
+            "timeout": 9
           }
         ]
       }

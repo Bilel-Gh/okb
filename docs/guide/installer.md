@@ -1,9 +1,23 @@
 # Installer OKB
 
-Il te faut **Node.js 22.12 ou plus récent** (`node --version`), et de préférence
-[Claude Code](https://code.claude.com) et [Obsidian](https://obsidian.md).
+Il te faut **Node.js 22.12 ou plus récent** (`node --version`) et
+[Claude Code](https://code.claude.com). [Obsidian](https://obsidian.md) est
+facultatif : l'application web d'OKB lit et cherche tes notes.
 
-## En une commande
+## Le chemin le plus simple : par Claude (version 1)
+
+Dans Claude Code :
+
+1. ajoute la marketplace d'OKB (`/plugin marketplace add <adresse du dépôt OKB>`) ;
+2. installe le plugin `okb`, et le module `okb-dev` si tu travailles sur du code ;
+3. dis « configure OKB pour moi ».
+
+Claude installe le moteur OKB s'il manque (après ton oui), regarde tes dossiers,
+te recommande un ou plusieurs cerveaux (travail, projets perso, sujets à
+apprendre, carrière), pose **au plus trois questions**, te montre l'aperçu, puis
+crée tout. Aucune commande à taper dans un terminal.
+
+## Depuis un terminal
 
 Depuis le dossier d’OKB :
 
@@ -103,7 +117,7 @@ okb init
 3. Pour une nouvelle version, avec le nouveau fichier :
 
 ```bash
-okb update --from okb-0.11.0.tgz
+okb update --from okb-1.0.0.tgz
 ```
 
 `okb update --from` accepte aussi un dossier qui contient une copie d’OKB. Il

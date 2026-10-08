@@ -36,6 +36,11 @@ export type SetupAnswers = {
   readonly focus?: Record<string, unknown>;
   /** Git settings such as `autoCommit`, merged. */
   readonly git?: Record<string, unknown>;
+  /** Make the KB a brain (OKB 1.0): its preset and the language of its folder names. */
+  readonly brain?: { readonly preset: 'work' | 'projects' | 'topics' | 'career'; readonly names?: 'fr' | 'en' };
+  /** KB kind and confidentiality, set at creation. */
+  readonly kind?: 'topic' | 'repo' | 'workspace';
+  readonly confidential?: boolean;
 };
 
 export type SetupResult = {
@@ -119,6 +124,9 @@ export async function runSetup(
       ...(asRecord(existing.kb) ?? {}),
       root: resolve(expandHome(answers.kbRoot, env)),
       ...(answers.exclude !== undefined ? { exclude: [...answers.exclude] } : {}),
+      ...(answers.brain ? { brain: { ...(asRecord(asRecord(existing.kb)?.brain) ?? {}), preset: answers.brain.preset, ...(answers.brain.names ? { names: answers.brain.names } : {}) } } : {}),
+      ...(answers.kind ? { kind: answers.kind } : {}),
+      ...(answers.confidential !== undefined ? { confidential: answers.confidential } : {}),
       ...(answers.conceptsFolder !== undefined
         ? {
             layout: {

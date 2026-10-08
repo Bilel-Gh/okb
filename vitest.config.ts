@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -10,6 +12,7 @@ export default defineConfig({
     pool: 'forks',
     maxWorkers: 4,
     // Messages for people are localised; the suite reads them in English, and never asks questions.
-    env: { OKB_LANG: 'en', OKB_NO_INTERACTIVE: '1', NO_COLOR: '1', OKB_WEB_APPROVAL: 'off' },
+    // A test never reads or writes the person's own ~/.okb: the default home is a throwaway folder.
+    env: { OKB_HOME: resolve(tmpdir(), 'okb-vitest-home'), OKB_LANG: 'en', OKB_NO_INTERACTIVE: '1', NO_COLOR: '1', OKB_WEB_APPROVAL: 'off', CLAUDECODE: '', CLAUDE_CODE_ENTRYPOINT: '', OKB_VIA_CLAUDE: '' },
   },
 });
