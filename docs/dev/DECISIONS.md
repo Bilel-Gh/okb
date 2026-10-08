@@ -823,3 +823,38 @@ Pistes, par ordre proposé :
 - **Tests sous charge** : les 6 scénarios de bout en bout (des dizaines de
   processus Git et `okb`) ont un délai explicite de 180 s ; les scans d'un espace
   de travail tournent par 4. Piste : moins d'appels Git au scan.
+
+## D49 — Phase B : la refonte visuelle en React (nuit du 8 au 9 octobre 2026)
+
+> Prise en autonomie, **à valider**.
+
+- **Méthode** : audit Impeccable de l'ancien site (9/20,
+  [audit](../design/audit-2026-10-09.md)), `PRODUCT.md` (faits supposés marqués),
+  direction tirée par Impeccable parmi sept mondes de la culture des utilisateurs
+  (graine 25e87c45) : **le plan de métro**. Relecture de finition « à corriger » →
+  un lot de corrections, puis `DESIGN.md` écrit depuis le résultat.
+- **Le monde** : rail bleu marine, sol blanc froid, les catégories de notes sont les
+  lignes, les notes les stations ; jaune signal réservé (action principale, « tu es
+  ici ») ; Fira Sans et Fira Code servies par OKB ; lignes de 3 px, pastilles,
+  stations.
+- **La technique** : `web-app/` (React 19, TypeScript, Vite, TanStack Query et
+  Virtual, Radix, cmdk, lucide), construit dans `web/app/` (ignoré par Git, inclus
+  dans le paquet). Le serveur sert la nouvelle page sur `/` et l'ancienne sur
+  `/classic`. Mêmes adresses `#/…` qu'avant. Aucune dépendance nouvelle à
+  l'exécution : React est compilé dans la page.
+- **Pas encore refaites** : réglages, graphe, historique, revue de la semaine,
+  santé, outils (toujours dans `/classic`).
+- **Tests** : routeur, composants signature (ligne de la note, ligne de
+  connaissance), lecteur (concepts, fil d'Ariane), et toutes les clés de texte de
+  `web-app` présentes en français et en anglais.
+
+## D50 — Phase C : retrouver par le sens, demander à son cerveau
+
+- **Sens sans modèle** (`src/find/meaning.ts`) : racines des mots (français et
+  anglais) et familles de mots du travail, dans un second index fusionné avec la
+  recherche par mots (les mots exacts gardent la tête). Jeu de mesure
+  `tests/fixtures/reformulated` : 75 % → 95 % dans le top 3 ; 10 questions écrites
+  après le réglage : 100 %. Un vrai modèle d'embeddings local pourra s'ajouter derrière.
+- **Demander** (`src/find/answer.ts`, page `#/ask`) : les passages qui répondent,
+  numérotés ; sur demande, une réponse rédigée seulement à partir d'eux, chaque
+  phrase citée [n], dans le budget du jour, jamais une note 🔒 ni un secret.

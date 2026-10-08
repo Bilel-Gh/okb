@@ -11,7 +11,28 @@ navigateur : `okb serve --no-open`.
 
 ![Accueil de l’application web](../images/web-home.png)
 
-## Ce que tu y trouves
+## La nouvelle interface (1.1)
+
+Depuis la 1.1, `okb serve` ouvre la nouvelle interface ; l’ancienne reste à
+l’adresse `/classic` pour les pages pas encore refaites (réglages, graphe,
+historique, revue de la semaine). Six destinations, dans le rail bleu marine :
+
+| Destination | Pour |
+|---|---|
+| **Aujourd’hui** | ce qui attend ton oui (un clic : Accepter, Plus tard, Non merci), reprendre une note, réviser, ton cerveau dessiné comme un plan de métro |
+| **Cerveau** | l’explorateur : les tiroirs et sujets, la liste filtrable par ligne (catégorie), la note lue à droite avec sa ligne en haut ; les mots qui ont une fiche concept montrent leur phrase au survol ; **Traduire** |
+| **Demander** | une question en français ou en anglais : les passages de tes notes qui répondent ; sur ton clic, une réponse rédigée qui cite chaque passage |
+| **À valider** | les cartes de suggestion et les propositions de notes, avec l’aperçu ou les changements ; approuver te demande une confirmation sur l’ordinateur |
+| **Repos** | chaque repo sur la ligne de son produit, avec sa ligne de connaissance et ce qu’il faut faire pour passer au palier suivant |
+| **Apprendre** | les cartes à réviser (Révéler, puis À revoir · Difficile · Bien · Facile, au clavier 1 à 4) et la carte des compétences |
+
+**⌘K** (ou `/`) cherche une note par quelques mots, fautes et accents pardonnés, ou
+t’emmène sur n’importe quelle page. En bas du rail : **Modules**, **Claude Code**
+(installer OKB dans Claude Code en un clic), **Réglages**.
+
+Le jaune est réservé à une seule chose : l’action principale et « tu es ici ».
+
+## L’ancienne interface
 
 Tout ce que fait le terminal se fait aussi dans la page.
 
