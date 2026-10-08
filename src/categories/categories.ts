@@ -63,7 +63,7 @@ export const BUILTIN_CATEGORIES: readonly Category[] = [
   c('decision', '⚖️', 'Décisions', 'Decisions', 'Décision', 'Decision', '#e11d48', '#fb7185', 204,
     'Un choix et ses raisons, pour ne pas le refaire ni le défaire par erreur.', 'A choice and its reasons, so it is neither redone nor undone by mistake.',
     ['decision'], ['Decision', 'ADR'], ['decisions', 'adr']),
-  c('source', '🗣️', 'Réunions et sources', 'Meetings and sources', 'Réunion ou source', 'Meeting or source', '#ca8a04', '#facc15', 220,
+  c('source', '🗣️', 'Réunions et sources', 'Meetings and sources', 'Réunion ou source', 'Meeting or source', '#4d7c0f', '#a3e635', 106,
     'L’essentiel d’un échange, d’une réunion, d’une vidéo ou d’un document lu.', 'The essentials of a discussion, meeting, video or document read.',
     ['meeting'], ['Meeting', 'Source', 'Transcript'], ['reunions', 'meetings', 'sources']),
   c('path', '🧭', 'Parcours', 'Learning paths', 'Parcours', 'Learning path', '#c026d3', '#e879f9', 207,

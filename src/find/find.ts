@@ -1,3 +1,4 @@
+import { meaningQuery, roots } from './meaning.js';
 import { posix, resolve } from 'node:path';
 import MiniSearch from 'minisearch';
 import { layoutOf, type BrainLayout } from '../brain/layout.js';
@@ -92,8 +93,10 @@ function typeOf(e: KbEntry): string {
   return e.ext.brain?.type ?? e.ext.template ?? e.type;
 }
 
-type Built = { key: string; index: MiniSearch<Doc>; docs: Map<string, Doc>; bodies: Map<string, string>; out: Map<string, BundlePath[]>; incoming: Map<string, BundlePath[]> };
+type Built = { key: string; index: MiniSearch<Doc>; meaning: MiniSearch<{ id: string; roots: string }>; docs: Map<string, Doc>; bodies: Map<string, string>; out: Map<string, BundlePath[]>; incoming: Map<string, BundlePath[]> };
 const cache = new Map<string, Built>();
+/** How much the meaning can add, relative to the best word match (tuned on tests/fixtures/reformulated). */
+const MEANING_WEIGHT = 0.6;
 
 function build(layout: BrainLayout | null, bundle: Bundle): Built {
   const key = sha256(bundle.entries.map((e) => `${e.path}:${e.sha256}`).join('|'));
@@ -105,6 +108,8 @@ function build(layout: BrainLayout | null, bundle: Bundle): Built {
     processTerm,
     searchOptions: { boost: { title: 6, aliases: 6, errors: 4, headings: 2, place: 1.5, body: 1 }, fuzzy: 0.2, prefix: true, processTerm },
   });
+  // The meaning index: roots of words and families of synonyms (src/find/meaning.ts), searched beside the words.
+  const meaning = new MiniSearch<{ id: string; roots: string }>({ fields: ['roots'], processTerm: (t) => t, searchOptions: { processTerm: (t) => t } });
   const docs = new Map<string, Doc>();
   const bodies = new Map<string, string>();
   for (const e of bundle.entries) {
@@ -118,6 +123,9 @@ function build(layout: BrainLayout | null, bundle: Bundle): Built {
     docs.set(e.path, d);
     bodies.set(e.path, body);
     index.add(d);
+    // The title counts three times: it says what the note is about.
+    const titleRoots = roots(`${e.title} ${aliases.join(' ')}`).join(' ');
+    meaning.add({ id: e.path, roots: [titleRoots, titleRoots, titleRoots, roots(e.headings.join(' ')).join(' '), roots(body.slice(0, 6000)).join(' ')].join(' ') });
   }
   // Links between notes, once per version of the KB (the breadcrumb's links go up to the subjects: not relations).
   const out = new Map<string, BundlePath[]>();
@@ -128,7 +136,7 @@ function build(layout: BrainLayout | null, bundle: Bundle): Built {
     out.set(p, targets);
     for (const t of targets) incoming.set(t, [...(incoming.get(t) ?? []), p as BundlePath]);
   }
-  const built = { key, index, docs, bodies, out, incoming };
+  const built = { key, index, meaning, docs, bodies, out, incoming };
   cache.set(bundle.root, built);
   return built;
 }
@@ -150,8 +158,20 @@ export function findNotes(config: OkbConfig, bundle: Bundle, query: string, opti
   const built = build(layout, bundle);
   const q = query.trim();
   const expanded = bilingual(q);
-  let raw = q ? built.index.search(expanded, { combineWith: 'AND' }) : [];
-  if (!raw.length && q) raw = built.index.search(expanded, { combineWith: 'OR' });
+  let words = q ? built.index.search(expanded, { combineWith: 'AND' }) : [];
+  if (!words.length && q) words = built.index.search(expanded, { combineWith: 'OR' });
+  // Words and meaning, merged: the words lead (an exact term stays on top); the meaning lifts or finds what they miss.
+  const sense = q ? built.meaning.search(meaningQuery(q).join(' '), { combineWith: 'OR' }) : [];
+  const topWords = words[0]?.score ?? 0;
+  const topSense = sense[0]?.score ?? 0;
+  const merged = new Map<string, { id: string; score: number; terms: string[] }>();
+  for (const r of words) merged.set(r.id as string, { id: r.id as string, score: r.score, terms: r.terms });
+  for (const r of sense) {
+    const lift = topSense ? (r.score / topSense) * (topWords ? MEANING_WEIGHT * topWords : 1) : 0;
+    const prev = merged.get(r.id as string);
+    merged.set(r.id as string, prev ? { ...prev, score: prev.score + lift } : { id: r.id as string, score: lift, terms: r.terms });
+  }
+  const raw = [...merged.values()].sort((a, b) => b.score - a.score);
   const now = options.now ?? new Date();
   const hits: FindHit[] = [];
   let hidden = 0;

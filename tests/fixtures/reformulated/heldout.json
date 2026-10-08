@@ -1,0 +1,42 @@
+[
+ {
+  "q": "quand est-ce qu'on relance un client en retard de paiement",
+  "expect": "notes/n01.md"
+ },
+ {
+  "q": "un client conteste le montant de sa facture",
+  "expect": "notes/n02.md"
+ },
+ {
+  "q": "combien de temps est valable le lien pour changer de mot de passe",
+  "expect": "notes/n09.md"
+ },
+ {
+  "q": "qui peut administrer les utilisateurs",
+  "expect": "notes/n10.md"
+ },
+ {
+  "q": "à quelle fréquence la base est sauvegardée",
+  "expect": "notes/n13.md"
+ },
+ {
+  "q": "les remises sont-elles calculées avant la taxe",
+  "expect": "notes/n16.md"
+ },
+ {
+  "q": "le numéro de carte est-il stocké",
+  "expect": "notes/n18.md"
+ },
+ {
+  "q": "écart entre le stock réel et le stock théorique",
+  "expect": "notes/n19.md"
+ },
+ {
+  "q": "imprimer l'étiquette du transporteur",
+  "expect": "notes/n05.md"
+ },
+ {
+  "q": "on peut encore modifier une commande expédiée ?",
+  "expect": "notes/n04.md"
+ }
+]

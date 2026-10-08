@@ -1,0 +1,82 @@
+[
+ {
+  "q": "comment on facture un client",
+  "expect": "notes/n00.md"
+ },
+ {
+  "q": "que faire si un client ne paie pas",
+  "expect": "notes/n01.md"
+ },
+ {
+  "q": "rembourser un client qui renvoie un article",
+  "expect": "notes/n02.md"
+ },
+ {
+  "q": "enregistrer une nouvelle commande",
+  "expect": "notes/n03.md"
+ },
+ {
+  "q": "supprimer une commande déjà passée",
+  "expect": "notes/n04.md"
+ },
+ {
+  "q": "comment les colis sont emballés",
+  "expect": "notes/n05.md"
+ },
+ {
+  "q": "savoir où en est la livraison",
+  "expect": "notes/n06.md"
+ },
+ {
+  "q": "un client renvoie un produit",
+  "expect": "notes/n07.md"
+ },
+ {
+  "q": "se connecter avec le compte de l'entreprise",
+  "expect": "notes/n08.md"
+ },
+ {
+  "q": "j'ai oublié mon mot de passe",
+  "expect": "notes/n09.md"
+ },
+ {
+  "q": "qui a le droit de valider un avoir",
+  "expect": "notes/n10.md"
+ },
+ {
+  "q": "quand met-on en prod",
+  "expect": "notes/n11.md"
+ },
+ {
+  "q": "revenir à la version précédente",
+  "expect": "notes/n12.md"
+ },
+ {
+  "q": "restaurer la base de données",
+  "expect": "notes/n13.md"
+ },
+ {
+  "q": "le site est lent, qui est prévenu",
+  "expect": "notes/n14.md"
+ },
+ {
+  "q": "taux de taxe selon le pays",
+  "expect": "notes/n15.md"
+ },
+ {
+  "q": "prix selon la quantité",
+  "expect": "notes/n16.md"
+ },
+ {
+  "q": "valider un achat auprès d'un fournisseur",
+  "expect": "notes/n17.md"
+ },
+ {
+  "q": "payer par carte bancaire",
+  "expect": "notes/n18.md"
+ },
+ {
+  "q": "compter le stock une fois par an",
+  "expect": "notes/n19.md"
+ }
+]

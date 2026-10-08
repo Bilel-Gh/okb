@@ -167,3 +167,6 @@
 @media (prefers-reduced-motion: no-preference) {
   .ex-tree { transition: transform var(--base) var(--ease); }
 }
+
+/* Night lines are light: their roundels carry dark ink to stay readable. */
+:root[data-theme='dark'] .repo-line .roundel { color: var(--on-signal); }
