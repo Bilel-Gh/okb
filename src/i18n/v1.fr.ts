@@ -655,4 +655,5 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'app.claude.ex3': '/okb-dev:onboard',
   'app.error.updated': 'OKB a été mis à jour pendant que la page était ouverte : recharge-la.',
   'app.reload': 'Recharger',
+  'app.nav.newApp': 'Nouvelle interface',
 };

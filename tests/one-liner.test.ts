@@ -84,3 +84,24 @@ describe('okb concepts check', () => {
     expect(card).toMatchObject({ recommendation: 'complete', signal: 'concept', status: 'pending' });
   }, 60_000);
 });
+
+describe('the home page counts the concept cards of a brain (audit)', () => {
+  it('counts concept cards wherever the brain files them, not only in a « concepts » folder', async () => {
+    const { computeStatus } = await import('../src/status/status.js');
+    const { config } = await demoBrain();
+    const status = await computeStatus(config);
+    expect(status.concepts).toBeGreaterThan(0);
+  }, 60_000);
+});
+
+describe('a suggestion completes a note of its own kind first (seen on the demo)', () => {
+  it('a concept suggestion points at the concept card rather than a ticket that mentions the word', async () => {
+    const { buildCard, contextFor } = await import('../src/suggest/suggest.js');
+    const { config } = await demoBrain({ concepts: 40, tickets: 40 });
+    const bundle = await loadBundleFor(config);
+    const card = buildCard(config, { type: 'concept', title: "Idempotence d'un webhook", why: 'demandé deux fois' }, await contextFor(config, bundle));
+    expect(card.recommendation).not.toBe('create');
+    const target = bundle.byPath.get(card.target!);
+    expect((target?.ext as { brain?: { type?: string } }).brain?.type).toBe('concept');
+  }, 60_000);
+});

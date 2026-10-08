@@ -661,4 +661,5 @@ export const EN_V1 = {
   'app.claude.ex3': '/okb-dev:onboard',
   'app.error.updated': 'OKB was updated while the page was open: reload it.',
   'app.reload': 'Reload',
+  'app.nav.newApp': 'New interface',
 } as const;

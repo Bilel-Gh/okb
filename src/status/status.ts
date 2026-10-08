@@ -1,3 +1,4 @@
+import { isConceptEntry } from '../concepts/one-liner.js';
 import { execFile } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -229,7 +230,8 @@ export async function computeStatus(config: OkbConfig, options: { bundle?: Bundl
     kbRoot: config.kb.root,
     writingLanguage: config.profile.answer.language,
     notes: notes.length,
-    concepts: notes.filter((e) => e.path.startsWith(conceptsPrefix)).length,
+    // A concept card is one by its type, wherever a brain files it (a drawer, a domain, a product).
+    concepts: notes.filter((e) => e.path.startsWith(conceptsPrefix) || isConceptEntry(e)).length,
     categories: cats.filter((c) => perCategory.get(c.id)).map((c) => ({ id: c.id, emoji: c.emoji, ansi: c.ansi, label: language.startsWith('fr') ? c.label.fr : c.label.en, count: perCategory.get(c.id)! })),
     focus: { exists: focus.exists, path: focus.path, ageDays: focus.ageDays, stale: focus.stale },
     lastSession: focus.lastSession,

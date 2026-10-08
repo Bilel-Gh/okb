@@ -115,6 +115,8 @@ function renderSidebar() {
       h('span', { class: 'chev' }, icon('chevron', 16))),
     nav,
     h('div', { class: 'sidebar-foot' },
+      // The new interface (web-app/) answers on « / »; this one stays on « /classic » for the pages not rebuilt yet.
+      h('a', { class: 'nav-item', href: `/${location.hash}` }, icon('right', 17), t('app.nav.newApp')),
       h('a', { class: `nav-item${activeView === 'settings' ? ' active' : ''}`, href: '#/settings' }, icon('settings', 17), t('web.nav.settings')),
       h('a', { class: `nav-item${activeView === 'doctor' ? ' active' : ''}`, href: '#/doctor' }, icon('doctor', 17), t('web.nav.doctor')),
       h('a', { class: `nav-item${activeView === 'help' ? ' active' : ''}`, href: '#/help' }, icon('help', 17), t('web.nav.help')),

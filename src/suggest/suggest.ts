@@ -173,7 +173,13 @@ export function buildCard(config: OkbConfig, input: SuggestInput, ctx: SuggestCo
   let target: BundlePath | null = null;
   if (exact) { recommendation = exact.path === address?.path || key(exact.title) === key(input.title) ? 'complete' : 'link'; target = exact.path; }
   else if (existsAtPlace) { recommendation = 'complete'; target = address!.path; }
-  else if ((overlaps[0]?.score ?? 0) >= 12) { recommendation = 'complete'; target = overlaps[0]!.path; }
+  else if ((overlaps[0]?.score ?? 0) >= 12) {
+    // Among the close matches, a note of the same kind first: a concept completes a concept card, not a ticket that mentions the word.
+    const kindOf = (path: BundlePath) => (ctx.bundle.byPath.get(path)?.ext as { brain?: { type?: string } } | undefined)?.brain?.type;
+    const close = overlaps.filter((o) => o.score >= Math.max(12, overlaps[0]!.score * 0.75));
+    const same = close.find((o) => kindOf(o.path) === input.type) ?? overlaps[0]!;
+    recommendation = 'complete'; target = same.path;
+  }
   const p = pertinence(input, overlaps, ctx, mentionsOf(ctx.bundle, input.title));
   const notes = Math.max(1, input.notes ?? 1);
   const contextTokens = 2_000;
