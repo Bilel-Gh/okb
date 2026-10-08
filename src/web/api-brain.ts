@@ -120,7 +120,10 @@ export function brainRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q,
     'GET /api/suggestions': async (ctx, q) => {
       const config = await kbConfig(ctx, q.get('kb'));
       const queue = await loadQueue(config);
-      return { suggestions: queue.filter((s) => q.get('all') === '1' || s.status === 'pending' || s.status === 'later'), budget: { daily: await dailyBudget(ctx.env), spent: await spentToday(config) }, gaps: await knowledgeGaps(config) };
+      const { noteType } = await import('../brain/types.js');
+      // Each card with its note category: its line colour in the web app.
+      const suggestions = queue.filter((s) => q.get('all') === '1' || s.status === 'pending' || s.status === 'later').map((s) => ({ ...s, category: noteType(s.type)?.category ?? 'other' }));
+      return { suggestions, budget: { daily: await dailyBudget(ctx.env), spent: await spentToday(config) }, gaps: await knowledgeGaps(config) };
     },
     // Deciding on a card in the web app is the person's own act.
     'POST /api/suggestions/decide': async (ctx, _q, b) => {

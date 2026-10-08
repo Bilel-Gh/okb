@@ -1,0 +1,102 @@
+import { useEffect, useState } from 'react';
+
+/**
+ * Hash addresses, the same as the classic app's (`#/note/<path>`, `#/notes?q=`),
+ * so links written in notes, the terminal and Claude keep working. A page not
+ * rebuilt yet opens in the classic app at the same address.
+ */
+export type Route =
+  | { name: 'today' }
+  | { name: 'brain'; path?: string; anchor?: string; query?: Record<string, string> }
+  | { name: 'repos'; id?: string }
+  | { name: 'inbox'; tab?: 'suggestions' | 'proposals'; id?: string }
+  | { name: 'learn' }
+  | { name: 'modules' }
+  | { name: 'claude' }
+  | { name: 'settings' }
+  | { name: 'classic'; href: string };
+
+function queryOf(search: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of new URLSearchParams(search)) out[k] = v;
+  return out;
+}
+
+export function parseRoute(hash: string): Route {
+  const raw = hash.replace(/^#/, '');
+  if (!raw || raw === '/') return { name: 'today' };
+  const [pathPart = '', search = ''] = raw.split('?');
+  const parts = pathPart.replace(/^\//, '').split('/');
+  const head = parts[0] ?? '';
+  const rest = parts.slice(1).join('/');
+  switch (head) {
+    case '':
+    case 'today':
+    case 'now':
+      return { name: 'today' };
+    case 'notes':
+    case 'brain':
+    case 'search':
+      return { name: 'brain', query: queryOf(search) };
+    case 'note': {
+      const [encoded = '', anchor] = rest.split('#');
+      const path = decodeURIComponent(encoded);
+      const query = queryOf(search);
+      return { name: 'brain', path, ...(anchor ? { anchor: decodeURIComponent(anchor) } : {}), ...(Object.keys(query).length ? { query } : {}) };
+    }
+    case 'repos':
+      return { name: 'repos' };
+    case 'repo':
+      return { name: 'repos', id: decodeURIComponent(rest) };
+    case 'suggestions':
+      return { name: 'inbox', tab: 'suggestions' };
+    case 'review':
+    case 'proposal':
+      return rest ? { name: 'inbox', tab: 'proposals', id: decodeURIComponent(rest) } : { name: 'inbox' };
+    case 'learn':
+      return { name: 'learn' };
+    case 'modules':
+      return { name: 'modules' };
+    case 'claude':
+      return { name: 'claude' };
+    case 'settings':
+      return { name: 'settings' };
+    default:
+      return { name: 'classic', href: `/classic#${raw.startsWith('/') ? raw : `/${raw}`}` };
+  }
+}
+
+export function hrefFor(route: Route): string {
+  switch (route.name) {
+    case 'today': return '#/';
+    case 'brain': {
+      const q = new URLSearchParams(route.query ?? {}).toString();
+      if (route.path) return `#/note/${encodeURIComponent(route.path)}${route.anchor ? `#${encodeURIComponent(route.anchor)}` : ''}${q ? `?${q}` : ''}`;
+      return `#/notes${q ? `?${q}` : ''}`;
+    }
+    case 'repos': return route.id ? `#/repo/${encodeURIComponent(route.id)}` : '#/repos';
+    case 'inbox': return route.id ? `#/review/${encodeURIComponent(route.id)}` : route.tab === 'suggestions' ? '#/suggestions' : '#/review';
+    case 'learn': return '#/learn';
+    case 'modules': return '#/modules';
+    case 'claude': return '#/claude';
+    case 'settings': return '#/settings';
+    case 'classic': return route.href;
+  }
+}
+
+export function go(route: Route | string): void {
+  const href = typeof route === 'string' ? route : hrefFor(route);
+  if (href.startsWith('/classic')) { window.location.href = href; return; }
+  window.location.hash = href.replace(/^#/, '');
+}
+
+/** The current route, following the address bar. */
+export function useRoute(): Route {
+  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
+  useEffect(() => {
+    const on = () => setRoute(parseRoute(window.location.hash));
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  return route;
+}

@@ -156,6 +156,8 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
       const status = code === 'E_NOT_FOUND' ? 404 : code === 'E_STALE' ? 409 : code === 'E_INTERNAL' || code === 'E_IO' ? 500 : 400;
       json({
         error: code,
+        // The page reacts to some errors (a 🔒 note to confirm, a module turned off): their key, never a path.
+        ...(key ? { key } : {}),
         title: key ? t(`err.${key}.title`, params) : t(`code.${code}.title`),
         message: key && has(`err.${key}.why`) ? t(`err.${key}.why`, params) : code === 'E_INTERNAL' ? t('err.internal.why') : t(`code.${code}.explain`),
         fix: key && has(`err.${key}.fix`) ? t(`err.${key}.fix`, params) : has(`code.${code}.fix`) ? t(`code.${code}.fix`) : '',

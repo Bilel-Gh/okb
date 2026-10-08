@@ -28,6 +28,12 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
     },
     'POST /api/modules/toggle': async (ctx, _q, b) => ({ ok: true, enabled: [...(await setModule(moduleId(b.id), b.on === true, ctx.env))].sort() }),
     'POST /api/modules/install': async (_ctx, _q, b) => installClaudeModule(moduleId(b.id)),
+    // « Use OKB in Claude Code »: is Claude Code here, and which OKB plugins does it have?
+    'GET /api/claude': async (ctx) => {
+      const { claudeState, claudeModules } = await import('../integrations/system.js');
+      const state = await claudeState();
+      return { cli: Boolean(state.cli), marketplace: state.marketplace, plugins: await claudeModules(ctx.env.HOME ?? '') };
+    },
     'GET /api/translate/estimate': async (ctx, q) => {
       const config = await kbConfig(ctx, q.get('kb'));
       const { estimateTranslation } = await import('../translate/translate.js');
