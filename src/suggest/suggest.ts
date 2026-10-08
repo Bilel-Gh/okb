@@ -234,10 +234,12 @@ export async function dailyBudget(env: NodeJS.ProcessEnv = process.env): Promise
   return typeof v === 'number' && v >= 0 ? v : 50_000;
 }
 
-/** Estimated tokens of the notes accepted today (all brains of this profile). */
+/** Estimated tokens of the notes accepted today (all brains of this profile), plus OKB's own AI calls (translations). */
 export async function spentToday(config: OkbConfig, now = new Date()): Promise<number> {
   const day = now.toISOString().slice(0, 10);
-  return (await loadQueue(config, now)).filter((s) => (s.status === 'accepted' || s.status === 'done') && s.decidedAt?.startsWith(day)).reduce((n, s) => n + s.cost.tokens, 0);
+  const notes = (await loadQueue(config, now)).filter((s) => (s.status === 'accepted' || s.status === 'done') && s.decidedAt?.startsWith(day)).reduce((n, s) => n + s.cost.tokens, 0);
+  const { aiSpentToday } = await import('../ai/usage.js');
+  return notes + (await aiSpentToday(config, now));
 }
 
 /* ----------------------------------------------------------------- display */

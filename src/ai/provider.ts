@@ -91,7 +91,8 @@ async function callApi(req: AiRequest, env: NodeJS.ProcessEnv): Promise<AiResult
 
 /** The echo provider: the input comes back, each line marked — for tests and offline demos. */
 function fake(req: AiRequest): AiResult {
-  const text = req.prompt.split('\n').map((l) => (!l.trim() || /^<<<\d+>>>$/.test(l.trim()) ? l : `[fake] ${l}`)).join('\n');
+  // The mark goes after Markdown's own line start (a heading, a list item), so the structure survives.
+  const text = req.prompt.split('\n').map((l) => (!l.trim() || /^<<<\d+>>>$/.test(l.trim()) ? l : l.replace(/^(\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)?)/, '$1[fake] '))).join('\n');
   return { text, tokens: { input: estimateTokens(req.system + req.prompt), output: estimateTokens(text) }, provider: 'fake' };
 }
 
