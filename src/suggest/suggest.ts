@@ -216,8 +216,8 @@ export async function setStatus(config: OkbConfig, id: string, status: Suggestio
   const queue = await loadQueue(config);
   const found = queue.find((x) => x.id === id);
   if (!found) throw new OkbError('E_NOT_FOUND', `no suggestion ${id}`, { key: 'suggestUnknown', params: { id } });
-  // A decision by a person (not the consent hook acting on their recorded answer) carries their id.
-  const who = by === 'person' || by === 'terminal' ? await person().catch(() => null) : null;
+  // Every decision is the person's (in the web app, the terminal, or their answer read by the consent hook): it carries their id.
+  const who = by ? await person().catch(() => null) : null;
   const next: Suggestion = {
     ...found, status, decidedAt: new Date().toISOString(), ...(by ? { decidedBy: by } : {}), ...(who ? { decidedPerson: who.id } : {}),
     ...(proposalId ? { proposalIds: [...(found.proposalIds ?? []), proposalId] } : {}),
