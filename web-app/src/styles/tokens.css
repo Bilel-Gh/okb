@@ -63,11 +63,12 @@
   --ink-3: #8f9bb3;
   --hair: #213049;
   --hair-strong: #2e4062;
-  --rail: #08101d;
-  --rail-2: #111d33;
-  --rail-ink: #e8edf6;
-  --rail-ink-2: #93a1bb;
-  --rail-hair: #1b2a45;
+  /* The shell stays a navy band at night too, clearly apart from the ground. */
+  --rail: #142a52;
+  --rail-2: #1e3a6d;
+  --rail-ink: #eef2fa;
+  --rail-ink-2: #aebbd6;
+  --rail-hair: #2a4a86;
   --signal: #ffd21f; --on-signal: #0b1322; --signal-hover: #ffdc4d;
   --focus: #8fb0ff;
   --ok: #4cc583; --ok-soft: #0f2a1d; --warn: #f0b13a; --warn-soft: #2b2110; --err: #ff7a8c; --err-soft: #321520; --info: #8fb0ff; --info-soft: #14213d;

@@ -25,15 +25,15 @@ describe('the knowledge line of a repository', () => {
     const { container } = render(<KnowledgeLine percent={52} tier="solid" tiers={TIERS} color="#2563eb" label="atlas-api : 52 %, Solide" />);
     const meter = screen.getByRole('meter', { name: 'atlas-api : 52 %, Solide' });
     expect(meter.getAttribute('aria-valuenow')).toBe('52');
-    expect((container.querySelector('.k-here') as HTMLElement).getAttribute('style')).toContain('* 0.52)');
+    expect((container.querySelector('.k-here-track') as HTMLElement).getAttribute('style')).toContain('--k: 0.52');
     expect(container.querySelectorAll('.k-stop.passed')).toHaveLength(3);
     expect(container.querySelector('.k-labels .on')?.textContent).toBe('Solide');
   });
 
   it('stays within the line at 0 and 100', () => {
     const { container, rerender } = render(<KnowledgeLine percent={0} tier="discovery" tiers={TIERS} color="#2563eb" label="x" />);
-    expect((container.querySelector('.k-here') as HTMLElement).getAttribute('style')).toContain('* 0)');
+    expect((container.querySelector('.k-here-track') as HTMLElement).getAttribute('style')).toContain('--k: 0');
     rerender(<KnowledgeLine percent={140} tier="reference" tiers={TIERS} color="#2563eb" label="x" />);
-    expect((container.querySelector('.k-here') as HTMLElement).getAttribute('style')).toContain('* 1)');
+    expect((container.querySelector('.k-here-track') as HTMLElement).getAttribute('style')).toContain('--k: 1');
   });
 });

@@ -21,7 +21,9 @@ type Brain = {
 };
 type Learn = { counts: { due: number; newLeft: number; cards: number } };
 
-const DRAWER_LINE: Readonly<Record<string, string>> = { inbox: 'var(--ink-3)', world: '#0891b2', subjects: '#2563eb', toolbox: '#059669', activity: '#ca8a04' };
+/** The five drawers are the five lines of the map (never the reserved signal yellow). */
+export const DRAWER_LINE: Readonly<Record<string, string>> = { inbox: '#64748b', world: '#0891b2', subjects: '#2563eb', toolbox: '#059669', activity: '#7c3aed' };
+export const DRAWER_BY_NUMBER: readonly string[] = ['inbox', 'world', 'subjects', 'toolbox', 'activity'];
 
 /** The cards and proposals waiting for the person's yes, the first one with the yellow button. */
 export function Waiting({ limit }: { limit?: number }) {
@@ -50,7 +52,7 @@ export function Waiting({ limit }: { limit?: number }) {
           <FileDiff size={18} aria-hidden="true" className="muted" />
           <div className="grow">
             <a className="title" href={hrefFor({ name: 'inbox', tab: 'proposals', id: x.id })}>{x.title}</a>
-            <span className="meta">{t('app.waiting.proposal', { created: x.created, updated: x.updated })}</span>
+            <span className="meta">{t('app.waiting.proposal', { details: [x.created ? tn(t, 'app.waiting.created', x.created) : '', x.updated ? tn(t, 'app.waiting.updated', x.updated) : ''].filter(Boolean).join(', ') })}</span>
           </div>
           <a className="btn sm" href={hrefFor({ name: 'inbox', tab: 'proposals', id: x.id })}>{t('app.waiting.read')}<ArrowRight size={14} aria-hidden="true" /></a>
         </li>
@@ -64,35 +66,43 @@ export function Waiting({ limit }: { limit?: number }) {
           </div>
           <div className="row">
             <button type="button" className={`btn sm${i === 0 && !proposals.length ? ' primary' : ''}`} disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, decision: 'accept' })}><Check size={14} aria-hidden="true" />{t('app.waiting.accept')}</button>
-            <button type="button" className="btn sm ghost icon" title={t('app.waiting.laterBtn')} aria-label={t('app.waiting.laterBtn')} disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, decision: 'later' })}><Clock size={14} aria-hidden="true" /></button>
+            <button type="button" className="btn sm ghost" disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, decision: 'later' })}><Clock size={14} aria-hidden="true" />{t('app.waiting.laterBtn')}</button>
             <button type="button" className="btn sm ghost icon" title={t('app.waiting.decline')} aria-label={t('app.waiting.decline')} disabled={decide.isPending} onClick={() => decide.mutate({ id: c.id, decision: 'decline' })}><X size={14} aria-hidden="true" /></button>
           </div>
         </li>
       ))}
-      {limit && cards.length > limit ? <li><a className="btn sm ghost" href={hrefFor({ name: 'inbox', tab: 'suggestions' })}>{t('app.waiting.more', { n: cards.length - limit })}</a></li> : null}
+      {limit && cards.length > limit ? <li><a className="btn sm ghost" href={hrefFor({ name: 'inbox', tab: 'suggestions' })}>{tn(t, 'app.waiting.more', cards.length - limit)}</a></li> : null}
     </ul>
   );
 }
 
+/** The brain as a network: each drawer a numbered line, its subjects the stations along it. */
 function BrainMap({ brain }: { brain: Brain }) {
   const t = useT();
   if (!brain.shape) return null;
   return (
     <ul className="brain-map" aria-label={t('app.today.map')}>
-      {brain.shape.drawers.map((d) => (
-        <li key={d.drawer} style={{ '--line': DRAWER_LINE[d.drawer] ?? 'var(--ink-3)' } as CSSProperties}>
-          <a href={hrefFor({ name: 'brain', query: { in: d.folder } })} className="brain-map-line">
-            <span className="station" aria-hidden="true" />
-            <span className="brain-map-name">{d.label}</span>
-            <span className="brain-map-count num">{d.notes}</span>
-          </a>
-          {d.subjects.length ? (
-            <span className="brain-map-stops" aria-hidden="true">
-              {d.subjects.slice(0, 8).map((s) => <span key={s.name} className="station sm" title={`${s.name} · ${s.notes}`} />)}
-            </span>
-          ) : null}
-        </li>
-      ))}
+      {brain.shape.drawers.map((d) => {
+        const number = /^(\d)\s/.exec(d.folder)?.[1] ?? '';
+        return (
+          <li key={d.drawer} style={{ '--line': DRAWER_LINE[d.drawer] ?? 'var(--ink-3)' } as CSSProperties}>
+            <a href={hrefFor({ name: 'brain', query: { in: d.folder } })} className="brain-map-head">
+              <span className="roundel sm" aria-hidden="true">{number}</span>
+              <span className="brain-map-name">{d.label}</span>
+              <span className="brain-map-count num">{d.notes}</span>
+            </a>
+            {d.subjects.length ? (
+              <span className="brain-map-track">
+                {d.subjects.slice(0, 12).map((s) => (
+                  <a key={s.name} className="brain-map-stop" href={hrefFor({ name: 'brain', query: { in: `${d.folder}/${s.name}` } })} title={`${s.name} · ${s.notes}`} aria-label={`${s.name}, ${s.notes}`}>
+                    <span className="station sm" aria-hidden="true" />
+                  </a>
+                ))}
+              </span>
+            ) : <span className="brain-map-track empty" aria-hidden="true" />}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -126,6 +136,13 @@ export default function Today() {
               </ul>
             ) : <Empty title={t('app.today.resumeEmptyTitle')} action={<a className="btn sm" href={hrefFor({ name: 'brain' })}>{t('app.today.openBrain')}<ArrowRight size={14} aria-hidden="true" /></a>}>{t('app.today.resumeEmpty')}</Empty>}
           </section>
+          <section className="panel" aria-labelledby="learn-h">
+            <div className="panel-head"><h2 id="learn-h">{t('app.today.review')}</h2></div>
+            <div className="panel-body row wrap" style={{ justifyContent: 'space-between' }}>
+              <p>{learn.data ? (due ? tn(t, 'app.today.cards', due) : t('app.today.noCards')) : <span className="skeleton" style={{ width: 160, display: 'inline-block' }} />}</p>
+              {due ? <a className="btn sm" href={hrefFor({ name: 'learn' })}><GraduationCap size={14} aria-hidden="true" />{t('app.today.reviewNow')}</a> : null}
+            </div>
+          </section>
         </div>
         <div className="stack" style={{ gap: 'var(--s6)' }}>
           <section className="panel" aria-labelledby="now-h">
@@ -136,13 +153,6 @@ export default function Today() {
               {now?.tickets.length ? <p className="small">{now.tickets.slice(0, 3).map((x) => <span key={x.ref} className="pill" style={{ marginRight: 6 }}>{x.ref}</span>)}</p> : null}
               {now?.waiting.length ? <p className="small muted">{tn(t, 'app.today.waitingFor', now.waiting.length)}</p> : null}
               {now?.lastSession?.next ? <p className="small"><span className="muted">{t('app.today.next')} </span>{now.lastSession.next}</p> : null}
-            </div>
-          </section>
-          <section className="panel" aria-labelledby="learn-h">
-            <div className="panel-head"><h2 id="learn-h">{t('app.today.review')}</h2></div>
-            <div className="panel-body row wrap" style={{ justifyContent: 'space-between' }}>
-              <p>{learn.data ? (due ? tn(t, 'app.today.cards', due) : t('app.today.noCards')) : <span className="skeleton" style={{ width: 160, display: 'inline-block' }} />}</p>
-              {due ? <a className="btn sm" href={hrefFor({ name: 'learn' })}><GraduationCap size={14} aria-hidden="true" />{t('app.today.reviewNow')}</a> : null}
             </div>
           </section>
           {brain.data?.shape ? (

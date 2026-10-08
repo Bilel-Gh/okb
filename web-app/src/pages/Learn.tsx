@@ -73,7 +73,7 @@ export default function Learn() {
       </section>
       <section className="panel" aria-labelledby="map-h">
         <div className="panel-head"><h2 id="map-h">{t('app.learn.map')}</h2></div>
-        {d.map.length ? (
+        {d.map.some((m) => m.percent > 0 || m.levels.learning + m.levels.known + m.levels.mastered > 0) ? (
           <ul className="rows" style={{ paddingTop: 'var(--s2)' }}>
             {d.map.map((m) => (
               <li key={m.subject}>
@@ -83,7 +83,7 @@ export default function Learn() {
               </li>
             ))}
           </ul>
-        ) : <Empty title={t('app.learn.mapEmpty')} />}
+        ) : <Empty title={t('app.learn.mapEmptyTitle')}>{t('app.learn.mapEmpty')}</Empty>}
       </section>
     </div>
   );

@@ -84,12 +84,14 @@ describe('the knowledge level, without AI', () => {
 describe('the knowledge level of a real brain', () => {
   it('measures an unlinked repository of the demo on its pages', async () => {
     const { config, env } = await demoBrain();
-    const [repo] = await brainRepos(config, env);
-    const level = await repoLevel(config, repo!, { env });
+    // The demo documents its repositories more or less: take the least documented one.
+    const repos = await brainRepos(config, env);
+    const levels = await Promise.all(repos.map((r) => repoLevel(config, r, { env })));
+    expect(new Set(levels.map((l) => l.percent)).size).toBeGreaterThan(1);
+    const level = levels.reduce((a, b) => (b.percent < a.percent ? b : a));
     expect(level.partial).toBe(true);
     expect(level.percent).toBeGreaterThan(0);
     expect(level.percent).toBeLessThan(100);
-    // The demo repository has its page, Démarrer, Tester, Déboguer and its code map: three pages are missing.
     expect(level.next.some((g) => g.key === 'knowledge.gap.page')).toBe(true);
   }, 60_000);
 });

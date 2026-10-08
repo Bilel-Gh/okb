@@ -23,6 +23,17 @@ describe('interface catalogue', () => {
     expect(Object.keys(FR).sort()).toEqual(Object.keys(EN).sort());
   });
 
+  it('has every key the new web app uses, in both languages', async () => {
+    const APP = resolve(TEST_ROOT, '..', 'web-app', 'src');
+    const missing: string[] = [];
+    for (const file of (await walkFiles(APP)).filter((f) => /\.tsx?$/.test(f))) {
+      const text = await readFile(resolve(APP, file), 'utf8');
+      for (const m of text.matchAll(/\bt\(\s*'([a-zA-Z][\w.-]+)'/g)) if (!(m[1]! in EN) || !(m[1]! in FR)) missing.push(`${file}: ${m[1]}`);
+      for (const m of text.matchAll(/\btn\(\s*t,\s*'([\w.-]+)'/g)) for (const n of ['one', 'other']) if (!(`${m[1]}.${n}` in EN)) missing.push(`${file}: ${m[1]}.${n}`);
+    }
+    expect(missing).toEqual([]);
+  });
+
   it('describes every command, setting and error code people can meet', () => {
     for (const c of COMMANDS) expect(EN).toHaveProperty([`help.cmd.${c.name}`]);
     for (const s of SETTINGS) expect(EN).toHaveProperty([`settings.label.${s.key}`]);

@@ -11,7 +11,9 @@
 .ex-node span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ex-node:hover { background: var(--hover); color: var(--ink); }
 .ex-node.on { background: var(--sunk); color: var(--ink); font-weight: 600; }
-.ex-node.drawer { font-weight: 600; color: var(--ink); }
+.ex-node.drawer { font-weight: 600; color: var(--ink); justify-content: flex-start; }
+.ex-node.drawer .num { margin-left: auto; }
+.ex-node-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ex-node.sub { padding-left: var(--s5); }
 
 .ex-list { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--hair); background: var(--ground); }
@@ -80,23 +82,32 @@
 .prose sup a { text-decoration: none; }
 
 /* ---------------------------------------------------------- today */
-.brain-map { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
-.brain-map li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s3); }
-.brain-map-line { display: flex; align-items: center; gap: var(--s2); min-width: 0; color: var(--ink); text-decoration: none; font-size: var(--t-sm); }
-.brain-map-line:hover .brain-map-name { text-decoration: underline; }
-.brain-map-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.brain-map-count { color: var(--ink-3); font-size: var(--t-xs); }
-.brain-map-stops { display: flex; align-items: center; gap: 0; }
-.brain-map-stops .station { margin-left: 10px; position: relative; }
-.brain-map-stops .station::before { content: ''; position: absolute; right: 100%; top: 50%; width: 10px; height: 2px; margin-top: -1px; background: var(--line); }
-.brain-map-stops .station:first-child { margin-left: 0; }
-.brain-map-stops .station:first-child::before { display: none; }
-
+.brain-map { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s3); }
+.brain-map li { display: flex; flex-direction: column; gap: 6px; }
+.brain-map-head { display: flex; align-items: center; gap: var(--s2); color: var(--ink); text-decoration: none; font-size: var(--t-sm); }
+.brain-map-head:hover .brain-map-name { text-decoration: underline; }
+.brain-map-name { font-weight: 600; }
+.brain-map-count { color: var(--ink-3); font-size: var(--t-xs); margin-left: auto; }
+/* The line: a 3 px stroke in the drawer's colour from its roundel, the subjects as stations along it. */
+.brain-map-track { position: relative; display: flex; align-items: center; justify-content: space-between; min-height: 14px; margin-left: 9px; padding-left: 14px; }
+.brain-map-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: var(--line); border-radius: 2px; }
+.brain-map-track.empty::before { opacity: .35; }
+.brain-map-stop { position: relative; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; }
+.brain-map-stop:hover .station { background: var(--signal); border-color: var(--ink); }
 /* ---------------------------------------------------------- repos */
-.repo-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--s4); }
-.repo-card { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s5); background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r-lg); box-shadow: var(--shadow-1); }
-.repo-name { font-size: var(--t-lg); font-weight: 600; }
-.repo-percent { font-size: var(--t-xl); font-weight: 700; color: var(--ink); }
+.roundel { width: 26px; height: 26px; border-radius: 50%; background: var(--line, var(--ink-3)); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: var(--t-sm); flex: none; }
+.roundel.sm { width: 20px; height: 20px; font-size: var(--t-xs); }
+.repo-rows { list-style: none; margin: 0; padding: var(--s2) 0; }
+.repo-row { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) 68px; gap: var(--s5); align-items: center; padding: var(--s3) var(--s5); border-top: 1px solid var(--hair); }
+.repo-row:first-child { border-top: 0; }
+.repo-row-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.repo-row-name .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo-row-line { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.repo-percent { font-size: var(--t-lg); font-weight: 700; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) {
+  .repo-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .repo-row-line { grid-column: 1 / -1; grid-row: 2; }
+}
 .next-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--t-sm); color: var(--ink-2); }
 .next-steps li { display: flex; align-items: center; gap: var(--s2); }
 .next-steps .pill { flex: none; min-width: 58px; justify-content: center; }
@@ -134,8 +145,8 @@
 .hide-narrow { display: inline; }
 @media (max-width: 1280px) {
   .explorer { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); }
-  .ex-tree { position: fixed; z-index: 40; top: 0; bottom: 0; left: 0; width: min(300px, 86vw); transform: translateX(-102%); box-shadow: var(--shadow-3); }
-  .explorer.tree-open .ex-tree { transform: none; }
+  .ex-tree { position: fixed; z-index: 40; top: 0; bottom: 0; left: 0; width: min(300px, 86vw); transform: translateX(-102%); }
+  .explorer.tree-open .ex-tree { transform: none; box-shadow: var(--shadow-3); }
   .ex-tree .tree-close, .tree-toggle { display: inline-flex; }
   .reader-wrap { grid-template-columns: minmax(0, 1fr); }
   .reader-toc { display: none; }
@@ -150,7 +161,7 @@
   .explorer.is-reading .ex-reader { display: block; }
   .back-to-list { display: inline-flex; }
   .hide-narrow { display: none; }
-  .repo-grid, .module-grid { grid-template-columns: minmax(0, 1fr); }
+  .module-grid { grid-template-columns: minmax(0, 1fr); }
   .prose h1 { font-size: var(--t-2xl); }
 }
 @media (prefers-reduced-motion: no-preference) {

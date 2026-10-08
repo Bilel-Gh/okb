@@ -4,10 +4,11 @@ import { ArrowLeft, ChevronRight, FolderTree, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { get } from '../app/api';
 import { useCategories } from '../app/data';
-import { useT } from '../app/i18n';
+import { tn, useT } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
 import { Reader } from '../reader/Reader';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
+import { DRAWER_BY_NUMBER, DRAWER_LINE } from './Today';
 
 type Note = { path: string; title: string; description: string; type: string; status: string; category: string };
 type Hit = { path: string; title: string; crumbs: string[]; snippet: string };
@@ -91,8 +92,10 @@ export default function BrainPage({ route, setTitle }: { route: Extract<Route, {
         </a>
         {tree.map(([drawer, d]) => (
           <div key={drawer} className="ex-group">
-            <a className={`ex-node drawer${folder === drawer ? ' on' : ''}`} href="#" onClick={(e) => { e.preventDefault(); setFilter({ in: drawer }); setTreeOpen(false); }}>
-              <span>{drawer}</span><span className="num muted">{d.count}</span>
+            <a className={`ex-node drawer${folder === drawer ? ' on' : ''}`} href="#" onClick={(e) => { e.preventDefault(); setFilter({ in: drawer }); setTreeOpen(false); }}
+              style={{ '--line': DRAWER_LINE[DRAWER_BY_NUMBER[Number(/^(\d)\s/.exec(drawer)?.[1] ?? -1)] ?? ''] ?? 'var(--ink-3)' } as CSSProperties}>
+              {/^\d\s/.test(drawer) ? <span className="roundel sm" aria-hidden="true">{drawer.slice(0, 1)}</span> : null}
+              <span className="ex-node-label">{drawer.replace(/^\d\s+/, '')}</span><span className="num muted">{d.count}</span>
             </a>
             {[...d.subjects.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([subject, n]) => (
               <a key={subject} className={`ex-node sub${folder === `${drawer}/${subject}` ? ' on' : ''}`} href="#" onClick={(e) => { e.preventDefault(); setFilter({ in: `${drawer}/${subject}` }); setTreeOpen(false); }}>
@@ -120,7 +123,7 @@ export default function BrainPage({ route, setTitle }: { route: Extract<Route, {
             ))}
             <button type="button" className="line-badge chip" aria-pressed={status === 'draft'} onClick={() => setFilter({ status: status === 'draft' ? '' : 'draft' })}>{t('app.brain.drafts')}</button>
           </div>
-          <p className="xs muted" aria-live="polite">{notes.isLoading ? t('app.loading') : t('app.brain.count', { n: list.length })}{folder ? ` · ${folder}` : ''}</p>
+          <p className="xs muted" aria-live="polite">{notes.isLoading ? t('app.loading') : tn(t, 'app.brain.count', list.length)}{folder ? ` · ${folder}` : ''}</p>
         </div>
         {notes.isLoading ? <SkeletonRows rows={10} /> : list.length ? (
           <div ref={parent} className="ex-scroll" role="list">

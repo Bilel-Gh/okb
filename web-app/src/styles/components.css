@@ -7,7 +7,7 @@
   background: var(--rail); color: var(--rail-ink);
 }
 .rail-brand { display: flex; align-items: center; gap: var(--s2); padding: var(--s1) var(--s2); font-weight: 700; letter-spacing: .02em; }
-.rail-brand-mark { width: 26px; height: 26px; border-radius: 50%; background: var(--signal); color: var(--on-signal); display: grid; place-items: center; font-size: var(--t-sm); font-weight: 700; }
+.rail-brand-mark { width: 26px; height: 26px; border-radius: 50%; background: var(--rail-ink); color: var(--rail); display: grid; place-items: center; font-size: var(--t-sm); font-weight: 700; }
 .rail-section { display: flex; flex-direction: column; gap: 2px; }
 .rail-heading { padding: var(--s2) var(--s2) var(--s1); font-size: var(--t-xs); font-weight: 600; color: var(--rail-ink-2); }
 .rail-link {
@@ -18,7 +18,7 @@
 .rail-link:hover { background: var(--rail-2); color: var(--rail-ink); }
 .rail-link[aria-current='page'] { background: var(--rail-2); color: var(--rail-ink); }
 .rail-link[aria-current='page'] .rail-dot { background: var(--signal); border-color: var(--signal); }
-.rail-link .count { margin-left: auto; min-width: 22px; padding: 0 6px; border-radius: var(--r-pill); background: var(--signal); color: var(--on-signal); font-size: var(--t-xs); font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.rail-link .count { margin-left: auto; min-width: 22px; padding: 0 6px; border-radius: var(--r-pill); background: var(--rail-ink); color: var(--rail); font-size: var(--t-xs); font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
 .rail-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--rail-ink-2); flex: none; }
 .rail-link svg { flex: none; opacity: .9; }
 .rail-foot { margin-top: auto; display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--rail-hair); padding-top: var(--s3); }
@@ -111,18 +111,19 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .k-line { display: grid; gap: var(--s2); }
 .k-track { position: relative; height: 22px; }
 .k-rail { position: absolute; left: 6px; right: 6px; top: 9px; height: 4px; border-radius: 2px; background: var(--hair); }
-.k-run { position: absolute; left: 6px; top: 9px; height: 4px; border-radius: 2px; background: var(--line, var(--info)); }
+.k-run { position: absolute; left: 6px; right: 6px; top: 9px; height: 4px; border-radius: 2px; background: var(--line, var(--info)); transform-origin: left center; transform: scaleX(var(--k, 0)); }
 .k-stop { position: absolute; top: 5px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; border: 3px solid var(--hair-strong); background: var(--surface); }
 .k-stop.passed { border-color: var(--line, var(--info)); }
-.k-here { position: absolute; top: 1px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--signal); border: 3px solid var(--ink); }
+.k-here-track { position: absolute; left: 6px; right: 6px; top: 1px; height: 20px; transform: translateX(calc(var(--k, 0) * 100%)); }
+.k-here { position: absolute; left: 0; top: 0; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--signal); border: 3px solid var(--ink); }
 .k-labels { position: relative; height: 16px; font-size: var(--t-xs); color: var(--ink-3); }
 .k-labels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .k-labels span:first-child { transform: none; }
 .k-labels span:last-child { transform: translateX(-100%); }
 .k-labels span.on { color: var(--ink); font-weight: 600; }
 @media (prefers-reduced-motion: no-preference) {
-  .k-run { transition: width 600ms var(--ease); }
-  .k-here { transition: left 600ms var(--ease); }
+  .k-run { transition: transform 600ms var(--ease); }
+  .k-here-track { transition: transform 600ms var(--ease); }
 }
 
 /* ------------------------------------------------------ surfaces */
@@ -199,8 +200,8 @@ a.title:hover { text-decoration: underline; }
 /* ------------------------------------------------------ responsive shell */
 @media (max-width: 900px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
-  .rail { position: fixed; inset: 0 auto 0 0; z-index: 50; width: min(300px, 86vw); transform: translateX(-102%); box-shadow: var(--shadow-3); }
-  .rail[data-open='true'] { transform: none; }
+  .rail { position: fixed; inset: 0 auto 0 0; z-index: 50; width: min(300px, 86vw); transform: translateX(-102%); }
+  .rail[data-open='true'] { transform: none; box-shadow: var(--shadow-3); }
   .rail-scrim { position: fixed; inset: 0; z-index: 49; background: rgb(8 16 29 / .4); }
   .btn.menu-btn { display: inline-flex; }
   .topbar { padding: 0 var(--s3); }

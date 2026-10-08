@@ -84,13 +84,19 @@ export function demoNotes(layout: BrainLayout, size: DemoSize = DEMO_DEFAULT, br
     out.push(note(layout, { type: 'context', product: p }, existing, { type: 'Guide', title: `${p} — Contexte et place`, description: `Où se place ${p} parmi les autres produits.` },
       `# ${p} — Contexte et place\n\n\`\`\`mermaid\nflowchart LR\n  U[Utilisateurs] --> P[${p}]\n  P --> S[Socle commun]\n\`\`\`\n`, brainName, id()));
   });
-  for (const repo of repos) {
+  // Repositories documented more or less, as in real life: the first ones well, the last ones barely.
+  const REPO_PAGES: readonly (readonly [string, string])[] = [
+    ['repo-start', 'Démarrer'], ['repo-codemap', 'Carte du code'], ['repo-architecture', 'Architecture'], ['repo-debug', 'Déboguer'],
+    ['repo-test', 'Tester'], ['repo-interfaces', 'Interfaces'], ['repo-delivery', 'Livrer'],
+  ];
+  repos.forEach((repo, index) => {
     out.push(note(layout, { type: 'repo-hub', product: repo.product, repo: repo.name }, existing, { type: 'Overview', title: repo.name, description: `Le repo ${repo.name} en 5 minutes.` },
       `# ${repo.name}\n\n## En bref\n\nUn repo fictif du produit ${repo.product}.\n`, brainName, id()));
-    for (const type of ['repo-start', 'repo-test', 'repo-debug', 'repo-codemap']) {
-      out.push(note(layout, { type, product: repo.product, repo: repo.name }, existing, { type: 'Guide', title: `${repo.name} — ${type}`, description: `Note ${type} du repo ${repo.name}.` }, `# ${repo.name}\n\nContenu fictif.\n`, brainName, id()));
+    const pages = Math.max(1, REPO_PAGES.length - ((index * 2) % REPO_PAGES.length));
+    for (const [type, label] of REPO_PAGES.slice(0, pages)) {
+      out.push(note(layout, { type, product: repo.product, repo: repo.name }, existing, { type: 'Guide', title: `${repo.name} — ${label}`, description: `${label} : la page fictive du repo ${repo.name}.` }, `# ${repo.name} — ${label}\n\n## En bref\n\nContenu fictif de démonstration.\n`, brainName, id()));
     }
-  }
+  });
   for (let i = 1; i <= size.tickets; i++) {
     const repo = pick(repos);
     const title = `${pick(VERBS)} ${pick(OBJECTS)}`;

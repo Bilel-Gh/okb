@@ -3,7 +3,7 @@ import { ArrowLeft, Check, FileDiff, Trash2 } from 'lucide-react';
 import { useState, type CSSProperties } from 'react';
 import { currentSession, get, post } from '../app/api';
 import { useCategories } from '../app/data';
-import { useT } from '../app/i18n';
+import { tn, useT } from '../app/i18n';
 import { hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
@@ -40,7 +40,7 @@ function ProposalView({ id }: { id: string }) {
     mutationFn: (apply: boolean) => post<{ ok: boolean; presence?: string; applied?: boolean; receipt?: { results: { action: string }[] } }>('/api/proposal/approve', { id, apply }),
     onSuccess: (r) => {
       if (!r.ok) { toast(r.presence === 'refused' ? t('web.review.refused') : t('web.review.noPresence'), 'err'); return; }
-      toast(r.applied ? t('app.inbox.applied', { n: r.receipt?.results.length ?? 0 }) : t('review.approvedShort'));
+      toast(r.applied ? tn(t, 'app.inbox.applied', r.receipt?.results.length ?? 0) : t('review.approvedShort'));
       void qc.invalidateQueries();
       window.location.hash = hrefFor({ name: 'inbox' }).slice(1);
     },

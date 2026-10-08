@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Languages, Save } from 'lucide-react';
 import { useState } from 'react';
 import { ApiError, currentKb, currentSession, get, post } from '../app/api';
-import { useT } from '../app/i18n';
+import { tn, useT } from '../app/i18n';
 import { hrefFor } from '../app/router';
 import { toast } from '../app/toast';
 import { ErrorState } from '../ui/States';
@@ -33,7 +33,7 @@ export function Translate({ path, onShow, shown }: { path: string; onShow: (v: {
     mutationFn: () => post<Result>('/api/translate', { path, lang, scope, confirmSecret }),
     onSuccess: (r) => {
       onShow({ html: r.html, lang });
-      if (r.failed) toast(t('app.translate.partial', { n: r.failed }));
+      if (r.failed) toast(tn(t, 'app.translate.partial', r.failed));
       setOpen(false);
     },
   });
@@ -68,7 +68,7 @@ export function Translate({ path, onShow, shown }: { path: string; onShow: (v: {
               </div>
             ) : (
               <p className="small muted" aria-live="polite">
-                {estimate.isLoading ? t('app.loading') : estimate.data ? (estimate.data.tokens ? t('app.translate.cost', { tokens: estimate.data.tokens, cached: estimate.data.cached }) : t('app.translate.free')) : null}
+                {estimate.isLoading ? t('app.loading') : estimate.data ? (estimate.data.tokens ? `${t('app.translate.cost', { tokens: estimate.data.tokens })}${estimate.data.cached ? ` ${tn(t, 'app.translate.cached', estimate.data.cached)}` : ''}` : t('app.translate.free')) : null}
               </p>
             )}
             {run.error ? <ErrorState error={run.error} /> : null}

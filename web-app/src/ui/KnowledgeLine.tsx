@@ -15,11 +15,11 @@ export function KnowledgeLine({ percent, tier, tiers, color, label, showLabels =
     <div className="k-line" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={at} aria-label={label} style={{ '--line': color } as CSSProperties}>
       <div className="k-track" aria-hidden="true">
         <div className="k-rail" />
-        <div className="k-run" style={{ width: `calc((100% - 12px) * ${at / 100})` }} />
+        <div className="k-run" style={{ '--k': at / 100 } as CSSProperties} />
         {ORDER.map((t) => (
           <span key={t} className={`k-stop${STARTS[t] <= at ? ' passed' : ''}`} style={{ left: `calc(6px + (100% - 12px) * ${STARTS[t] / 100})` }} />
         ))}
-        <span className="k-here" style={{ left: `calc(6px + (100% - 12px) * ${at / 100})` }} />
+        <span className="k-here-track" style={{ '--k': at / 100 } as CSSProperties}><span className="k-here" /></span>
       </div>
       {showLabels ? <div className="k-labels" aria-hidden="true">
         {ORDER.map((t) => (
