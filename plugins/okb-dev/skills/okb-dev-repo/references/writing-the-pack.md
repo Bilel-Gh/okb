@@ -23,6 +23,8 @@ let them *do* something sooner.
   comment that says it should.
 - **Flows from the code, not from names.** A sequence diagram follows calls you
   read: participant = file or system (`nodes`), arrow = a call you can cite.
+  Between repositories, `okb arch flow --json` gives the calls already matched
+  (route here, call there); its `questions` are unknowns, never arrows.
 - **Docs are claims too.** A README says what someone believed; when the code
   disagrees, write both in `corrections`. A command not run yet is « d'après le
   README » (or « d'après package.json »).

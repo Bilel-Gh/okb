@@ -82,6 +82,33 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
       const { progress } = await import('../progress/progress.js');
       return { show: true, ...(await progress(config)) };
     },
+    // The system map: computed from the scans (no AI), three views, each with its self-check.
+    'GET /api/repos/arch': async (ctx, q) => {
+      const config = await kbConfig(ctx, q.get('kb'));
+      const { systemOf } = await import('../arch/system.js');
+      const sys = await systemOf(config);
+      if (!sys) return { system: null };
+      const { containersView, contextView, entryPoints, flowView } = await import('../arch/views.js');
+      const { checkDiagram } = await import('../arch/check.js');
+      const { model, name, lang, maps } = sys;
+      const entries = entryPoints(model);
+      const from = q.get('from') ? `repo:${q.get('from')!.replace(/^repo:/, '')}` : entries[0]?.repo;
+      const call = q.get('call') ?? (from ? model.links.filter((l) => l.from === from && l.kind === 'http').flatMap((l) => l.calls).sort((a, b) => a.line - b.line)[0]?.what : undefined);
+      const withCheck = <V extends Parameters<typeof checkDiagram>[1]>(view: V) => ({ ...view, check: checkDiagram(model, view) });
+      return {
+        system: name,
+        model,
+        entryPoints: entries,
+        calls: model.links.filter((l) => l.kind === 'http').flatMap((l) => l.calls.map((c) => ({ from: l.from, call: c.what }))),
+        views: {
+          containers: withCheck(containersView(model, { lang })),
+          context: withCheck(contextView(model, name, { lang })),
+          flow: from && call ? withCheck(flowView(model, from, call, { lang })) : null,
+        },
+        // Where each repository's page is in the app (its registry id).
+        pages: Object.fromEntries(maps.map((m) => [`repo:${m.repo.name}`, m.repo.id])),
+      };
+    },
     'POST /api/repos/link': async (ctx, _q, b) => {
       const config = await kbConfig(ctx, b.kb);
       if (typeof b.folder !== 'string' || typeof b.path !== 'string' || !b.path.trim()) throw new OkbError('E_INVALID', 'folder and path are required', { key: 'usage', params: { usage: '{ folder, path }' } });

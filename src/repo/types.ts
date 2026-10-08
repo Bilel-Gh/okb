@@ -29,7 +29,9 @@ export type Command = {
 
 export type IfaceKind =
   | 'http-route' | 'cds-service' | 'odata' | 'openapi' | 'graphql' | 'grpc' | 'event' | 'destination' | 'url'
-  | 'database' | 'messaging' | 'auth' | 'service-binding' | 'package' | 'ui-app' | 'env-endpoint' | 'container' | 'external-service';
+  | 'database' | 'messaging' | 'auth' | 'service-binding' | 'package' | 'ui-app' | 'env-endpoint' | 'container' | 'external-service'
+  /** An outgoing HTTP call: `POST /orders`, with its base variable in `detail` (`base ORDERS_URL`). */
+  | 'http-call';
 export type Iface = { readonly kind: IfaceKind; readonly name: string; readonly detail?: string; readonly evidence: Evidence; readonly count?: number };
 
 export type EnvVar = { readonly name: string; readonly evidence: readonly Evidence[]; readonly defaulted: boolean; readonly sensitive: boolean };

@@ -875,3 +875,25 @@ Pistes, par ordre proposé :
   secret. Comparer (en plus, différentes, identiques) ; fusionner = une proposition
   qui ajoute seulement ce qui manque, en gardant `generated.by` et `x_okb.pack`.
   Une note différente n'est jamais écrasée.
+
+## D52 — Phase D : l'architecture calculée depuis le code (8 octobre 2026, soir)
+
+> Prises en autonomie, **à valider**. Spec : `docs/dev/specs/2026-10-08-phase-d-diagrammes.md`.
+
+- **Le modèle sans IA** (`src/arch/model.ts`) : le scan détecte en plus les appels
+  HTTP sortants (fetch, axios, got, ky, requests, RestTemplate, WebClient) avec la
+  variable de base d'URL, et les événements publiés ou écoutés (Kafka, RabbitMQ).
+  Les repos sont reliés par correspondance : même méthode et même chemin normalisé,
+  même sujet d'événement, même paquet, même nom de service. Chaque lien a ses
+  preuves des deux côtés et une confiance (sûr, probable, à confirmer).
+- **Jamais de trait inventé** : un appel que personne ne sert devient une question
+  (« qui sert `POST /refunds` ? »). Jeu de 5 repos fictifs : 0 lien inventé, 0 manqué.
+- **Des vues lisibles** (`src/arch/views.ts`) : contexte, conteneurs (12 boîtes au
+  plus), parcours ; un nom métier (titre du README, sinon description) avec l'id en
+  petit ; un verbe sur chaque flèche (`POST /orders` → « crée orders »).
+- **L'auto-évaluation** (`src/arch/check.ts`) : note sur 100 (preuve, verbe, nom
+  lisible, boîte isolée, taille) ; sous 80, les manques sont montrés, pas le schéma.
+- **Pour Claude** : `okb arch [containers|context|flow] [--mermaid] [--json]` et
+  l'agent `okb-dev:okb-architecture-reviewer`, appelé par les compétences produit et
+  repo avant de proposer un schéma. Route web `GET /api/repos/arch`.
+- La vue web (plan du système) attend l'identité visuelle 1.5.

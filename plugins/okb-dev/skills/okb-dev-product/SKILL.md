@@ -46,6 +46,11 @@ With the user's « oui », `okb suggest accept <id> --json`.
    for context and containers (each box a repository, a store or
    `external:<system>`), `sequenceDiagram` for flows, `erDiagram` for the data
    model, `stateDiagram-v2` for a lifecycle. Every box ties to a path or a source.
+   **Start from the code, never from memory:** `okb arch context|containers|flow
+   --json` computes the boxes and arrows from the scans, with evidence on both
+   sides; explain and name them, do not add arrows it does not have — its
+   `questions` stay questions. Save that output and have
+   `okb-dev:okb-architecture-reviewer` grade the draft; below 80, fix it first.
 4. Business words get a concept card (`okb suggest concepts --json` lists terms
    used without one); suggest them, do not write them unasked.
 5. Have `okb:okb-quality-reviewer` grade the draft, then follow `okb-ingest`

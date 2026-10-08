@@ -1,0 +1,12 @@
+{
+ "links": [
+  { "from": "shop-web", "to": "orders-api", "kind": "http" },
+  { "from": "orders-api", "to": "payments-api", "kind": "http" },
+  { "from": "orders-api", "to": "shipping-worker", "kind": "event" },
+  { "from": "shipping-worker", "to": "orders-api", "kind": "http" },
+  { "from": "orders-api", "to": "money-lib", "kind": "package" },
+  { "from": "payments-api", "to": "money-lib", "kind": "package" }
+ ],
+ "questions": ["POST /refunds"],
+ "datastores": [{ "repo": "orders-api", "kind": "database" }]
+}

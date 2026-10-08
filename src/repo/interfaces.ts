@@ -1,3 +1,4 @@
+import { baseVariable, envConstants, normalizePath } from '../arch/paths.js';
 import { posix } from 'node:path';
 import YAML from 'yaml';
 import type { Inventory, InventoryFile } from './inventory.js';
@@ -52,6 +53,10 @@ export function detectProvides(inv: Inventory): Iface[] {
         }
       }
       for (const m of text.matchAll(/\b(?:srv|this|service|messaging|cds\.services?\.\w+)\.emit\(\s*['"]([\w./:-]+)['"]/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'emitted');
+      // Published to a broker: Kafka producers, RabbitMQ channels.
+      for (const m of text.matchAll(/\.send\(\s*\{\s*topic\s*:\s*['"]([\w./:-]+)['"]/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'published');
+      for (const m of text.matchAll(/\.publish\(\s*['"][^'"]*['"]\s*,\s*['"]([\w./:-]+)['"]/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'published');
+      for (const m of text.matchAll(/\.sendToQueue\(\s*['"]([\w./:-]+)['"]/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'published');
     }
     if (/\.(java|kt)$/.test(f.path)) {
       const base = /@RequestMapping\(\s*(?:value\s*=\s*|path\s*=\s*)?"([^"]*)"/.exec(text)?.[1] ?? '';
@@ -97,6 +102,41 @@ export function detectProvides(inv: Inventory): Iface[] {
 }
 
 /* ---------------------------------------------------------------- consumes */
+
+/**
+ * Outgoing HTTP calls in code: `fetch(url, { method })`, `axios.post(url)`,
+ * Python `requests.get(url)`, Java `RestTemplate` and `WebClient`. A call to an
+ * absolute outside host is left to the URL detection; the rest keeps its method,
+ * its path and the variable its base comes from.
+ */
+function httpCalls(path: string, text: string): { name: string; base: string | null; index: number }[] {
+  const out: { name: string; base: string | null; index: number }[] = [];
+  const constants = envConstants(text);
+  const add = (method: string, literal: string, index: number) => {
+    const raw = literal.replace(/^f?['"`]|['"`]$/g, '');
+    const origin = /^[a-z]+:\/\/([^/:]+)/i.exec(raw)?.[1];
+    if (origin && origin !== 'localhost' && origin !== '127.0.0.1') return;
+    const lead = /^\$\{([^}]*)\}/.exec(raw) ?? /^\{([A-Za-z_]\w*)\}/.exec(raw);
+    const rest = lead ? raw.slice(lead[0].length) : raw.replace(/^[a-z]+:\/\/[^/]+/i, '');
+    if (!rest.startsWith('/')) return;
+    out.push({ name: `${method.toUpperCase()} ${normalizePath(rest)}`, base: lead ? baseVariable(lead[1]!, constants) : null, index });
+  };
+  if (/\.(m?[jt]sx?|cjs)$/.test(path)) {
+    for (const m of text.matchAll(/\bfetch\(\s*(`[^`]*`|'[^']*'|"[^"]*")\s*(?:,\s*\{([^}]*)\})?/g)) {
+      add(/method\s*:\s*['"`](\w+)['"`]/i.exec(m[2] ?? '')?.[1] ?? 'GET', m[1]!, m.index);
+    }
+    for (const m of text.matchAll(/\b(?:axios|got|ky|superagent|httpClient|this\.http|\$http)\.(get|post|put|patch|delete)\(\s*(`[^`]*`|'[^']*'|"[^"]*")/g)) add(m[1]!, m[2]!, m.index);
+  }
+  if (/\.py$/.test(path)) {
+    for (const m of text.matchAll(/\b(?:requests|httpx|session|client)\.(get|post|put|patch|delete)\(\s*(f?'[^']*'|f?"[^"]*")/g)) add(m[1]!, m[2]!, m.index);
+  }
+  if (/\.(java|kt)$/.test(path)) {
+    const verbs: Record<string, string> = { getForObject: 'GET', getForEntity: 'GET', postForObject: 'POST', postForEntity: 'POST', put: 'PUT', delete: 'DELETE', patchForObject: 'PATCH' };
+    for (const m of text.matchAll(/\b\w*[Rr]estTemplate\.(getForObject|getForEntity|postForObject|postForEntity|put|delete|patchForObject)\(\s*("[^"]*")/g)) add(verbs[m[1]!]!, m[2]!, m.index);
+    for (const m of text.matchAll(/\.(get|post|put|patch|delete)\(\)\s*\.uri\(\s*("[^"]*")/g)) add(m[1]!, m[2]!, m.index);
+  }
+  return out;
+}
 
 const DOC_HOSTS = /(^|\.)(w3\.org|schemas?\.[\w.]+|json-schema\.org|xml\.org|xmlsoap\.org|example\.(com|org|net)|apache\.org|opensource\.org|mozilla\.org|spdx\.org|purl\.org|github\.com|githubusercontent\.com|npmjs\.(com|org)|nodejs\.org|sap\.com\/(protocols)?|openui5\.org|ui5\.sap\.com|maven\.apache\.org|gradle\.org|docker\.com|goo\.gl|bit\.ly|semver\.org|shields\.io|creativecommons\.org|eslint\.org|typescriptlang\.org|reactjs\.org|vuejs\.org|angular\.io|python\.org|pypi\.org|readthedocs\.io|stackoverflow\.com|wikipedia\.org|google\.com|microsoft\.com\/schemas|xmlns\.\w+)$/i;
 
@@ -170,6 +210,9 @@ export function detectConsumes(inv: Inventory): Iface[] {
     for (const m of text.matchAll(/cds\.connect\.to\(\s*['"]([^'"]+)['"]/g)) if (m[1] !== 'db') out.add('external-service', m[1]!, evidenceAt(f.path, text, m.index), 'cds.connect.to');
     for (const m of text.matchAll(/@FeignClient\(\s*(?:name|value)\s*=\s*"([^"]+)"/g)) out.add('external-service', m[1]!, evidenceAt(f.path, text, m.index), 'Feign client');
     for (const m of text.matchAll(/(?:messaging|broker)\.on\(\s*['"]([\w./:-]+)['"]/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'subscribed');
+    for (const m of text.matchAll(/\.subscribe\(\s*\{\s*topics?\s*:\s*\[?\s*['"]([\w./:-]+)['"]/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'subscribed');
+    for (const m of text.matchAll(/\.consume\(\s*['"]([\w./:-]+)['"]/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'subscribed');
+    for (const call of httpCalls(f.path, text)) out.add('http-call', call.name, evidenceAt(f.path, text, call.index), call.base ? `base ${call.base}` : undefined);
   }
   // Literal URLs in code and configuration: hosts only.
   for (const f of filesOf(inv, (f) => isCode(f) || f.kind === 'config' || f.kind === 'manifest')) {
