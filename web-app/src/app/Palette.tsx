@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Command } from 'cmdk';
-import { ArrowRight, Brain, FileText, FolderGit2, GraduationCap, Inbox, Puzzle, SunMedium, Terminal } from 'lucide-react';
+import { ArrowRight, Brain, MessageCircleQuestion, FileText, FolderGit2, GraduationCap, Inbox, Puzzle, SunMedium, Terminal } from 'lucide-react';
 import { useEffect, useState, type CSSProperties, type ReactElement } from 'react';
 import { get } from './api';
 import { useCategories } from './data';
@@ -53,6 +53,9 @@ export function Palette({ open, onOpenChange }: { open: boolean; onOpenChange: (
                 <span className="hint">{h.crumbs.slice(-2).join(' › ')}</span>
               </Command.Item>
             ))}
+            <Command.Item value={`ask:${query}`} onSelect={() => pick({ name: 'ask', q: query })}>
+              <MessageCircleQuestion size={16} aria-hidden="true" />{t('app.search.ask', { q: query })}
+            </Command.Item>
             <Command.Item value={`all:${query}`} onSelect={() => pick({ name: 'brain', query: { q: query } })}>
               <ArrowRight size={16} aria-hidden="true" />{t('app.search.all', { q: query })}
             </Command.Item>

@@ -56,6 +56,24 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
       const proposal = await proposeTranslation(config, asBundlePath(String(b.path ?? '')), String(b.lang ?? ''));
       return { ok: true, proposalId: proposal.id, target: proposal.changes[0]?.path ?? null };
     },
+    // « Ask your brain »: the passages that answer, then (on request) an answer written from them only.
+    'GET /api/ask': async (ctx, q) => {
+      const config = await kbConfig(ctx, q.get('kb'));
+      const question = (q.get('q') ?? '').trim().slice(0, 300);
+      if (!question) return { question, passages: [], notes: [] };
+      const { passagesFor } = await import('../find/answer.js');
+      const { loadBundleFor } = await import('../kb/bundle.js');
+      return { question, ...passagesFor(config, await loadBundleFor(config), question) };
+    },
+    'POST /api/ask/answer': async (ctx, _q, b) => {
+      const config = await kbConfig(ctx, b.kb);
+      const question = String(b.q ?? '').trim().slice(0, 300);
+      if (!question) throw new OkbError('E_INVALID', 'a question is needed', { key: 'usage', params: { usage: '{ q }' } });
+      const { composeAnswer, passagesFor } = await import('../find/answer.js');
+      const { loadBundleFor } = await import('../kb/bundle.js');
+      const { passages } = passagesFor(config, await loadBundleFor(config), question);
+      return { ok: true, passages, ...(await composeAnswer(config, question, passages, ctx.env)) };
+    },
     'POST /api/repos/link': async (ctx, _q, b) => {
       const config = await kbConfig(ctx, b.kb);
       if (typeof b.folder !== 'string' || typeof b.path !== 'string' || !b.path.trim()) throw new OkbError('E_INVALID', 'folder and path are required', { key: 'usage', params: { usage: '{ folder, path }' } });

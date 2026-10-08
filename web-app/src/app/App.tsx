@@ -13,6 +13,7 @@ const BrainPage = lazy(() => import('../pages/Brain'));
 const InboxPage = lazy(() => import('../pages/Inbox'));
 const Repos = lazy(() => import('../pages/Repos'));
 const Learn = lazy(() => import('../pages/Learn'));
+const AskPage = lazy(() => import('../pages/Ask'));
 const Modules = lazy(() => import('../pages/Modules'));
 const ClaudePage = lazy(() => import('../pages/Claude'));
 
@@ -23,7 +24,7 @@ function Routes({ t }: { t: Translate }) {
   useEffect(() => { if (route.name === 'classic' || route.name === 'settings') window.location.href = route.name === 'settings' ? '/classic#/settings' : route.href; }, [route]);
   const titles: Record<string, string> = {
     today: t('app.nav.today'), brain: t('app.nav.brain'), inbox: t('app.nav.inbox'), repos: t('app.nav.repos'),
-    learn: t('app.nav.learn'), modules: t('app.nav.modules'), claude: t('app.nav.claude'), settings: t('app.nav.settings'), classic: 'OKB',
+    learn: t('app.nav.learn'), ask: t('app.nav.ask'), modules: t('app.nav.modules'), claude: t('app.nav.claude'), settings: t('app.nav.settings'), classic: 'OKB',
   };
   const [title, setTitle] = useState(titles[route.name] ?? 'OKB');
   useEffect(() => setTitle(titles[route.name] ?? 'OKB'), [route.name]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -36,6 +37,7 @@ function Routes({ t }: { t: Translate }) {
         {route.name === 'inbox' ? <InboxPage route={route} /> : null}
         {route.name === 'repos' ? <Repos route={route} /> : null}
         {route.name === 'learn' ? <Learn /> : null}
+        {route.name === 'ask' ? <AskPage route={route} /> : null}
         {route.name === 'modules' ? <Modules /> : null}
         {route.name === 'claude' ? <ClaudePage /> : null}
       </Suspense>

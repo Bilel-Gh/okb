@@ -11,6 +11,7 @@ export type Route =
   | { name: 'repos'; id?: string }
   | { name: 'inbox'; tab?: 'suggestions' | 'proposals'; id?: string }
   | { name: 'learn' }
+  | { name: 'ask'; q?: string }
   | { name: 'modules' }
   | { name: 'claude' }
   | { name: 'settings' }
@@ -55,6 +56,10 @@ export function parseRoute(hash: string): Route {
       return rest ? { name: 'inbox', tab: 'proposals', id: decodeURIComponent(rest) } : { name: 'inbox' };
     case 'learn':
       return { name: 'learn' };
+    case 'ask': {
+      const q = queryOf(search).q;
+      return q ? { name: 'ask', q } : { name: 'ask' };
+    }
     case 'modules':
       return { name: 'modules' };
     case 'claude':
@@ -77,6 +82,7 @@ export function hrefFor(route: Route): string {
     case 'repos': return route.id ? `#/repo/${encodeURIComponent(route.id)}` : '#/repos';
     case 'inbox': return route.id ? `#/review/${encodeURIComponent(route.id)}` : route.tab === 'suggestions' ? '#/suggestions' : '#/review';
     case 'learn': return '#/learn';
+    case 'ask': return route.q ? `#/ask?${new URLSearchParams({ q: route.q })}` : '#/ask';
     case 'modules': return '#/modules';
     case 'claude': return '#/claude';
     case 'settings': return '#/settings';

@@ -43,6 +43,7 @@ export function stem(word: string): string {
 const FAMILIES: readonly (readonly string[])[] = [
   ['payer', 'paie', 'paiement', 'payé', 'impayé', 'régler', 'règlement', 'réglée', 'pay', 'payment', 'unpaid'],
   ['facture', 'facturer', 'facturation', 'invoice', 'billing'],
+  ['impayé', 'impayés', 'ne paie pas', 'pas payé', 'retard de paiement', 'relance', 'relancer', 'échéance', 'unpaid', 'overdue', 'dunning', 'reminder'],
   ['rembourser', 'remboursement', 'avoir', 'refund', 'credit'],
   ['renvoyer', 'renvoie', 'retour', 'retourner', 'retourne', 'return'],
   ['annuler', 'annulation', 'supprimer', 'cancel', 'delete'],

@@ -1,6 +1,6 @@
 import * as Popover from '@radix-ui/react-popover';
 import { useQuery } from '@tanstack/react-query';
-import { Brain, Check, ChevronsUpDown, FolderGit2, GraduationCap, History, Inbox, Menu, Moon, Network, Puzzle, Search, Settings, Sun, SunMedium, Terminal } from 'lucide-react';
+import { Brain, Check, MessageCircleQuestion, ChevronsUpDown, FolderGit2, GraduationCap, History, Inbox, Menu, Moon, Network, Puzzle, Search, Settings, Sun, SunMedium, Terminal } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { currentKb, currentSession, get, post } from './api';
 import { useT } from './i18n';
@@ -111,6 +111,7 @@ export function Shell({ route, title, children }: { route: Route; title: string;
         <nav className="rail-section" aria-label={t('app.nav.main')}>
           <NavLink to={{ name: 'today' }} icon={<SunMedium size={18} aria-hidden="true" />} label={t('app.nav.today')} current={is('today')} />
           <NavLink to={{ name: 'brain' }} icon={<Brain size={18} aria-hidden="true" />} label={t('app.nav.brain')} current={is('brain')} />
+          <NavLink to={{ name: 'ask' }} icon={<MessageCircleQuestion size={18} aria-hidden="true" />} label={t('app.nav.ask')} current={is('ask')} />
           <NavLink to={{ name: 'inbox' }} icon={<Inbox size={18} aria-hidden="true" />} label={t('app.nav.inbox')} current={is('inbox')} count={waiting} />
           {devOn ? <NavLink to={{ name: 'repos' }} icon={<FolderGit2 size={18} aria-hidden="true" />} label={t('app.nav.repos')} current={is('repos')} /> : null}
           <NavLink to={{ name: 'learn' }} icon={<GraduationCap size={18} aria-hidden="true" />} label={t('app.nav.learn')} current={is('learn')} />

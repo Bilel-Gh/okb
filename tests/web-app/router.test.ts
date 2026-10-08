@@ -16,6 +16,7 @@ describe('the new app reads the same addresses as before', () => {
     expect(parseRoute('#/modules')).toMatchObject({ name: 'modules' });
     expect(parseRoute('#/claude')).toMatchObject({ name: 'claude' });
     expect(parseRoute('#/learn')).toMatchObject({ name: 'learn' });
+    expect(parseRoute('#/ask?q=facturer%20un%20client')).toMatchObject({ name: 'ask', q: 'facturer un client' });
     expect(parseRoute('#/suggestions')).toMatchObject({ name: 'inbox' });
     expect(parseRoute('#/review')).toMatchObject({ name: 'inbox' });
   });

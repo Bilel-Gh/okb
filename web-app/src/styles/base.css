@@ -23,7 +23,7 @@ input, select, textarea { font: inherit; color: inherit; }
 code, kbd, pre, samp { font-family: var(--mono); font-size: 0.9em; }
 .num, table { font-variant-numeric: tabular-nums; }
 
-::selection { background: color-mix(in srgb, var(--signal) 55%, transparent); color: var(--ink); }
+::selection { background: color-mix(in srgb, var(--focus) 28%, transparent); color: var(--ink); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
 :focus:not(:focus-visible) { outline: none; }
 

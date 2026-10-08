@@ -66,7 +66,7 @@
 .prose li::marker { color: var(--ink-3); }
 .prose a { color: var(--ink); text-decoration-color: var(--focus); }
 .prose a.term { text-decoration: underline dotted; text-decoration-color: var(--ink-3); text-decoration-thickness: 1.5px; cursor: help; }
-.prose a.term:hover, .prose a.term[aria-expanded='true'] { background: color-mix(in srgb, var(--signal) 28%, transparent); border-radius: 3px; }
+.prose a.term:hover, .prose a.term[aria-expanded='true'] { background: var(--info-soft); border-radius: 3px; }
 .prose code { padding: 1px 5px; border-radius: 5px; background: var(--sunk); font-size: .88em; }
 .prose pre { padding: var(--s4); border-radius: var(--r); background: var(--sunk); overflow-x: auto; font-size: var(--t-sm); line-height: 1.6; }
 .prose pre code { padding: 0; background: none; }
@@ -93,7 +93,7 @@
 .brain-map-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: var(--line); border-radius: 2px; }
 .brain-map-track.empty::before { opacity: .35; }
 .brain-map-stop { position: relative; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; }
-.brain-map-stop:hover .station { background: var(--signal); border-color: var(--ink); }
+.brain-map-stop:hover .station { background: var(--line); }
 /* ---------------------------------------------------------- repos */
 .roundel { width: 26px; height: 26px; border-radius: 50%; background: var(--line, var(--ink-3)); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: var(--t-sm); flex: none; }
 .roundel.sm { width: 20px; height: 20px; font-size: var(--t-xs); }
@@ -170,3 +170,14 @@
 
 /* Night lines are light: their roundels carry dark ink to stay readable. */
 :root[data-theme='dark'] .repo-line .roundel { color: var(--on-signal); }
+
+/* ---------------------------------------------------------- ask */
+.ask-input { min-height: 46px; font-size: var(--t-lg); }
+.ask-answer { font-size: 1rem; line-height: var(--lh-read); max-width: var(--measure); }
+.cite { display: inline-block; margin: 0 1px; padding: 0 4px; border-radius: 4px; background: var(--sunk); color: var(--ink); font-size: var(--t-xs); font-weight: 600; text-decoration: none; vertical-align: 1px; font-variant-numeric: tabular-nums; }
+.cite:hover { background: var(--info-soft); color: var(--info); }
+.passages { list-style: none; margin: 0; padding: var(--s2) var(--s5) var(--s5); display: flex; flex-direction: column; gap: var(--s4); }
+.passages li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: var(--s2); scroll-margin-top: 80px; }
+.passages li.used .cite-n { color: var(--info); background: var(--info-soft); }
+.cite-n { align-self: start; padding: 2px 6px; border-radius: 6px; background: var(--sunk); color: var(--ink-3); font-size: var(--t-xs); font-weight: 600; text-align: center; }
+.passages blockquote { margin: 0; padding: 0 0 0 var(--s3); border-left: 1px solid var(--hair-strong); color: var(--ink); line-height: var(--lh-read); }
