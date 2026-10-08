@@ -780,3 +780,46 @@ Pistes, par ordre proposé :
   - **Diagrammes** : vérifiés après génération (noms compréhensibles, schéma
     cohérent) en plus des preuves.
 
+
+## D48 — Phase A de la 1.1 : les moteurs (nuit du 8 au 9 octobre 2026)
+
+> Décisions prises en autonomie (carte blanche), **à valider** à la relecture.
+> Spec : [specs/2026-10-09-phase-a-moteurs.md](specs/2026-10-09-phase-a-moteurs.md).
+
+- **Modules** (`src/modules/catalog.ts`) : `core` (toujours), `dev` (disponible),
+  `devops` et `sales` (prévus). Réglage global `modules.enabled`, `['dev']` par
+  défaut pour ne rien casser. `featureOn(feature)` combine « activé » et « droit » ;
+  `entitled()` est vrai pour un module gratuit : une licence payante s'ajoutera
+  derrière, sans changer les appels. `okb modules`, `GET /api/modules`, installation
+  du plugin Claude d'un module sur un clic (`POST /api/modules/install`).
+- **Identité** (`src/identity/person.ts`) : `person.id` aléatoire (`p-` + 10
+  caractères), créé une fois, jamais tiré d'un nom ; `person.role` déclaré. Les
+  reçus et les décisions de suggestions le portent. `okb whoami`. Les réglages
+  globaux se changent maintenant sans KB.
+- **Repos d'un cerveau** : la page Repos reçoit aussi les dossiers `Code/<repo>`
+  non reliés (`unlinked`) et `POST /api/repos/link` les relie.
+- **Niveau de connaissance** (`src/knowledge/level.ts`, sans IA) : questions 30,
+  pages 25, code lu 20, mémoire du travail 15, qualité 10. Une page changée vaut
+  0,6, obsolète 0,3. Paliers Découverte · Utilisable · Solide · Expert · Référence.
+  **Un repo non relié est mesuré sur ses notes et plafonné à « Solide »** : personne
+  ne les a vérifiées contre le code. Les 3 manques qui rapportent le plus.
+  `okb repo level`.
+- **Concepts « En une phrase »** (`src/concepts/one-liner.ts`) : la phrase vit dans
+  la fiche (section « En une phrase », sinon « En bref »), 3 à 25 mots ; c'est le
+  seul texte de la bulle ; sans elle, le mot reste un lien. −4 points de structure
+  sans phrase ; `okb concepts check [--suggest]`.
+- **Fournisseur d'IA** (`src/ai/provider.ts`) : `claude -p` sans outils, sans
+  réglages ni plugins, sans session gardée, modèle `haiku` ; ou l'API avec
+  `ANTHROPIC_API_KEY` ; `OKB_AI=fake` pour les tests. `OKB_HEADLESS=1` fait taire
+  les hooks de contexte ; **les gardes (approbation, 🔒) ne se taisent jamais**.
+  L'appel réel n'a pas pu être vérifié dans la session de nuit (connexion Claude
+  expirée pour un processus enfant) : à essayer.
+- **Traduction** (`src/translate/translate.ts`) : sur demande, « En bref » d'abord ;
+  code, Mermaid, citations et notes de bas de page intacts ; cibles de liens et
+  code protégés (un bloc qui perd une cible garde le texte source) ; cache par
+  section sur le disque, 30 jours sans lecture ; coût annoncé et budget du jour
+  partagé avec les cartes ; une note 🔒 seulement après confirmation, une note qui
+  contient un secret jamais ; « enregistrer comme note » = une proposition.
+- **Tests sous charge** : les 6 scénarios de bout en bout (des dizaines de
+  processus Git et `okb`) ont un délai explicite de 180 s ; les scans d'un espace
+  de travail tournent par 4. Piste : moins d'appels Git au scan.

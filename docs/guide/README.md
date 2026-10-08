@@ -23,6 +23,8 @@ Tu peux tout faire de trois façons, au choix :
 [apprendre et la carrière](apprendre-et-carriere.md) ·
 [stockage et confidentialité](stockage-et-confidentialite.md).
 
+**Nouveau après la 1.0 :** [modules, niveau de connaissance, phrase des concepts et traduction](modules-et-niveau.md).
+
 1. [Installer OKB](installer.md) — en 5 minutes, sans toucher à tes réglages Claude.
 2. [Au quotidien](au-quotidien.md) — capturer, importer une source, relire,
    finir une session, revue de la semaine.
