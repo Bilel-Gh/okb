@@ -372,4 +372,6 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'err.moduleUnknown.title': 'Module inconnu',
   'err.moduleUnknown.why': 'Aucun module ne s’appelle « {id} ».',
   'err.moduleUnknown.fix': 'Les modules : okb modules.',
+  'help.cmd.whoami': 'ton identifiant OKB (aléatoire, jamais ton nom) et ton métier, utilisés dans les reçus et plus tard par l’équipe',
+  'settings.label.person.role': 'Ton métier',
 };

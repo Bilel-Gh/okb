@@ -61,6 +61,7 @@ const HANDLERS: Record<string, Handler> = {
   journal: (c) => import('./commands/learn.js').then((m) => m.cmdJournal(c)),
   secret: (c) => import('./commands/learn.js').then((m) => m.cmdSecret(c)),
   metrics: (c) => import('./commands/metrics.js').then((m) => m.cmdMetrics(c)),
+  whoami: async (c) => { const { person } = await import('../identity/person.js'); const me = await person(); if (c.mode === 'json') c.out.json({ ok: true, ...me }); else { c.out.line(`${me.id}${me.role ? ` · ${me.role}` : ''}`); } return 0; },
   modules: (c) => import('./commands/modules.js').then((m) => m.cmdModules(c)),
   suggest: (c) => import('./commands/suggest.js').then((m) => m.cmdSuggest(c)),
   scores: (c) => import('./commands/suggest.js').then((m) => m.cmdScores(c)),

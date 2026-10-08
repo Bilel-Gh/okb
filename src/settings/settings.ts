@@ -54,6 +54,8 @@ export const SETTINGS: readonly SettingDef[] = [
   // Daily backups of every KB and its state (src/brain/backup.ts). An external disk is safest.
   { key: 'backup.enabled', group: 'history', type: 'bool', scope: 'global', path: ['backup', 'enabled'], recommended: true, fallback: true },
   { key: 'backup.dir', group: 'history', type: 'text', scope: 'global', path: ['backup', 'dir'], fallback: '' },
+  // Who acts (src/identity/person.ts): the job the person declares; the id is made by OKB.
+  { key: 'person.role', group: 'advanced', type: 'choice', scope: 'global', path: ['person', 'role'], options: ['', 'dev', 'devops', 'sales', 'product', 'other'], fallback: '' },
   // Modules for a job (src/modules/catalog.ts): the core is always on.
   { key: 'modules.enabled', group: 'advanced', type: 'list', scope: 'global', path: ['modules', 'enabled'], fallback: ['dev'] },
   { key: 'profile.humanActor', group: 'advanced', type: 'text', scope: 'profile', path: ['profile', 'humanActor'], fallback: 'human:anonymous' },

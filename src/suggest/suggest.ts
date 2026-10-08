@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
+import { person } from '../identity/person.js';
 import { addressFor, breadcrumb, type AddressInput } from '../brain/address.js';
 import { layoutOf } from '../brain/layout.js';
 import { listTickets } from '../work/tickets.js';
@@ -50,6 +51,8 @@ export type Suggestion = {
   readonly status: SuggestionStatus;
   readonly decidedAt?: string;
   readonly decidedBy?: 'person' | 'consent' | 'terminal';
+  /** The person's stable id (src/identity/person.ts) when a person decided. */
+  readonly decidedPerson?: string;
   readonly proposalIds?: readonly string[];
   readonly shownAt?: string;
 };
@@ -213,8 +216,10 @@ export async function setStatus(config: OkbConfig, id: string, status: Suggestio
   const queue = await loadQueue(config);
   const found = queue.find((x) => x.id === id);
   if (!found) throw new OkbError('E_NOT_FOUND', `no suggestion ${id}`, { key: 'suggestUnknown', params: { id } });
+  // A decision by a person (not the consent hook acting on their recorded answer) carries their id.
+  const who = by === 'person' || by === 'terminal' ? await person().catch(() => null) : null;
   const next: Suggestion = {
-    ...found, status, decidedAt: new Date().toISOString(), ...(by ? { decidedBy: by } : {}),
+    ...found, status, decidedAt: new Date().toISOString(), ...(by ? { decidedBy: by } : {}), ...(who ? { decidedPerson: who.id } : {}),
     ...(proposalId ? { proposalIds: [...(found.proposalIds ?? []), proposalId] } : {}),
   };
   await saveQueue(config, queue.map((s) => (s === found ? next : s)));

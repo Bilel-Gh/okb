@@ -49,14 +49,18 @@ async function editOne(id: string, sv: SettingValue): Promise<unknown> {
 /** `okb settings` — show, change one (`set key=value`) or walk a menu. */
 export async function cmdSettings(ctx: Ctx): Promise<number> {
   const { args, out } = ctx;
-  const { config } = await effective(args);
-  const id = config.profile.id;
   const sub = args.positionals[0] ?? (canAsk(ctx) ? 'menu' : 'show');
+  // Settings of the whole computer (language, modules, your job…) can be set before any KB exists.
+  const raw = sub === 'set' ? args.positionals.slice(1) : [];
+  const keys = raw.length === 2 && !raw.some((p) => p.includes('=')) ? [raw[0]!] : raw.map((p) => p.split('=')[0]!);
+  const globalOnly = keys.length > 0 && keys.every((k) => SETTINGS.find((s) => s.key === k)?.scope === 'global');
+  const { config } = globalOnly ? await effective(args).catch(() => ({ config: null })) : await effective(args);
+  const id = config?.profile.id ?? '';
 
   if (sub === 'show' || sub === 'list') {
     const values = await readSettings(id);
     if (ctx.mode === 'json') { out.json({ ok: true, kb: id, settings: values.map((v) => ({ key: v.def.key, value: v.value, default: v.isDefault, scope: v.def.scope })) }); return 0; }
-    out.line(`${sym.kb()} ${paint.name(config.profile.displayName || id)}  ${paint.dim(t('settings.title'))}`);
+    out.line(`${sym.kb()} ${paint.name(config?.profile.displayName || id)}  ${paint.dim(t('settings.title'))}`);
     out.line(fieldList(GROUPS.filter((g) => g !== 'advanced' || flagBool(args, 'all')).map((g) => ({
       title: t(`settings.group.${g}`),
       rows: values.filter((v) => v.def.group === g).map((v) => [t(`settings.label.${v.def.key}`), coloredValue(v.def, v.value) + (v.isDefault ? paint.dim(` · ${t('settings.default')}`) : ''), v.def.key] as const),
@@ -95,7 +99,7 @@ export async function cmdSettings(ctx: Ctx): Promise<number> {
 
   if (sub !== 'menu') throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { key: 'unknownSub', params: { sub, usage: 'okb settings [show|set key=value]' } });
   for (;;) {
-    const group = await choose(t('settings.menu.q', { name: config.profile.displayName || id }), [
+    const group = await choose(t('settings.menu.q', { name: config?.profile.displayName || id }), [
       ...GROUPS.map((g) => ({ value: g as string, label: t(`settings.group.${g}`), hint: t(`settings.groupHint.${g}`) })),
       { value: 'done', label: t('ui.done') },
     ]);

@@ -378,4 +378,6 @@ export const EN_V1 = {
   'err.moduleUnknown.title': 'Unknown module',
   'err.moduleUnknown.why': 'No module is called “{id}”.',
   'err.moduleUnknown.fix': 'The modules: okb modules.',
+  'help.cmd.whoami': 'your OKB identifier (random, never your name) and your job, used in receipts and later by your team',
+  'settings.label.person.role': 'Your job',
 } as const;

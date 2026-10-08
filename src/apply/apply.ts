@@ -1,5 +1,6 @@
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { person } from '../identity/person.js';
 import type { OkbConfig } from '../config/schema.js';
 import { assertStateOutsideKb } from '../config/load.js';
 import { validatePlannedFiles } from '../proposal/validate.js';
@@ -27,6 +28,8 @@ export type Receipt = {
   readonly results: readonly ApplyResult[]; readonly backups: Readonly<Record<string, string | null>>;
   readonly beforeHashes: Readonly<Record<string, string | null>>;
   readonly journal: string; readonly complete: boolean; readonly rolledBack?: boolean;
+  /** Who applied it (src/identity/person.ts): a stable id and a declared job, never a name. */
+  readonly person?: { readonly id: string; readonly role: string };
 };
 export type ApplyOptions = { readonly only?: readonly string[]; readonly resume?: boolean; readonly dryRun?: boolean; readonly actor?: string };
 const receiptPath = (config: OkbConfig, id: string) => resolve(statePaths(config).receipts, `${assertId(id, 'receipt id')}.json`);
@@ -99,9 +102,10 @@ export async function applyProposal(config: OkbConfig, proposal: Proposal, optio
         beforeHashes[path] = hashOf(before);
       }
       await validatePlannedFiles(config, staged);
+      const who = await person().catch(() => null);
       receipt = { id, proposalId: proposal.id, proposalContentHash: proposal.contentHash, kbRoot: config.kb.root, profileId: config.profile.id,
         appliedAt: new Date().toISOString(), appliedBy: options.actor ?? config.profile.humanActor, approval, selection: accepted, dropped, results, backups, beforeHashes,
-        journal: resolve(state.runs, `${proposal.id}.jsonl`), complete: false };
+        journal: resolve(state.runs, `${proposal.id}.jsonl`), complete: false, ...(who ? { person: who } : {}) };
       if (options.dryRun) return receipt;
       for (const [path, { before, after }] of staged) {
         if (before !== null) await writeTextAtomic(resolve(state.backups, proposal.id, backups[path]!), before);
