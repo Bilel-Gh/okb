@@ -20,7 +20,7 @@ function moduleId(v: unknown): ModuleId {
   return v as ModuleId;
 }
 
-export function nextRoutes(_kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, b: B) => Promise<unknown>> {
+export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, b: B) => Promise<unknown>> {
   return {
     'GET /api/modules': async (ctx) => {
       const { moduleList } = await import('../cli/commands/modules.js');
@@ -28,5 +28,12 @@ export function nextRoutes(_kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q,
     },
     'POST /api/modules/toggle': async (ctx, _q, b) => ({ ok: true, enabled: [...(await setModule(moduleId(b.id), b.on === true, ctx.env))].sort() }),
     'POST /api/modules/install': async (_ctx, _q, b) => installClaudeModule(moduleId(b.id)),
+    'POST /api/repos/link': async (ctx, _q, b) => {
+      const config = await kbConfig(ctx, b.kb);
+      if (typeof b.folder !== 'string' || typeof b.path !== 'string' || !b.path.trim()) throw new OkbError('E_INVALID', 'folder and path are required', { key: 'usage', params: { usage: '{ folder, path }' } });
+      const { linkBrainRepo } = await import('../knowledge/brain-repos.js');
+      const { expandHome } = await import('../config/load.js');
+      return { ok: true, repo: await linkBrainRepo(config, b.folder, expandHome(b.path.trim(), ctx.env), ctx.env) };
+    },
   };
 }

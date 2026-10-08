@@ -173,7 +173,10 @@ export const ROUTES: Record<string, Handler> = {
       journal: tk.journal.filter((j) => ['note', 'decision', 'trap', 'question'].includes(j.kind)).slice(-6).map((j) => ({ at: j.at, kind: j.kind, text: j.text })),
     }));
     const workspaces = (await listWorkspaces(ctx.env)).filter((w) => w.kb === config.profile.id).map((w) => ({ id: w.id, name: w.name, roots: w.roots.map((r) => (ctx.env.HOME && r.startsWith(`${ctx.env.HOME}/`) ? `~${r.slice(ctx.env.HOME.length)}` : r)), prefixes: w.tickets.prefixes }));
-    return { repos: out, kbConfidential: config.kb.confidential, tickets, workspaces };
+    // A brain's repository folders not linked to code on this computer (a brain received, the demo).
+    const { brainRepos } = await import('../knowledge/brain-repos.js');
+    const unlinked = (await brainRepos(config, ctx.env)).filter((r) => !r.linked).map((r) => ({ name: r.name, product: r.product, folder: r.folder }));
+    return { repos: out, unlinked, kbConfidential: config.kb.confidential, tickets, workspaces };
   },
   'GET /api/repo': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
