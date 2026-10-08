@@ -91,3 +91,28 @@ okb translate "Livrer une version" --to en --save      # en faire une note (prop
   une note qui contient un secret, jamais.
 - L'IA utilisée : Claude Code s'il est installé, sinon ta clé
   `ANTHROPIC_API_KEY` (réglage `ai.provider` : `auto`, `claude-code`, `api`, `off`).
+
+## Ta progression
+
+```bash
+okb progress
+```
+
+Lire, réviser, trancher une carte, écrire une note : chaque geste rapporte un peu
+d'expérience, un peu moins quand il se répète le même jour. Des badges bronze,
+argent et or (lecteur, réviseur, décideur, bâtisseur, régulier). Tout reste sur ton
+ordinateur ; pour ne plus la voir : `okb settings set progress.show false`.
+
+## Partager avec un collègue, sans serveur
+
+```bash
+okb pack export "2 Produits/Atlas/Code/atlas-api" --out atlas-api.okbpack.json
+okb pack compare atlas-api.okbpack.json --into "2 Produits/Atlas/Code/atlas-api"
+okb pack merge atlas-api.okbpack.json --into "2 Produits/Atlas/Code/atlas-api"
+```
+
+- Le pack contient les notes du sujet et qui les a écrites ; jamais une note 🔒,
+  privée, ou qui contient un secret.
+- `compare` dit ce que le pack apporte : notes en plus, différentes, identiques.
+- `merge` prépare une proposition qui ajoute ce qui te manque, avec l'auteur
+  d'origine ; une note différente n'est jamais écrasée.

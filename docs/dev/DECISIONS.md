@@ -858,3 +858,20 @@ Pistes, par ordre proposé :
 - **Demander** (`src/find/answer.ts`, page `#/ask`) : les passages qui répondent,
   numérotés ; sur demande, une réponse rédigée seulement à partir d'eux, chaque
   phrase citée [n], dans le budget du jour, jamais une note 🔒 ni un secret.
+
+## D51 — Progression personnelle et packs (fin de la nuit, 8–9 octobre 2026)
+
+> Prises en autonomie, **à valider**.
+
+- **Progression** (`src/progress/progress.ts`, `okb progress`, Aujourd'hui et
+  Apprendre) : XP pour lire (1), réviser (2), trancher une carte (3), écrire une note
+  (6) ; chaque geste du même genre vaut 7 % de moins que le précédent le même jour ;
+  une note relue le même jour compte une fois. Niveau n à 25 × n × (n − 1) XP.
+  Badges bronze, argent, or : lecteur, réviseur, décideur, bâtisseur, régulier.
+  Tout est local et personnel ; réglage `progress.show`. Pas de classement : il
+  viendra avec l'équipe (2.0), à activer par elle.
+- **Packs** (`src/packs/pack.ts`, `okb pack`) : un fichier `.okbpack.json` avec les
+  notes d'un sujet et leur auteur ; jamais une note 🔒, privée ou contenant un
+  secret. Comparer (en plus, différentes, identiques) ; fusionner = une proposition
+  qui ajoute seulement ce qui manque, en gardant `generated.by` et `x_okb.pack`.
+  Une note différente n'est jamais écrasée.
