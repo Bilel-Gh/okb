@@ -65,7 +65,7 @@ The identity is drawn in gradient, like the logo, with restraint:
   `#a497ff → #7c6cf6`), green `#08845b → #0b6a7d` (night `#34d399 → #14b8a6`);
 - **the status bar** (Atelier), the **current page** in the side bar, the
   **counts**, the **brain avatar**, the **selected note** (`--wash`, the accent
-  fading out), the **welcome card** (a gradient edge on top, a soft wash or glow);
+  fading out), the **welcome card** (a soft wash in Atelier, a glow in Classique);
 - **levels and progress** fill from a lighter tint to the full colour.
 
 Text on a gradient keeps WCAG AA on its lightest stop (checked for all four
@@ -131,6 +131,8 @@ Spacing is a 4 px grid (4, 8, 12, 16, 20, 24, 32, 40, 56).
 - **Do** check both themes in light and dark, on a desktop and a phone.
 - **Do** gate movement behind `prefers-reduced-motion: no-preference`.
 - **Don't** put a gradient on data (type bars, charts) or under long text.
+- **Don't** add coloured side or top bars to cards, or animate widths: bars show
+  their value at once.
 - **Don't** load a font or a script from an outside service.
 - **Don't** bring back the metro vocabulary (navy rail, signal yellow, stations on
   lines everywhere).

@@ -151,7 +151,6 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .level-labels span:first-child { transform: none; }
 .level-labels span:last-child { transform: translateX(-60%); }
 .level-labels span.on { color: var(--ink); font-weight: 600; }
-@media (prefers-reduced-motion: no-preference) { .level-fill { transition: width 600ms var(--ease); } }
 
 /* ------------------------------------------------------ surfaces */
 .panel { background: var(--surface); border: 1px solid var(--hair); border-radius: var(--r-lg); box-shadow: var(--shadow-1); }

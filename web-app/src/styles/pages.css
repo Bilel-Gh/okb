@@ -80,7 +80,7 @@
 .prose code { padding: 1px 5px; border-radius: 4px; background: var(--sunk); font-size: .86em; }
 .prose pre { padding: var(--s4); border-radius: var(--r); background: var(--code-bg); color: var(--code-ink); overflow-x: auto; font-size: var(--t-sm); line-height: 1.6; }
 .prose pre code { padding: 0; background: none; color: inherit; }
-.prose blockquote { margin-left: 0; padding: var(--s3) var(--s4); border-left: 2px solid var(--accent); color: var(--ink-2); background: var(--accent-soft); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.prose blockquote { margin-left: 0; padding: var(--s3) var(--s4); color: var(--ink-2); background: var(--sunk); border-radius: var(--r); }
 .prose table { border-collapse: collapse; width: 100%; font-size: var(--t-sm); display: block; overflow-x: auto; }
 .prose th, .prose td { border-bottom: 1px solid var(--hair); padding: var(--s2) var(--s3); text-align: left; vertical-align: top; }
 .prose th { color: var(--ink-2); font-weight: 600; }
@@ -106,7 +106,6 @@
 :root[data-theme='classique'] .hello::after { content: ''; position: absolute; right: -60px; top: -110px; width: 420px; height: 300px; background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 20%, transparent), transparent); pointer-events: none; }
 /* The welcome carries the theme's gradient, softly. */
 :root[data-theme='atelier'] .hello { background: linear-gradient(110deg, var(--surface) 35%, color-mix(in srgb, var(--accent) 13%, var(--surface))); }
-.hello::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--accent-grad); }
 .typebar { display: flex; gap: 2px; height: 10px; border-radius: var(--r-pill); overflow: hidden; }
 :root[data-theme='atelier'] .typebar { height: 8px; border-radius: 2px; }
 .typebar span { background: var(--c, var(--ink-3)); min-width: 3px; }
@@ -123,7 +122,6 @@
 .progress-track { flex: 1; height: 8px; border-radius: var(--r-pill); background: var(--sunk); overflow: hidden; }
 :root[data-theme='atelier'] .progress-track { height: 6px; border-radius: 2px; }
 .progress-fill { display: block; height: 100%; border-radius: inherit; background: var(--accent-grad); }
-@media (prefers-reduced-motion: no-preference) { .progress-fill { transition: width 600ms var(--ease); } }
 
 /* ---------------------------------------------------------- repos */
 .product-swatch { flex: none; width: 12px; height: 12px; border-radius: 4px; background: var(--c, var(--ink-3)); }
@@ -212,7 +210,7 @@
 .passages li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: var(--s2); scroll-margin-top: 80px; }
 .passages li.used .cite-n { color: var(--accent-text); background: var(--accent-soft); }
 .cite-n { align-self: start; padding: 2px 6px; border-radius: 6px; background: var(--sunk); color: var(--ink-3); font-size: var(--t-xs); font-weight: 600; text-align: center; }
-.passages blockquote { margin: 0; padding: 0 0 0 var(--s3); border-left: 2px solid var(--hair-strong); color: var(--ink); line-height: var(--lh-read); }
+.passages blockquote { margin: 0; padding: var(--s2) var(--s3); border-radius: var(--r-sm); background: var(--sunk); color: var(--ink); line-height: var(--lh-read); }
 
 /* ---------------------------------------------------------- progress badges */
 .badges { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s3); }
