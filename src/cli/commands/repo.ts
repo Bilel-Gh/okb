@@ -613,10 +613,16 @@ async function repoExamCmd(ctx: Ctx): Promise<number> {
 function renderExam(ctx: Ctx, r: Awaited<ReturnType<typeof import('../../knowledge/exam.js')['runExam']>> & { history: readonly { at: string; score: number | null }[] }): void {
   const score = r.score === null ? t('exam.noScore') : `${r.score} %`;
   ctx.out.line(`📝 ${paint.name(r.name)}  ${paint.bold(score)}  ${paint.dim(t('exam.counts', { ...r.counts, day: r.at.slice(0, 10) }))}`);
-  for (const i of r.items) {
-    const why = i.why === 'not-found' || i.why === 'not-in-notes' || i.why === 'no-answer' || i.why === 'no-reference' || i.why === 'undecided' ? t(`exam.why.${i.why}`) : i.why;
+  const reason = (why: string) => (['not-found', 'not-in-notes', 'no-answer', 'no-reference', 'undecided'].includes(why) ? t(`exam.why.${why}`) : why);
+  // The graded answers one by one, the wrong first; the questions nothing could check, counted by reason.
+  const order = { wrong: 0, partial: 1, right: 2, ungraded: 3 } as const;
+  for (const i of [...r.items].filter((x) => x.grade !== 'ungraded').sort((a, b) => order[a.grade] - order[b.grade])) {
+    const why = reason(i.why);
     ctx.out.line(`  ${GRADE_MARK[i.grade]()} ${i.question}${why ? paint.dim(`  — ${why}`) : ''}`);
   }
+  const ungraded = new Map<string, number>();
+  for (const i of r.items.filter((x) => x.grade === 'ungraded')) ungraded.set(i.why, (ungraded.get(i.why) ?? 0) + 1);
+  if (ungraded.size) ctx.out.line(`  ${GRADE_MARK.ungraded()} ${paint.dim(t('exam.ungraded', { list: [...ungraded].map(([why, n]) => `${reason(why)} (${n})`).join(' · ') }))}`);
   const before = r.history[1];
   if (before && before.score !== null && r.score !== null) ctx.out.line(paint.dim(t('exam.before', { score: before.score, day: before.at.slice(0, 10) })));
 }

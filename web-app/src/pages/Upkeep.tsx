@@ -8,6 +8,7 @@ import { toast } from '../app/toast';
 import { ConfirmDialog } from '../ui/Confirm';
 import { PageTabs } from '../ui/PageTabs';
 import { ErrorState, SkeletonRows } from '../ui/States';
+import { Ring } from '../ui/Ring';
 
 type HealthGroup = { code: string; title: string; why?: string; fix?: string; items: { level: 'error' | 'warning' | 'info'; where: string; message: string }[] };
 type Health = { scanned: number; okf: boolean; health: { score: number; errors: number; warnings: number; infos: number }; groups: HealthGroup[] };
@@ -19,10 +20,6 @@ const LEVEL_ICON: Record<string, ReactNode> = {
 };
 
 /* ================================================================ health */
-
-function Ring({ score, tone }: { score: number; tone: string }) {
-  return <span className="ring" style={{ '--v': score, '--ring': tone } as CSSProperties} role="img" aria-label={`${score} / 100`}><span className="num">{score}</span></span>;
-}
 
 function HealthTab() {
   const t = useT();

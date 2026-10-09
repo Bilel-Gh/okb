@@ -105,12 +105,14 @@ function fakeExam(req: AiRequest): string | null {
     return JSON.stringify({ answers: blocks.map((b) => ({ id: b.id, answer: (/^\[\d+\][^:]*: (.*)$/m.exec(b.body)?.[1] ?? 'NOT IN THE NOTES').slice(0, 300) })) });
   }
   if (req.system.includes('{"grades"')) {
-    const words = (s: string) => new Set(s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 3));
+    const words = (s: string) => new Set(s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 3 || /^\d+$/.test(w)));
     return JSON.stringify({ grades: blocks.map((b) => {
       const answer = words(/^Answer: (.*)$/m.exec(b.body)?.[1] ?? '');
       const reference = words(b.body.split(/^(?:Expected answer|A person’s answer|Code):$/m)[1] ?? '');
       const shared = [...reference].filter((w) => answer.has(w)).length / Math.max(1, Math.min(reference.size, 12));
-      return { id: b.id, grade: shared >= 0.5 ? 'right' : shared > 0 ? 'partial' : 'wrong', why: '[fake] shared words' };
+      // A number the reference gives and the answer does not: not the same answer.
+      const numbers = [...reference].filter((w) => /^\d+$/.test(w)).every((w) => answer.has(w));
+      return { id: b.id, grade: !numbers ? 'wrong' : shared >= 0.5 ? 'right' : shared > 0 ? 'partial' : 'wrong', why: '[fake] shared words' };
     }) });
   }
   return null;

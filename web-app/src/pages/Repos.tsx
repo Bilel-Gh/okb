@@ -13,6 +13,7 @@ import { Prose } from '../reader/Prose';
 import { LevelBar, type Tier } from '../ui/LevelBar';
 import { PageTabs } from '../ui/PageTabs';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
+import { ExamPanel } from './Exam';
 
 const Arch = lazy(() => import('./Arch'));
 
@@ -345,6 +346,7 @@ function LinkedDetail({ id, color, setTitle }: { id: string; color: string; setT
           ) : null}
         </div>
       </div>
+      <ExamPanel repo={repo.id} color={color} />
       {map ? <CodeMap map={map} risks={d.data.risks} /> : null}
       {d.data.landscape ? (
         <section className="panel">
@@ -378,6 +380,7 @@ function Detail({ data, id, setTitle }: { data: ReposData; id: string; setTitle?
       {linked ? <LinkedDetail id={linked.id} color={color} setTitle={setTitle} /> : unlinked ? (
         <>
           <LevelPanel name={name} level={unlinked.level} color={color} />
+          <ExamPanel repo={unlinked.name} color={color} />
           <section className="panel"><div className="panel-head"><h2><Link2 size={17} aria-hidden="true" />{t('app.repos.linkTitle')}</h2></div><div className="panel-body"><LinkForm folder={unlinked.folder} name={unlinked.name} /></div></section>
           <section className="panel"><div className="panel-head"><h2><Terminal size={17} aria-hidden="true" />{t('app.repos.withClaude')}</h2></div><div className="panel-body stack">
             <p className="small muted">{t('app.repos.withClaudeWhy')}</p>

@@ -20,6 +20,18 @@ function moduleId(v: unknown): ModuleId {
   return v as ModuleId;
 }
 
+/** A repository of the KB by its id or its name: a brain's (linked or not), or one registered for the KB. */
+async function examRepo(config: OkbConfig, wanted: unknown, env: NodeJS.ProcessEnv): Promise<{ id: string; name: string; folder: string | null }> {
+  if (typeof wanted !== 'string' || !wanted) throw new OkbError('E_INVALID', 'repo is required', { key: 'usage', params: { usage: '{ repo }' } });
+  const { brainRepos } = await import('../knowledge/brain-repos.js');
+  const { listRepos } = await import('../repo/registry.js');
+  const brain = await brainRepos(config, env);
+  const registered = (await listRepos(env)).filter((r) => r.kb === config.profile.id).map((r) => ({ id: r.id, name: r.name, folder: null }));
+  const found = [...brain, ...registered].find((r) => r.id === wanted || r.name === wanted);
+  if (!found) throw new OkbError('E_NOT_FOUND', `no repository ${wanted} in this KB`, { key: 'repoUnknown', params: { id: wanted } });
+  return { id: found.id, name: found.name, folder: found.folder };
+}
+
 export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, b: B) => Promise<unknown>> {
   return {
     'GET /api/modules': async (ctx) => {
@@ -108,6 +120,29 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
         // Where each repository's page is in the app (its registry id).
         pages: Object.fromEntries(maps.map((m) => [`repo:${m.repo.name}`, m.repo.id])),
       };
+    },
+    // The knowledge exam of a repository (src/knowledge/exam.ts): its plan and cost, its last result, the team's questions.
+    'GET /api/repos/exam': async (ctx, q) => {
+      const config = await kbConfig(ctx, q.get('kb'));
+      const repo = await examRepo(config, q.get('repo'), ctx.env);
+      const exam = await import('../knowledge/exam.js');
+      const [plan, last, custom] = await Promise.all([exam.planExam(config, repo, { env: ctx.env }), exam.lastExam(config, repo), exam.examQuestionsOf(config, repo)]);
+      const { pickProvider } = await import('../ai/provider.js');
+      return { repo: { id: repo.id, name: repo.name }, plan, last, custom, ai: Boolean(await pickProvider(ctx.env)) };
+    },
+    'POST /api/repos/exam': async (ctx, _q, b) => {
+      const config = await kbConfig(ctx, b.kb);
+      const repo = await examRepo(config, b.repo, ctx.env);
+      const { runExam } = await import('../knowledge/exam.js');
+      const only = Array.isArray(b.only) ? b.only.filter((x): x is string => typeof x === 'string') : [];
+      return { ok: true, exam: await runExam(config, repo, { env: ctx.env, ...(only.length ? { only } : {}) }) };
+    },
+    'POST /api/repos/exam/question': async (ctx, _q, b) => {
+      const config = await kbConfig(ctx, b.kb);
+      const repo = await examRepo(config, b.repo, ctx.env);
+      const exam = await import('../knowledge/exam.js');
+      if (typeof b.remove === 'string') { await exam.removeExamQuestion(config, repo, b.remove); return { ok: true }; }
+      return { ok: true, question: await exam.addExamQuestion(config, repo, String(b.text ?? ''), String(b.expected ?? '')) };
     },
     'POST /api/repos/link': async (ctx, _q, b) => {
       const config = await kbConfig(ctx, b.kb);

@@ -167,3 +167,30 @@ describe('okb repo exam', () => {
     expect((await json(['repo', 'exam', repo.name, '--last'], fake, dir)).exam.score).toBe(100);
   }, 120_000);
 });
+
+describe('the exam in the web app', () => {
+  it('shows the plan, adds a question of the team’s own with the token, and runs the exam', async () => {
+    const { serve } = await import('../src/web/serve.js');
+    const { config, env, kb, repo } = await demo();
+    await writeFile(resolve(kb, repo.folder!, 'Base de données.md'), card('Base de données', 'La base de données du service est PostgreSQL, version 16.'));
+    const fake = { ...env, OKB_AI: 'fake' };
+    const { server, url } = await serve(config, { port: 0, env: fake });
+    try {
+      const token = ((await (await fetch(`${url}/api/session`)).json()) as { token: string }).token;
+      const post = (path: string, body: unknown, withToken = true) => fetch(`${url}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(withToken ? { 'X-OKB-Token': token } : {}) }, body: JSON.stringify(body) });
+      const first = await (await fetch(`${url}/api/repos/exam?repo=${encodeURIComponent(repo.name)}`)).json() as { plan: { questions: unknown[] }; last: unknown; custom: unknown[]; ai: boolean };
+      expect(first).toMatchObject({ last: null, custom: [], ai: true });
+      expect(first.plan.questions).toHaveLength(25);
+      expect((await post('/api/repos/exam/question', { repo: repo.name, text: 'Quelle base de données ?', expected: 'PostgreSQL version 16' }, false)).status).toBe(403);
+      const added = await (await post('/api/repos/exam/question', { repo: repo.name, text: 'Quelle base de données ?', expected: 'PostgreSQL version 16' })).json() as { question: { id: string } };
+      const ran = await (await post('/api/repos/exam', { repo: repo.name, only: ['custom'] })).json();
+      expect(ran).toMatchObject({ ok: true, exam: { score: 100 } });
+      const after = await (await fetch(`${url}/api/repos/exam?repo=${encodeURIComponent(repo.name)}`)).json() as { last: { score: number }; custom: { id: string }[] };
+      expect(after.last.score).toBe(100);
+      expect(after.custom.map((c) => c.id)).toEqual([added.question.id]);
+      expect(await (await post('/api/repos/exam/question', { repo: repo.name, remove: added.question.id })).json()).toEqual({ ok: true });
+    } finally {
+      server.closeAllConnections(); server.close();
+    }
+  }, 90_000);
+});
