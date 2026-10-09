@@ -218,12 +218,12 @@ export async function findSuggestion(config: OkbConfig, id: string): Promise<Sug
   return s;
 }
 
-export async function setStatus(config: OkbConfig, id: string, status: SuggestionStatus, by?: Suggestion['decidedBy'], proposalId?: string): Promise<Suggestion> {
+export async function setStatus(config: OkbConfig, id: string, status: SuggestionStatus, by?: Suggestion['decidedBy'], proposalId?: string, env: NodeJS.ProcessEnv = process.env): Promise<Suggestion> {
   const queue = await loadQueue(config);
   const found = queue.find((x) => x.id === id);
   if (!found) throw new OkbError('E_NOT_FOUND', `no suggestion ${id}`, { key: 'suggestUnknown', params: { id } });
   // Every decision is the person's (in the web app, the terminal, or their answer read by the consent hook): it carries their id.
-  const who = by ? await person().catch(() => null) : null;
+  const who = by ? await person(env).catch(() => null) : null;
   const next: Suggestion = {
     ...found, status, decidedAt: new Date().toISOString(), ...(by ? { decidedBy: by } : {}), ...(who ? { decidedPerson: who.id } : {}),
     ...(proposalId ? { proposalIds: [...(found.proposalIds ?? []), proposalId] } : {}),

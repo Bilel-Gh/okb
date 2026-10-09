@@ -31,7 +31,7 @@ export type Receipt = {
   /** Who applied it (src/identity/person.ts): a stable id and a declared job, never a name. */
   readonly person?: { readonly id: string; readonly role: string };
 };
-export type ApplyOptions = { readonly only?: readonly string[]; readonly resume?: boolean; readonly dryRun?: boolean; readonly actor?: string };
+export type ApplyOptions = { readonly only?: readonly string[]; readonly resume?: boolean; readonly dryRun?: boolean; readonly actor?: string; /** The OKB home in use (the person who applies is read there). */ readonly env?: NodeJS.ProcessEnv };
 const receiptPath = (config: OkbConfig, id: string) => resolve(statePaths(config).receipts, `${assertId(id, 'receipt id')}.json`);
 const hashOf = (text: string | null) => text === null ? null : sha256(text);
 
@@ -102,7 +102,7 @@ export async function applyProposal(config: OkbConfig, proposal: Proposal, optio
         beforeHashes[path] = hashOf(before);
       }
       await validatePlannedFiles(config, staged);
-      const who = await person().catch(() => null);
+      const who = await person(options.env).catch(() => null);
       receipt = { id, proposalId: proposal.id, proposalContentHash: proposal.contentHash, kbRoot: config.kb.root, profileId: config.profile.id,
         appliedAt: new Date().toISOString(), appliedBy: options.actor ?? config.profile.humanActor, approval, selection: accepted, dropped, results, backups, beforeHashes,
         journal: resolve(state.runs, `${proposal.id}.jsonl`), complete: false, ...(who ? { person: who } : {}) };

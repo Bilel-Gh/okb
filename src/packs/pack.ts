@@ -43,7 +43,7 @@ function assertPack(p: unknown): asserts p is Pack {
 
 const clean = (folder: string) => folder.replace(/^\/+|\/+$/g, '');
 
-export async function exportPack(config: OkbConfig, bundle: Bundle, folder: string, now = new Date()): Promise<Pack> {
+export async function exportPack(config: OkbConfig, bundle: Bundle, folder: string, now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<Pack> {
   const root = clean(folder);
   const prefix = `${root}/`;
   const notes: PackNote[] = [];
@@ -61,7 +61,7 @@ export async function exportPack(config: OkbConfig, bundle: Bundle, folder: stri
   if (!notes.length && !skipped.length) throw new OkbError('E_NOT_FOUND', `no note under ${root}`, { key: 'packEmpty', params: { folder: root } });
   return {
     kind: 'okb-pack', v: 1, subject: root, exportedAt: now.toISOString(),
-    from: { brain: config.profile.displayName || config.profile.id, person: (await person()).id },
+    from: { brain: config.profile.displayName || config.profile.id, person: (await person(env)).id },
     notes: notes.sort((a, b) => a.path.localeCompare(b.path)), skipped,
   };
 }

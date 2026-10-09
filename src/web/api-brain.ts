@@ -130,7 +130,7 @@ export function brainRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q,
       const config = await kbConfig(ctx, b.kb);
       const decision = String(b.decision ?? '');
       if (!['accept', 'decline', 'later'].includes(decision)) throw new OkbError('E_INVALID', 'decision must be accept, decline or later');
-      const s = await setStatus(config, String(b.id ?? ''), decision === 'accept' ? 'accepted' : decision === 'decline' ? 'declined' : 'later', 'person');
+      const s = await setStatus(config, String(b.id ?? ''), decision === 'accept' ? 'accepted' : decision === 'decline' ? 'declined' : 'later', 'person', undefined, ctx.env);
       return { ok: true, suggestion: s };
     },
     'GET /api/scores': async (ctx, q) => {

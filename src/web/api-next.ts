@@ -39,7 +39,7 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
       return { modules: await moduleList(ctx.env) };
     },
     'POST /api/modules/toggle': async (ctx, _q, b) => ({ ok: true, enabled: [...(await setModule(moduleId(b.id), b.on === true, ctx.env))].sort() }),
-    'POST /api/modules/install': async (_ctx, _q, b) => installClaudeModule(moduleId(b.id)),
+    'POST /api/modules/install': async (ctx, _q, b) => installClaudeModule(moduleId(b.id), ctx.env),
     // « Use OKB in Claude Code »: is Claude Code here, and which OKB plugins does it have?
     'GET /api/claude': async (ctx) => {
       const { claudeState, claudeModules } = await import('../integrations/system.js');
@@ -149,7 +149,7 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
       const config = await kbConfig(ctx, q.get('kb'));
       const { exportPack } = await import('../packs/pack.js');
       const { loadBundleFor } = await import('../kb/bundle.js');
-      return exportPack(config, await loadBundleFor(config), q.get('folder') ?? '');
+      return exportPack(config, await loadBundleFor(config), q.get('folder') ?? '', new Date(), ctx.env);
     },
     'POST /api/packs/compare': async (ctx, _q, b) => {
       const config = await kbConfig(ctx, b.kb);

@@ -102,10 +102,12 @@ export async function claudeModules(home: string = process.env.HOME ?? ''): Prom
  * this folder as the `okb` catalogue when needed, then install or update the
  * plugin. The core plugin goes first when it is missing: a module depends on it.
  */
-export async function installClaudeModule(id: string): Promise<{ ok: boolean; steps: string[]; error?: string }> {
-  const { moduleDef } = await import('../modules/catalog.js');
+export async function installClaudeModule(id: string, env: NodeJS.ProcessEnv = process.env): Promise<{ ok: boolean; steps: string[]; error?: string }> {
+  const { entitled, moduleDef } = await import('../modules/catalog.js');
   const def = moduleDef(id);
   if (!def?.plugin) return { ok: false, steps: [], error: 'no-plugin' };
+  // A module that needs a licence is installed only once it is held (none does yet).
+  if (!entitled(def.id)) return { ok: false, steps: [], error: 'not-entitled' };
   if (def.plugin === 'okb') return installClaudePlugin();
   const state = await claudeState();
   if (!state.cli) return { ok: false, steps: [], error: 'claude-missing' };
@@ -115,7 +117,7 @@ export async function installClaudeModule(id: string): Promise<{ ok: boolean; st
     steps.push(...core.steps);
     if (!core.ok) return { ok: false, steps, ...(core.error ? { error: core.error } : {}) };
   }
-  const installed = (await claudeModules())[def.plugin]?.installed;
+  const installed = (await claudeModules(env.HOME ?? ''))[def.plugin]?.installed;
   const r = await tryRun(state.cli, installed ? ['plugin', 'update', `${def.plugin}@okb`] : ['plugin', 'install', `${def.plugin}@okb`], { timeout: 120_000 });
   steps.push(`${installed ? 'update' : 'install'} ${def.plugin}: ${r.ok ? 'ok' : r.err}`);
   return r.ok ? { ok: true, steps } : { ok: false, steps, error: r.err };

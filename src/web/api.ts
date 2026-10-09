@@ -514,13 +514,13 @@ export const ROUTES: Record<string, Handler> = {
     if (presence !== 'confirmed') return { ok: false, presence };
     await grantApproval(config, proposal, accepted, config.profile.humanActor);
     if (b.apply === false) return { ok: true, presence, applied: false };
-    const receipt = await applyProposal(config, proposal, accepted.length < proposal.changes.length ? { only: accepted } : {});
+    const receipt = await applyProposal(config, proposal, { env: ctx.env, ...(accepted.length < proposal.changes.length ? { only: accepted } : {}) });
     return { ok: true, presence, applied: true, receipt: { id: receipt.id, results: receipt.results } };
   },
   'POST /api/proposal/apply': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);
     const proposal = await loadProposal(config, str(b.id, 'id', 80));
-    const receipt = await applyProposal(config, proposal);
+    const receipt = await applyProposal(config, proposal, { env: ctx.env });
     return { ok: true, receipt: { id: receipt.id, results: receipt.results } };
   },
   'POST /api/undo': async (ctx, _q, b) => {

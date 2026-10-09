@@ -91,3 +91,12 @@ describe('packs in the web app', () => {
     }
   }, 90_000);
 });
+
+describe('the person behind a pack (review M12)', () => {
+  it('is the person of the OKB home in use, not of the process', async () => {
+    const { person } = await import('../src/identity/person.js');
+    const { config, env } = await demoBrain();
+    const pack = await exportPack(config, await loadBundleFor(config), FOLDER, new Date(), env);
+    expect(pack.from.person).toBe((await person(env)).id);
+  }, 60_000);
+});
