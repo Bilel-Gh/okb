@@ -23,7 +23,7 @@ const CLAUDE_MODELS = { small: 'haiku', medium: 'sonnet' } as const;
 const API_MODELS = { small: 'claude-haiku-5-5', medium: 'claude-sonnet-5-5' } as const;
 const TIMEOUT_MS = 180_000;
 
-export async function pickProvider(env: NodeJS.ProcessEnv = process.env): Promise<{ id: ProviderId } | null> {
+export async function pickProvider(env: NodeJS.ProcessEnv = process.env): Promise<{ id: ProviderId; fallback?: 'api' } | null> {
   if (env.OKB_AI === 'fake') return { id: 'fake' };
   const root = await readRootConfig(env).catch(() => ({}));
   const choice = (root as { ai?: { provider?: unknown } }).ai?.provider ?? 'auto';
@@ -32,7 +32,8 @@ export async function pickProvider(env: NodeJS.ProcessEnv = process.env): Promis
   const key = choice === 'claude-code' ? '' : (env.ANTHROPIC_API_KEY ?? '').trim();
   if (choice === 'claude-code') return claude ? { id: 'claude-code' } : null;
   if (choice === 'api') return key ? { id: 'api' } : null;
-  if (claude) return { id: 'claude-code' };
+  // On « auto », Claude Code first; a key, when there is one, takes over if Claude Code fails (signed out, expired).
+  if (claude) return key ? { id: 'claude-code', fallback: 'api' } : { id: 'claude-code' };
   if (key) return { id: 'api' };
   return null;
 }
@@ -132,5 +133,10 @@ export async function complete(req: AiRequest, env: NodeJS.ProcessEnv = process.
   if (!provider) throw new OkbError('E_CONFIG', 'no AI available: install Claude Code, or set ANTHROPIC_API_KEY, or turn ai.provider on', { key: 'aiUnavailable' });
   if (provider.id === 'fake') return fake(req);
   if (provider.id === 'api') return callApi(req, env);
-  return runClaude((await which('claude', env))!, req, env);
+  try {
+    return await runClaude((await which('claude', env))!, req, env);
+  } catch (e) {
+    if (provider.fallback === 'api') return callApi(req, env);
+    throw e;
+  }
 }

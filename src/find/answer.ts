@@ -1,4 +1,5 @@
 import { complete } from '../ai/provider.js';
+import { oneAtATime } from '../ai/queue.js';
 import { plain } from '../concepts/one-liner.js';
 import { recordAiUsage } from '../ai/usage.js';
 import type { OkbConfig } from '../config/schema.js';
@@ -65,7 +66,11 @@ export function passagesFor(config: OkbConfig, bundle: Bundle, question: string,
   return { passages, notes: hits.map((h) => ({ path: h.path, title: h.title })) };
 }
 
-export async function composeAnswer(config: OkbConfig, question: string, passages: readonly Passage[], env: NodeJS.ProcessEnv = process.env, now = new Date()): Promise<{ answer: string; tokens: number; used: number[] }> {
+export function composeAnswer(config: OkbConfig, question: string, passages: readonly Passage[], env: NodeJS.ProcessEnv = process.env, now = new Date()): Promise<{ answer: string; tokens: number; used: number[] }> {
+  return oneAtATime(() => answerNow(config, question, passages, env, now));
+}
+
+async function answerNow(config: OkbConfig, question: string, passages: readonly Passage[], env: NodeJS.ProcessEnv, now: Date): Promise<{ answer: string; tokens: number; used: number[] }> {
   // Only what may leave the computer: no 🔒 note, no passage that looks like it holds a secret.
   const sendable = passages.filter((p) => !p.secret && !findSecrets(p.text).length);
   if (!sendable.length) throw new OkbError('E_INVALID', 'no passage can be sent to the AI', { key: 'askNothingToSend' });

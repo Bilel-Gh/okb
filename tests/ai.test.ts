@@ -108,3 +108,39 @@ describe('Claude Code that stops early (review M9)', () => {
     await expect(complete({ system: 's', prompt: big, size: 'small', maxTokens: 10 }, { ...env, PATH: `${bin}:/usr/bin:/bin` })).rejects.toMatchObject({ key: 'aiFailed' });
   }, 30_000);
 });
+
+describe('Claude Code signed out (review M5)', () => {
+  async function setup(config: string) {
+    const { chmod } = await import('node:fs/promises');
+    const { createServer } = await import('node:http');
+    const { env, dir } = await home(config);
+    const bin = resolve(dir, 'bin');
+    await mkdir(bin, { recursive: true });
+    // Claude Code installed, but its session expired: it answers with an error.
+    await writeFile(resolve(bin, 'claude'), '#!/bin/sh\ncat >/dev/null\necho \'{"type":"result","is_error":true,"result":"Invalid API key · Please run /login"}\'\n');
+    await chmod(resolve(bin, 'claude'), 0o755);
+    const calls: string[] = [];
+    const server = createServer((req, res) => { calls.push(req.url ?? ''); res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ content: [{ type: 'text', text: 'from the API' }], stop_reason: 'end_turn', usage: { input_tokens: 3, output_tokens: 2 } })); });
+    await new Promise<void>((done) => server.listen(0, '127.0.0.1', () => done()));
+    const port = (server.address() as { port: number }).port;
+    made.push(dir);
+    return { server, calls, env: { ...env, PATH: `${bin}:/usr/bin:/bin`, ANTHROPIC_API_KEY: 'test-key', ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}` } };
+  }
+
+  it('on « auto », falls back to the API key', async () => {
+    const { server, calls, env } = await setup('');
+    try {
+      const r = await complete({ system: 's', prompt: 'p', size: 'small', maxTokens: 10 }, env);
+      expect(r).toMatchObject({ text: 'from the API', provider: 'api' });
+      expect(calls).toHaveLength(1);
+    } finally { server.close(); }
+  }, 30_000);
+
+  it('when Claude Code was chosen, says so instead of using the key', async () => {
+    const { server, calls, env } = await setup('ai:\n  provider: claude-code\n');
+    try {
+      await expect(complete({ system: 's', prompt: 'p', size: 'small', maxTokens: 10 }, env)).rejects.toMatchObject({ key: 'aiFailed' });
+      expect(calls).toHaveLength(0);
+    } finally { server.close(); }
+  }, 30_000);
+});

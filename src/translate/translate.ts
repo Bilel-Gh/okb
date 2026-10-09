@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import { posix, resolve } from 'node:path';
 import YAML from 'yaml';
 import { complete } from '../ai/provider.js';
+import { oneAtATime } from '../ai/queue.js';
 import { recordAiUsage } from '../ai/usage.js';
 import { glossary } from '../brain/views.js';
 import { layoutOf } from '../brain/layout.js';
@@ -238,7 +239,11 @@ export async function estimateTranslation(config: OkbConfig, path: BundlePath, l
   return { tokens, cached: p.sections.length - r.sections.length, toTranslate: r.sections.length, budget: { spent, daily } };
 }
 
-export async function translateNote(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: boolean; now?: Date } = {}): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
+export function translateNote(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: boolean; now?: Date } = {}): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
+  return oneAtATime(() => translateNow(config, path, lang, scope, env, options));
+}
+
+async function translateNow(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv, options: { confirmSecret?: boolean; now?: Date }): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
   const now = options.now ?? new Date();
   const p = await plan(config, path, lang, scope, options);
   const terms = glossary(layoutOf(config), p.bundle).flatMap((g) => [g.term, ...g.aliases]);

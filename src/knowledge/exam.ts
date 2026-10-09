@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { complete, type AiRequest, type AiResult } from '../ai/provider.js';
+import { oneAtATime } from '../ai/queue.js';
 import { recordAiUsage } from '../ai/usage.js';
 import { repoPlace } from '../brain/products.js';
 import type { OkbConfig } from '../config/schema.js';
@@ -253,7 +254,11 @@ function strings(value: unknown, key: string, field: string): Map<string, Record
   return out;
 }
 
-export async function runExam(config: OkbConfig, repo: ExamRepo, options: { env?: NodeJS.ProcessEnv; only?: readonly string[]; bundle?: Bundle; now?: Date; ask?: Ask } = {}): Promise<ExamResult> {
+export function runExam(config: OkbConfig, repo: ExamRepo, options: { env?: NodeJS.ProcessEnv; only?: readonly string[]; bundle?: Bundle; now?: Date; ask?: Ask } = {}): Promise<ExamResult> {
+  return oneAtATime(() => examNow(config, repo, options));
+}
+
+async function examNow(config: OkbConfig, repo: ExamRepo, options: { env?: NodeJS.ProcessEnv; only?: readonly string[]; bundle?: Bundle; now?: Date; ask?: Ask }): Promise<ExamResult> {
   const env = options.env ?? process.env;
   const now = options.now ?? new Date();
   const ask: Ask = options.ask ?? ((req) => complete(req, env));

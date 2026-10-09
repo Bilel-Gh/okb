@@ -280,3 +280,16 @@ describe('the deferred minors of translation', () => {
     expect(entries.some((e) => e.term === 'Notion Alpha (EN)')).toBe(false);
   }, 60_000);
 });
+
+describe('two AI calls at once (review M10)', () => {
+  it('cannot both pass the day’s budget', async () => {
+    const { writeRootConfig } = await import('../src/kb/registry.js');
+    const { config, path, env } = await brain();
+    const { tokens } = await estimateTranslation(config, path, 'en', 'brief', env);
+    await writeRootConfig((r) => ({ ...r, budget: { daily: Math.round(tokens * 1.5) } }), env);
+    const other = asBundlePath('3 Boîte à outils/Méthodes/Livrer une version.md');
+    const results = await Promise.allSettled([translateNote(config, path, 'en', 'brief', env), translateNote(config, other, 'de', 'brief', env)]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { key: 'budgetExceeded' } });
+  }, 60_000);
+});
