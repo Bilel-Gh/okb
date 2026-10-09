@@ -40,8 +40,12 @@ function paragraphs(body: string): { text: string; line: number }[] {
   return out;
 }
 
-export function passagesFor(config: OkbConfig, bundle: Bundle, question: string, options: { notes?: number; perNote?: number } = {}): { passages: Passage[]; notes: { path: string; title: string }[] } {
-  const hits = findNotes(config, bundle, question, { limit: options.notes ?? 5 }).hits;
+/** `scope`: only these notes (a repository's own, for its exam). */
+export function passagesFor(config: OkbConfig, bundle: Bundle, question: string, options: { notes?: number; perNote?: number; scope?: ReadonlySet<string> } = {}): { passages: Passage[]; notes: { path: string; title: string }[] } {
+  const scope = options.scope;
+  const hits = scope
+    ? findNotes(config, bundle, question, { limit: 500 }).hits.filter((h) => scope.has(h.path)).slice(0, options.notes ?? 5)
+    : findNotes(config, bundle, question, { limit: options.notes ?? 5 }).hits;
   const wanted = new Set(meaningQuery(question));
   const found: (Omit<Passage, 'n'> & { score: number })[] = [];
   hits.forEach((h, rank) => {
