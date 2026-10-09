@@ -81,9 +81,11 @@ export async function listProducts(config: OkbConfig, env: NodeJS.ProcessEnv = p
   const unsorted = pickName(UNSORTED_SUBJECT, layout.lang);
   for (const r of (await listRepos(env)).filter((x) => x.kb === config.profile.id)) {
     const display = repoDisplay(r);
-    const placed = [...byName.values()].some((p) => p.repos.has(display));
-    if (placed) {
-      for (const p of byName.values()) { const known = p.repos.get(display); if (known) p.repos.set(display, { ...known, id: r.id, name: r.name }); }
+    const homes = [...byName.entries()].filter(([, p]) => p.repos.has(display));
+    if (homes.length) {
+      // The same name in two products: the registered repository belongs to its own product only.
+      const mine = homes.filter(([name]) => r.product && safeName(r.product) === name);
+      for (const [, p] of mine.length ? mine : homes.slice(0, 1)) p.repos.set(display, { ...p.repos.get(display)!, id: r.id, name: r.name });
       continue;
     }
     const product = safeName(r.product ?? '') || unsorted;

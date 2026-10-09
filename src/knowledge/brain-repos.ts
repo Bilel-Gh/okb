@@ -1,4 +1,5 @@
 import { layoutOf } from '../brain/layout.js';
+import { safeName } from '../brain/address.js';
 import { listProducts, repoDisplay } from '../brain/products.js';
 import type { OkbConfig } from '../config/schema.js';
 import { addRepo, listRepos, type RepoEntry } from '../repo/registry.js';
@@ -24,13 +25,13 @@ export type BrainRepo = {
 export async function brainRepos(config: OkbConfig, env: NodeJS.ProcessEnv = process.env): Promise<BrainRepo[]> {
   if (!layoutOf(config)) return [];
   const registered = (await listRepos(env)).filter((r) => r.kb === config.profile.id);
-  const byName = new Map<string, RepoEntry>();
-  for (const r of registered) { byName.set(repoDisplay(r), r); byName.set(r.id, r); }
   const out: BrainRepo[] = [];
   const seen = new Set<string>();
   for (const product of await listProducts(config, env)) {
+    // A registered repository is matched in its own product: two products may each have an « api ».
+    const here = registered.filter((x) => !x.product || safeName(x.product) === product.name);
     for (const r of product.repos) {
-      const entry = byName.get(r.name) ?? byName.get(r.id);
+      const entry = here.find((x) => x.id === r.id) ?? here.find((x) => repoDisplay(x) === r.name);
       const key = entry?.id ?? `folder:${r.folder ?? r.name}`;
       if (seen.has(key)) continue;
       seen.add(key);

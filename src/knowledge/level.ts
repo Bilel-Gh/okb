@@ -76,13 +76,13 @@ export function levelFromFacts(f: LevelFacts): KnowledgeLevel {
   const total = measured.reduce((n, p) => n + p.weight, 0);
   const got = measured.reduce((n, p) => n + p.weight * p.score, 0);
   const percent = total ? Math.round((got / total) * 100) : 0;
-  // What brings the most, in points of the full 100.
+  // What brings the most, in points of the full 100 (rescaled below when part of the grid is not measured).
   const gaps: Gap[] = [];
   const perPage = f.pages.length ? WEIGHTS.notes / f.pages.length : 0;
   for (const p of f.pages) {
-    if (p.state === 'missing') gaps.push({ part: 'notes', points: round1(perPage), key: 'knowledge.gap.page', params: { kind: p.kind } });
-    else if (p.state === 'stale') gaps.push({ part: 'notes', points: round1(perPage * (1 - PAGE_VALUE.stale)), key: 'knowledge.gap.stale', params: { kind: p.kind } });
-    else if (p.state === 'changed') gaps.push({ part: 'notes', points: round1(perPage * (1 - PAGE_VALUE.changed)), key: 'knowledge.gap.changed', params: { kind: p.kind } });
+    if (p.state === 'missing') gaps.push({ part: 'notes', points: (perPage), key: 'knowledge.gap.page', params: { kind: p.kind } });
+    else if (p.state === 'stale') gaps.push({ part: 'notes', points: (perPage * (1 - PAGE_VALUE.stale)), key: 'knowledge.gap.stale', params: { kind: p.kind } });
+    else if (p.state === 'changed') gaps.push({ part: 'notes', points: (perPage * (1 - PAGE_VALUE.changed)), key: 'knowledge.gap.changed', params: { kind: p.kind } });
   }
   if (q && q.total) {
     const open = q.total - q.answered;
@@ -90,24 +90,26 @@ export function levelFromFacts(f: LevelFacts): KnowledgeLevel {
       const count = Math.min(5, open);
       // The half-answered ones (found, received) first: they bring the other half.
       const fromHalf = Math.min(count, q.half);
-      gaps.push({ part: 'questions', points: round1((WEIGHTS.questions / q.total) * (fromHalf * 0.5 + (count - fromHalf))), key: 'knowledge.gap.questions', params: { count } });
+      gaps.push({ part: 'questions', points: ((WEIGHTS.questions / q.total) * (fromHalf * 0.5 + (count - fromHalf))), key: 'knowledge.gap.questions', params: { count } });
     }
   }
   if (c && covDen) {
     const left = c.readTotal - c.read;
     if (left > 0) {
       const count = Math.min(10, left);
-      gaps.push({ part: 'coverage', points: round1((WEIGHTS.coverage * count) / covDen), key: 'knowledge.gap.coverage', params: { count } });
+      gaps.push({ part: 'coverage', points: ((WEIGHTS.coverage * count) / covDen), key: 'knowledge.gap.coverage', params: { count } });
     }
   }
   if (f.work < WORK_FULL) {
     const count = Math.min(2, WORK_FULL - f.work);
-    gaps.push({ part: 'work', points: round1((WEIGHTS.work * count) / WORK_FULL), key: 'knowledge.gap.work', params: { count } });
+    gaps.push({ part: 'work', points: ((WEIGHTS.work * count) / WORK_FULL), key: 'knowledge.gap.work', params: { count } });
   }
   if (f.quality !== null && f.quality < QUALITY_GOOD) {
-    gaps.push({ part: 'quality', points: round1((WEIGHTS.quality * (QUALITY_GOOD - f.quality)) / 100), key: 'knowledge.gap.quality', params: { average: Math.round(f.quality) } });
+    gaps.push({ part: 'quality', points: ((WEIGHTS.quality * (QUALITY_GOOD - f.quality)) / 100), key: 'knowledge.gap.quality', params: { average: Math.round(f.quality) } });
   }
-  const next = gaps.filter((g) => g.points > 0).sort((a, b) => b.points - a.points).slice(0, 3);
+  // A level measured on part of the grid moves faster: each step counts in points of that level, as its percentage does.
+  const scale = total ? 100 / total : 1;
+  const next = gaps.map((g) => ({ ...g, points: round1(g.points * scale) })).filter((g) => g.points > 0).sort((a, b) => b.points - a.points).slice(0, 3);
   const partial = measured.length < parts.length;
   // Measured on the notes only, nobody checked them against the code: at most « solid ».
   const tier = partial && percent >= 70 ? 'solid' : tierOf(percent);

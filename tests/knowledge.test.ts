@@ -97,3 +97,32 @@ describe('the Repos page reads Git once per repository (review I4)', () => {
     }
   }, 90_000);
 });
+
+describe('the next steps of a level measured on the notes only (review M6)', () => {
+  it('count in points of that level, as its percentage does', async () => {
+    const { levelFromFacts } = await import('../src/knowledge/level.js');
+    const pages = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((kind, i) => ({ kind, state: (i < 4 ? 'fresh' : 'missing') as 'fresh' | 'missing' }));
+    const partial = levelFromFacts({ questions: null, coverage: null, pages, work: 6, quality: 80 });
+    const page = partial.next.find((g) => g.key === 'knowledge.gap.page')!;
+    // Writing one missing page of eight moves the notes part by 25/8 of the 50 points measured: 6.25 % of this level.
+    expect(page.points).toBe(6.3);
+    const withPage = levelFromFacts({ questions: null, coverage: null, pages: pages.map((p, i) => (i === 4 ? { ...p, state: 'fresh' as const } : p)), work: 6, quality: 80 });
+    expect(withPage.percent - partial.percent).toBeCloseTo(page.points, 0);
+  });
+});
+
+describe('two repositories of the same name in two products (review M7)', () => {
+  it('stay two: linking one does not link the other', async () => {
+    const { cp } = await import('node:fs/promises');
+    const { config, env, dir, kb } = await demoBrain();
+    const repos = await brainRepos(config, env);
+    const first = repos[0]!;
+    const other = repos.find((r) => r.product !== first.product)!;
+    const twin = `${other.folder!.split('/').slice(0, -1).join('/')}/${first.name}`;
+    await cp(resolve(kb, first.folder!), resolve(kb, twin), { recursive: true });
+    const code = await codeFolder(dir, first.name);
+    await linkBrainRepo(config, first.folder!, code, env);
+    const same = (await brainRepos(config, env)).filter((r) => r.name === first.name);
+    expect(same.map((r) => [r.product, r.linked]).sort()).toEqual([[first.product, true], [other.product, false]].sort());
+  }, 60_000);
+});
