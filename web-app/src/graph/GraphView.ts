@@ -507,18 +507,15 @@ export class GraphView {
     const lit = (n: GNode) => !active || n === active || Boolean(near?.has(n.id));
     const marked = (n: GNode) => !this.highlight || this.highlight.has(n.id);
 
-    // Group halos: a soft disc in the colour of the group's main type, named above it.
+    // Group halos: a flat disc tinted with the group's main type, a crisp edge, named above it. No blur.
     const halos = this.groupHalos();
     for (const g of halos) {
-      const grad = ctx.createRadialGradient(g.x, g.y, g.r * 0.2, g.x, g.y, g.r);
-      grad.addColorStop(0, alpha(g.color, dark ? 0.1 : 0.075));
-      grad.addColorStop(1, alpha(g.color, dark ? 0.04 : 0.03));
       ctx.beginPath();
       ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
-      ctx.fillStyle = grad;
+      ctx.fillStyle = alpha(g.color, dark ? 0.07 : 0.05);
       ctx.fill();
       ctx.lineWidth = 1 / k;
-      ctx.strokeStyle = alpha(g.color, dark ? 0.28 : 0.22);
+      ctx.strokeStyle = alpha(g.color, dark ? 0.34 : 0.28);
       ctx.stroke();
     }
 
@@ -540,28 +537,20 @@ export class GraphView {
     }
     ctx.setLineDash([]);
 
-    // Dots: a soft glow around the hubs, a ring of the page's colour so overlapping dots stay apart.
+    // Dots: sharp discs with a ring of the page's colour so overlapping dots stay apart; a hub, or the dot under the
+    // pointer, gets a thin outer ring in its own colour — never a glow.
     for (const n of this.nodes) {
       const shown = lit(n) && marked(n);
       ctx.globalAlpha = shown ? 1 : 0.14;
       const color = this.colorOf(n.category);
-      if (shown && (n.degree >= 5 || n === active) && !this.mini && !this.bubble(n)) {
-        const glow = ctx.createRadialGradient(n.x, n.y, n.r * 0.6, n.x, n.y, n.r * 2.6);
-        glow.addColorStop(0, alpha(color, dark ? 0.32 : 0.22));
-        glow.addColorStop(1, alpha(color, 0));
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, n.r * 2.6, 0, Math.PI * 2);
-        ctx.fillStyle = glow;
-        ctx.fill();
-      }
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
       if (this.bubble(n)) {
-        // A folder seen from above: a tinted bubble ringed in its colour, its name inside.
-        const fill = ctx.createRadialGradient(n.x - n.r * 0.3, n.y - n.r * 0.35, n.r * 0.1, n.x, n.y, n.r);
-        fill.addColorStop(0, alpha(color, dark ? 0.42 : 0.26));
-        fill.addColorStop(1, alpha(color, dark ? 0.22 : 0.12));
-        ctx.fillStyle = fill;
+        // A folder seen from above: a flat tinted bubble ringed in its colour, its name inside; opaque, so the
+        // links stop at its edge instead of crossing its name.
+        ctx.fillStyle = colors.surface;
+        ctx.fill();
+        ctx.fillStyle = alpha(color, dark ? 0.26 : 0.16);
         ctx.fill();
         ctx.lineWidth = (n === active ? 3 : 2) / k;
         ctx.strokeStyle = color;
@@ -572,6 +561,13 @@ export class GraphView {
         ctx.lineWidth = 1.4 / Math.max(0.8, k);
         ctx.strokeStyle = colors.surface;
         ctx.stroke();
+        if (shown && !this.mini && (n === active || n.degree >= 8)) {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r + 3 / k, 0, Math.PI * 2);
+          ctx.lineWidth = (n === active ? 2 : 1.25) / k;
+          ctx.strokeStyle = alpha(color, n === active ? 0.75 : 0.4);
+          ctx.stroke();
+        }
       }
       if (n === this.selected || n.id === this.filter.focus || this.ringed.has(n.id)) {
         ctx.beginPath();

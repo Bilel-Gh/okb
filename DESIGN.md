@@ -109,7 +109,8 @@ destination's pages, each with its address), `Breadcrumb`, `LevelBar`, `Choice`
 and `Switch`, `ConfirmDialog`, `States` (empty, error, loading). Panels, pills,
 chips, tabs and buttons are in `styles/components.css`; the explorer and the
 reader in `styles/brain.css`; the graph in `styles/graph.css` (canvas engine:
-`graph/GraphView.ts`, themes as tinted halos, hubs with a soft glow).
+`graph/GraphView.ts`: themes as flat tinted discs with a crisp edge, hubs ringed
+in their colour; no blur, no glow, no frosted glass on the graph).
 
 ## Do's and don'ts
 
