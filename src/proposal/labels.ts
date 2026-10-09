@@ -17,6 +17,10 @@ const LEVEL: Record<string, string> = { secret: 'proposal.label.level.secret', p
 
 /** Pattern → message; the optional « : <path> » a mechanical change appends is left out of a title. */
 const RULES: readonly [RegExp, (m: RegExpMatchArray) => string][] = [
+  // The notes a proposal carries about itself.
+  [/^(.+\.md): category back to automatic\b.*$/, (m) => t('proposal.label.categoryAuto', { note: note(m[1]!) })],
+  [/^(.+\.md): category (\S+) → (\S+)$/, (m) => t('proposal.label.category', { note: note(m[1]!), from: category(m[2]!), to: category(m[3]!) })],
+  [/^(.+\.md): confidentiality → (\w+)$/, (m) => t('proposal.label.confidentiality', { note: note(m[1]!), level: LEVEL[m[2]!] ? t(LEVEL[m[2]!]!) : m[2]! })],
   [/^category of (.+): back to automatic$/, (m) => t('proposal.label.categoryAuto', { note: note(m[1]!) })],
   [/^category of (.+): (\S+) → (\S+)$/, (m) => t('proposal.label.category', { note: note(m[1]!), from: category(m[2]!), to: category(m[3]!) })],
   [/^confidentiality of (.+): (\w+)$/, (m) => t('proposal.label.confidentiality', { note: note(m[1]!), level: LEVEL[m[2]!] ? t(LEVEL[m[2]!]!) : m[2]! })],

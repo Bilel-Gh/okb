@@ -17,6 +17,9 @@ describe('a proposal’s title in the person’s words', () => {
     expect(readableLabel('translate a/Idempotence.md → en: a/Idempotence (EN).md')).toBe('Traduction de « Idempotence » en EN');
     expect(readableLabel('restore a/Note.md (version 3): a/Note.md')).toBe('« Note » revient à la version 3');
     expect(readableLabel('navigation refresh: index.md')).toBe('Navigation mise à jour');
+    // The proposal's own notes, shown with its checks.
+    expect(readableLabel('1 Écosystème/Logistique/Quota.md: category concept → guide')).toBe('Type de « Quota » : Concepts → Comprendre');
+    expect(readableLabel('a/Coffre.md: confidentiality → secret')).toBe('« Coffre » devient 🔒 confidentielle');
   });
 
   it('in English, and anything unknown stays as written', () => {

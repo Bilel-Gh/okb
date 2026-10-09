@@ -182,6 +182,8 @@ kbd { display: inline-grid; place-items: center; min-width: 22px; height: 20px; 
 .level-labels span:first-child { transform: none; }
 .level-labels span:last-child { transform: translateX(-70%); }
 .level-labels span.on { color: var(--ink); font-weight: 600; }
+/* A narrow bar names only the current tier and the last one: the first tiers are too close to share the line. */
+@media (max-width: 640px) { .level-labels span:not(.on):not(:last-child) { display: none; } }
 
 /* A bar showing a share: filled in the theme's way. */
 .bar { position: relative; display: block; height: 8px; border-radius: var(--r-pill); background: var(--sunk); overflow: hidden; }

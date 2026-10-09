@@ -164,7 +164,7 @@ export function NotesTable({ rows, notes, query, current, where, isType, toggleG
           <input type="checkbox" aria-label={t('app.brain.selectAll')} checked={all} ref={(el) => { if (el) el.indeterminate = some; }} onChange={() => sel.setMany(notes.map((n) => n.path), !all)} />
         </span>
         <span role="columnheader">{t('app.brain.c.note')}</span>
-        <span role="columnheader">{t('app.brain.c.type')}</span>
+        <span role="columnheader" className="ex-cell-type">{t('app.brain.c.type')}</span>
         <span role="columnheader" className="hide-sm">{t('app.brain.c.where')}</span>
         <span role="columnheader">{t('app.brain.c.quality')}</span>
         <span role="columnheader" className="hide-sm">{t('app.brain.c.when')}</span>

@@ -26,6 +26,7 @@ import { proposeFiles } from '../proposal/files.js';
 import { groupChangesByPath, materializeFile } from '../proposal/materialize.js';
 import { resolveSelection } from '../proposal/model.js';
 import type { Proposal } from '../proposal/model.js';
+import { readableLabel } from '../proposal/labels.js';
 import { loadProposal, saveProposal, updateProposalStatus } from '../proposal/store.js';
 import { readSettings, writeSetting } from '../settings/settings.js';
 import { draftSkill, writeSkillDraft } from '../skillify/skillify.js';
@@ -103,7 +104,7 @@ async function proposalDetail(config: OkbConfig, id: string) {
   const number = (await proposalSummaries(config)).find((p) => p.id === proposal.id)?.number ?? null;
   return {
     id: proposal.id, number, title: proposalTitle(proposal), status: proposal.status, createdAt: proposal.createdAt, contentHash: proposal.contentHash,
-    notes: proposal.notes, contradictions: proposal.contradictions, guard, files,
+    notes: proposal.notes.map(readableLabel), contradictions: proposal.contradictions, guard, files,
     evidence: proposal.evidence.slice(0, 300).map((e) => ({ id: e.id, quote: e.quote, locator: e.locator, kind: e.claimKind })),
     changes: proposal.changes.map((c) => ({ id: c.id, path: c.path, label: c.label, category: c.category, dependsOn: c.dependsOn })),
     categories: cx.categories,
