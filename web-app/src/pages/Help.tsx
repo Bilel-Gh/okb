@@ -63,6 +63,8 @@ export default function Help() {
               <p className="row"><kbd>⌘\</kbd><span>{t('app.help.kRail')}</span></p>
               <p className="row"><kbd>⌘↵</kbd><span>{t('web.help.kCapture')}</span></p>
               <p className="row"><kbd>␣</kbd><kbd>1–4</kbd><span>{t('app.help.kLearn')}</span></p>
+              <p className="row"><kbd>↑</kbd><kbd>↓</kbd><span>{t('app.help.kList')}</span></p>
+              <p className="row"><kbd>{t.lang === 'fr' ? 'Échap' : 'Esc'}</kbd><span>{t('app.help.kEscape')}</span></p>
             </div>
           </section>
           <section className="panel">

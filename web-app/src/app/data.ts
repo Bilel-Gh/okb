@@ -48,7 +48,7 @@ export const DRAWER_COLOR: Readonly<Record<string, string>> = { inbox: '#64748b'
 export const DRAWER_BY_NUMBER: readonly string[] = ['inbox', 'world', 'subjects', 'toolbox', 'activity'];
 
 /** Every note of the brain, light: its place, title, type and category (one request, shared by the pages). */
-export type NoteRow = { path: string; title: string; description: string; type: string; status: string; category: string };
+export type NoteRow = { path: string; title: string; description: string; type: string; status: string; category: string; at?: string | null; stars?: number | null; secret?: boolean };
 export function useNotes(enabled = true) {
   return useQuery({ queryKey: ['notes'], queryFn: () => get<{ notes: NoteRow[] }>('/api/notes'), staleTime: 30_000, enabled });
 }

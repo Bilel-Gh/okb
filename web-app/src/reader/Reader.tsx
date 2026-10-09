@@ -1,10 +1,11 @@
 import * as Popover from '@radix-ui/react-popover';
 import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronDown, Copy, ExternalLink, History, Lock, MoreHorizontal, Share2, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Check, ChevronDown, Copy, ExternalLink, History, Lock, MoreHorizontal, Pin, PinOff, Share2, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { get, post } from '../app/api';
 import { rememberNote, useCategories } from '../app/data';
 import { tn, useT } from '../app/i18n';
+import { isPinned, togglePin, usePins } from '../app/pins';
 import { go, hrefFor } from '../app/router';
 import { toast } from '../app/toast';
 import { Breadcrumb } from '../ui/Breadcrumb';
@@ -87,6 +88,7 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
   const [active, setActive] = useState<string | null>(null);
   const [translated, setTranslated] = useState<{ html: string; lang: string } | null>(null);
   const [rated, setRated] = useState<'up' | 'down' | null>(null);
+  const pins = usePins();
 
   useEffect(() => { setTranslated(null); setRated(null); }, [path]);
   useEffect(() => {
@@ -150,6 +152,10 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
           <span className="note-actions">
             <button type="button" className={`btn sm ghost icon${rated === 'up' ? ' on' : ''}`} aria-pressed={rated === 'up'} aria-label={t('web.score.up')} title={t('web.score.up')} onClick={() => void rate('up')}><ThumbsUp size={15} aria-hidden="true" /></button>
             <button type="button" className={`btn sm ghost icon${rated === 'down' ? ' on' : ''}`} aria-pressed={rated === 'down'} aria-label={t('web.score.down')} title={t('web.score.down')} onClick={() => void rate('down')}><ThumbsDown size={15} aria-hidden="true" /></button>
+            <button type="button" className={`btn sm ghost icon${isPinned(pins, n.path) ? ' on' : ''}`} aria-pressed={isPinned(pins, n.path)} aria-label={isPinned(pins, n.path) ? t('app.note.unpin') : t('app.note.pin')} title={isPinned(pins, n.path) ? t('app.note.unpin') : t('app.note.pin')}
+              onClick={() => toast(togglePin({ path: n.path, title: n.title, category: n.category }) ? t('app.note.pinned') : t('app.note.unpinned'))}>
+              {isPinned(pins, n.path) ? <PinOff size={15} aria-hidden="true" /> : <Pin size={15} aria-hidden="true" />}
+            </button>
             <Translate path={n.path} onShow={setTranslated} shown={translated?.lang ?? null} />
             <a className="btn sm ghost icon" href={hrefFor({ name: 'graph', focus: n.path })} aria-label={t('web.graph.see')} title={t('web.graph.see')}><Share2 size={15} aria-hidden="true" /></a>
             <Popover.Root>
