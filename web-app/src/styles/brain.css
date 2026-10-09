@@ -150,8 +150,13 @@
 .prose strong { font-weight: 650; }
 .prose a { color: var(--accent-text); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent-text) 35%, transparent); text-underline-offset: 3px; }
 .prose a:hover { text-decoration-color: currentColor; }
-.prose a.term { color: inherit; text-decoration: underline dotted; text-decoration-color: var(--ink-3); text-decoration-thickness: 1.5px; cursor: help; }
-.prose a.term:hover, .prose a.term[aria-expanded='true'] { background: var(--accent-soft); border-radius: 4px; }
+.prose a.term {
+  color: inherit; text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--accent-text) 55%, transparent);
+  text-decoration-thickness: 1.5px; text-underline-offset: 4px; cursor: help; border-radius: 4px;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+}
+.prose a.term:hover, .prose a.term[aria-expanded='true'] { background: var(--accent-soft); text-decoration-color: var(--accent-text); }
+@media (prefers-reduced-motion: no-preference) { .prose a.term { transition: background-color var(--fast) var(--ease), text-decoration-color var(--fast) var(--ease); } }
 .prose code { padding: 2px 6px; border-radius: 6px; background: var(--sunk); font-size: .84em; }
 .prose pre { padding: 16px 18px; border-radius: 12px; background: var(--code-bg); color: var(--code-ink); overflow-x: auto; font-size: 13px; line-height: 1.65; }
 .prose pre code { padding: 0; background: none; color: inherit; font-size: inherit; }

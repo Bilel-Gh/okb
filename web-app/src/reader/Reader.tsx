@@ -10,7 +10,7 @@ import { toast } from '../app/toast';
 import { Breadcrumb } from '../ui/Breadcrumb';
 import { CatIcon } from '../ui/CatMark';
 import { ErrorState, SkeletonRows } from '../ui/States';
-import { Bubble } from './Bubble';
+import { ConceptBubbles } from './Bubble';
 import { dropCrumbLine, drawDiagrams, markTerms, outline, wireLinks, type OutlineItem, type Term } from './enhance';
 import { LocalGraph } from './LocalGraph';
 import { Translate } from './Translate';
@@ -86,10 +86,9 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
   const [toc, setToc] = useState<OutlineItem[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [translated, setTranslated] = useState<{ html: string; lang: string } | null>(null);
-  const [bubble, setBubble] = useState<{ index: number; el: HTMLElement } | null>(null);
   const [rated, setRated] = useState<'up' | 'down' | null>(null);
 
-  useEffect(() => { setTranslated(null); setBubble(null); setRated(null); }, [path]);
+  useEffect(() => { setTranslated(null); setRated(null); }, [path]);
   useEffect(() => {
     if (!note.data) return;
     setTitle(note.data.title);
@@ -125,24 +124,6 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
     return () => io.disconnect();
   }, [toc]);
 
-  // One bubble for every marked word: on hover, on keyboard focus, on a first tap.
-  useEffect(() => {
-    const el = article.current;
-    if (!el) return;
-    const show = (e: Event) => {
-      const a = (e.target as HTMLElement).closest?.('a.term') as HTMLElement | null;
-      if (a) setBubble({ index: Number(a.dataset.term), el: a });
-    };
-    const tap = (e: Event) => {
-      const a = (e.target as HTMLElement).closest?.('a.term') as HTMLElement | null;
-      if (a && (e as PointerEvent).pointerType === 'touch' && bubble?.el !== a) { e.preventDefault(); setBubble({ index: Number(a.dataset.term), el: a }); }
-    };
-    el.addEventListener('mouseover', show);
-    el.addEventListener('focusin', show);
-    el.addEventListener('click', tap);
-    return () => { el.removeEventListener('mouseover', show); el.removeEventListener('focusin', show); el.removeEventListener('click', tap); };
-  }, [bubble]);
-
   const rate = async (verdict: 'up' | 'down') => {
     try { await post('/api/rate', { path, verdict }); setRated(verdict); toast(t('scores.rated')); } catch (e) { toast((e as Error).message, 'err'); }
   };
@@ -151,7 +132,6 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
   if (note.error || !note.data) return <ErrorState error={note.error} retry={() => void note.refetch()} />;
   const n = note.data;
   const stops = [...n.crumbs.map((c) => ({ title: c.title, href: c.path ? hrefFor({ name: 'brain', path: c.path }) : null })), { title: n.title }];
-  const term = bubble ? n.terms[bubble.index] : null;
   const scoreWhy = n.score ? [`${t('web.score.quality')} ${n.score.quality}/100`, `${t('web.score.value')} ${n.score.value}/100`, ...(n.score.young ? [t('web.score.young')] : []), ...n.score.notes].join('\n') : '';
 
   return (
@@ -200,7 +180,7 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
           {toc.map((o) => <a key={o.id} className={`${o.level === 3 ? 'l3' : ''}${active === o.id ? ' on' : ''}`} href={`#${o.id}`} onClick={(e) => { e.preventDefault(); document.getElementById(o.id)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }}>{o.text}</a>)}
         </nav>
       ) : null}
-      {term && bubble ? <Bubble anchor={bubble.el} title={term.term} text={term.oneLiner ?? ''} href={hrefFor({ name: 'brain', path: term.path })} onClose={() => setBubble(null)} /> : null}
+      <ConceptBubbles key={`${n.path}|${translated?.lang ?? ''}`} root={article} terms={n.terms} />
     </div>
   );
 }

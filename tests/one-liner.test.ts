@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { glossary } from '../src/brain/views.js';
+import { glossary, termsOfNote } from '../src/brain/views.js';
 import { layoutOf } from '../src/brain/layout.js';
 import { conceptsWithoutOneLiner, oneLiner } from '../src/concepts/one-liner.js';
 import { loadBundleFor } from '../src/kb/bundle.js';
@@ -104,4 +104,19 @@ describe('a suggestion completes a note of its own kind first (seen on the demo)
     const target = bundle.byPath.get(card.target!);
     expect((target?.ext as { brain?: { type?: string } }).brain?.type).toBe('concept');
   }, 60_000);
+});
+
+describe('the concept cards a note shows on hover', () => {
+  const entry = (term: string, path: string, aliases: string[] = []) => ({ term, path: path as never, description: '', aliases, theme: null, oneLiner: `${term} en une phrase claire.` });
+  const cards = [entry('SLA', 'c/SLA.md', ['accord de service']), entry('Revue hebdo', 'c/revue-hebdo.md'), entry('OData', 'c/OData.md')];
+
+  it('takes the cards whose words the note uses, and the cards it links whatever the words', () => {
+    const body = 'Notre accord de service. Voir [la revue](../c/revue-hebdo.md).';
+    const found = termsOfNote(cards, 'n/note.md', body, new Set(['c/revue-hebdo.md']));
+    expect(found.map((t) => t.term)).toEqual(['SLA', 'Revue hebdo']);
+  });
+
+  it('never the note itself', () => {
+    expect(termsOfNote(cards, 'c/SLA.md', 'Le SLA.', new Set())).toEqual([]);
+  });
 });

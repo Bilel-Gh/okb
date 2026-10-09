@@ -34,6 +34,22 @@ describe('words that have a concept card', () => {
     expect(link.getAttribute('href')).toBe('#/note/c%2FOData.md');
   });
 
+  it('a link the note already makes to a concept card gets the bubble, whatever its words', () => {
+    const a = article('<p>Voir <a href="#/note/c%2FSLA.md">notre engagement</a>, puis le SLA et <a href="#/note/c%2FSLA.md::Exemple">son exemple</a>.</p>');
+    markTerms(a, TERMS);
+    const marked = [...a.querySelectorAll('a.term')];
+    // Both links to the card, and no extra link on the plain word: the card is already linked.
+    expect(marked.map((m) => m.textContent)).toEqual(['notre engagement', 'son exemple']);
+    expect(marked.every((m) => m.getAttribute('data-term') === '0')).toBe(true);
+    expect(a.querySelectorAll('a')).toHaveLength(2);
+  });
+
+  it('a link to a card without a sentence stays a plain link', () => {
+    const a = article('<p><a href="#/note/c%2FOData.md">OData</a></p>');
+    markTerms(a, TERMS);
+    expect(a.querySelector('a')!.className).toBe('');
+  });
+
   it('finds aliases, whole words only, and never inside code or links', () => {
     const a = article('<p><code>SLA</code> <a href="x">SLA</a> les SLAs et l’accord de service.</p>');
     markTerms(a, TERMS);

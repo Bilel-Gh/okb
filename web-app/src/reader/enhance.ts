@@ -7,12 +7,29 @@ export type OutlineItem = { id: string; text: string; level: 2 | 3 };
 
 const esc = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** The note a reader link opens (`#/note/<path>` or `#/note/<path>::<heading>`), or null. */
+function linkedNote(a: HTMLAnchorElement): string | null {
+  const m = /^#\/note\/([^:]+)/.exec(a.getAttribute('href') ?? '');
+  if (!m) return null;
+  try { return decodeURIComponent(m[1]!); } catch { return null; }
+}
+
 /**
- * The first occurrence of each term becomes a link to its card. A term with a
- * checked one-line definition gets the bubble (`a.term`, `data-term`); without
- * one it stays a plain link. Never inside a heading, a link, code or a diagram.
+ * Words that have a concept card. A link the note already makes to a card
+ * keeps its words and gains the bubble; a card the note never links gets its
+ * first plain occurrence turned into a link. Only a card with a checked
+ * one-line definition gets the bubble (`a.term`, `data-term`); without one the
+ * word stays a plain link. Never inside a heading, code or a diagram.
  */
 export function markTerms(article: HTMLElement, terms: readonly Term[]): void {
+  const byPath = new Map(terms.map((term, index) => [term.path, index]));
+  const linked = new Set<number>();
+  article.querySelectorAll<HTMLAnchorElement>('a[href^="#/note/"]').forEach((a) => {
+    const index = byPath.get(linkedNote(a) ?? '');
+    if (index === undefined || a.closest('h1, h2, h3, h4')) return;
+    linked.add(index);
+    if (terms[index]!.oneLiner) { a.classList.add('term'); a.dataset.term = String(index); }
+  });
   const doc = article.ownerDocument;
   const walker = doc.createTreeWalker(article, NodeFilter.SHOW_TEXT, {
     acceptNode: (n) => (n.parentElement?.closest('a, code, pre, h1, h2, h3, h4, .mermaid, svg, button') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
@@ -20,6 +37,7 @@ export function markTerms(article: HTMLElement, terms: readonly Term[]): void {
   const nodes: Text[] = [];
   while (walker.nextNode()) nodes.push(walker.currentNode as Text);
   terms.forEach((term, index) => {
+    if (linked.has(index)) return;
     const words = [term.term, ...term.aliases].filter((w) => w && w.length >= 2).sort((a, b) => b.length - a.length);
     if (!words.length) return;
     const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${words.map(esc).join('|')})(?=$|[^\\p{L}\\p{N}])`, 'iu');

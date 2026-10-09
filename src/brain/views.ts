@@ -120,6 +120,17 @@ export function glossary(layout: BrainLayout | null, bundle: Bundle): GlossaryEn
   return out.sort((a, b) => a.term.localeCompare(b.term, undefined, { sensitivity: 'base' }));
 }
 
+/**
+ * The concept cards a note shows on hover: the cards whose term or alias the
+ * note uses as a whole word, and the cards it links whatever the link's words.
+ * Never the note itself; at most 40.
+ */
+export function termsOfNote(entries: readonly GlossaryEntry[], path: string, body: string, links: ReadonlySet<string>): GlossaryEntry[] {
+  const text = body.toLowerCase();
+  const uses = (w: string) => w.length >= 2 && new RegExp(`(^|[^\\p{L}\\p{N}])${w.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'u').test(text);
+  return entries.filter((g) => g.path !== path && (links.has(g.path) || [g.term, ...g.aliases].some(uses))).slice(0, 40);
+}
+
 /** An index as Markdown: what a subject's page shows below its summary. */
 export function renderIndex(index: SubjectIndex, from: string, lang: 'fr' | 'en', link: (from: string, to: string, text: string) => string): string {
   const fr = lang === 'fr';

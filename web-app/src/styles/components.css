@@ -299,12 +299,35 @@ a.stat:hover b { color: var(--accent-text); }
 /* ================================================================ hover card (concepts) */
 .term { text-decoration: underline dotted; text-decoration-color: var(--ink-3); text-underline-offset: 4px; cursor: help; color: inherit; }
 .bubble {
-  z-index: 80; width: min(340px, calc(100vw - 32px)); padding: var(--s4); border-radius: var(--r-lg); background: var(--surface);
-  border: 1px solid var(--hair); box-shadow: var(--shadow-2); font-size: var(--t-sm); line-height: var(--lh);
+  position: fixed; z-index: 90; box-sizing: border-box; width: max-content; min-width: 240px; max-width: min(360px, calc(100vw - 24px));
+  padding: 14px 16px 12px; border-radius: var(--r-lg); background: var(--surface); color: var(--ink);
+  border: 1px solid var(--hair); box-shadow: var(--shadow-2); font-size: 14px; line-height: 1.55; text-align: left;
+  transform-origin: var(--arrow, 50%) top;
 }
-.bubble h4 { display: flex; align-items: center; gap: var(--s2); font-size: 15px; margin-bottom: 6px; }
-.bubble p { color: var(--ink-2); }
-.bubble a { display: inline-block; margin-top: var(--s2); font-weight: 600; color: var(--accent-text); }
+.bubble[data-side='top'] { transform-origin: var(--arrow, 50%) bottom; }
+.bubble-arrow {
+  position: absolute; left: var(--arrow, 50%); top: -6px; width: 11px; height: 11px; margin-left: -5.5px;
+  background: var(--surface); border: 1px solid var(--hair); border-right: 0; border-bottom: 0; border-radius: 2px 0 0 0; transform: rotate(45deg);
+}
+.bubble[data-side='top'] .bubble-arrow { top: auto; bottom: -6px; border: 1px solid var(--hair); border-left: 0; border-top: 0; border-radius: 0 0 2px 0; }
+.bubble-head { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 15px; letter-spacing: -0.01em; }
+.bubble-head strong { font-weight: 650; }
+.bubble-text { margin: 0; color: var(--ink-2); text-wrap: pretty; }
+.bubble-more {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; padding: 2px 0;
+  font-size: 13px; font-weight: 600; color: var(--accent-text); text-decoration: none;
+}
+.bubble-more svg { transition: transform var(--fast) var(--ease); }
+.bubble-more:hover svg, .bubble-more:focus-visible svg { transform: translateX(2px); }
+@media (prefers-reduced-motion: no-preference) {
+  .bubble[data-state='open'] { animation: bubble-in 170ms var(--ease) both; }
+  .bubble[data-side='top'][data-state='open'] { animation-name: bubble-in-top; }
+  .bubble[data-state='closing'] { animation: bubble-out 120ms ease-in both; }
+}
+.bubble[data-state='closing'] { pointer-events: none; }
+@keyframes bubble-in { from { opacity: 0; transform: translateY(-4px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes bubble-in-top { from { opacity: 0; transform: translateY(4px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes bubble-out { from { opacity: 1; } to { opacity: 0; transform: scale(.98); } }
 
 /* popover menus */
 .menu { z-index: 80; min-width: 220px; padding: 6px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--shadow-2); }

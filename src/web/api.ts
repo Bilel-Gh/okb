@@ -278,11 +278,10 @@ export const ROUTES: Record<string, Handler> = {
     const { incoming, outgoing } = neighbours(graph, path);
     const pickNode = (n: { id: string; title: string; category: string }) => ({ path: n.id, title: n.title, category: n.category });
     // A brain: the note's breadcrumb, its score, and the concept cards of the words it uses (shown on hover).
-    const { glossary } = await import('../brain/views.js');
+    const { glossary, termsOfNote } = await import('../brain/views.js');
     const { layoutOf } = await import('../brain/layout.js');
     const { noteEvent } = await import('../scores/scores.js');
-    const body = doc.body.toLowerCase();
-    const terms = glossary(layoutOf(config), bundle).filter((g) => g.path !== path && [g.term, ...g.aliases].some((w) => w.length >= 2 && new RegExp(`(^|[^\\p{L}\\p{N}])${w.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'u').test(body))).slice(0, 40);
+    const terms = termsOfNote(glossary(layoutOf(config), bundle), path, doc.body, new Set(outgoing.map((n) => n.id)));
     const score = (await scoresFor(config, bundle)).get(path) ?? null;
     await noteEvent(config, path, 'open');
     return {
