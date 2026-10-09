@@ -95,8 +95,31 @@ async function callApi(req: AiRequest, env: NodeJS.ProcessEnv): Promise<AiResult
   return { text, tokens: { input: body.usage?.input_tokens ?? 0, output: body.usage?.output_tokens ?? 0 }, provider: 'api' };
 }
 
+/**
+ * An exam asked offline (src/knowledge/exam.ts): each question answered with its first excerpt, each answer
+ * graded by the words it shares with its reference. Enough to try the exam page without a model.
+ */
+function fakeExam(req: AiRequest): string | null {
+  const blocks = req.prompt.split(/^### /m).slice(1).map((b) => { const [id, ...rest] = b.split('\n'); return { id: id!.trim(), body: rest.join('\n') }; });
+  if (req.system.includes('{"answers"')) {
+    return JSON.stringify({ answers: blocks.map((b) => ({ id: b.id, answer: (/^\[\d+\][^:]*: (.*)$/m.exec(b.body)?.[1] ?? 'NOT IN THE NOTES').slice(0, 300) })) });
+  }
+  if (req.system.includes('{"grades"')) {
+    const words = (s: string) => new Set(s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 3));
+    return JSON.stringify({ grades: blocks.map((b) => {
+      const answer = words(/^Answer: (.*)$/m.exec(b.body)?.[1] ?? '');
+      const reference = words(b.body.split(/^(?:Expected answer|A person’s answer|Code):$/m)[1] ?? '');
+      const shared = [...reference].filter((w) => answer.has(w)).length / Math.max(1, Math.min(reference.size, 12));
+      return { id: b.id, grade: shared >= 0.5 ? 'right' : shared > 0 ? 'partial' : 'wrong', why: '[fake] shared words' };
+    }) });
+  }
+  return null;
+}
+
 /** The echo provider: the input comes back, each line marked — for tests and offline demos. */
 function fake(req: AiRequest): AiResult {
+  const exam = fakeExam(req);
+  if (exam) return { text: exam, tokens: { input: estimateTokens(req.system + req.prompt), output: estimateTokens(exam) }, provider: 'fake' };
   // The mark goes after Markdown's own line start (a heading, a list item), so the structure survives.
   const text = req.prompt.split('\n').map((l) => (!l.trim() || /^<<<\d+>>>$/.test(l.trim()) ? l : l.replace(/^(\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)?)/, '$1[fake] '))).join('\n');
   return { text, tokens: { input: estimateTokens(req.system + req.prompt), output: estimateTokens(text) }, provider: 'fake' };

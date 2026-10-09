@@ -61,6 +61,7 @@ export async function cmdRepo(ctx: Ctx): Promise<number> {
     case 'context': return repoContextCmd(ctx);
     case 'remove': case 'forget': return repoRemove(ctx);
     case 'level': case 'niveau': return repoLevelCmd(ctx);
+    case 'exam': case 'examen': return repoExamCmd(ctx);
     default: {
       if (await findRepo(sub)) return repoStatusCmd({ ...ctx, args: { ...ctx.args, positionals: ['status', sub] } });
       throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { key: 'unknownSub', params: { sub, usage: 'okb repo [add|scan|status|questions|answer|update|ticket|landscape|list]' } });
@@ -508,16 +509,20 @@ export function gapText(g: { key: string; points: number; params: Readonly<Recor
   return t(g.key, params);
 }
 
+/** The repositories of the KB: a brain's, linked here or not; otherwise those registered for it. */
+async function kbRepos(config: OkbConfig) {
+  const { brainRepos } = await import('../../knowledge/brain-repos.js');
+  return layoutOf(config)
+    ? brainRepos(config)
+    : (await listRepos()).filter((r) => r.kb === config.profile.id).map((r) => ({ id: r.id, name: r.name, product: r.product ?? '', folder: null, linked: true, path: r.path }));
+}
+
 /** `okb repo level [<repo>]` — how well OKB knows each repository, and what to do to know it better. */
 async function repoLevelCmd(ctx: Ctx): Promise<number> {
   const { config } = await effective(ctx.args);
-  const { brainRepos } = await import('../../knowledge/brain-repos.js');
   const { repoLevel } = await import('../../knowledge/level.js');
-  const { listRepos } = await import('../../repo/registry.js');
   const wanted = ctx.args.positionals[1];
-  const repos = layoutOf(config)
-    ? await brainRepos(config)
-    : (await listRepos()).filter((r) => r.kb === config.profile.id).map((r) => ({ id: r.id, name: r.name, product: r.product ?? '', folder: null, linked: true, path: r.path }));
+  const repos = await kbRepos(config);
   const chosen = wanted ? repos.filter((r) => r.id === wanted || r.name === wanted) : repos;
   if (wanted && !chosen.length) throw new OkbError('E_NOT_FOUND', `no repository ${wanted} in this KB`, { key: 'repoUnknown', params: { id: wanted } });
   const bundle = await loadBundleFor(config);
@@ -534,6 +539,86 @@ async function repoLevelCmd(ctx: Ctx): Promise<number> {
     for (const g of level.next) ctx.out.line(paint.dim(`   ${t('knowledge.points', { n: Math.max(1, Math.round(g.points)) })} · ${gapText(g, l)}`));
   }
   return 0;
+}
+
+const GRADE_MARK = { right: () => sym.ok(), partial: () => paint.info('◐'), wrong: () => paint.err('✗'), ungraded: () => paint.dim('·') } as const;
+
+/**
+ * `okb repo exam [<repo>]` — the knowledge exam: the onboarding questions and
+ * the team's own, answered by the model from the repository's notes only, then
+ * graded against the code, a person's answer or the expected answer. The cost
+ * is shown first; it runs on a yes (or --yes). --estimate, --last, --questions;
+ * --add "<question>" --expect "<answer>", --remove <id>; --only q-…,custom.
+ */
+async function repoExamCmd(ctx: Ctx): Promise<number> {
+  const { config } = await effective(ctx.args);
+  const exam = await import('../../knowledge/exam.js');
+  const wanted = flagString(ctx.args, 'repo') ?? ctx.args.positionals[1];
+  const repos = await kbRepos(config);
+  const repo = wanted ? repos.find((r) => r.id === wanted || r.name === wanted) : repos.length === 1 ? repos[0] : undefined;
+  if (!repo) {
+    if (wanted) throw new OkbError('E_NOT_FOUND', `no repository ${wanted} in this KB`, { key: 'repoUnknown', params: { id: wanted } });
+    throw new OkbError('E_INVALID', 'which repository?', { key: 'examWhich', params: { repos: repos.map((r) => r.name).join(', ') || '—' } });
+  }
+  const added = flagString(ctx.args, 'add');
+  if (added !== undefined) {
+    const q = await exam.addExamQuestion(config, repo, added, flagString(ctx.args, 'expect') ?? '');
+    if (ctx.mode === 'json') { ctx.out.json({ ok: true, question: q }); return 0; }
+    ctx.out.ok(t('exam.added', { id: q.id }));
+    return 0;
+  }
+  const removed = flagString(ctx.args, 'remove');
+  if (removed) {
+    await exam.removeExamQuestion(config, repo, removed);
+    if (ctx.mode === 'json') { ctx.out.json({ ok: true, removed }); return 0; }
+    ctx.out.ok(t('exam.removed', { id: removed }));
+    return 0;
+  }
+  if (flagBool(ctx.args, 'last')) {
+    const last = await exam.lastExam(config, repo);
+    if (ctx.mode === 'json') { ctx.out.json({ ok: true, exam: last }); return 0; }
+    if (!last) { ctx.out.line(t('exam.never', { repo: repo.name })); return 0; }
+    renderExam(ctx, last);
+    return 0;
+  }
+  const only = flagList(ctx.args, 'only');
+  const plan = await exam.planExam(config, repo, only.length ? { only } : {});
+  const answerable = plan.questions.filter((q) => q.found > 0).length;
+  const gradable = plan.questions.filter((q) => q.reference !== 'none').length;
+  if (flagBool(ctx.args, 'questions')) {
+    if (ctx.mode === 'json') { ctx.out.json({ ok: true, ...plan }); return 0; }
+    for (const q of plan.questions) ctx.out.line(`${q.found ? sym.ok() : paint.dim('○')} ${q.text}  ${paint.dim(`${q.id} · ${t(`exam.reference.${q.reference}`)}`)}`);
+    return 0;
+  }
+  const run = flagBool(ctx.args, 'yes') && !flagBool(ctx.args, 'estimate');
+  if (!run) {
+    if (ctx.mode === 'json') { ctx.out.json({ ok: true, ...plan }); return 0; }
+    ctx.out.line(`📝 ${paint.name(repo.name)}  ${t('exam.plan', { n: plan.questions.length, answerable, gradable, tokens: plan.tokens })}`);
+    if (!gradable) ctx.out.tip(t('exam.noReference'));
+    if (flagBool(ctx.args, 'estimate') || !plan.tokens || !canAsk(ctx)) {
+      if (plan.tokens && gradable) ctx.out.next([`okb repo exam ${repo.name} --yes`]);
+      return 0;
+    }
+    const { confirm } = await import('../ui/prompt.js');
+    if (!(await confirm(t('exam.confirm', { tokens: plan.tokens }), false))) return 0;
+  }
+  const s = ctx.mode === 'text' ? spin(t('exam.running')) : null;
+  const result = await exam.runExam(config, repo, only.length ? { only } : {}).catch((e: unknown) => { s?.fail(); throw e; });
+  s?.done();
+  if (ctx.mode === 'json') { ctx.out.json({ ok: true, exam: result }); return 0; }
+  renderExam(ctx, { ...result, history: [] });
+  return 0;
+}
+
+function renderExam(ctx: Ctx, r: Awaited<ReturnType<typeof import('../../knowledge/exam.js')['runExam']>> & { history: readonly { at: string; score: number | null }[] }): void {
+  const score = r.score === null ? t('exam.noScore') : `${r.score} %`;
+  ctx.out.line(`📝 ${paint.name(r.name)}  ${paint.bold(score)}  ${paint.dim(t('exam.counts', { ...r.counts, day: r.at.slice(0, 10) }))}`);
+  for (const i of r.items) {
+    const why = i.why === 'not-found' || i.why === 'not-in-notes' || i.why === 'no-answer' || i.why === 'no-reference' || i.why === 'undecided' ? t(`exam.why.${i.why}`) : i.why;
+    ctx.out.line(`  ${GRADE_MARK[i.grade]()} ${i.question}${why ? paint.dim(`  — ${why}`) : ''}`);
+  }
+  const before = r.history[1];
+  if (before && before.score !== null && r.score !== null) ctx.out.line(paint.dim(t('exam.before', { score: before.score, day: before.at.slice(0, 10) })));
 }
 
 async function repoStatusCmd(ctx: Ctx): Promise<number> {

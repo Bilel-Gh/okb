@@ -149,3 +149,21 @@ describe('the exam of a repository linked to its code', () => {
     expect(result.score).toBe(50);
   }, 120_000);
 });
+
+describe('okb repo exam', () => {
+  it('shows the plan and the cost first, runs on --yes, and keeps the result', async () => {
+    const { json } = await import('./helpers/team.js');
+    const { config, env, kb, dir, repo } = await demo();
+    await writeFile(resolve(kb, repo.folder!, 'Base de données.md'), card('Base de données', 'La base de données du service est PostgreSQL, version 16.'));
+    const fake = { ...env, OKB_AI: 'fake' };
+    const added = await json(['repo', 'exam', repo.name, '--add', 'Quelle base de données utilise-t-il ?', '--expect', 'PostgreSQL version 16'], fake, dir);
+    expect(added).toMatchObject({ ok: true, question: { text: 'Quelle base de données utilise-t-il ?' } });
+    const plan = await json(['repo', 'exam', repo.name, '--only', 'custom'], fake, dir);
+    expect(plan).toMatchObject({ ok: true, questions: [{ reference: 'expected' }] });
+    expect(plan.tokens).toBeGreaterThan(0);
+    expect(await lastExam(config, repo)).toBeNull();
+    const ran = await json(['repo', 'exam', repo.name, '--only', 'custom', '--yes'], fake, dir);
+    expect(ran).toMatchObject({ ok: true, exam: { score: 100, counts: { right: 1 } } });
+    expect((await json(['repo', 'exam', repo.name, '--last'], fake, dir)).exam.score).toBe(100);
+  }, 120_000);
+});
