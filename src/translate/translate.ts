@@ -44,19 +44,30 @@ export function segments(body: string): Segment[] {
   const out: { kind: Segment['kind']; lines: string[]; section: number }[] = [];
   let section = 0;
   let fence: string | null = null;
+  let comment = false;
+  let indented = false;
+  let previous = '';
   const push = (kind: Segment['kind'], line: string) => {
     const last = out[out.length - 1];
     if (last && last.kind === kind && last.section === section) last.lines.push(line);
     else out.push({ kind, lines: [line], section });
   };
   for (const line of body.split('\n')) {
+    const prev = previous;
+    previous = line.trim() ? line : prev;
     if (fence) {
       push('keep', line);
-      if (line.trim().startsWith(fence)) fence = null;
+      // A fence closes with the same mark, at least as long, and nothing after it.
+      if (new RegExp(`^\\s*${fence[0] === '`' ? '`' : '~'}{${fence.length},}\\s*$`).test(line)) fence = null;
       continue;
     }
-    const open = /^\s*(```|~~~)/.exec(line);
+    if (comment) { push('keep', line); if (line.includes('-->')) comment = false; continue; }
+    const open = /^\s*(`{3,}|~{3,})/.exec(line);
     if (open) { fence = open[1]!; push('keep', line); continue; }
+    if (/^\s*<!--/.test(line) && !line.includes('-->')) { comment = true; push('keep', line); continue; }
+    // Indented code: four spaces after a blank line, not the continuation of a list item.
+    if (/^( {4}|\t)/.test(line) && (indented || (!out.at(-1)?.lines.at(-1)?.trim() && !/^\s*([-*+]|\d+[.)])\s/.test(prev)))) { indented = true; push('keep', line); continue; }
+    if (line.trim()) indented = false;
     if (/^#{1,6}\s/.test(line)) { section++; push('text', line); continue; }
     if (!line.trim() || /^\s*>/.test(line) || /^\[\^[^\]]+\]:/.test(line) || /^\s*<!--.*-->\s*$/.test(line)) { push('keep', line); continue; }
     push('text', line);
@@ -128,18 +139,41 @@ type Plan = {
   readonly cache: Cache;
 };
 
+const STOP: Readonly<Record<string, readonly string[]>> = {
+  fr: ['le', 'la', 'les', 'des', 'est', 'une', 'pour', 'avec', 'dans', 'qui', 'que', 'pas', 'sur', 'au', 'du', 'et'],
+  en: ['the', 'is', 'and', 'of', 'to', 'with', 'for', 'this', 'that', 'are', 'in', 'it', 'not', 'on', 'be', 'by'],
+  es: ['el', 'los', 'las', 'es', 'una', 'para', 'con', 'que', 'por', 'del', 'y'],
+  de: ['der', 'die', 'das', 'und', 'ist', 'nicht', 'mit', 'für', 'ein', 'eine', 'auf'],
+  it: ['il', 'gli', 'della', 'è', 'una', 'per', 'con', 'che', 'non', 'del'],
+  pt: ['os', 'as', 'uma', 'para', 'com', 'que', 'não', 'por', 'do', 'da', 'é'],
+};
+
+/**
+ * The language a note is written in: its own `lang` or `language`, else the one
+ * its common words point to, else the profile's writing language.
+ */
+export function noteLanguage(data: Record<string, unknown>, body: string, fallback: string): string {
+  const declared = data.lang ?? data.language;
+  if (typeof declared === 'string' && /^[a-z]{2}/i.test(declared)) return declared.slice(0, 2).toLowerCase();
+  const words = body.replace(/```[\s\S]*?```/g, ' ').toLowerCase().split(/[^\p{L}]+/u).filter(Boolean);
+  if (words.length < 8) return fallback;
+  const counts = Object.entries(STOP).map(([lang, list]) => [lang, words.filter((w) => list.includes(w)).length] as const).sort((a, b) => b[1] - a[1]);
+  const [best, second] = counts;
+  return best![1] >= 3 && best![1] > (second?.[1] ?? 0) * 1.5 ? best![0] : fallback;
+}
+
 function sourceLanguage(config: OkbConfig): string {
   return (config.writing.language ?? config.profile.answer.language ?? 'en').slice(0, 2);
 }
 
 async function plan(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, options: { confirmSecret?: boolean } = {}): Promise<Plan> {
   if (!(LANGUAGES as readonly string[]).includes(lang)) throw new OkbError('E_INVALID', `language ${lang} is not offered`, { key: 'translateLanguage', params: { lang, langs: LANGUAGES.join(', ') } });
-  const source = sourceLanguage(config);
-  if (lang === source) throw new OkbError('E_INVALID', `the note is already in ${lang}`, { key: 'translateSameLanguage', params: { lang } });
   const bundle = await loadBundleFor(config);
   const doc = bundle.docs.get(path);
   const entry = bundle.byPath.get(path);
   if (!doc || !entry) throw new OkbError('E_NOT_FOUND', `no note ${path}`, { key: 'noteUnknown', params: { path } });
+  const source = noteLanguage(doc.data as Record<string, unknown>, doc.body, sourceLanguage(config));
+  if (lang === source) throw new OkbError('E_INVALID', `the note is already in ${lang}`, { key: 'translateSameLanguage', params: { lang } });
   if (isSecret(entry.ext) && !options.confirmSecret) throw new OkbError('E_SECRET', 'a 🔒 note leaves the computer only when the person confirms', { key: 'translateSecret', params: { path } });
   const segs = segments(doc.body);
   const textSegs = segs.filter((s) => s.kind === 'text' && s.text.trim());
@@ -195,12 +229,13 @@ function parseBlocks(text: string, count: number): (string | null)[] {
 
 /* ---------------------------------------------------------------- public */
 
-export async function estimateTranslation(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: boolean } = {}): Promise<{ tokens: number; cached: number; toTranslate: number }> {
-  void env;
+export async function estimateTranslation(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: boolean; now?: Date } = {}): Promise<{ tokens: number; cached: number; toTranslate: number; budget: { spent: number; daily: number } }> {
   const p = await plan(config, path, lang, scope, options);
-  const r = requestFor(p, lang, []);
+  // The same request as the translation itself, the brain's terms included.
+  const r = requestFor(p, lang, glossary(layoutOf(config), p.bundle).flatMap((g) => [g.term, ...g.aliases]));
   const tokens = r.blocks.length ? estimateTokens(r.system + r.prompt) * 2 : 0;
-  return { tokens, cached: p.sections.length - r.sections.length, toTranslate: r.sections.length };
+  const [spent, daily] = await Promise.all([spentToday(config, options.now ?? new Date()), dailyBudget(env)]);
+  return { tokens, cached: p.sections.length - r.sections.length, toTranslate: r.sections.length, budget: { spent, daily } };
 }
 
 export async function translateNote(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: boolean; now?: Date } = {}): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
@@ -258,7 +293,8 @@ export async function translateNote(config: OkbConfig, path: BundlePath, lang: s
   const title = cache.meta?.title ?? p.meta.title;
   return {
     title, description: cache.meta?.description ?? p.meta.description,
-    markdown: scope === 'brief' ? `# ${title}\n\n${body}\n` : `${body}\n`,
+    // The brief view is titled once: the note's own H1, when it opened the brief, is left out.
+    markdown: scope === 'brief' ? `# ${title}\n\n${body.replace(/^# .*\n*/, '')}\n` : `${body}\n`,
     cached: p.sections.length - r.sections.length, translated: done, failed, tokens,
   };
 }

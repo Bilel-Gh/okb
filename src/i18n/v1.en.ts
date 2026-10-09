@@ -1188,4 +1188,5 @@ export const EN_V1 = {
   'proposal.label.migration': 'Brain migration ({n} notes)',
   'proposal.label.conversion': 'Conversion to the OKB format ({n} notes)',
   'proposal.label.portable': 'Links made portable',
+  'app.translate.left': '{left} left today.',
 } as const;

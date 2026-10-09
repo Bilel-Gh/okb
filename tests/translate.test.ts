@@ -229,3 +229,54 @@ describe('saving the translation of a 🔒 note (review I2)', () => {
     expect(content).toMatch(/confidentiality: secret/);
   }, 60_000);
 });
+
+describe('the deferred minors of translation', () => {
+  it('M1: keeps fences of four backticks, tildes, indented code and multi-line comments', () => {
+    const body = ['## A', '', 'Texte.', '', '````md', '```', 'pas une fin', '```', '````', '', '~~~', 'code tilde', '~~~', '', 'Avant :', '', '    indenté', '    encore', '', '<!--', 'note cachée', '-->', '', 'Fin.'].join('\n');
+    const text = segments(body).filter((s) => s.kind === 'text').map((s) => s.text).join('\n');
+    expect(text).toContain('Texte.');
+    expect(text).toContain('Fin.');
+    for (const kept of ['pas une fin', 'code tilde', 'indenté', 'note cachée']) expect(text).not.toContain(kept);
+  });
+
+  it('M1: a list item continued by an indented line stays text', () => {
+    const text = segments('- Un point\n    qui continue ici.').filter((s) => s.kind === 'text').map((s) => s.text).join('\n');
+    expect(text).toContain('qui continue ici.');
+  });
+
+  it('M3: « En bref » missing, the title is not written twice', async () => {
+    const b = await demoBrain();
+    const path = asBundlePath('3 Boîte à outils/Sans bref.md');
+    await writeFile(resolve(b.kb, path), '---\ntitle: Sans bref\ndescription: x.\nstatus: stable\ngenerated:\n  by: human:test\n  at: 2026-09-01T10:00:00Z\n---\n\n# Sans bref\n\nUne note sans résumé, écrite en français pour le test.\n\n## Suite\n\nLa suite.\n');
+    const r = await translateNote(b.config, path, 'en', 'brief', { ...b.env, OKB_AI: 'fake' });
+    expect(r.markdown.match(/^# /gm)).toHaveLength(1);
+  }, 60_000);
+
+  it('M8: the language of the note, not of the profile, is the source', async () => {
+    const b = await demoBrain();
+    const path = asBundlePath('3 Boîte à outils/English note.md');
+    await writeFile(resolve(b.kb, path), '---\ntitle: English note\ndescription: Written in English.\nstatus: stable\ngenerated:\n  by: human:test\n  at: 2026-09-01T10:00:00Z\n---\n\n# English note\n\n## In brief\n\nThis note is written in English, and the team reads it with the other notes of the project.\n');
+    // Already in English: asking for English is refused; French is offered.
+    await expect(translateNote(b.config, path, 'en', 'brief', { ...b.env, OKB_AI: 'fake' })).rejects.toMatchObject({ key: 'translateSameLanguage' });
+    const fr = await translateNote(b.config, path, 'fr', 'brief', { ...b.env, OKB_AI: 'fake' });
+    expect(fr.translated).toBeGreaterThan(0);
+  }, 60_000);
+
+  it('M10: the estimate says what is left of the day’s budget', async () => {
+    const { config, path, env } = await brain();
+    const e = await estimateTranslation(config, path, 'en', 'full', env);
+    expect(e.budget.daily).toBeGreaterThan(0);
+    expect(e.budget.spent).toBeGreaterThanOrEqual(0);
+  }, 60_000);
+
+  it('M11: a saved translation of a concept card is not a second glossary entry', async () => {
+    const b = await demoBrain();
+    const { glossary } = await import('../src/brain/views.js');
+    const { layoutOf } = await import('../src/brain/layout.js');
+    const card = '3 Boîte à outils/Concepts/Notion Alpha (EN).md';
+    await mkdir(resolve(b.kb, '3 Boîte à outils', 'Concepts'), { recursive: true });
+    await writeFile(resolve(b.kb, card), '---\ntype: Concept\ntitle: Notion Alpha (EN)\ndescription: x.\nstatus: draft\ngenerated:\n  by: okb:test\n  at: 2026-09-01T10:00:00Z\nx_okb:\n  translation:\n    of: 3 Boîte à outils/Concepts/Notion Alpha.md\n    lang: en\n---\n\n# Notion Alpha (EN)\n\n## In one sentence\n\nDoing it again changes nothing more.\n');
+    const entries = glossary(layoutOf(b.config), await loadBundleFor(b.config));
+    expect(entries.some((e) => e.term === 'Notion Alpha (EN)')).toBe(false);
+  }, 60_000);
+});

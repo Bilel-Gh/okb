@@ -111,6 +111,8 @@ export function glossary(layout: BrainLayout | null, bundle: Bundle): GlossaryEn
     if (e.reserved) continue;
     const t = typeOf(e);
     if (!CONCEPT_TYPES.has(t) && !CONCEPT_TYPES.has(e.type)) continue;
+    // A card's saved translation is read beside it, never a second term of the glossary.
+    if ((e.ext as { translation?: unknown }).translation) continue;
     out.push({
       term: e.title, path: e.path, description: e.description, aliases: e.ext.aliases ?? [],
       oneLiner: oneLiner(bundle.docs.get(e.path)?.body ?? '', e.title).text,

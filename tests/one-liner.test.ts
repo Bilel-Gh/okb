@@ -120,3 +120,12 @@ describe('the concept cards a note shows on hover', () => {
     expect(termsOfNote(cards, 'c/SLA.md', 'Le SLA.', new Set())).toEqual([]);
   });
 });
+
+describe('a sentence with abbreviations (M2)', () => {
+  it('does not stop at « p. ex. », « e.g. » or « M. »', () => {
+    expect(oneLiner('## En une phrase\n\nUn délai garanti, p. ex. Une réponse en 2 h. Le reste suit.', 'SLA').text)
+      .toBe('Un délai garanti, p. ex. Une réponse en 2 h.');
+    expect(oneLiner('## In one sentence\n\nA promised level of service, e.g. Replies within two hours. More below.', 'SLA').text)
+      .toBe('A promised level of service, e.g. Replies within two hours.');
+  });
+});

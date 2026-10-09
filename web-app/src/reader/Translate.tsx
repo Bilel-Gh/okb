@@ -9,16 +9,16 @@ import { toast } from '../app/toast';
 import { ErrorState } from '../ui/States';
 
 const LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt'] as const;
-type Estimate = { tokens: number; cached: number; toTranslate: number };
+type Estimate = { tokens: number; cached: number; toTranslate: number; budget?: { spent: number; daily: number } };
 type Result = { ok: true; title: string; html: string; translated: number; failed: number; cached: number; tokens: number };
 
 /**
  * Translate, on request only: the cost first (nothing is translated in advance),
  * « En bref » before the whole note, and « save as a note » as a proposal.
  */
-export function Translate({ path, onShow, shown }: { path: string; onShow: (v: { html: string; lang: string } | null) => void; shown: string | null }) {
+export function Translate({ path, source: noteLang, onShow, shown }: { path: string; source?: string; onShow: (v: { html: string; lang: string } | null) => void; shown: string | null }) {
   const t = useT();
-  const source = (currentSession()?.kbs.find((k) => k.id === currentKb())?.writingLanguage ?? 'fr').slice(0, 2);
+  const source = (noteLang ?? currentSession()?.kbs.find((k) => k.id === currentKb())?.writingLanguage ?? 'fr').slice(0, 2);
   const choices = LANGS.filter((l) => l !== source);
   const [lang, setLang] = useState<string>(choices.includes(t.lang as (typeof LANGS)[number]) ? t.lang : choices[0]!);
   const [scope, setScope] = useState<'brief' | 'full'>('brief');
@@ -68,7 +68,7 @@ export function Translate({ path, onShow, shown }: { path: string; onShow: (v: {
               </div>
             ) : (
               <p className="small muted" aria-live="polite">
-                {estimate.isLoading ? t('app.loading') : estimate.data ? (estimate.data.tokens ? `${t('app.translate.cost', { tokens: estimate.data.tokens })}${estimate.data.cached ? ` ${tn(t, 'app.translate.cached', estimate.data.cached)}` : ''}` : t('app.translate.free')) : null}
+                {estimate.isLoading ? t('app.loading') : estimate.data ? (estimate.data.tokens ? `${t('app.translate.cost', { tokens: estimate.data.tokens })}${estimate.data.cached ? ` ${tn(t, 'app.translate.cached', estimate.data.cached)}` : ''}${estimate.data.budget ? ` ${t('app.translate.left', { left: Math.max(0, estimate.data.budget.daily - estimate.data.budget.spent).toLocaleString(t.lang) })}` : ''}` : t('app.translate.free')) : null}
               </p>
             )}
             {run.error ? <ErrorState error={run.error} /> : null}

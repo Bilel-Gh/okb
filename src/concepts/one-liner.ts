@@ -51,13 +51,26 @@ function sectionParagraph(lines: readonly string[], which: RegExp): string | nul
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** Abbreviations whose dot does not end a sentence: « p. ex. », « e.g. », « M. », an initial… */
+const ABBREVIATION = /(?:\bp\. ?ex|\be\.g|\bi\.e|\bcf|\betc|\bvs|\bc\.-à-d|\bMmes?|\bMr?s?|\bDr|\bSt|\bn°|\b\p{Lu})$/u;
+
+/** The text up to the end of its first sentence, abbreviations aside. */
+export function firstSentence(text: string): string {
+  const end = /[.!?…]\s+(?=[\p{Lu}«"“(])/gu;
+  for (let m = end.exec(text); m; m = end.exec(text)) {
+    if (m[0].startsWith('.') && ABBREVIATION.test(text.slice(0, m.index))) continue;
+    return text.slice(0, m.index + 1).trim();
+  }
+  return text.trim();
+}
+
 export function oneLiner(body: string, term: string): OneLiner {
   const lines = body.replace(/```[\s\S]*?```/g, '').split('\n');
   const raw = sectionParagraph(lines, FIRST) ?? sectionParagraph(lines, BRIEF);
   if (!raw) return { text: null, reason: 'missing' };
   let text = plain(raw);
   // The first sentence only.
-  text = text.split(/(?<=[.!?…])\s+(?=[\p{Lu}«"“(])/u)[0]!.trim();
+  text = firstSentence(text);
   // « SLA : … », « Idempotence — … »: the term already titles the bubble.
   if (term) text = text.replace(new RegExp(`^${escape(plain(term))}\\s*(?::|—|–|-)\\s+`, 'iu'), '');
   text = text.charAt(0).toLocaleUpperCase() + text.slice(1);
@@ -80,7 +93,7 @@ export function isConceptEntry(entry: { type: string; ext: unknown }): boolean {
 export function conceptsWithoutOneLiner(_config: OkbConfig, bundle: Bundle): { path: BundlePath; title: string; reason: OneLiner['reason'] }[] {
   const out: { path: BundlePath; title: string; reason: OneLiner['reason'] }[] = [];
   for (const e of bundle.entries) {
-    if (e.reserved || !isConceptEntry(e)) continue;
+    if (e.reserved || !isConceptEntry(e) || (e.ext as { translation?: unknown }).translation) continue;
     const r = oneLiner(bundle.docs.get(e.path)?.body ?? '', e.title);
     if (!r.text) out.push({ path: e.path, title: e.title, reason: r.reason });
   }

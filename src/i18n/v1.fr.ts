@@ -1182,4 +1182,5 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'proposal.label.migration': 'Migration du cerveau ({n} notes)',
   'proposal.label.conversion': 'Conversion au format OKB ({n} notes)',
   'proposal.label.portable': 'Liens rendus portables',
+  'app.translate.left': 'Il en reste {left} aujourd’hui.',
 };

@@ -17,7 +17,7 @@ import { LocalGraph } from './LocalGraph';
 import { Translate } from './Translate';
 
 export type NoteView = {
-  path: string; title: string; type: string; status: string; description: string; category: string; confidentiality: string; sources: number;
+  path: string; title: string; type: string; status: string; description: string; category: string; confidentiality: string; sources: number; lang?: string;
   crumbs: { title: string; path: string | null }[];
   terms: (Term & { description: string })[];
   score: { stars: number; global: number; quality: number; value: number; young: boolean; notes: string[] } | null;
@@ -156,7 +156,7 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
               onClick={() => toast(togglePin({ path: n.path, title: n.title, category: n.category }) ? t('app.note.pinned') : t('app.note.unpinned'))}>
               {isPinned(pins, n.path) ? <PinOff size={15} aria-hidden="true" /> : <Pin size={15} aria-hidden="true" />}
             </button>
-            <Translate path={n.path} onShow={setTranslated} shown={translated?.lang ?? null} />
+            <Translate key={n.path} path={n.path} source={n.lang} onShow={setTranslated} shown={translated?.lang ?? null} />
             <a className="btn sm ghost icon" href={hrefFor({ name: 'graph', focus: n.path })} aria-label={t('web.graph.see')} title={t('web.graph.see')}><Share2 size={15} aria-hidden="true" /></a>
             <Popover.Root>
               <Popover.Trigger asChild><button type="button" className="btn sm ghost icon" aria-label={t('app.note.more')} title={t('app.note.more')}><MoreHorizontal size={16} aria-hidden="true" /></button></Popover.Trigger>

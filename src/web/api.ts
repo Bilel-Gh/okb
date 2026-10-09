@@ -304,6 +304,8 @@ export const ROUTES: Record<string, Handler> = {
       score: score ? { stars: score.stars, global: score.global, quality: score.quality, value: score.value, young: score.young, parts: score.parts, notes: score.notes } : null,
       path, title: entry.title, type: entry.type, status: entry.status, description: entry.description,
       confidentiality: (entry.ext as { confidentiality?: string }).confidentiality ?? 'normal',
+      // The language the note is written in (its own, else its words, else the profile's): what « Translate » leaves out.
+      lang: (await import('../translate/translate.js')).noteLanguage(doc.data as Record<string, unknown>, doc.body, (config.writing.language ?? config.profile.answer.language ?? 'en').slice(0, 2)),
       category: graph.nodes.find((n) => n.id === path)?.category ?? 'other',
       sources: Array.isArray((doc.data as { sources?: unknown[] }).sources) ? (doc.data as { sources: unknown[] }).sources.length : 0,
       html: await renderMarkdown(doc.raw, path), raw: doc.raw,
