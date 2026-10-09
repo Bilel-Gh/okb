@@ -1,6 +1,6 @@
 {
   "name": "okb-dev",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "description": "OKB for developers: products, repositories and tickets in your brain — understand a repository, follow a ticket, explain code with checked diagrams, debug with known errors, pre-review a diff, write PRs.",
   "keywords": ["knowledge-base", "developer", "onboarding", "tickets", "architecture"],
   "author": { "name": "OKB contributors" },

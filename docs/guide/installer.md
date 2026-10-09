@@ -117,7 +117,7 @@ okb init
 3. Pour une nouvelle version, avec le nouveau fichier :
 
 ```bash
-okb update --from okb-1.0.0.tgz
+okb update --from okb-1.5.0.tgz
 ```
 
 `okb update --from` accepte aussi un dossier qui contient une copie d’OKB. Il

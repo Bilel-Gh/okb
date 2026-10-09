@@ -105,8 +105,11 @@ drawers and the products; data stays in plain colours.
 ## Components
 
 `ui/`: `CatMark`/`TypeMark` (type icon in a tinted square), `PageTabs` (a
-destination's pages, each with its address), `Breadcrumb`, `LevelBar`, `Choice`
-and `Switch`, `ConfirmDialog`, `States` (empty, error, loading). Panels, pills,
+destination's pages, each with its address), `Breadcrumb`, `LevelBar`, `Ring` (a
+score out of 100), `DiffView` (a diff to read), `Choice` and `Switch`,
+`ConfirmDialog`, `States` (empty, error, loading). The explorer's filters, table,
+cards and selection bar are in `pages/brain-views.tsx`; the concept bubble in
+`reader/Bubble.tsx` (waits for the pointer to rest, fades, an arrow on the word). Panels, pills,
 chips, tabs and buttons are in `styles/components.css`; the explorer and the
 reader in `styles/brain.css`; the graph in `styles/graph.css` (canvas engine:
 `graph/GraphView.ts`: themes as flat tinted discs with a crisp edge, hubs ringed

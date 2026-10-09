@@ -1,4 +1,4 @@
-# OKB — Open Knowledge Brain · 1.0.0
+# OKB — Open Knowledge Brain · 1.5.0
 
 **A local second brain for Claude Code and Obsidian, where nothing enters your
 notes without your approval.**
@@ -12,6 +12,30 @@ of plain Markdown files on your computer, that you open in Obsidian or in the we
 **En français :** [démarrer](DEMARRER.md) · [guide d’utilisation](docs/guide/README.md).
 
 ![The OKB web app: home](docs/images/web-home.png)
+
+## Version 1.5: the web app becomes the product
+
+- **A new web app** (React, served locally like before): one font, two themes
+  (Atelier and Classique), light or dark, gradient or flat; every page of 1.0
+  regrouped into thirteen destinations, each tab with its own address.
+- **The Brain explorer**: a foldable tree by folders or by types, pinned and recent
+  notes, saved views; cumulative filters (types, status, quality, date, 🔒); list,
+  table or cards; several notes retyped or locked in one proposal.
+- **Reading**: a concept's one-line definition in a bubble on hover or tap;
+  translation on demand with a per-section cache and the cost said first.
+- **Repositories**: a knowledge level out of 100 without AI, the system map
+  computed from the code with a proof for each line, and a **knowledge exam** —
+  Claude answers the onboarding questions from the notes only, graded against the
+  code, a person's answer or the expected one.
+- **Ask your brain**: search by meaning, then an answer that cites your notes.
+- **Share without a server**: a pack of a subject's notes, compared and merged by
+  a proposal (CLI and web app).
+- **Modules** per profession, a stable person id and a role, personal XP and
+  badges, OKB's own AI through Claude Code or an API key.
+
+Details: [release notes 1.5.0](docs/releases/RELEASE-1.5.0.md) · guide (FR):
+[l’application web](docs/guide/application-web.md),
+[modules, niveau, examen, traduction et partage](docs/guide/modules-et-niveau.md).
 
 ## Version 1: you work, OKB suggests what to keep, files it, and brings it back
 
@@ -292,7 +316,7 @@ filesystem transaction.
   [templates](docs/dev/TEMPLATES.md) · [style](docs/dev/STYLE.md) ·
   [installation details](docs/dev/INSTALL.md) · [context budget](docs/dev/CONTEXT.md) · [cost and quality](docs/dev/COSTS.md) ·
   [Claude compatibility](docs/dev/CLAUDE-COMPATIBILITY.md) · [evaluation](docs/dev/EVALUATION.md)
-- **Release notes:** [1.0.0](docs/releases/RELEASE-1.0.0.md) · [0.11.0](docs/releases/RELEASE-0.11.0.md) · [0.10.0](docs/releases/RELEASE-0.10.0.md) · [0.9.0](docs/releases/RELEASE-0.9.0.md) · [0.8.0](docs/releases/RELEASE-0.8.0.md) · [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
+- **Release notes:** [1.5.0](docs/releases/RELEASE-1.5.0.md) · [1.0.0](docs/releases/RELEASE-1.0.0.md) · [0.11.0](docs/releases/RELEASE-0.11.0.md) · [0.10.0](docs/releases/RELEASE-0.10.0.md) · [0.9.0](docs/releases/RELEASE-0.9.0.md) · [0.8.0](docs/releases/RELEASE-0.8.0.md) · [0.7.0](docs/releases/RELEASE-0.7.0.md) · [0.6.0](docs/releases/RELEASE-0.6.0.md) · [0.5.0](docs/releases/RELEASE-0.5.0.md) ·
   [0.4.0](docs/releases/RELEASE-0.4.0.md) · [0.3.0](docs/releases/RELEASE-0.3.0.md) ·
   [0.2.0](docs/releases/RELEASE-0.2.0.md)
 

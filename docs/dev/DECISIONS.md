@@ -955,3 +955,46 @@ Pistes, par ordre proposé :
   (décocher un fichier avant d'approuver).
 - **Réexamen** : si l'utilisateur veut revoir une page précise, ou retirer
   `/classic` une fois la transition finie.
+
+## D55 — 1.5 terminée : bulles, graphe net, examen, partage, explorateur complet (9 octobre 2026, soir)
+
+> Demandé par l'utilisateur : « la bulle au survol d'un concept, sans bâcler ; trop
+> de flou sur le graphe ; finalise à 100 % la 1.5 ». Décisions prises seul, pendant
+> une session autonome, à relire.
+
+- **Bulle des concepts** : un lien que la note fait déjà vers une fiche concept
+  reçoit la bulle (c'était le cas manquant : les notes générées lient leurs
+  concepts). La bulle attend que le pointeur se pose (140 ms), se ferme 220 ms après
+  l'avoir quitté, passe directement d'un mot à l'autre, suit le défilement, s'ouvre
+  au clavier et au premier toucher sur un téléphone.
+- **Graphe sans flou** : thèmes en disques à plat au bord net, notes très reliées
+  cerclées de leur couleur, bulles « vu d'en haut » opaques, cartes flottantes
+  pleines. Plus de dégradé radial ni de verre dépoli sur le graphe.
+- **Examen de connaissance** (§5.1) : les 25 questions d'onboarding et celles de
+  l'équipe, répondues **par les notes du repo seulement**, notées contre une
+  référence que les notes n'ont pas écrite (réponse attendue, réponse d'une
+  personne, lignes de code désignées par l'analyse). Deux appels groupés (répondre,
+  puis noter), petit modèle, coût annoncé, budget du jour. Une question sans
+  référence n'est pas notée — sinon un repo non relié n'aurait que des échecs
+  comptés. Les dix derniers résultats sont gardés dans l'état, hors de la KB.
+- **Partager** (§6, étape 1) : page Outils › Partager, export d'un dossier,
+  comparaison d'un pack reçu avec l'écart ligne à ligne, fusion par proposition.
+- **Explorateur complet** (§3.2) : filtres cumulables (types, statut, qualité,
+  date, 🔒), tri, vues liste / tableau / cartes, vues enregistrées et prêtes, notes
+  épinglées et récentes (dans ce navigateur), sélection multiple : changer le type
+  ou la confidentialité de plusieurs notes en **une** proposition. « / » reste la
+  recherche de toute l'application.
+- **Titres de propositions lisibles** : l'étiquette d'un changement reste une donnée
+  en anglais (reçus, CLI, tests) ; le titre montré est traduit à l'affichage, la note
+  par son nom et le type par son libellé.
+- **Petits défauts de la nuit** corrigés (M1–M3, M5–M8, M10–M12) : clôtures de code
+  longues, code indenté et commentaires gardés à la traduction ; un seul titre ;
+  langue de la note ; budget restant ; traduction d'une fiche hors du glossaire ;
+  abréviations ; clé d'API en relais de Claude Code déconnecté ; appels à l'IA un
+  par un ; points des manques remis à l'échelle ; repos homonymes ; identité lue dans
+  le bon dossier OKB. **M4** gardé : le titre et la description partent encore à la
+  traduction d'une note toute en code (c'est de la prose). Les appels Git d'une
+  analyse ne sont pas mis en cache (7 appels en parallèle, 0,3 à 0,5 s ; un cache
+  servirait un état « modifié » périmé après un commit).
+- **Version 1.5.0** dans `package.json` et les deux plugins ; rien n'est poussé ni
+  tagué sans l'accord de l'utilisateur.

@@ -19,16 +19,16 @@ onglets, chacun avec son adresse (on peut la garder en favori).
 | Mon cerveau | Pour |
 |---|---|
 | **Aujourd’hui** | l’accueil : ce qui attend ton oui, reprendre une note, ce qui est utile maintenant, ta progression, réviser, capturer une idée, ton cerveau par type et par tiroir. Onglets **Focus et journal** (ta note de focus, finir une session, le journal) et **Revue de la semaine** (pas à pas) |
-| **Cerveau** | l’explorateur, en trois colonnes : à gauche l’arbre de tes dossiers, **dépliable niveau par niveau**, ou tes **types de notes** (chaque type se déplie par tiroir) ; au milieu la liste, **groupée par type ou par dossier**, chaque groupe repliable ; à droite la note, ou la page du dossier choisi (sa page de 5 minutes, ses sous-dossiers, ses notes par type) |
+| **Cerveau** | l’explorateur, en trois colonnes : à gauche tes notes **épinglées**, les **récentes**, tes **vues**, puis l’arbre de tes dossiers, **dépliable niveau par niveau**, ou tes **types de notes** (chaque type se déplie par tiroir) ; au milieu la liste, **groupée par type ou par dossier**, chaque groupe repliable ; à droite la note, ou la page du dossier choisi (sa page de 5 minutes, ses sous-dossiers, ses notes par type). Détails plus bas |
 | **Graphe** | toutes les notes et leurs liens, regroupées par thème, par type ou par dossier ; ou le cerveau **vu d’en haut**, tiroir par tiroir ([détails](graphe-et-categories.md)) |
 | **Demander** | une question : les passages de tes notes qui répondent ; sur ton clic, une réponse rédigée qui cite chaque passage |
 | **À valider** | **Suggestions** de Claude (Accepter, Plus tard, Non merci), **Propositions** à relire, **Captures** à trier, **Historique** des changements (annuler le dernier) |
-| **Repos** | le **niveau de connaissance** de chaque repo, l’**architecture** calculée depuis le code, et la **fiche d’un repo** : ses notes, ses questions d’onboarding par thème (réponds en ligne), sa carte, ses tickets, la fraîcheur de ses notes |
+| **Repos** | le **niveau de connaissance** de chaque repo, l’**architecture** calculée depuis le code (zoom, clic sur une ligne pour sa preuve), et la **fiche d’un repo** : ses notes, ses questions d’onboarding par thème (réponds en ligne), son **examen de connaissance**, sa carte, ses tickets, la fraîcheur de ses notes |
 | **Apprendre** | **Réviser** les cartes (Révéler, puis 1 à 4), ta **Progression** (niveau et badges), ta **Carrière** |
 
 | OKB | Pour |
 |---|---|
-| **Outils** | ajouter une source, transformer une procédure en skill, les modèles et ton style, les catégories |
+| **Outils** | ajouter une source, transformer une procédure en skill, les modèles et ton style, les catégories, **Partager** (un pack pour un collègue, ou recevoir le sien) |
 | **Entretien** | la santé du cerveau, les sauvegardes, l’utilisation (coûts, qualité), le diagnostic et la mise à jour |
 | **Modules**, **Claude Code** | les modules par métier ; installer OKB dans Claude Code en un clic |
 | **Réglages** | les réglages, l’apparence, tes cerveaux (ouvrir, connecter un dossier, en créer un) |
@@ -40,14 +40,32 @@ t’emmène sur n’importe quelle page ou onglet. Les anciennes adresses (`#/we
 
 ![Cerveau : l’arbre des dossiers, la liste groupée par type et une note, thème Atelier](../images/web-atelier.png)
 
+### Trouver une note
+
+- **Filtres** (au-dessus de la liste) : un ou plusieurs types, le statut
+  (brouillon, validée, dépassée), la qualité (bonnes ★4 et plus, faibles ★2 et
+  moins), la date (7 jours, 30 jours, un an), 🔒 seules ou sans 🔒. Ils se
+  cumulent ; chacun s’enlève d’un clic.
+- **Affichage** : en **liste**, en **tableau** (type, emplacement, qualité, date)
+  ou en **cartes** ; grouper par type, par dossier ou pas ; trier par titre, les
+  plus récentes ou les meilleures d’abord.
+- **Enregistrer la vue** garde le dossier, les filtres et l’ordre sous un nom ;
+  trois vues sont prêtes : Brouillons, Notes faibles, Modifiées cette semaine.
+- **Épingler** une note (bouton punaise sur la note) la garde en haut de l’arbre,
+  avec les notes ouvertes récemment.
+- En tableau ou en cartes, coche plusieurs notes : **changer leur type** ou les
+  **rendre 🔒** en une seule proposition, ou **copier leurs liens**.
+- Au clavier : **↑ ↓** dans la liste, **Échap** vide la sélection puis ferme la note.
+
 ### Lire une note
 
 Le chemin de la note en haut (chaque étape mène à son dossier), son titre et son
 résumé, puis son type (clique pour le changer : une proposition est préparée), son
-état, ses sources et sa qualité. Les mots qui ont une fiche concept montrent leur
-phrase au survol. En bas : les notes qui la citent et celles qu’elle cite, et son
-graphe local. Le menu « … » donne ses versions, l’ouverture dans Obsidian et son
-chemin.
+état, ses sources et sa qualité. Les mots qui ont une fiche concept sont soulignés
+en pointillé : laisse la souris dessus un instant (ou touche-le sur un téléphone),
+une bulle montre la phrase de la fiche et « Lire la fiche → ». En bas : les notes
+qui la citent et celles qu’elle cite, et son graphe local. La punaise l’épingle ; le
+menu « … » donne ses versions, l’ouverture dans Obsidian et son chemin.
 
 ![Lire une note](../images/web-note.png)
 
@@ -76,6 +94,8 @@ navigateur.
 - **⌘\\** (Ctrl+\\) : replier ou déplier la barre de gauche.
 - **⌘↵** : capturer depuis le champ des captures.
 - **Espace**, puis **1** à **4** : révéler une carte, puis dire comment ça s’est passé.
+- Dans Cerveau : **↑ ↓** pour passer d’une note à l’autre, **Échap** pour vider la
+  sélection, puis fermer la note.
 
 ## Relire et approuver
 

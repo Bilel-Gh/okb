@@ -87,10 +87,10 @@ Dans l'application web (`okb serve`), page **Graphe** :
 - **les notes sont regroupées par thème**, détecté tout seul à partir des liens
   (méthode de Louvain : des groupes de notes bien plus liées entre elles qu'avec
   le reste). En général, un thème réunit un guide et les concepts qu'il explique.
-  Chaque thème a un halo et un nom (voir plus bas). La liste « Thèmes détectés »
+  Chaque thème est un disque teinté au bord net, avec son nom (voir plus bas). La liste « Thèmes détectés »
   montre les notes de chaque thème et le cadre d'un clic ;
 - **chaque point est une note**, coloré par catégorie, plus gros quand la note
-  est très reliée ;
+  est très reliée ; une note très reliée est cerclée de sa couleur ;
 - **chaque trait est un lien** d'une note vers une autre ; les pointillés
   marquent un prérequis (« à lire avant ») ;
 - **molette** pour zoomer, **glisser** pour te déplacer, glisser un point pour le
