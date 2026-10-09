@@ -1,4 +1,5 @@
 import { isConceptEntry } from '../concepts/one-liner.js';
+import { readableLabel } from '../proposal/labels.js';
 import { execFile } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -49,7 +50,11 @@ export function proposalTitle(p: Proposal): string {
   const files = new Set(p.changes.map((c) => c.path)).size;
   if (lead) return files > 1 ? `${lead} +${files - 1}` : lead;
   const label = p.changes[0]?.label ?? p.notes[0] ?? p.id;
-  return articles.length ? label : label.replace(/^create /, '');
+  if (articles.length) return label;
+  // In the person's language; one operation over many files (a pack, a migration) is named once, a change per note counts the others.
+  const text = readableLabel(label);
+  const oneOperation = p.changes.every((c) => c.label.endsWith(`: ${c.path}`));
+  return files > 1 && !oneOperation ? `${text} +${files - 1}` : text;
 }
 
 export function summarize(p: Proposal, number: number | null): ProposalSummary {
