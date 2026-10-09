@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OKB · logo, deuxième série</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #e9e9ee; font: 14px/1.5 'IBM Plex Sans', system-ui, sans-serif; color: #1b1b2a; }
+header { background: #15151c; color: #f4f4f5; padding: 20px 28px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+header h1 { margin: 0 0 4px; font-size: 20px; }
+header p { margin: 0; color: #a1a1aa; max-width: 80ch; }
+.switch { margin-left: auto; display: inline-flex; background: #27272a; border-radius: 8px; padding: 3px; gap: 2px; }
+.switch button { border: 0; background: transparent; color: #d4d4d8; font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.switch button[aria-pressed='true'] { background: #f4f4f5; color: #18181b; font-weight: 600; }
+main { padding: 24px 28px 48px; display: grid; gap: 28px; }
+.concept > h2 { margin: 0 0 4px; font-size: 19px; }
+.concept > p { margin: 0 0 14px; color: #52525b; max-width: 90ch; }
+.variants { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; }
+.variant { background: #fff; border-radius: 16px; padding: 18px; box-shadow: 0 1px 2px rgba(0,0,0,.05); display: grid; gap: 14px; }
+.variant h3 { margin: 0; font-size: 16px; display: flex; gap: 8px; align-items: baseline; }
+.variant h3 code { font: 600 13px 'JetBrains Mono', monospace; background: #efeff5; padding: 1px 6px; border-radius: 5px; }
+.variant p { margin: 0; color: #52525b; font-size: 13px; }
+.hero { display: flex; gap: 14px; align-items: end; }
+.hero figure { margin: 0; text-align: center; }
+.hero figcaption { font-size: 11px; color: #71717a; margin-top: 4px; }
+.lockups { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lockup { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; }
+.lockup.dark { background: #0f0f15; color: #ececf4; }
+.lockup.light { background: #f6f7f9; color: #0f172a; border: 1px solid #e3e7ec; }
+.word { font-weight: 700; font-size: 18px; }
+.word.atelier { font-family: 'JetBrains Mono', monospace; letter-spacing: -.02em; }
+.word.classique { font-family: 'Inter', sans-serif; letter-spacing: -.01em; }
+.tiny { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
+.tab { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border-radius: 8px 8px 0 0; background: #dee1e6; font-size: 12px; color: #333; }
+.tab.dark { background: #2b2b33; color: #ddd; }
+.size { text-align: center; font-size: 10px; color: #8a8a95; }
+footer { padding: 0 28px 40px; color: #52525b; max-width: 100ch; }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Le logo d’OKB · deuxième série</h1><p>Les trois idées que tu as aimées, retravaillées : une forme plus douce (« squircle », comme les icônes d’app modernes), des traits d’épaisseur égale, un équilibre optique, et chacune en <b>dégradé</b> ou <b>à plat</b>. Bascule le thème pour voir les couleurs d’Atelier ou de Classique.</p></div>
+  <div class="switch" role="group" aria-label="Thème"><button type="button" data-look="atelier" aria-pressed="true">Atelier (violet)</button><button type="button" data-look="classique" aria-pressed="false">Classique (vert)</button></div>
+</header>
+<main id="main"></main>
+<footer>Dis-moi la variante choisie (ex. « B2 en dégradé ») ou un mélange (« le A3 avec le curseur du B1 »). En plus du logo, je peux réintroduire le dégradé ailleurs, avec retenue : la carte d’accueil, le bouton principal au survol, la barre d’état d’Atelier.</footer>
+<script>
+const PAL = {
+  atelier: { grad: ['#9a8bff', '#4b3ad4'], flat: '#5b4be0', dark: ['#2c2655', '#121119'], cursor: ['#b9afff', '#7c6cf6'], node: '#c9c1ff', wordClass: 'atelier', word: 'okb' },
+  classique: { grad: ['#19c991', '#0b6f86'], flat: '#0e9f6e', dark: ['#123a2e', '#0a0e13'], cursor: ['#8af0c7', '#14b886'], node: '#b4f5db', wordClass: 'classique', word: 'OKB' },
+};
+let uid = 0;
+const SQUIRCLE = 'M16 1C27.4 1 31 4.6 31 16S27.4 31 16 31 1 27.4 1 16 4.6 1 16 1Z';
+
+/** A tile: the squircle in a gradient (with a soft light from above) or flat. */
+function tile(kind, p, gradient) {
+  const id = `g${uid++}`;
+  if (kind === 'dark') {
+    return { defs: `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${p.dark[0]}"/><stop offset="1" stop-color="${p.dark[1]}"/></linearGradient>`,
+      body: `<path d="${SQUIRCLE}" fill="${gradient ? `url(#${id})` : p.dark[1]}"/><path d="${SQUIRCLE}" fill="none" stroke="#fff" stroke-opacity=".10" stroke-width="1"/>` };
+  }
+  return { defs: `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${p.grad[0]}"/><stop offset="1" stop-color="${p.grad[1]}"/></linearGradient><linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>`,
+    body: gradient ? `<path d="${SQUIRCLE}" fill="url(#${id})"/><path d="${SQUIRCLE}" fill="url(#${id}s)"/>` : `<path d="${SQUIRCLE}" fill="${p.flat}"/>` };
+}
+function cursorFill(p, gradient) {
+  const id = `c${uid++}`;
+  return gradient ? { defs: `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${p.cursor[0]}"/><stop offset="1" stop-color="${p.cursor[1]}"/></linearGradient>`, fill: `url(#${id})` } : { defs: '', fill: p.cursor[1] };
+}
+
+const VARIANTS = [
+  { concept: 'A', title: 'Le graphe', intro: 'Des notes reliées entre elles. Plus vivant que le losange : des nœuds de tailles différentes, une idée centrale.',
+    items: [
+      { id: 'A1', name: 'La constellation', why: 'Une idée au centre, quatre notes autour, deux qui se parlent entre elles. Asymétrique, donc vivant.',
+        draw: (p, g) => { const t = tile('accent', p, g); return { defs: t.defs, body: `${t.body}<g stroke="#fff" stroke-width="1.7" stroke-linecap="round" opacity=".62"><path d="M15.2 17.2 8.6 10"/><path d="M15.2 17.2 23 9.4"/><path d="M15.2 17.2 23.8 22"/><path d="M15.2 17.2 9.4 23.6"/><path d="M23 9.4 23.8 22"/></g><circle cx="8.6" cy="10" r="2.2" fill="#fff"/><circle cx="23" cy="9.4" r="2.7" fill="#fff"/><circle cx="23.8" cy="22" r="2" fill="#fff"/><circle cx="9.4" cy="23.6" r="2.4" fill="#fff"/><circle cx="15.2" cy="17.2" r="3.6" fill="#fff"/>` }; } },
+      { id: 'A2', name: 'Le losange vivant', why: 'Le losange de l’ancien logo, mais fait de quatre notes reliées ; celle du haut est la note où tu es.',
+        draw: (p, g) => { const t = tile('accent', p, g); return { defs: t.defs, body: `${t.body}<path d="M16 7.6 24.4 16 16 24.4 7.6 16Z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" opacity=".55"/><path d="M16 7.6V24.4M7.6 16h16.8" stroke="#fff" stroke-width="1.2" opacity=".28"/><circle cx="24.4" cy="16" r="2.3" fill="#fff"/><circle cx="16" cy="24.4" r="2.3" fill="#fff"/><circle cx="7.6" cy="16" r="2.3" fill="#fff"/><circle cx="16" cy="16" r="2" fill="#fff" opacity=".8"/><circle cx="16" cy="7.6" r="3.3" fill="${p.node}" stroke="#fff" stroke-width="1.6"/>` }; } },
+      { id: 'A3', name: 'Le O de notes', why: 'Six notes en anneau dessinent le O d’OKB : le cerveau comme un cycle de notes reliées. Une note est mise en avant.',
+        draw: (p, g) => { const t = tile('accent', p, g); const pts = [0, 1, 2, 3, 4, 5].map((k) => { const a = (-90 + k * 60) * Math.PI / 180; return [16 + 8.4 * Math.cos(a), 16 + 8.4 * Math.sin(a)]; }); return { defs: t.defs, body: `${t.body}<circle cx="16" cy="16" r="8.4" fill="none" stroke="#fff" stroke-width="1.8" opacity=".5"/>${pts.map(([x, y], k) => k === 1 ? `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="3.1" fill="${p.node}" stroke="#fff" stroke-width="1.5"/>` : `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="2.15" fill="#fff"/>`).join('')}` }; } },
+    ] },
+  { concept: 'B', title: 'L’invite', intro: 'OKB attend ta question, comme un terminal. Retravaillée : proportions de vraie lettre, curseur aligné sur la ligne de base, fond profond avec un léger dégradé.',
+    items: [
+      { id: 'B1', name: 'o_', why: 'Un « o » géométrique et un curseur dans la couleur du thème, posé sur la ligne de base. Sur fond sombre : se voit partout.',
+        draw: (p, g) => { const t = tile('dark', p, g); const c = cursorFill(p, g); return { defs: t.defs + c.defs, body: `${t.body}<circle cx="13.1" cy="16.4" r="5.3" fill="none" stroke="#fff" stroke-width="2.9"/><rect x="20.2" y="20.3" width="6.4" height="3.1" rx="1.55" fill="${c.fill}"/>` }; } },
+      { id: 'B2', name: 'o| en train d’écrire', why: 'Un « o » ouvert à droite, et dans l’ouverture le curseur qui clignote : OKB est en train d’écrire ta note.',
+        draw: (p, g) => { const t = tile('dark', p, g); const c = cursorFill(p, g); const r = 6.2, cx = 14.2, cy = 16; const a1 = 38 * Math.PI / 180, a2 = -38 * Math.PI / 180; const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1), x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2); return { defs: t.defs + c.defs, body: `${t.body}<path d="M${x1.toFixed(2)} ${y1.toFixed(2)}A${r} ${r} 0 1 1 ${x2.toFixed(2)} ${y2.toFixed(2)}" fill="none" stroke="#fff" stroke-width="2.9" stroke-linecap="round"/><rect x="20.6" y="9.4" width="3" height="13.2" rx="1.5" fill="${c.fill}"/>` }; } },
+      { id: 'B3', name: 'o_ sur la couleur', why: 'La même invite sur le fond du thème : plus lumineuse, plus « marque ». Le curseur est blanc translucide.',
+        draw: (p, g) => { const t = tile('accent', p, g); return { defs: t.defs, body: `${t.body}<circle cx="13.1" cy="16.4" r="5.3" fill="none" stroke="#fff" stroke-width="2.9"/><rect x="20.2" y="20.3" width="6.4" height="3.1" rx="1.55" fill="#fff" opacity=".78"/>` }; } },
+    ] },
+  { concept: 'C', title: 'La note liée', intro: 'Une note qui en appelle une autre. Retravaillée : le lien sort du rond sans rupture, les poids sont égaux, le tout est centré à l’œil.',
+    items: [
+      { id: 'C1', name: 'o—•', why: 'Le rond, le lien et la note liée, d’un seul trait. Le point a la même masse que l’anneau, pour un équilibre calme.',
+        draw: (p, g) => { const t = tile('accent', p, g); return { defs: t.defs, body: `${t.body}<circle cx="12" cy="16" r="5.4" fill="none" stroke="#fff" stroke-width="2.8"/><path d="M17.4 16h3.2" stroke="#fff" stroke-width="2.8" stroke-linecap="round"/><circle cx="23.6" cy="16" r="3.2" fill="#fff"/>` }; } },
+      { id: 'C2', name: 'La note et ses liens', why: 'Une note qui en appelle deux : le rond se ramifie vers deux notes. Entre la note liée et le graphe.',
+        draw: (p, g) => { const t = tile('accent', p, g); return { defs: t.defs, body: `${t.body}<circle cx="11.6" cy="16" r="5.2" fill="none" stroke="#fff" stroke-width="2.7"/><path d="M16.3 13.8 21.4 10.6M16.3 18.2 21.4 21.4" stroke="#fff" stroke-width="2.3" stroke-linecap="round" opacity=".9"/><circle cx="23.8" cy="9.4" r="2.8" fill="#fff"/><circle cx="23.8" cy="22.6" r="2.8" fill="${p.node}"/>` }; } },
+      { id: 'C3', name: 'o—• sur fond sombre', why: 'La note liée sur le fond profond de l’invite, la note au bout en couleur du thème : le mélange de B et C.',
+        draw: (p, g) => { const t = tile('dark', p, g); const c = cursorFill(p, g); return { defs: t.defs + c.defs, body: `${t.body}<circle cx="12" cy="16" r="5.4" fill="none" stroke="#fff" stroke-width="2.8"/><path d="M17.4 16h3.2" stroke="#fff" stroke-width="2.8" stroke-linecap="round" opacity=".85"/><circle cx="23.6" cy="16" r="3.3" fill="${c.fill}"/>` }; } },
+    ] },
+];
+
+const svg = (draw, p, g, size) => { const d = draw(p, g); return `<svg viewBox="0 0 32 32" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg"><defs>${d.defs}</defs>${d.body}</svg>`; };
+
+function render(look) {
+  const p = PAL[look];
+  document.getElementById('main').innerHTML = VARIANTS.map((c) => `
+    <section class="concept"><h2>${c.concept} · ${c.title}</h2><p>${c.intro}</p><div class="variants">
+      ${c.items.map((v) => `<article class="variant">
+        <h3><code>${v.id}</code>${v.name}</h3><p>${v.why}</p>
+        <div class="hero"><figure>${svg(v.draw, p, true, 104)}<figcaption>dégradé</figcaption></figure><figure>${svg(v.draw, p, false, 104)}<figcaption>à plat</figcaption></figure></div>
+        <div class="lockups"><div class="lockup dark">${svg(v.draw, p, true, 30)}<span class="word ${p.wordClass}">${p.word}</span></div><div class="lockup light">${svg(v.draw, p, false, 30)}<span class="word ${p.wordClass}">${p.word}</span></div></div>
+        <div class="tiny"><div class="tab">${svg(v.draw, p, true, 16)}Aujourd’hui · OKB</div><div class="tab dark">${svg(v.draw, p, true, 16)}Idempotence</div>${[16, 20, 24, 32].map((s) => `<div>${svg(v.draw, p, true, s)}<div class="size">${s}</div></div>`).join('')}</div>
+      </article>`).join('')}
+    </div></section>`).join('');
+}
+document.querySelector('.switch').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('.switch button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  render(b.dataset.look);
+});
+render(new URLSearchParams(location.search).get('look') === 'classique' ? 'classique' : 'atelier');
+</script>
+</body>
+</html>

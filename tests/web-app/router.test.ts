@@ -13,6 +13,10 @@ describe('the new app reads the same addresses as before', () => {
   it('reads the new pages', () => {
     expect(parseRoute('#/repos')).toMatchObject({ name: 'repos' });
     expect(parseRoute('#/repo/atlas-api')).toMatchObject({ name: 'repos', id: 'atlas-api' });
+    expect(parseRoute('#/repos/architecture')).toEqual({ name: 'repos', tab: 'architecture' });
+    expect(parseRoute('#/repos/architecture?view=flow&from=shop-web&call=POST%20%2Forders')).toEqual({ name: 'repos', tab: 'architecture', view: 'flow', from: 'shop-web', call: 'POST /orders' });
+    expect(hrefFor({ name: 'repos', tab: 'architecture', view: 'context' })).toBe('#/repos/architecture?view=context');
+    expect(hrefFor({ name: 'repos', tab: 'architecture' })).toBe('#/repos/architecture');
     expect(parseRoute('#/modules')).toMatchObject({ name: 'modules' });
     expect(parseRoute('#/claude')).toMatchObject({ name: 'claude' });
     expect(parseRoute('#/learn')).toMatchObject({ name: 'learn' });

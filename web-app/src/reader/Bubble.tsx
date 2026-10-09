@@ -52,7 +52,7 @@ export function Bubble({ anchor, title, text, href, onClose }: { anchor: HTMLEle
 
   return (
     <div ref={ref} className="bubble" role="dialog" aria-label={title} style={{ position: 'fixed', top: pos?.top ?? -9999, left: pos?.left ?? -9999 }}>
-      <h4><span className="station sm" aria-hidden="true" />{title}</h4>
+      <h4><span className="cat-emoji" aria-hidden="true">💡</span>{title}</h4>
       <p>{text}</p>
       <a href={href} onClick={onClose}>{t('app.bubble.read')} <ArrowRight size={14} aria-hidden="true" style={{ verticalAlign: '-2px' }} /></a>
     </div>

@@ -4,7 +4,7 @@ import { currentSession, get, setSession, type Session } from './api';
 import { I18n, makeT, type Messages, type Translate } from './i18n';
 import { useRoute } from './router';
 import { Shell } from './Shell';
-import { applyTheme, readTheme } from './theme';
+import { applyLook, readLook, readMode } from './theme';
 import { Boundary } from '../ui/Boundary';
 import { ErrorState, SkeletonRows } from '../ui/States';
 
@@ -26,10 +26,12 @@ function Routes({ t }: { t: Translate }) {
     today: t('app.nav.today'), brain: t('app.nav.brain'), inbox: t('app.nav.inbox'), repos: t('app.nav.repos'),
     learn: t('app.nav.learn'), ask: t('app.nav.ask'), modules: t('app.nav.modules'), claude: t('app.nav.claude'), settings: t('app.nav.settings'), classic: 'OKB',
   };
-  const [title, setTitle] = useState(titles[route.name] ?? 'OKB');
-  useEffect(() => setTitle(titles[route.name] ?? 'OKB'), [route.name]); // eslint-disable-line react-hooks/exhaustive-deps
+  const arch = route.name === 'repos' && route.tab === 'architecture';
+  const base = arch ? t('app.repos.tab.arch') : titles[route.name] ?? 'OKB';
+  const [title, setTitle] = useState(base);
+  useEffect(() => setTitle(base), [route.name, arch]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <Shell route={route} title={title}>
+    <Shell route={route} title={title} crumb={crumbOf(route, titles)}>
       <Boundary key={route.name} labels={{ title: t('app.error.title'), updated: t('app.error.updated'), reload: t('app.reload') }}>
       <Suspense fallback={<div className="page"><SkeletonRows /></div>}>
         {route.name === 'today' ? <Today /> : null}
@@ -46,12 +48,20 @@ function Routes({ t }: { t: Translate }) {
   );
 }
 
+/** The page a detail belongs to, shown before its title: « Cerveau / Idempotence ». */
+function crumbOf(route: ReturnType<typeof useRoute>, titles: Record<string, string>): string | undefined {
+  if (route.name === 'brain' && route.path) return titles.brain;
+  if (route.name === 'repos' && (route.id || route.tab)) return titles.repos;
+  if (route.name === 'inbox' && route.id) return titles.inbox;
+  return undefined;
+}
+
 /** Boot: the session (token, KBs), the messages in the person's language, the theme. */
 export function App() {
   const [state, setState] = useState<{ t: Translate } | { error: unknown } | null>(null);
   const boot = useMemo(() => async () => {
     try {
-      applyTheme(readTheme());
+      applyLook({ look: readLook(), mode: readMode() });
       const session = await get<Session>('/api/session');
       let saved: string | null = null;
       try { saved = localStorage.getItem('okb-kb'); } catch { /* private window */ }

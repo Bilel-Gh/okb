@@ -897,3 +897,23 @@ Pistes, par ordre proposé :
   l'agent `okb-dev:okb-architecture-reviewer`, appelé par les compétences produit et
   repo avant de proposer un schéma. Route web `GET /api/repos/arch`.
 - La vue web (plan du système) attend l'identité visuelle 1.5.
+
+## D53 — Identité visuelle 1.5 : Atelier et Classique, au choix (9 octobre 2026)
+
+> Décidée avec l'utilisateur, sur maquettes. Spec :
+> `docs/dev/specs/2026-10-08-identite-1-5.md`. Remplace la direction « plan de
+> métro » de D49, refusée (« je préférais largement l'ancienne »).
+
+- **Deux thèmes au choix**, chacun clair, sombre ou auto : **Atelier** (par défaut,
+  un outil de développeur : barre d'icônes, barre d'état, monospace pour chemins et
+  nombres, titres en `// commentaire`) et **Classique** (l'interface d'origine,
+  verte et aérée). Même structure, mêmes composants ; seuls les jetons et quelques
+  touches changent. Menu **Apparence** et palette ⌘K.
+- **Barre latérale repliable** (icônes seules ↔ icônes et textes), bouton et ⌘\ ;
+  choix retenu, sinon repliée en Atelier et dépliée en Classique.
+- **Logo : la note liée** `o—•`, en dégradé, deux formes au choix (sur le dégradé
+  du thème, par défaut ; sur fond sombre). Les autres propositions sont archivées
+  dans `docs/design/logos/`.
+- **Des dégradés comme dans le logo**, avec retenue : bouton principal, barre
+  d'état, page courante, compteurs, accueil, niveaux. Pas sur les données.
+- Polices servies par OKB : IBM Plex Sans, Inter, JetBrains Mono (Fira retirée).

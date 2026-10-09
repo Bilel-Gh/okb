@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 export type Route =
   | { name: 'today' }
   | { name: 'brain'; path?: string; anchor?: string; query?: Record<string, string> }
-  | { name: 'repos'; id?: string }
+  | { name: 'repos'; id?: string; tab?: 'architecture'; view?: 'containers' | 'context' | 'flow'; from?: string; call?: string }
   | { name: 'inbox'; tab?: 'suggestions' | 'proposals'; id?: string }
   | { name: 'learn' }
   | { name: 'ask'; q?: string }
@@ -45,8 +45,12 @@ export function parseRoute(hash: string): Route {
       const query = queryOf(search);
       return { name: 'brain', path, ...(anchor ? { anchor: decodeURIComponent(anchor) } : {}), ...(Object.keys(query).length ? { query } : {}) };
     }
-    case 'repos':
-      return { name: 'repos' };
+    case 'repos': {
+      if (rest !== 'architecture') return { name: 'repos' };
+      const q = queryOf(search);
+      const view = q.view === 'context' || q.view === 'flow' || q.view === 'containers' ? q.view : undefined;
+      return { name: 'repos', tab: 'architecture', ...(view ? { view } : {}), ...(q.from ? { from: q.from } : {}), ...(q.call ? { call: q.call } : {}) };
+    }
     case 'repo':
       return { name: 'repos', id: decodeURIComponent(rest) };
     case 'suggestions':
@@ -79,7 +83,12 @@ export function hrefFor(route: Route): string {
       if (route.path) return `#/note/${encodeURIComponent(route.path)}${route.anchor ? `#${encodeURIComponent(route.anchor)}` : ''}${q ? `?${q}` : ''}`;
       return `#/notes${q ? `?${q}` : ''}`;
     }
-    case 'repos': return route.id ? `#/repo/${encodeURIComponent(route.id)}` : '#/repos';
+    case 'repos': {
+      if (route.id) return `#/repo/${encodeURIComponent(route.id)}`;
+      if (route.tab !== 'architecture') return '#/repos';
+      const q = new URLSearchParams({ ...(route.view ? { view: route.view } : {}), ...(route.from ? { from: route.from } : {}), ...(route.call ? { call: route.call } : {}) }).toString();
+      return `#/repos/architecture${q ? `?${q}` : ''}`;
+    }
     case 'inbox': return route.id ? `#/review/${encodeURIComponent(route.id)}` : route.tab === 'suggestions' ? '#/suggestions' : '#/review';
     case 'learn': return '#/learn';
     case 'ask': return route.q ? `#/ask?${new URLSearchParams({ q: route.q })}` : '#/ask';

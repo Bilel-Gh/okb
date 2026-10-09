@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Award, BookOpen, CalendarCheck, Hammer, Scale, Repeat } from 'lucide-react';
-import type { CSSProperties, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { get } from '../app/api';
 import { tn, useT } from '../app/i18n';
 
@@ -11,20 +11,20 @@ export function useProgress() {
   return useQuery({ queryKey: ['progress'], queryFn: () => get<ProgressData>('/api/progress'), staleTime: 60_000 });
 }
 
-/** The level as a stretch of line between two numbered stations. */
+/** The level: its number, a bar to the next one, and today's experience. */
 export function ProgressLine({ data }: { data: Extract<ProgressData, { show: true }> }) {
   const t = useT();
   const { level, from, to } = data.level;
   const k = Math.max(0, Math.min(1, (data.xp - from) / Math.max(1, to - from)));
+  const label = t('app.progress.xp', { xp: data.xp, left: to - data.xp, next: level + 1 });
   return (
     <div className="stack" style={{ gap: 'var(--s2)' }}>
-      <div className="progress-line" role="meter" aria-valuemin={from} aria-valuemax={to} aria-valuenow={data.xp} aria-label={t('app.progress.xp', { xp: data.xp, left: to - data.xp, next: level + 1 })} style={{ '--k': k } as CSSProperties}>
-        <span className="roundel sm" aria-hidden="true">{level}</span>
-        <span className="progress-track" aria-hidden="true"><span className="progress-run" /></span>
-        <span className="roundel sm ghost" aria-hidden="true">{level + 1}</span>
+      <div className="progress" role="meter" aria-valuemin={from} aria-valuemax={to} aria-valuenow={data.xp} aria-label={label}>
+        <span className="pill accent num" aria-hidden="true">{t('app.progress.level', { level })}</span>
+        <span className="progress-track" aria-hidden="true"><span className="progress-fill" style={{ width: `${Math.round(k * 100)}%` }} /></span>
+        <span className="xs muted num" aria-hidden="true">{data.xp} / {to} XP</span>
       </div>
-      <p className="xs muted">{t('app.progress.xp', { xp: data.xp, left: to - data.xp, next: level + 1 })}</p>
-      <p className="small">{t('app.progress.today', { xp: data.today })} · {tn(t, 'app.progress.streak', data.streak.current)}</p>
+      <p className="small muted">{t('app.progress.today', { xp: data.today })} · {tn(t, 'app.progress.streak', data.streak.current)}</p>
     </div>
   );
 }

@@ -3,12 +3,12 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowLeft, ChevronRight, FolderTree, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { get } from '../app/api';
-import { useCategories } from '../app/data';
+import { DRAWER_BY_NUMBER, DRAWER_COLOR, useCategories } from '../app/data';
 import { tn, useT } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
 import { Reader } from '../reader/Reader';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
-import { DRAWER_BY_NUMBER, DRAWER_LINE } from './Today';
+
 
 type Note = { path: string; title: string; description: string; type: string; status: string; category: string };
 type Hit = { path: string; title: string; crumbs: string[]; snippet: string };
@@ -93,8 +93,8 @@ export default function BrainPage({ route, setTitle }: { route: Extract<Route, {
         {tree.map(([drawer, d]) => (
           <div key={drawer} className="ex-group">
             <a className={`ex-node drawer${folder === drawer ? ' on' : ''}`} href="#" onClick={(e) => { e.preventDefault(); setFilter({ in: drawer }); setTreeOpen(false); }}
-              style={{ '--line': DRAWER_LINE[DRAWER_BY_NUMBER[Number(/^(\d)\s/.exec(drawer)?.[1] ?? -1)] ?? ''] ?? 'var(--ink-3)' } as CSSProperties}>
-              {/^\d\s/.test(drawer) ? <span className="roundel sm" aria-hidden="true">{drawer.slice(0, 1)}</span> : null}
+              style={{ '--c': DRAWER_COLOR[DRAWER_BY_NUMBER[Number(/^(\d)\s/.exec(drawer)?.[1] ?? -1)] ?? ''] ?? 'var(--ink-3)' } as CSSProperties}>
+              {/^\d\s/.test(drawer) ? <span className="drawer-n" aria-hidden="true">{drawer.slice(0, 1)}</span> : null}
               <span className="ex-node-label">{drawer.replace(/^\d\s+/, '')}</span><span className="num muted">{d.count}</span>
             </a>
             {[...d.subjects.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([subject, n]) => (
@@ -117,11 +117,11 @@ export default function BrainPage({ route, setTitle }: { route: Extract<Route, {
           </div>
           <div className="chips" role="group" aria-label={t('app.brain.lines')}>
             {cats.list.filter((c) => counts.get(c.id)).map((c) => (
-              <button type="button" key={c.id} className="line-badge chip" aria-pressed={cat === c.id} style={{ '--line': cats.color(c.id) } as CSSProperties} onClick={() => setFilter({ cat: cat === c.id ? '' : c.id })}>
-                <span className="station sm" aria-hidden="true" />{c.label[t.lang]}<span className="num muted">{counts.get(c.id)}</span>
+              <button type="button" key={c.id} className="chip" aria-pressed={cat === c.id} style={{ '--c': cats.color(c.id) } as CSSProperties} onClick={() => setFilter({ cat: cat === c.id ? '' : c.id })}>
+                <span className="cat-emoji" aria-hidden="true">{c.emoji}</span>{c.label[t.lang]}<span className="num muted">{counts.get(c.id)}</span>
               </button>
             ))}
-            <button type="button" className="line-badge chip" aria-pressed={status === 'draft'} onClick={() => setFilter({ status: status === 'draft' ? '' : 'draft' })}>{t('app.brain.drafts')}</button>
+            <button type="button" className="chip" aria-pressed={status === 'draft'} onClick={() => setFilter({ status: status === 'draft' ? '' : 'draft' })}>{t('app.brain.drafts')}</button>
           </div>
           <p className="xs muted" aria-live="polite">{notes.isLoading ? t('app.loading') : tn(t, 'app.brain.count', list.length)}{folder ? ` · ${folder}` : ''}</p>
         </div>
@@ -133,12 +133,12 @@ export default function BrainPage({ route, setTitle }: { route: Extract<Route, {
                 const parts = n.path.split('/');
                 return (
                   <a key={n.path} role="listitem" href={hrefFor({ name: 'brain', path: n.path, query })} className={`ex-row${route.path === n.path ? ' on' : ''}`} aria-current={route.path === n.path ? 'page' : undefined}
-                    style={{ transform: `translateY(${v.start}px)`, '--line': cats.color(n.category) } as CSSProperties}
+                    style={{ transform: `translateY(${v.start}px)`, '--c': cats.color(n.category) } as CSSProperties}
                     onKeyDown={(e) => {
                       if (e.key === 'ArrowDown') { e.preventDefault(); ((e.currentTarget.nextElementSibling ?? e.currentTarget) as HTMLElement).focus(); }
                       if (e.key === 'ArrowUp') { e.preventDefault(); ((e.currentTarget.previousElementSibling ?? e.currentTarget) as HTMLElement).focus(); }
                     }}>
-                    <span className="station sm" aria-hidden="true" />
+                    <span className="dot" aria-hidden="true" />
                     <span className="ex-row-text">
                       <span className="ex-row-title">{n.title}{n.status === 'draft' ? <span className="pill xs" style={{ marginLeft: 6 }}>{t('app.brain.draft')}</span> : null}</span>
                       <span className="ex-row-path">{parts.slice(0, -1).join(' › ')}</span>

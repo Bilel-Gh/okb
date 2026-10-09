@@ -7,7 +7,7 @@ import { rememberNote, useCategories } from '../app/data';
 import { useT } from '../app/i18n';
 import { hrefFor } from '../app/router';
 import { toast } from '../app/toast';
-import { LineStrip } from '../ui/LineStrip';
+import { Breadcrumb } from '../ui/Breadcrumb';
 import { ErrorState, SkeletonRows } from '../ui/States';
 import { Bubble } from './Bubble';
 import { dropCrumbLine, drawDiagrams, markTerms, outline, wireLinks, type OutlineItem, type Term } from './enhance';
@@ -29,10 +29,10 @@ function Links({ title, items }: { title: string; items: NoteView['backlinks'] }
   return (
     <div className="stack" style={{ gap: 'var(--s2)' }}>
       <h3 className="small">{title} <span className="muted num">{items.length}</span></h3>
-      <ul className="link-stations">
+      <ul className="link-chips">
         {items.slice(0, 40).map((b) => (
-          <li key={b.path} style={{ '--line': cats.color(b.category) } as CSSProperties}>
-            <a href={hrefFor({ name: 'brain', path: b.path })}><span className="station sm" aria-hidden="true" />{b.title}</a>
+          <li key={b.path} style={{ '--c': cats.color(b.category) } as CSSProperties}>
+            <a className="chip" href={hrefFor({ name: 'brain', path: b.path })}><span className="dot" aria-hidden="true" />{b.title}</a>
           </li>
         ))}
       </ul>
@@ -100,8 +100,9 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
   return (
     <div className="reader-wrap">
       <div className="reader-main">
+        <Breadcrumb stops={stops} label={t('app.note.line')} />
         <div className="reader-bar">
-          <span className="line-badge" style={{ '--line': color } as CSSProperties}><span className="station sm" aria-hidden="true" />{cats.label(n.category)}</span>
+          <span className="pill cat-pill" style={{ '--c': color } as CSSProperties}><span className="cat-emoji" aria-hidden="true">{cats.emoji(n.category)}</span>{cats.label(n.category)}</span>
           {n.status === 'draft' ? <span className="pill warn">{t('app.note.draft')}</span> : null}
           {n.confidentiality === 'secret' ? <span className="pill err"><Lock size={12} aria-hidden="true" />{t('web.notes.secret')}</span> : null}
           {n.score ? <span className="pill" title={[`${t('web.score.quality')} ${n.score.quality}/100`, `${t('web.score.value')} ${n.score.value}/100`, ...n.score.notes].join('\n')}>{t('app.note.quality', { n: n.score.quality })}</span> : null}
@@ -119,7 +120,6 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
             </Popover.Portal>
           </Popover.Root>
         </div>
-        <LineStrip stops={stops} color={color} label={t('app.note.line')} />
         {translated ? <p className="notice info small" role="status">{t('app.translate.showing', { lang: translated.lang.toUpperCase() })} <button type="button" className="btn sm ghost" onClick={() => setTranslated(null)}>{t('app.translate.original')}</button></p> : null}
         <article ref={article} className="prose" lang={translated?.lang} />
         <footer className="reader-links">

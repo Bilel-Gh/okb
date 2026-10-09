@@ -11,26 +11,44 @@ navigateur : `okb serve --no-open`.
 
 ![Accueil de l’application web](../images/web-home.png)
 
-## La nouvelle interface (1.1)
+## La nouvelle interface (1.5)
 
-Depuis la 1.1, `okb serve` ouvre la nouvelle interface ; l’ancienne reste à
-l’adresse `/classic` pour les pages pas encore refaites (réglages, graphe,
-historique, revue de la semaine). Six destinations, dans le rail bleu marine :
+`okb serve` ouvre la nouvelle interface ; l’ancienne reste à l’adresse `/classic`
+pour les pages pas encore refaites (réglages, graphe, historique, revue de la
+semaine). Les destinations, dans la barre de gauche :
 
 | Destination | Pour |
 |---|---|
-| **Aujourd’hui** | ce qui attend ton oui (un clic : Accepter, Plus tard, Non merci), reprendre une note, réviser, ton cerveau dessiné comme un plan de métro |
-| **Cerveau** | l’explorateur : les tiroirs et sujets, la liste filtrable par ligne (catégorie), la note lue à droite avec sa ligne en haut ; les mots qui ont une fiche concept montrent leur phrase au survol ; **Traduire** |
+| **Aujourd’hui** | l’accueil de ton cerveau (ses notes, ce qui attend, les cartes à réviser, sa santé), ce qui attend ton oui (Accepter, Plus tard, Non merci), reprendre une note, réviser, ta progression, les tiroirs, tes notes par type |
+| **Cerveau** | l’explorateur : les tiroirs et sujets, la liste filtrable par type, la note lue à droite avec son chemin en haut ; les mots qui ont une fiche concept montrent leur phrase au survol ; **Traduire** |
 | **Demander** | une question en français ou en anglais : les passages de tes notes qui répondent ; sur ton clic, une réponse rédigée qui cite chaque passage |
 | **À valider** | les cartes de suggestion et les propositions de notes, avec l’aperçu ou les changements ; approuver te demande une confirmation sur l’ordinateur |
-| **Repos** | chaque repo sur la ligne de son produit, avec sa ligne de connaissance et ce qu’il faut faire pour passer au palier suivant |
+| **Repos** | **Niveau de connaissance** : chaque repo rangé par produit, avec sa barre de niveau et ce qu’il faut faire pour passer au palier suivant ; **Architecture** : le plan des repos calculé depuis le code, les preuves de chaque lien au clic, les appels que personne ne sert |
 | **Apprendre** | les cartes à réviser (Révéler, puis À revoir · Difficile · Bien · Facile, au clavier 1 à 4) et la carte des compétences |
 
 **⌘K** (ou `/`) cherche une note par quelques mots, fautes et accents pardonnés, ou
-t’emmène sur n’importe quelle page. En bas du rail : **Modules**, **Claude Code**
-(installer OKB dans Claude Code en un clic), **Réglages**.
+t’emmène sur n’importe quelle page. En bas de la barre : **Modules**, **Claude
+Code** (installer OKB dans Claude Code en un clic), **Réglages**.
 
-Le jaune est réservé à une seule chose : l’action principale et « tu es ici ».
+![Aujourd’hui, thème Atelier](../images/web-atelier.png)
+
+### Choisir son apparence
+
+Le menu **Apparence** (en haut à droite, ou ⌘K puis « thème ») :
+
+- **le thème** : **Atelier** (par défaut), un outil de développeur, dense, violet,
+  avec une barre d’état en bas ; ou **Classique**, l’interface d’origine, verte et
+  aérée ;
+- **clair, sombre ou auto** (comme ton système) ;
+- **le logo** : la note liée sur le dégradé du thème, ou sur fond sombre.
+
+La barre de gauche se **replie** en icônes (leur nom s’affiche au survol) ou se
+**déplie** avec les textes : le bouton en bas de la barre, ou **⌘\\** (Ctrl+\\).
+Tes choix sont retenus par ton navigateur.
+
+![Aujourd’hui, thème Classique](../images/web-classique.png)
+
+![Repos › Architecture : le plan calculé depuis le code](../images/web-architecture.png)
 
 ## L’ancienne interface
 
@@ -65,6 +83,7 @@ En bas : thème clair ou sombre, langue (FR/EN).
 ## Raccourcis
 
 - **⌘K** (ou **/**) : chercher une note ou aller n’importe où.
+- **⌘\\** (Ctrl+\\) : replier ou déplier la barre de gauche.
 - **⌘↵** : capturer depuis le champ de l’inbox.
 
 ## Relire et approuver

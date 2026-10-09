@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Check, Clock, FileDiff, GraduationCap, X } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { get, post } from '../app/api';
-import { recentNotes, useCategories } from '../app/data';
+import { DRAWER_COLOR, recentNotes, useCategories } from '../app/data';
+import { useStatus } from '../app/Shell';
+import { CatMark } from '../ui/CatMark';
 import { tn, useT } from '../app/i18n';
 import { hrefFor } from '../app/router';
 import { toast } from '../app/toast';
@@ -22,11 +24,7 @@ type Brain = {
 };
 type Learn = { counts: { due: number; newLeft: number; cards: number } };
 
-/** The five drawers are the five lines of the map (never the reserved signal yellow). */
-export const DRAWER_LINE: Readonly<Record<string, string>> = { inbox: '#64748b', world: '#0891b2', subjects: '#2563eb', toolbox: '#059669', activity: '#7c3aed' };
-export const DRAWER_BY_NUMBER: readonly string[] = ['inbox', 'world', 'subjects', 'toolbox', 'activity'];
-
-/** The cards and proposals waiting for the person's yes, the first one with the yellow button. */
+/** The cards and proposals waiting for the person's yes, the first one with the main button. */
 export function Waiting({ limit }: { limit?: number }) {
   const t = useT();
   const qc = useQueryClient();
@@ -60,7 +58,7 @@ export function Waiting({ limit }: { limit?: number }) {
       ))}
       {shownCards.map((c, i) => (
         <li key={c.id}>
-          <span className="station" style={{ '--line': cats.color(c.category) } as CSSProperties} aria-hidden="true" />
+          <CatMark color={cats.color(c.category)} emoji={cats.emoji(c.category)} label={cats.label(c.category)} />
           <div className="grow">
             <span className="title">{c.title}</span>
             <span className="meta">{c.why} · {t(`app.waiting.rec.${c.recommendation}`)} · ≈ {Math.round(c.cost.tokens / 1000)}k tokens{c.status === 'later' ? ` · ${t('app.waiting.later')}` : ''}</span>
@@ -77,34 +75,69 @@ export function Waiting({ limit }: { limit?: number }) {
   );
 }
 
-/** The brain as a network: each drawer a numbered line, its subjects the stations along it. */
-function BrainMap({ brain }: { brain: Brain }) {
+/** The drawers of the brain, each with its number and how many notes it holds. */
+function Drawers({ brain }: { brain: Brain }) {
   const t = useT();
   if (!brain.shape) return null;
   return (
-    <ul className="brain-map" aria-label={t('app.today.map')}>
-      {brain.shape.drawers.map((d) => {
-        const number = /^(\d)\s/.exec(d.folder)?.[1] ?? '';
-        return (
-          <li key={d.drawer} style={{ '--line': DRAWER_LINE[d.drawer] ?? 'var(--ink-3)' } as CSSProperties}>
-            <a href={hrefFor({ name: 'brain', query: { in: d.folder } })} className="brain-map-head">
-              <span className="roundel sm" aria-hidden="true">{number}</span>
-              <span className="brain-map-name">{d.label}</span>
-              <span className="brain-map-count num">{d.notes}</span>
-            </a>
-            {d.subjects.length ? (
-              <span className="brain-map-track">
-                {d.subjects.slice(0, 12).map((s) => (
-                  <a key={s.name} className="brain-map-stop" href={hrefFor({ name: 'brain', query: { in: `${d.folder}/${s.name}` } })} title={`${s.name} · ${s.notes}`} aria-label={`${s.name}, ${s.notes}`}>
-                    <span className="station sm" aria-hidden="true" />
-                  </a>
-                ))}
-              </span>
-            ) : <span className="brain-map-track empty" aria-hidden="true" />}
-          </li>
-        );
-      })}
+    <ul className="drawers" aria-label={t('app.today.map')}>
+      {brain.shape.drawers.map((d) => (
+        <li key={d.drawer} style={{ '--c': DRAWER_COLOR[d.drawer] ?? 'var(--ink-3)' } as CSSProperties}>
+          <a href={hrefFor({ name: 'brain', query: { in: d.folder } })}>
+            <span className="drawer-n" aria-hidden="true">{/^(\d)\s/.exec(d.folder)?.[1] ?? '·'}</span>
+            <span className="drawer-name">{d.label}</span>
+            <span className="num muted xs">{d.notes}</span>
+          </a>
+        </li>
+      ))}
     </ul>
+  );
+}
+
+/** How the brain is made: its notes by type, as one bar and a legend. */
+function Types() {
+  const t = useT();
+  const cats = useCategories();
+  const status = useStatus();
+  const list = (status.data?.categories ?? []).filter((c) => c.count > 0);
+  const total = list.reduce((n, c) => n + c.count, 0);
+  if (!total) return null;
+  return (
+    <div className="stack" style={{ gap: 'var(--s3)' }}>
+      <div className="typebar" role="img" aria-label={list.map((c) => `${c.label} ${c.count}`).join(', ')}>
+        {list.map((c) => <span key={c.id} style={{ flex: c.count / total, '--c': cats.color(c.id) } as CSSProperties} />)}
+      </div>
+      <ul className="type-legend">
+        {list.map((c) => (
+          <li key={c.id} style={{ '--c': cats.color(c.id) } as CSSProperties}>
+            <a href={hrefFor({ name: 'brain', query: { cat: c.id } })}><span className="dot" aria-hidden="true" /><span className="cat-emoji" aria-hidden="true">{c.emoji}</span>{c.label} <b className="num">{c.count}</b></a>
+          </li>
+        ))}
+      </ul>
+      <span className="sr-only">{t('app.today.types')}</span>
+    </div>
+  );
+}
+
+/** The welcome: the brain, what it holds, and three numbers that call for a gesture. */
+function Hello({ waiting, due }: { waiting: number; due: number | null }) {
+  const t = useT();
+  const status = useStatus();
+  const hour = new Date().getHours();
+  const s = status.data;
+  return (
+    <section className="panel hello" aria-labelledby="hello-h">
+      <div className="hello-text">
+        <p className="muted">{hour >= 5 && hour < 18 ? t('app.today.morning') : t('app.today.evening')}</p>
+        <h2 id="hello-h">{s?.name ?? '…'}</h2>
+        <p className="muted small">{s ? t('app.today.notesLine', { notes: s.notes, concepts: s.concepts }) : <span className="skeleton" style={{ width: 200, display: 'inline-block' }} />}</p>
+      </div>
+      <div className="hello-stats">
+        <a className="stat" href={hrefFor({ name: 'inbox' })}><b className="num">{waiting}</b><span>{t('app.today.stat.waiting')}</span></a>
+        <a className="stat" href={hrefFor({ name: 'learn' })}><b className="num">{due ?? '–'}</b><span>{t('app.today.stat.cards')}</span></a>
+        <a className="stat" href="/classic#/health"><b className="num">{s?.health?.score ?? '–'}</b><span>{t('app.today.stat.health')}</span></a>
+      </div>
+    </section>
   );
 }
 
@@ -117,8 +150,12 @@ export default function Today() {
   const recent = recentNotes();
   const now = brain.data?.now;
   const due = learn.data ? learn.data.counts.due + Math.min(10, learn.data.counts.newLeft) : 0;
+  const suggestions = useQuery({ queryKey: ['suggestions'], queryFn: () => get<Suggestions>('/api/suggestions') });
+  const proposals = useQuery({ queryKey: ['proposals'], queryFn: () => get<{ proposals: Proposal[] }>('/api/proposals') });
+  const waiting = (suggestions.data?.suggestions.filter((x) => x.status === 'pending').length ?? 0) + (proposals.data?.proposals.filter((x) => x.status === 'prepared').length ?? 0);
   return (
     <div className="page">
+      <Hello waiting={waiting} due={learn.data ? due : null} />
       <div className="grid-2">
         <div className="stack" style={{ gap: 'var(--s6)' }}>
           <section className="panel" aria-labelledby="waiting-h">
@@ -131,7 +168,7 @@ export default function Today() {
               <ul className="rows" style={{ paddingTop: 'var(--s2)' }}>
                 {recent.slice(0, 6).map((r) => (
                   <li key={r.path}>
-                    <span className="station sm" style={{ '--line': cats.color(r.category) } as CSSProperties} aria-hidden="true" />
+                    <CatMark small color={cats.color(r.category)} emoji={cats.emoji(r.category)} label={cats.label(r.category)} />
                     <div className="grow"><a className="title" href={hrefFor({ name: 'brain', path: r.path })}>{r.title}</a><span className="meta">{r.path.split('/').slice(0, -1).join(' › ')}</span></div>
                   </li>
                 ))}
@@ -165,12 +202,16 @@ export default function Today() {
           ) : null}
           {brain.data?.shape ? (
             <section className="panel" aria-labelledby="map-h">
-              <div className="panel-head"><h2 id="map-h">{brain.data.name}</h2></div>
-              <div className="panel-body"><BrainMap brain={brain.data} /></div>
+              <div className="panel-head"><h2 id="map-h">{t('app.today.map')}</h2></div>
+              <div className="panel-body"><Drawers brain={brain.data} /></div>
             </section>
           ) : null}
         </div>
       </div>
+      <section className="panel" aria-labelledby="types-h">
+        <div className="panel-head"><h2 id="types-h">{t('app.today.types')}</h2><span className="spacer" /><a className="btn sm ghost" href="/classic#/graph">{t('app.today.seeGraph')}</a></div>
+        <div className="panel-body"><Types /></div>
+      </section>
     </div>
   );
 }

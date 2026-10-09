@@ -80,9 +80,9 @@ function ProposalView({ id }: { id: string }) {
             <button type="button" aria-pressed={view === 'diff'} onClick={() => setView('diff')}>{t('app.inbox.diff')}</button>
           </div>
           {d.files.map((f) => (
-            <section key={f.path} className="panel" style={{ '--line': cats.color(f.noteCategory) } as CSSProperties}>
+            <section key={f.path} className="panel" style={{ '--c': cats.color(f.noteCategory) } as CSSProperties}>
               <div className="panel-head">
-                <span className="station sm" aria-hidden="true" />
+                <span className="dot" aria-hidden="true" />
                 <h3 className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.path}</h3>
                 <span className="spacer" />
                 <span className={`pill ${f.created ? 'ok' : 'info'}`}>{f.created ? t('app.inbox.new') : t('app.inbox.changed')}</span>

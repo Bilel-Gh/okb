@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Link2, Terminal } from 'lucide-react';
-import { useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useState, type CSSProperties } from 'react';
 import { get, post } from '../app/api';
 import { useT } from '../app/i18n';
 import { hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
-import { KnowledgeLine, type Tier } from '../ui/KnowledgeLine';
+import { LevelBar, type Tier } from '../ui/LevelBar';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
+
+const Arch = lazy(() => import('./Arch'));
 
 type Gap = { part: string; points: number; key: string; params: Record<string, string | number> };
 type Level = { percent: number; tier: Tier; partial: boolean; parts: { id: string; weight: number; score: number; measured: boolean }[]; next: Gap[] };
@@ -14,7 +16,7 @@ type Linked = { id: string; name: string; path: string; product?: string; descri
 type Unlinked = { name: string; product: string; folder: string; level: Level };
 type ReposData = { repos: Linked[]; unlinked: Unlinked[]; tickets: { ref: string; title: string; status: string; repos: { id: string }[] }[] };
 
-/** Each product is a line of the map: a stable colour from its name, never the reserved signal yellow. */
+/** Each product has its colour, stable from its place in the sorted list. */
 const LINES: readonly (readonly [string, string])[] = [
   ['#2563eb', '#6b9bff'], ['#059669', '#34d399'], ['#ea580c', '#fb923c'], ['#7c3aed', '#a78bfa'], ['#0891b2', '#22d3ee'],
   ['#c026d3', '#e879f9'], ['#e11d48', '#fb7185'], ['#4f46e5', '#818cf8'], ['#0d9488', '#2dd4bf'],
@@ -23,14 +25,14 @@ const LINES: readonly (readonly [string, string])[] = [
 export function lineOf(product: string, products: readonly string[]): string {
   const i = Math.max(0, [...products].sort((a, b) => a.localeCompare(b)).indexOf(product));
   const pair = LINES[i % LINES.length]!;
-  return document.documentElement.dataset.theme === 'dark' ? pair[1] : pair[0];
+  return document.documentElement.dataset.mode === 'dark' ? pair[1] : pair[0];
 }
 
 function productsOf(data: ReposData): string[] {
   return [...new Set([...data.repos.map((r) => r.product ?? ''), ...data.unlinked.map((r) => r.product)])];
 }
 
-/** The terminus the line heads for: the next tier and where it starts. */
+/** The next tier and where it starts. */
 const NEXT_TIER: Readonly<Record<Tier, readonly [Tier, number] | null>> = { discovery: ['usable', 20], usable: ['solid', 45], solid: ['expert', 70], expert: ['reference', 90], reference: null };
 
 function useTiers() {
@@ -44,19 +46,19 @@ function gapText(t: ReturnType<typeof useT>, g: Gap): string {
   return t(g.key, params);
 }
 
-/** One repository on its product's line: name, the knowledge line across the row, the percentage at its end. */
+/** One repository: its name and tier, its level across the row, the percentage at the end. */
 function RepoRow({ name, level, href, color }: { name: string; level: Level; href: string; color: string }) {
   const t = useT();
   const tiers = useTiers();
   const first = level.next[0];
   return (
-    <li className="repo-row" style={{ '--line': color } as CSSProperties}>
+    <li className="repo-row" style={{ '--c': color } as CSSProperties}>
       <div className="repo-row-name">
         <a className="title" href={href}>{name}</a>
         <span className="xs muted">{tiers[level.tier]}</span>
       </div>
       <div className="repo-row-line">
-        <KnowledgeLine percent={level.percent} tier={level.tier} tiers={tiers} color={color} label={t('app.repos.levelLabel', { name, n: level.percent, tier: tiers[level.tier] })} showLabels={false} />
+        <LevelBar percent={level.percent} tier={level.tier} tiers={tiers} color={color} label={t('app.repos.levelLabel', { name, n: level.percent, tier: tiers[level.tier] })} showLabels={false} />
         {first ? <span className="xs muted">{t('knowledge.points', { n: Math.max(1, Math.round(first.points)) })} · {gapText(t, first)}</span> : null}
       </div>
       <span className="repo-percent num">{level.percent} %</span>
@@ -98,10 +100,10 @@ function Detail({ data, id }: { data: ReposData; id: string }) {
   return (
     <div className="stack" style={{ gap: 'var(--s5)' }}>
       <a className="btn ghost sm" style={{ alignSelf: 'flex-start' }} href={hrefFor({ name: 'repos' })}><ArrowLeft size={16} aria-hidden="true" />{t('app.repos.back')}</a>
-      <section className="panel" style={{ '--line': color } as CSSProperties}>
+      <section className="panel" style={{ '--c': color } as CSSProperties}>
         <div className="panel-head"><h2>{name}</h2><span className="spacer" /><span className="repo-percent num">{level.percent} %</span></div>
         <div className="panel-body stack">
-          <KnowledgeLine percent={level.percent} tier={level.tier} tiers={tiers} color={color} label={t('app.repos.levelLabel', { name, n: level.percent, tier: tiers[level.tier] })} />
+          <LevelBar percent={level.percent} tier={level.tier} tiers={tiers} color={color} label={t('app.repos.levelLabel', { name, n: level.percent, tier: tiers[level.tier] })} />
           {NEXT_TIER[level.tier] ? <p className="small"><span className="muted">{t('app.repos.direction')} </span><strong>{tiers[NEXT_TIER[level.tier]![0]]}</strong><span className="muted"> · {t('app.repos.at', { n: NEXT_TIER[level.tier]![1] })}</span></p> : null}
           <table className="parts">
             <caption className="sr-only">{t('app.repos.parts')}</caption>
@@ -127,9 +129,21 @@ function Detail({ data, id }: { data: ReposData; id: string }) {
   );
 }
 
+/** The two faces of the repositories: how well OKB knows each one, and how they connect. */
+function RepoTabs({ current }: { current: 'level' | 'architecture' }) {
+  const t = useT();
+  return (
+    <nav className="segmented" aria-label={t('app.repos.tabs')} style={{ alignSelf: 'flex-start' }}>
+      <a href={hrefFor({ name: 'repos' })} aria-current={current === 'level' ? 'page' : undefined}>{t('app.repos.tab.level')}</a>
+      <a href={hrefFor({ name: 'repos', tab: 'architecture' })} aria-current={current === 'architecture' ? 'page' : undefined}>{t('app.repos.tab.arch')}</a>
+    </nav>
+  );
+}
+
 export default function Repos({ route }: { route: Extract<Route, { name: 'repos' }> }) {
   const t = useT();
   const q = useQuery({ queryKey: ['repos'], queryFn: () => get<ReposData>('/api/repos') });
+  if (route.tab === 'architecture') return <div className="page"><RepoTabs current="architecture" /><Suspense fallback={<SkeletonRows rows={6} />}><Arch route={route} /></Suspense></div>;
   if (q.isLoading) return <div className="page"><SkeletonRows rows={6} /></div>;
   if (q.error || !q.data) return <div className="page"><ErrorState error={q.error} retry={() => void q.refetch()} /></div>;
   if (route.id) return <div className="page"><Detail data={q.data} id={route.id} /></div>;
@@ -141,14 +155,15 @@ export default function Repos({ route }: { route: Extract<Route, { name: 'repos'
   const unlinked = all.filter((r) => !r.linked).length;
   return (
     <div className="page">
+      {all.length ? <RepoTabs current="level" /> : null}
       <p className="muted" style={{ maxWidth: '72ch' }}>{t('app.repos.intro')}</p>
       {unlinked ? <p className="notice info small">{t('app.repos.unlinkedNotice')}</p> : null}
       {all.length ? products.map((product) => {
         const color = lineOf(product, products);
         const rows = all.filter((r) => r.product === product).sort((a, b) => b.level.percent - a.level.percent || a.name.localeCompare(b.name));
         return (
-          <section key={product || '-'} className="panel repo-line" style={{ '--line': color } as CSSProperties} aria-labelledby={`p-${product}`}>
-            <div className="panel-head"><span className="roundel" aria-hidden="true">{(product || '?').slice(0, 1)}</span><h2 id={`p-${product}`}>{product || t('app.repos.noProduct')}</h2><span className="muted small">{rows.length}</span></div>
+          <section key={product || '-'} className="panel repo-line" style={{ '--c': color } as CSSProperties} aria-labelledby={`p-${product}`}>
+            <div className="panel-head"><span className="product-swatch" aria-hidden="true" /><h2 id={`p-${product}`}>{product || t('app.repos.noProduct')}</h2><span className="muted small">{rows.length}</span></div>
             <ul className="repo-rows">{rows.map((r) => <RepoRow key={r.href} name={r.name} level={r.level} href={r.href} color={color} />)}</ul>
           </section>
         );

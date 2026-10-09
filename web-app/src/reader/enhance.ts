@@ -72,7 +72,7 @@ function loadMermaid(): Promise<Mermaid | null> {
     s.src = '/vendor/mermaid.js';
     s.onload = () => {
       const m = (window as unknown as { mermaid: Mermaid }).mermaid;
-      m.initialize({ startOnLoad: false, securityLevel: 'strict', theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'neutral', fontFamily: 'Fira Sans, system-ui, sans-serif' });
+      m.initialize({ startOnLoad: false, securityLevel: 'strict', theme: document.documentElement.dataset.mode === 'dark' ? 'dark' : 'neutral', fontFamily: getComputedStyle(document.body).fontFamily });
       done(m);
     };
     s.onerror = () => done(null);
