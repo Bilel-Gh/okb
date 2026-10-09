@@ -330,3 +330,34 @@ details[open] > summary .exam-chev { transform: rotate(180deg); }
   .exam-form { grid-template-columns: 1fr; }
   .exam-answer { padding-left: 14px; }
 }
+
+/* ================================================================ sharing (packs) */
+.share { align-items: start; }
+.picked { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 4px 6px 4px 12px; border: 1px solid var(--hair-strong); border-radius: var(--r); background: var(--surface); }
+.picked > svg { color: var(--accent-text); flex: none; }
+.folder-hits { list-style: none; margin: 4px 0 0; padding: 4px; border: 1px solid var(--hair); border-radius: var(--r); max-height: 300px; overflow: auto; }
+.folder-hits button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 0 10px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--ink-2); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; }
+.folder-hits button:hover, .folder-hits button:focus-visible { background: var(--hover); color: var(--ink); }
+.folder-hits button > svg { color: var(--ink-3); flex: none; }
+.folder-hits b { font-weight: 600; color: var(--ink); }
+.dropzone {
+  display: flex; align-items: center; gap: 14px; padding: 22px; border: 1.5px dashed var(--hair-strong); border-radius: var(--r-lg);
+  background: var(--sunk); color: var(--ink-2); cursor: pointer; font-size: 14px; line-height: 1.5;
+}
+.dropzone > svg { color: var(--accent-text); flex: none; }
+.dropzone:hover, .dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+.dropzone:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pack-from { display: flex; align-items: center; gap: 12px; }
+.pack-from .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pack-from b { overflow-wrap: anywhere; }
+.pack-counts { display: flex; flex-wrap: wrap; gap: 8px; }
+.small-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.pack-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.pack-list li { display: flex; align-items: center; gap: 10px; }
+.pack-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.pack-dot.changed { background: var(--warn); }
+.pack-diff { border: 1px solid var(--hair); border-radius: var(--r); overflow: hidden; }
+.pack-diff > summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; font-size: 14px; }
+.pack-diff > summary::-webkit-details-marker { display: none; }
+.pack-diff > summary:hover { background: var(--hover); }
+.pack-diff .diff-body { border-top: 1px solid var(--hair); max-height: 360px; font-size: 13px; }

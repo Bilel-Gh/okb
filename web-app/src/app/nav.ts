@@ -1,7 +1,4 @@
-import {
-  Archive, BadgeCheck, Blocks, Brain, Briefcase, CalendarCheck, CircleHelp, FileStack, FolderGit2, FolderPlus, GraduationCap, HardDrive, HeartPulse, Inbox, Layers,
-  MessageCircleQuestion, Palette, ScrollText, Settings, Share2, Sparkles, Stethoscope, Sun, Tags, Target, Terminal, Upload, Wrench, type LucideIcon,
-} from 'lucide-react';
+import { Archive, BadgeCheck, Blocks, Brain, Briefcase, CalendarCheck, CircleHelp, FileStack, FolderGit2, FolderPlus, GraduationCap, HardDrive, HeartPulse, Inbox, Layers, MessageCircleQuestion, Package, Palette, ScrollText, Settings, Share2, Sparkles, Stethoscope, Sun, Tags, Target, Terminal, Upload, Wrench, type LucideIcon } from 'lucide-react';
 import type { Route } from './router';
 
 /**
@@ -41,6 +38,7 @@ export const PLACES: readonly { route: Route; label: string; icon: LucideIcon; m
   { route: { name: 'tools', tab: 'skills' }, label: 'app.tools.tab.skills', icon: Sparkles },
   { route: { name: 'tools', tab: 'templates' }, label: 'app.tools.tab.templates', icon: FileStack },
   { route: { name: 'tools', tab: 'categories' }, label: 'app.tools.tab.categories', icon: Tags },
+  { route: { name: 'tools', tab: 'share' }, label: 'app.tools.tab.share', icon: Package },
   { route: { name: 'upkeep', tab: 'health' }, label: 'app.upkeep.tab.health', icon: HeartPulse },
   { route: { name: 'upkeep', tab: 'doctor' }, label: 'app.upkeep.tab.doctor', icon: Stethoscope },
   { route: { name: 'upkeep', tab: 'usage' }, label: 'app.upkeep.tab.usage', icon: Layers },

@@ -64,3 +64,30 @@ describe('okb pack', () => {
     void mkdir;
   }, 60_000);
 });
+
+describe('packs in the web app', () => {
+  it('exports a subject, compares a received pack with the differences line by line, and merges through a proposal', async () => {
+    const { serve } = await import('../src/web/serve.js');
+    const { config, env } = await demoBrain();
+    const { server, url } = await serve(config, { port: 0, env });
+    try {
+      const token = ((await (await fetch(`${url}/api/session`)).json()) as { token: string }).token;
+      const post = (path: string, body: unknown, withToken = true) => fetch(`${url}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(withToken ? { 'X-OKB-Token': token } : {}) }, body: JSON.stringify(body) });
+      const pack = (await (await fetch(`${url}/api/packs/export?folder=${encodeURIComponent(FOLDER)}`)).json()) as Pack;
+      expect(pack).toMatchObject({ kind: 'okb-pack', subject: FOLDER });
+      const theirs: Pack = { ...pack, notes: [...pack.notes.map((n, i) => (i === 0 ? { ...n, content: `${n.content}\nUn ajout du collègue.\n` } : n)), { path: 'Piège du cache.md', title: 'Piège du cache', content: '---\ntitle: Piège du cache\ndescription: x\nstatus: stable\ngenerated:\n  by: human:collegue\n  at: 2026-09-01T10:00:00Z\n---\n\n# Piège du cache\n\nVider le cache.\n' }] };
+      expect((await post('/api/packs/compare', { pack: theirs }, false)).status).toBe(403);
+      const diff = (await (await post('/api/packs/compare', { pack: theirs })).json()) as { into: string; added: { path: string }[]; changed: { path: string; diff: string }[]; same: number; from: { brain: string } };
+      expect(diff.into).toBe(FOLDER);
+      expect(diff.added.map((n) => n.path)).toEqual(['Piège du cache.md']);
+      expect(diff.changed[0]!.diff).toContain('+Un ajout du collègue.');
+      expect(diff.same).toBe(pack.notes.length - 1);
+      const merged = (await (await post('/api/packs/merge', { pack: theirs, into: FOLDER })).json()) as { ok: boolean; proposalId: string };
+      expect(merged.ok).toBe(true);
+      expect(merged.proposalId).toMatch(/^p-/);
+      expect((await (await post('/api/packs/compare', { pack: { kind: 'other' } })).json())).toMatchObject({ error: expect.anything() });
+    } finally {
+      server.closeAllConnections(); server.close();
+    }
+  }, 90_000);
+});

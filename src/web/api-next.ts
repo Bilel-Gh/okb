@@ -144,6 +144,38 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
       if (typeof b.remove === 'string') { await exam.removeExamQuestion(config, repo, b.remove); return { ok: true }; }
       return { ok: true, question: await exam.addExamQuestion(config, repo, String(b.text ?? ''), String(b.expected ?? '')) };
     },
+    // Packs (src/packs/pack.ts): a subject's notes in one file to hand over; a received one compared, then merged by a proposal.
+    'GET /api/packs/export': async (ctx, q) => {
+      const config = await kbConfig(ctx, q.get('kb'));
+      const { exportPack } = await import('../packs/pack.js');
+      const { loadBundleFor } = await import('../kb/bundle.js');
+      return exportPack(config, await loadBundleFor(config), q.get('folder') ?? '');
+    },
+    'POST /api/packs/compare': async (ctx, _q, b) => {
+      const config = await kbConfig(ctx, b.kb);
+      const { comparePack } = await import('../packs/pack.js');
+      const { loadBundleFor } = await import('../kb/bundle.js');
+      const { unifiedDiff } = await import('../proposal/diff.js');
+      const { asBundlePath } = await import('../util/paths.js');
+      const pack = b.pack as Parameters<typeof comparePack>[1];
+      const into = typeof b.into === 'string' && b.into.trim() ? b.into.trim() : String((pack as { subject?: unknown } | null)?.subject ?? '');
+      const bundle = await loadBundleFor(config);
+      const diff = comparePack(bundle, pack, into);
+      const local = (path: string) => bundle.snapshot.files.get(asBundlePath(`${into.replace(/\/+$/, '')}/${path}`)) ?? '';
+      return {
+        subject: pack.subject, exportedAt: pack.exportedAt, from: pack.from, into, skipped: pack.skipped.length,
+        added: diff.added.map((n) => ({ path: n.path, title: n.title })),
+        changed: diff.changed.map((n) => ({ path: n.path, title: n.title, diff: unifiedDiff(local(n.path), n.content, { path: n.path }).text })),
+        same: diff.same,
+      };
+    },
+    'POST /api/packs/merge': async (ctx, _q, b) => {
+      const config = await kbConfig(ctx, b.kb);
+      const { mergePack } = await import('../packs/pack.js');
+      if (typeof b.into !== 'string' || !b.into.trim()) throw new OkbError('E_INVALID', 'into is required', { key: 'usage', params: { usage: '{ pack, into }' } });
+      const proposal = await mergePack(config, b.pack as Parameters<typeof mergePack>[1], b.into.trim());
+      return { ok: true, proposalId: proposal.id, notes: proposal.changes.length };
+    },
     'POST /api/repos/link': async (ctx, _q, b) => {
       const config = await kbConfig(ctx, b.kb);
       if (typeof b.folder !== 'string' || typeof b.path !== 'string' || !b.path.trim()) throw new OkbError('E_INVALID', 'folder and path are required', { key: 'usage', params: { usage: '{ folder, path }' } });

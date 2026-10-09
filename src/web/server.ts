@@ -122,7 +122,8 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
         if (MUTATING.has(`${req.method} ${url.pathname}`)) {
           if (req.headers['x-okb-token'] !== ctx.token) { json({ error: 'Missing or wrong session token.' }, 403); return; }
           if (!String(req.headers['content-type'] ?? '').startsWith('application/json')) { json({ error: 'JSON only.' }, 415); return; }
-          body = await readBody(req);
+          // A pack carries a whole subject's notes: a larger body than any other request.
+          body = await readBody(req, url.pathname.startsWith('/api/packs/') ? 30_000_000 : 1_000_000);
         }
         json(await handler(ctx, url.searchParams, body));
         return;

@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 export type TodayTab = 'focus' | 'week';
 export type InboxTab = 'suggestions' | 'proposals' | 'captures' | 'history';
 export type LearnTab = 'progress' | 'career';
-export type ToolsTab = 'source' | 'skills' | 'templates' | 'categories';
+export type ToolsTab = 'source' | 'skills' | 'templates' | 'categories' | 'share';
 export type UpkeepTab = 'health' | 'doctor' | 'usage' | 'backup';
 export type SettingsTab = 'appearance' | 'brains' | 'new';
 export type Route =
@@ -91,7 +91,10 @@ export function parseRoute(hash: string): Route {
     case 'skills':
     case 'templates':
     case 'categories':
+    case 'share':
       return { name: 'tools', tab: head };
+    case 'packs':
+      return { name: 'tools', tab: 'share' };
     case 'upkeep':
       return { name: 'upkeep' };
     case 'health':

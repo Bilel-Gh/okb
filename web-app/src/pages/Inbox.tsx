@@ -9,9 +9,9 @@ import { Prose } from '../reader/Prose';
 import { ConfirmDialog } from '../ui/Confirm';
 import { PageTabs } from '../ui/PageTabs';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
+import { DiffView } from '../ui/DiffView';
 import { TypeMark } from '../ui/TypeMark';
 import { drawerOf } from './brain-tree';
-import { diffLines } from './diff';
 import { Waiting, type Suggestion } from './Today';
 
 type ProposalItem = { id: string; number: number | null; title: string; status: string; createdAt: string; files: number; created: number; updated: number; changes: number };
@@ -35,18 +35,6 @@ const pathLabel = (p: string) => p.replace(/\.md$/, '').split('/').map((x) => dr
 
 /* ================================================================ one proposal */
 
-function DiffView({ text }: { text: string }) {
-  return (
-    <div className="diff-body">
-      {diffLines(text).map((l, i) => (
-        <div key={i} className={`ln ${l.kind}`}>
-          <em aria-hidden="true">{l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : ''}</em>
-          <span>{l.kind === 'gap' ? '…' : l.text || ' '}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function ProposalView({ id, setTitle }: { id: string; setTitle?: (s: string) => void }) {
   const t = useT();

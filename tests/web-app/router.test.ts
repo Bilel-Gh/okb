@@ -43,6 +43,8 @@ describe('the new app reads the same addresses as before', () => {
     expect(parseRoute('#/skills')).toEqual({ name: 'tools', tab: 'skills' });
     expect(parseRoute('#/templates')).toEqual({ name: 'tools', tab: 'templates' });
     expect(parseRoute('#/categories')).toEqual({ name: 'tools', tab: 'categories' });
+    expect(parseRoute('#/share')).toEqual({ name: 'tools', tab: 'share' });
+    expect(parseRoute('#/packs')).toEqual({ name: 'tools', tab: 'share' });
     expect(parseRoute('#/health')).toEqual({ name: 'upkeep', tab: 'health' });
     expect(parseRoute('#/doctor')).toEqual({ name: 'upkeep', tab: 'doctor' });
     expect(parseRoute('#/usage')).toEqual({ name: 'upkeep', tab: 'usage' });
@@ -62,7 +64,7 @@ describe('the new app reads the same addresses as before', () => {
     const routes = [
       { name: 'today', tab: 'focus' }, { name: 'today', tab: 'week', step: 'health' }, { name: 'graph', focus: 'x.md' }, { name: 'graph', brain: true },
       { name: 'brain', path: 'a/b.md', history: true }, { name: 'inbox', tab: 'captures' }, { name: 'inbox', tab: 'history' }, { name: 'inbox', tab: 'proposals', id: 'p-1' },
-      { name: 'learn', tab: 'career' }, { name: 'learn', tab: 'progress' }, { name: 'tools', tab: 'templates' }, { name: 'tools' }, { name: 'upkeep', tab: 'usage' }, { name: 'upkeep' },
+      { name: 'learn', tab: 'career' }, { name: 'learn', tab: 'progress' }, { name: 'tools', tab: 'templates' }, { name: 'tools', tab: 'share' }, { name: 'tools' }, { name: 'upkeep', tab: 'usage' }, { name: 'upkeep' },
       { name: 'settings', tab: 'brains' }, { name: 'settings', tab: 'new' }, { name: 'settings', tab: 'appearance' }, { name: 'help' },
     ] as const;
     for (const r of routes) expect(parseRoute(hrefFor(r))).toEqual(r);

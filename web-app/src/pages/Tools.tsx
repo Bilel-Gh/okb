@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, BookMarked, ChevronRight, FileStack, ListChecks, Settings2, Share2, Sparkles, Tags, Terminal, TriangleAlert, Upload } from 'lucide-react';
-import { useState, type CSSProperties } from 'react';
+import { ArrowRight, BookMarked, ChevronRight, FileStack, ListChecks, Package, Settings2, Share2, Sparkles, Tags, Terminal, TriangleAlert, Upload } from 'lucide-react';
+import { lazy, Suspense, useState, type CSSProperties } from 'react';
 import { get, post } from '../app/api';
 import { useCategories } from '../app/data';
 import { tn, useT } from '../app/i18n';
@@ -10,6 +10,8 @@ import { CatIcon } from '../ui/CatMark';
 import { Choice } from '../ui/Choice';
 import { PageTabs } from '../ui/PageTabs';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
+
+const Share = lazy(() => import('./Share'));
 import { TypeMark } from '../ui/TypeMark';
 
 type Setting = { key: string; value: unknown };
@@ -233,8 +235,9 @@ export default function Tools({ route }: { route: Extract<Route, { name: 'tools'
         { to: { name: 'tools', tab: 'skills' }, label: t('app.tools.tab.skills'), current: tab === 'skills', icon: ListChecks },
         { to: { name: 'tools', tab: 'templates' }, label: t('app.tools.tab.templates'), current: tab === 'templates', icon: BookMarked },
         { to: { name: 'tools', tab: 'categories' }, label: t('app.tools.tab.categories'), current: tab === 'categories', icon: Tags },
+        { to: { name: 'tools', tab: 'share' }, label: t('app.tools.tab.share'), current: tab === 'share', icon: Package },
       ]} />
-      {tab === 'source' ? <Source /> : tab === 'skills' ? <Skills /> : tab === 'templates' ? <Templates /> : <Categories />}
+      {tab === 'source' ? <Source /> : tab === 'skills' ? <Skills /> : tab === 'templates' ? <Templates /> : tab === 'share' ? <Suspense fallback={<SkeletonRows rows={6} />}><Share /></Suspense> : <Categories />}
     </div>
   );
 }
