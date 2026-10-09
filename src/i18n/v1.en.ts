@@ -1164,4 +1164,6 @@ export const EN_V1 = {
   'app.brain.f.allF': 'All',
   'app.help.kList': 'In Brain: move from note to note in the list',
   'app.help.kEscape': 'In Brain: clear the selection, then close the note',
+  'app.arch.zoom': 'Map zoom',
+  'app.arch.fit': 'Fit',
 } as const;

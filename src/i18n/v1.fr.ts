@@ -1158,4 +1158,6 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'app.brain.f.allF': 'Toutes',
   'app.help.kList': 'Dans Cerveau : passer d’une note à l’autre dans la liste',
   'app.help.kEscape': 'Dans Cerveau : vider la sélection, puis fermer la note',
+  'app.arch.zoom': 'Zoom du schéma',
+  'app.arch.fit': 'Ajuster',
 };

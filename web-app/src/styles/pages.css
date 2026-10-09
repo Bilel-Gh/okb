@@ -214,7 +214,13 @@ a.cite:hover { background: var(--fill); color: var(--on-accent); }
 .arch-from .input { height: 32px; width: auto; max-width: 340px; }
 .arch-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--s5); align-items: start; }
 .arch-panel { overflow: hidden; }
-.arch-scroll { overflow-x: auto; padding: var(--s3) var(--s2) 0; }
+.arch-zoom { position: relative; }
+.arch-scroll { overflow: auto; max-height: 72vh; padding: var(--s3) var(--s2) 0; }
+.arch-scroll.grab { cursor: grab; }
+.arch-scroll.grab:active { cursor: grabbing; }
+.arch-map.zoomed { max-width: none; }
+.arch-zoom-bar { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--shadow-1); }
+.arch-zoom-bar .num { min-width: 44px; text-align: center; }
 .arch-map { display: block; margin: 0 auto; max-width: 100%; height: auto; font-family: var(--font); }
 
 /* Lines: calls solid, events dashed, libraries dotted; the shape says the kind, the ink stays navy. */

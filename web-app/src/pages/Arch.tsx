@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { Copy, Database, Globe, Terminal, X } from 'lucide-react';
-import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { Copy, Database, Globe, Maximize2, Minus, Plus, Terminal, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { get } from '../app/api';
 import { useT } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
@@ -50,15 +50,15 @@ function StationMark({ s, here, colour }: { s: Station; here: boolean; colour: s
   return <circle className={`arch-dot${here ? ' here' : ''}`} r={9} style={colour ? ({ '--c': colour } as CSSProperties) : undefined} />;
 }
 
-function SystemMap({ layout, links, nodes, selection, select, colour, label }: {
-  layout: MapLayout; links: Map<string, Link>; nodes: Map<string, Node>; selection: Selection; select: (s: Selection) => void; colour: (n: Node) => string | undefined; label: string;
+function SystemMap({ layout, links, nodes, selection, select, colour, label, scale }: {
+  layout: MapLayout; links: Map<string, Link>; nodes: Map<string, Node>; selection: Selection; select: (s: Selection) => void; colour: (n: Node) => string | undefined; label: string; scale: number | null;
 }) {
   const t = useT();
   const key = (s: Selection) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(s); } };
   const touches = (id: string) => selection?.kind === 'station' && (links.get(id)?.from === selection.id || links.get(id)?.to === selection.id);
   const lit = (id: string) => !selection || (selection.kind === 'link' ? selection.id === id : touches(id));
   return (
-    <svg className={`arch-map${selection ? ' has-selection' : ''}`} viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width} height={layout.height} role="group" aria-label={label}>
+    <svg className={`arch-map${selection ? ' has-selection' : ''}${scale ? ' zoomed' : ''}`} viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width * (scale ?? 1)} height={layout.height * (scale ?? 1)} role="group" aria-label={label}>
       <defs>
         <marker id="arch-head" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 8 5 L 1 9" className="arch-head" /></marker>
       </defs>
@@ -95,6 +95,49 @@ function SystemMap({ layout, links, nodes, selection, select, colour, label }: {
         );
       })}
     </svg>
+  );
+}
+
+const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5] as const;
+
+/**
+ * The map at the size of the page, or zoomed: the buttons, ⌘/Ctrl and the
+ * wheel, and a drag to move around once it is larger than the page.
+ */
+function Zoomable({ width, children }: { width: number; children: (scale: number | null) => ReactNode }) {
+  const t = useT();
+  const box = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState<number | null>(null);
+  const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const fit = () => Math.min(1, (box.current?.clientWidth ?? width) / width);
+  const step = (dir: 1 | -1) => setScale((cur) => {
+    const now = cur ?? fit();
+    const next = dir > 0 ? ZOOMS.find((z) => z > now + 0.01) : [...ZOOMS].reverse().find((z) => z < now - 0.01);
+    return next ?? now;
+  });
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); step(e.deltaY < 0 ? 1 : -1); };
+    el.addEventListener('wheel', wheel, { passive: false });
+    return () => el.removeEventListener('wheel', wheel);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+  const percent = Math.round((scale ?? fit()) * 100);
+  return (
+    <div className="arch-zoom">
+      <div ref={box} className={`arch-scroll${scale ? ' grab' : ''}`}
+        onPointerDown={(e) => { if (!scale || (e.target as Element).closest('[role="button"]')) return; drag.current = { x: e.clientX, y: e.clientY, left: box.current!.scrollLeft, top: box.current!.scrollTop }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }}
+        onPointerMove={(e) => { const d = drag.current; if (!d || !box.current) return; box.current.scrollLeft = d.left - (e.clientX - d.x); box.current.scrollTop = d.top - (e.clientY - d.y); }}
+        onPointerUp={() => { drag.current = null; }}>
+        {children(scale)}
+      </div>
+      <div className="arch-zoom-bar" role="group" aria-label={t('app.arch.zoom')}>
+        <button type="button" className="btn sm ghost icon" aria-label={t('app.graph.zoomOut')} title={t('app.graph.zoomOut')} onClick={() => step(-1)}><Minus size={15} aria-hidden="true" /></button>
+        <span className="num small muted" aria-live="polite">{percent} %</span>
+        <button type="button" className="btn sm ghost icon" aria-label={t('app.graph.zoomIn')} title={t('app.graph.zoomIn')} onClick={() => step(1)}><Plus size={15} aria-hidden="true" /></button>
+        <button type="button" className="btn sm ghost" disabled={scale === null} onClick={() => setScale(null)}><Maximize2 size={14} aria-hidden="true" />{t('app.arch.fit')}</button>
+      </div>
+    </div>
   );
 }
 
@@ -277,7 +320,7 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
             <FlowLine view={view} links={links} select={select} selection={selection} />
           ) : layout ? (
             <>
-              <div className="arch-scroll"><SystemMap layout={layout} links={links} nodes={nodes} selection={selection} select={select} colour={colour} label={t('app.arch.mapLabel', { name: data.system })} /></div>
+              <Zoomable width={layout.width}>{(scale) => <SystemMap layout={layout} links={links} nodes={nodes} selection={selection} select={select} colour={colour} label={t('app.arch.mapLabel', { name: data.system ?? '' })} scale={scale} />}</Zoomable>
               <Legend />
             </>
           ) : null}
