@@ -25,6 +25,7 @@ import { unifiedDiff } from '../proposal/diff.js';
 import { proposeFiles } from '../proposal/files.js';
 import { groupChangesByPath, materializeFile } from '../proposal/materialize.js';
 import { resolveSelection } from '../proposal/model.js';
+import type { Proposal } from '../proposal/model.js';
 import { loadProposal, saveProposal, updateProposalStatus } from '../proposal/store.js';
 import { readSettings, writeSetting } from '../settings/settings.js';
 import { draftSkill, writeSkillDraft } from '../skillify/skillify.js';
@@ -242,7 +243,21 @@ export const ROUTES: Record<string, Handler> = {
     return {
       root: config.kb.root,
       categories: cx.categories,
-      notes: bundle.entries.filter((e) => !e.reserved || e.path === 'index.md').map((e) => ({ path: e.path, title: e.title, description: e.description, type: e.type, status: e.status, category: e.reserved ? 'other' : category(e) })),
+      // With what the explorer filters and sorts on: the date of the note, its stars, whether it is 🔒.
+      notes: await (async () => {
+        const scores = await scoresFor(config, bundle);
+        const { isSecret } = await import('../security/confidential.js');
+        return bundle.entries.filter((e) => !e.reserved || e.path === 'index.md').map((e) => {
+          const data = bundle.docs.get(e.path)?.data as { updated?: unknown; generated?: { at?: unknown } } | undefined;
+          const at = data?.updated ?? data?.generated?.at;
+          return {
+            path: e.path, title: e.title, description: e.description, type: e.type, status: e.status, category: e.reserved ? 'other' : category(e),
+            at: typeof at === 'string' ? at : at instanceof Date ? at.toISOString() : null,
+            stars: scores.get(e.path)?.stars ?? null,
+            secret: isSecret(e.ext),
+          };
+        });
+      })(),
     };
   },
   /** Every note and every link between notes, coloured by category: the graph view. */
@@ -579,9 +594,19 @@ export const ROUTES: Record<string, Handler> = {
   'POST /api/categories/set': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);
     const { proposeCategory } = await import('../categories/assign.js');
-    const proposal = await proposeCategory(config, str(b.path, 'path', 500), str(b.category, 'category', 60));
+    const category = str(b.category, 'category', 60);
+    if (Array.isArray(b.paths)) return bulkProposal(config, b.paths, (path) => proposeCategory(config, path, category));
+    const proposal = await proposeCategory(config, str(b.path, 'path', 500), category);
     await saveProposal(config, proposal);
     return { ok: true, proposalId: proposal.id };
+  },
+  // 🔒 or back to normal, for one note or several: one proposal, approved like any change.
+  'POST /api/notes/confidentiality': async (ctx, _q, b) => {
+    const config = await kbConfig(ctx, b.kb);
+    const { proposeConfidentiality } = await import('../security/confidential.js');
+    const level = str(b.level, 'level', 20) as Parameters<typeof proposeConfidentiality>[2];
+    const paths = Array.isArray(b.paths) ? b.paths : [str(b.path, 'path', 500)];
+    return bulkProposal(config, paths, (path) => proposeConfidentiality(config, path, level));
   },
   'POST /api/repos/scan': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);
@@ -642,6 +667,27 @@ export const ROUTES: Record<string, Handler> = {
 };
 
 // Every change, the brain's included, carries the session token and a JSON body.
+/**
+ * The same change for several notes, as one proposal: a note it would not change
+ * (already in that type, already 🔒) is left out and named; nothing to change at
+ * all is an error.
+ */
+async function bulkProposal(config: OkbConfig, raw: unknown[], make: (path: string) => Promise<Proposal>): Promise<{ ok: true; proposalId: string; notes: number; skipped: string[] }> {
+  const paths = [...new Set(raw.filter((p): p is string => typeof p === 'string' && p.length > 0 && p.length <= 500))].slice(0, 500);
+  if (!paths.length) throw new OkbError('E_INVALID', 'paths is empty', { key: 'usage', params: { usage: '{ paths: [...] }' } });
+  const made: Proposal[] = [];
+  const skipped: string[] = [];
+  let last: unknown = null;
+  for (const path of paths) {
+    try { made.push(await make(path)); } catch (e) { if (e instanceof OkbError && e.code === 'E_CONFLICT') { skipped.push(path); last = e; } else throw e; }
+  }
+  if (!made.length) throw last ?? new OkbError('E_INVALID', 'nothing to change');
+  const { combineProposals } = await import('../proposal/combine.js');
+  const proposal = made.length === 1 ? made[0]! : combineProposals(config, made);
+  await saveProposal(config, proposal);
+  return { ok: true, proposalId: proposal.id, notes: made.length, skipped };
+}
+
 export const MUTATING = new Set([...Object.keys(ROUTES), ...Object.keys(BRAIN), ...Object.keys(NEXT)].filter((k) => k.startsWith('POST ')));
 /** Routes of the developer module (repositories, workspaces): off when the person turned the module off. */
 const DEV_ROUTE = /^(GET|POST) \/api\/(repos?|workspaces?)(\/|$)/;
