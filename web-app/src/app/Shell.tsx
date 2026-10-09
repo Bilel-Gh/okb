@@ -1,13 +1,14 @@
 import * as Popover from '@radix-ui/react-popover';
 import { useQuery } from '@tanstack/react-query';
-import { Brain, Check, ChevronsUpDown, FolderGit2, GraduationCap, History, Inbox, Menu, MessageCircleQuestion, Monitor, Moon, Network, PanelLeftClose, PanelLeftOpen, Palette as PaletteIcon, Puzzle, Search, Settings, Sun, SunMedium, Terminal } from 'lucide-react';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { LOGOS, LogoMark, type LogoId, type LogoStyle } from '../ui/Logo';
+import { Check, ChevronRight, ChevronsUpDown, Menu, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Palette as PaletteIcon, Search, Sun } from 'lucide-react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { LOGOS, LogoMark, type LogoId } from '../ui/Logo';
 import { currentKb, currentSession, get, post } from './api';
 import { useT } from './i18n';
+import { NAV, type NavEntry } from './nav';
 import { Palette } from './Palette';
 import { hrefFor, type Route } from './router';
-import { applyLook, LOOKS, readLogo, readLogoStyle, readLook, readMode, readRail, saveRail, type Look, type Mode, type Rail } from './theme';
+import { applyLook, LOOKS, readLogo, readLook, readMode, readRail, readStyle, saveRail, type Look, type Mode, type Rail, type Style } from './theme';
 import { toast, useToasts } from './toast';
 
 type Modules = { modules: { id: string; enabled: boolean }[] };
@@ -18,26 +19,32 @@ export function useStatus() {
   return useQuery({ queryKey: ['status'], queryFn: () => get<Status>('/api/status'), refetchInterval: 60_000 });
 }
 
-function useWaitingCount(): number {
+export function useWaitingCount(): number {
   const s = useQuery({ queryKey: ['suggestions'], queryFn: () => get<Waiting>('/api/suggestions'), refetchInterval: 60_000 });
   const p = useStatus();
   return (s.data?.suggestions.filter((x) => x.status === 'pending').length ?? 0) + (p.data?.toReview ?? 0);
 }
 
-/** The person's appearance: theme, light or dark, side bar folded or not. */
+/** Whether the developer module is on (its pages show only then). */
+export function useDevModule(): boolean {
+  const modules = useQuery({ queryKey: ['modules'], queryFn: () => get<Modules>('/api/modules'), staleTime: 60_000 });
+  return modules.data ? modules.data.modules.some((m) => m.id === 'dev' && m.enabled) : true;
+}
+
+/** The person's appearance: theme, light or dark, gradient or flat, logo, side bar folded or not. */
 export type Appearance = {
-  look: Look; mode: Mode; rail: Rail; logo: LogoId; logoStyle: LogoStyle;
-  setLook: (l: Look) => void; setMode: (m: Mode) => void; setLogo: (l: LogoId) => void; setLogoStyle: (s: LogoStyle) => void; toggleRail: () => void;
+  look: Look; mode: Mode; style: Style; rail: Rail; logo: LogoId;
+  setLook: (l: Look) => void; setMode: (m: Mode) => void; setStyle: (s: Style) => void; setLogo: (l: LogoId) => void; toggleRail: () => void;
 };
 
 function useAppearance(): Appearance {
-  const [state, setState] = useState(() => ({ look: readLook(), mode: readMode(), logo: readLogo(), logoStyle: readLogoStyle() }));
+  const [state, setState] = useState(() => ({ look: readLook(), mode: readMode(), logo: readLogo(), style: readStyle() }));
   const [rail, setRail] = useState<Rail>(() => readRail(readLook()));
   const change = useCallback((patch: Partial<typeof state>) => setState((s) => { const next = { ...s, ...patch }; applyLook(next); return next; }), []);
   const setLook = useCallback((look: Look) => { change({ look }); setRail(readRail(look)); }, [change]);
   const setMode = useCallback((mode: Mode) => change({ mode }), [change]);
+  const setStyle = useCallback((style: Style) => change({ style }), [change]);
   const setLogo = useCallback((logo: LogoId) => change({ logo }), [change]);
-  const setLogoStyle = useCallback((logoStyle: LogoStyle) => change({ logoStyle }), [change]);
   const toggleRail = useCallback(() => setRail((r) => { const next = r === 'collapsed' ? 'expanded' : 'collapsed'; saveRail(next); return next; }), []);
   useEffect(() => {
     if (state.mode !== 'auto') return;
@@ -46,14 +53,17 @@ function useAppearance(): Appearance {
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
   }, [state]);
-  return { ...state, rail, setLook, setMode, setLogo, setLogoStyle, toggleRail };
+  return { ...state, rail, setLook, setMode, setStyle, setLogo, toggleRail };
 }
 
-function NavLink({ to, href, icon, label, current, count, folded }: { to?: Route; href?: string; icon: ReactNode; label: string; current?: boolean; count?: number; folded: boolean }) {
+function NavLink({ entry, current, count, folded }: { entry: NavEntry; current: boolean; count?: number; folded: boolean }) {
+  const t = useT();
+  const label = t(entry.label);
   const name = count ? `${label}, ${count}` : label;
+  const Icon = entry.icon;
   return (
-    <a className="rail-link" href={href ?? hrefFor(to!)} aria-current={current ? 'page' : undefined} aria-label={name} title={folded ? name : undefined}>
-      {icon}<span className="rail-label">{label}</span>{count ? <span className="count" aria-hidden="true">{count}</span> : null}
+    <a className="rail-link" href={hrefFor(entry.route)} aria-current={current ? 'page' : undefined} aria-label={name} title={folded ? name : undefined}>
+      <Icon size={18} strokeWidth={1.8} aria-hidden="true" /><span className="rail-label">{label}</span>{count ? <span className="count" aria-hidden="true">{count}</span> : null}
     </a>
   );
 }
@@ -75,7 +85,7 @@ function KbSwitcher({ folded }: { folded: boolean }) {
         <button type="button" className="rail-kb" aria-label={`${t('app.kb.switch')} : ${name}`} title={folded ? name : undefined}>
           <span className="kb-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>
           <span className="rail-kb-text"><span>{name}</span><small>{kb?.brain ? t(`brain.preset.${kb.brain}`) : t('app.kb.classic')}</small></span>
-          <ChevronsUpDown size={15} aria-hidden="true" />
+          <ChevronsUpDown size={16} aria-hidden="true" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -86,19 +96,53 @@ function KbSwitcher({ folded }: { folded: boolean }) {
               <span>{k.name}</span>
             </button>
           ))}
-          <a href="/classic#/kbs"><span style={{ width: 15 }} />{t('app.kb.manage')}</a>
+          <hr />
+          <a href={hrefFor({ name: 'settings', tab: 'brains' })} onClick={() => setOpen(false)}><span style={{ width: 15 }} />{t('app.kb.manage')}</a>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
   );
 }
 
-/** Theme and light/dark, each theme with a preview of its colours. */
-function ThemeMenu({ appearance }: { appearance: Appearance }) {
+/** The appearance choices, shared by the menu of the top bar and the settings page. */
+export function AppearanceChoices({ appearance }: { appearance: Appearance }) {
   const t = useT();
   const modes: { id: Mode; icon: ReactNode }[] = [
-    { id: 'auto', icon: <Monitor size={14} aria-hidden="true" /> }, { id: 'light', icon: <Sun size={14} aria-hidden="true" /> }, { id: 'dark', icon: <Moon size={14} aria-hidden="true" /> },
+    { id: 'light', icon: <Sun size={14} aria-hidden="true" /> }, { id: 'dark', icon: <Moon size={14} aria-hidden="true" /> }, { id: 'auto', icon: <Monitor size={14} aria-hidden="true" /> },
   ];
+  return (
+    <>
+      <p className="menu-heading">{t('app.theme.look')}</p>
+      {LOOKS.map((l) => (
+        <button type="button" key={l} className="theme-option" role="menuitemradio" aria-checked={appearance.look === l} onClick={() => appearance.setLook(l)}>
+          <span className={`theme-swatch swatch-${l}`} aria-hidden="true" />
+          <span style={{ minWidth: 0 }}><b>{t(`app.theme.${l}`)}</b><small>{t(`app.theme.${l}Why`)}</small></span>
+          {appearance.look === l ? <Check size={16} aria-hidden="true" /> : null}
+        </button>
+      ))}
+      <p className="menu-heading">{t('app.theme.mode')}</p>
+      <div className="segmented" role="group" aria-label={t('app.theme.mode')}>
+        {modes.map((m) => <button type="button" key={m.id} aria-pressed={appearance.mode === m.id} onClick={() => appearance.setMode(m.id)}>{m.icon}{t(`app.mode.${m.id}`)}</button>)}
+      </div>
+      <p className="menu-heading">{t('app.style.title')}</p>
+      <div className="segmented" role="group" aria-label={t('app.style.title')}>
+        {(['gradient', 'flat'] as const).map((st) => <button type="button" key={st} aria-pressed={appearance.style === st} onClick={() => appearance.setStyle(st)}>{t(`app.style.${st}`)}</button>)}
+      </div>
+      <p className="menu-heading">{t('app.logo.title')}</p>
+      <div className="logo-grid" role="group" aria-label={t('app.logo.title')}>
+        {LOGOS.map((l) => (
+          <button type="button" key={l} className="logo-option" role="menuitemradio" aria-checked={appearance.logo === l} aria-label={t(`app.logo.${l}`)} title={t(`app.logo.${l}`)} onClick={() => appearance.setLogo(l)}>
+            <LogoMark logo={l} look={appearance.look} style={appearance.style} size={26} />
+          </button>
+        ))}
+      </div>
+      <p className="logo-name small muted">{t(`app.logo.${appearance.logo}`)}</p>
+    </>
+  );
+}
+
+function ThemeMenu({ appearance }: { appearance: Appearance }) {
+  const t = useT();
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
@@ -106,30 +150,7 @@ function ThemeMenu({ appearance }: { appearance: Appearance }) {
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content className="menu theme-menu" align="end" sideOffset={6} aria-label={t('app.theme.title')}>
-          <p className="menu-heading">{t('app.theme.look')}</p>
-          {LOOKS.map((l) => (
-            <button type="button" key={l} className="theme-option" role="menuitemradio" aria-checked={appearance.look === l} onClick={() => appearance.setLook(l)}>
-              <span className={`theme-swatch swatch-${l}`} aria-hidden="true" />
-              <span style={{ minWidth: 0 }}><b>{t(`app.theme.${l}`)}</b><small>{t(`app.theme.${l}Why`)}</small></span>
-              {appearance.look === l ? <Check size={16} aria-hidden="true" /> : null}
-            </button>
-          ))}
-          <p className="menu-heading">{t('app.theme.mode')}</p>
-          <div className="segmented" role="group" aria-label={t('app.theme.mode')}>
-            {modes.map((m) => <button type="button" key={m.id} aria-pressed={appearance.mode === m.id} onClick={() => appearance.setMode(m.id)}>{m.icon}{t(`app.mode.${m.id}`)}</button>)}
-          </div>
-          <p className="menu-heading">{t('app.logo.title')}</p>
-          <div className="segmented" role="group" aria-label={t('app.logo.style')}>
-            {(['gradient', 'flat'] as const).map((st) => <button type="button" key={st} aria-pressed={appearance.logoStyle === st} onClick={() => appearance.setLogoStyle(st)}>{t(`app.logo.${st}`)}</button>)}
-          </div>
-          <div className="logo-grid" role="group" aria-label={t('app.logo.title')}>
-            {LOGOS.map((l) => (
-              <button type="button" key={l} className="logo-option" role="menuitemradio" aria-checked={appearance.logo === l} aria-label={t(`app.logo.${l}`)} title={t(`app.logo.${l}`)} onClick={() => appearance.setLogo(l)}>
-                <LogoMark logo={l} look={appearance.look} style={appearance.logoStyle} size={26} />
-              </button>
-            ))}
-          </div>
-          <p className="logo-name small muted">{t(`app.logo.${appearance.logo}`)}</p>
+          <AppearanceChoices appearance={appearance} />
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -146,19 +167,26 @@ function StatusBar({ waiting }: { waiting: number }) {
       <span><span className="dot" aria-hidden="true" />{s.data.name}</span>
       <a href={hrefFor({ name: 'brain' })}>{t('app.status.notes', { n: s.data.notes })}</a>
       <a href={hrefFor({ name: 'inbox' })}>{t('app.status.waiting', { n: waiting })}</a>
-      {s.data.health ? <a href="/classic#/health">{t('app.status.health', { n: s.data.health.score })}</a> : null}
+      {s.data.health ? <a href={hrefFor({ name: 'upkeep', tab: 'health' })}>{t('app.status.health', { n: s.data.health.score })}</a> : null}
       <span className="spacer" />
       <span>{(s.data.writingLanguage ?? '').slice(0, 2)} · {t('app.status.local')}</span>
     </footer>
   );
 }
 
-export function Shell({ route, title, crumb, children }: { route: Route; title: string; crumb?: string; children: ReactNode }) {
+export type Crumb = { label: string; to?: Route };
+
+/** The appearance, for the pages that change it (the settings page). */
+const AppearanceContext = createContext<Appearance | null>(null);
+export function useAppearanceChoices(): Appearance | null {
+  return useContext(AppearanceContext);
+}
+
+export function Shell({ route, title, crumb, children }: { route: Route; title: string; crumb?: Crumb; children: ReactNode }) {
   const t = useT();
   const waiting = useWaitingCount();
   const appearance = useAppearance();
-  const modules = useQuery({ queryKey: ['modules'], queryFn: () => get<Modules>('/api/modules'), staleTime: 60_000 });
-  const devOn = modules.data ? modules.data.modules.some((m) => m.id === 'dev' && m.enabled) : true;
+  const devOn = useDevModule();
   const [railOpen, setRailOpen] = useState(false);
   const [palette, setPalette] = useState(false);
   const toasts = useToasts();
@@ -168,7 +196,7 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
   useEffect(() => { document.title = `${title} · OKB`; }, [title]);
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLElement && e.target.isContentEditable);
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((v) => !v); }
       else if ((e.metaKey || e.ctrlKey) && e.key === '\\') { e.preventDefault(); appearance.toggleRail(); }
       else if (e.key === '/' && !typing) { e.preventDefault(); setPalette(true); }
@@ -178,8 +206,9 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
   }, [appearance]);
   useEffect(() => { if (currentSession()?.outdated) toast(t('app.outdated')); }, [t]);
 
-  const is = (name: Route['name']) => route.name === name;
-  const nav = (to: Route, icon: ReactNode, label: string, count?: number) => <NavLink to={to} icon={icon} label={label} current={is(to.name)} count={count} folded={folded} />;
+  const entries = NAV.filter((e) => !e.module || devOn);
+  const link = (e: NavEntry) => <NavLink key={e.label} entry={e} current={route.name === e.route.name} count={e.count === 'waiting' ? waiting : undefined} folded={folded} />;
+  const tabs = entries.filter((e) => ['today', 'brain', 'inbox', 'repos', 'learn'].includes(e.route.name));
 
   return (
     <div className="shell" data-rail={appearance.rail}>
@@ -187,50 +216,48 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
       {railOpen ? <div className="rail-scrim" onClick={() => setRailOpen(false)} aria-hidden="true" /> : null}
       <aside className="rail" data-open={railOpen} aria-label={t('app.nav.label')}>
         <div className="rail-top">
-          <a className="rail-brand" href={hrefFor({ name: 'today' })} aria-label="OKB"><LogoMark logo={appearance.logo} look={appearance.look} style={appearance.logoStyle} size={28} /><span className="rail-word">OKB</span></a>
+          <a className="rail-brand" href={hrefFor({ name: 'today' })} aria-label="OKB"><LogoMark logo={appearance.logo} look={appearance.look} style={appearance.style} size={28} /><span className="rail-word">OKB</span></a>
           <button type="button" className="rail-toggle" onClick={appearance.toggleRail} aria-expanded={!folded} aria-keyshortcuts="Meta+Backslash Control+Backslash"
             aria-label={folded ? t('app.rail.expand') : t('app.rail.collapse')} title={`${folded ? t('app.rail.expand') : t('app.rail.collapse')} (⌘\\)`}>
-            {folded ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
+            {folded ? <PanelLeftOpen size={17} aria-hidden="true" /> : <PanelLeftClose size={17} aria-hidden="true" />}
           </button>
         </div>
         <KbSwitcher folded={folded} />
-        <nav className="rail-section" aria-label={t('app.nav.main')}>
-          {nav({ name: 'today' }, <SunMedium size={18} aria-hidden="true" />, t('app.nav.today'))}
-          {nav({ name: 'brain' }, <Brain size={18} aria-hidden="true" />, t('app.nav.brain'))}
-          {nav({ name: 'ask' }, <MessageCircleQuestion size={18} aria-hidden="true" />, t('app.nav.ask'))}
-          {nav({ name: 'inbox' }, <Inbox size={18} aria-hidden="true" />, t('app.nav.inbox'), waiting)}
-          {devOn ? nav({ name: 'repos' }, <FolderGit2 size={18} aria-hidden="true" />, t('app.nav.repos')) : null}
-          {nav({ name: 'learn' }, <GraduationCap size={18} aria-hidden="true" />, t('app.nav.learn'))}
-          <NavLink href="/classic#/graph" icon={<Network size={18} aria-hidden="true" />} label={t('app.nav.graph')} folded={folded} />
+        <nav className="rail-section" aria-label={t('app.nav.section.brain')}>
+          <p className="rail-heading">{t('app.nav.section.brain')}</p>
+          {entries.filter((e) => e.section === 'brain').map(link)}
         </nav>
-        <div className="rail-foot">
-          {nav({ name: 'modules' }, <Puzzle size={18} aria-hidden="true" />, t('app.nav.modules'))}
-          {nav({ name: 'claude' }, <Terminal size={18} aria-hidden="true" />, t('app.nav.claude'))}
-          <NavLink href="/classic#/settings" icon={<Settings size={18} aria-hidden="true" />} label={t('app.nav.settings')} folded={folded} />
-          <NavLink href="/classic" icon={<History size={18} aria-hidden="true" />} label={t('app.nav.classic')} folded={folded} />
-        </div>
+        <nav className="rail-section rail-foot" aria-label={t('app.nav.section.okb')}>
+          <p className="rail-heading">{t('app.nav.section.okb')}</p>
+          {entries.filter((e) => e.section === 'okb').map(link)}
+        </nav>
       </aside>
       <div className="main">
         <header className="topbar">
           <button type="button" className="btn ghost icon menu-btn" aria-label={t('app.nav.open')} aria-expanded={railOpen} onClick={() => setRailOpen(true)}><Menu size={20} aria-hidden="true" /></button>
-          <h1 className="topbar-title">{crumb && crumb !== title ? <span className="topbar-crumb">{crumb} / </span> : null}{title}</h1>
-          <span className="spacer" />
-          <button type="button" className="btn search-btn" onClick={() => setPalette(true)} aria-keyshortcuts="Meta+K" aria-label={t('app.search.open')}>
-            <Search size={15} aria-hidden="true" /><span className="hide-narrow">{t('app.search.placeholder')}</span><kbd aria-hidden="true">⌘K</kbd>
+          <h1 className="topbar-title">
+            {crumb && crumb.label !== title ? <>{crumb.to ? <a className="topbar-crumb" href={hrefFor(crumb.to)}>{crumb.label}</a> : <span className="topbar-crumb">{crumb.label}</span>}<ChevronRight size={15} aria-hidden="true" /></> : null}
+            <span>{title}</span>
+          </h1>
+          <button type="button" className="search-btn" onClick={() => setPalette(true)} aria-keyshortcuts="Meta+K" aria-label={t('app.search.open')}>
+            <Search size={16} aria-hidden="true" /><span className="hide-narrow">{t('app.search.placeholder')}</span><kbd aria-hidden="true">⌘K</kbd>
           </button>
           <ThemeMenu appearance={appearance} />
         </header>
-        <main id="main" tabIndex={-1}>{children}</main>
+        <main id="main" tabIndex={-1}><AppearanceContext.Provider value={appearance}>{children}</AppearanceContext.Provider></main>
         <StatusBar waiting={waiting} />
       </div>
       <nav className="tabbar" aria-label={t('app.nav.main')}>
-        <a href={hrefFor({ name: 'today' })} aria-current={is('today') ? 'page' : undefined}><SunMedium size={20} aria-hidden="true" />{t('app.nav.today')}</a>
-        <a href={hrefFor({ name: 'brain' })} aria-current={is('brain') ? 'page' : undefined}><Brain size={20} aria-hidden="true" />{t('app.nav.brain')}</a>
-        <a href={hrefFor({ name: 'inbox' })} aria-current={is('inbox') ? 'page' : undefined}><Inbox size={20} aria-hidden="true" />{t('app.nav.inbox')}{waiting ? <span className="count">{waiting}</span> : null}</a>
-        {devOn ? <a href={hrefFor({ name: 'repos' })} aria-current={is('repos') ? 'page' : undefined}><FolderGit2 size={20} aria-hidden="true" />{t('app.nav.repos')}</a> : null}
-        <a href={hrefFor({ name: 'learn' })} aria-current={is('learn') ? 'page' : undefined}><GraduationCap size={20} aria-hidden="true" />{t('app.nav.learn')}</a>
+        {tabs.map((e) => {
+          const Icon = e.icon;
+          return (
+            <a key={e.label} href={hrefFor(e.route)} aria-current={route.name === e.route.name ? 'page' : undefined}>
+              <Icon size={22} strokeWidth={1.8} aria-hidden="true" />{t(e.label)}{e.count === 'waiting' && waiting ? <span className="count">{waiting}</span> : null}
+            </a>
+          );
+        })}
       </nav>
-      <Palette open={palette} onOpenChange={setPalette} appearance={appearance} />
+      <Palette open={palette} onOpenChange={setPalette} appearance={appearance} devOn={devOn} />
       <div className="toasts" role="status" aria-live="polite">
         {toasts.map((x) => <div key={x.id} className={`toast${x.kind === 'err' ? ' err' : ''}`}>{x.text}</div>)}
       </div>

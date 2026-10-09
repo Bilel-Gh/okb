@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Download } from 'lucide-react';
+import { Blocks, Brain, Briefcase, Check, Download, FolderGit2, ServerCog } from 'lucide-react';
+import type { ReactElement } from 'react';
 import { get, post } from '../app/api';
 import { useT } from '../app/i18n';
 import { toast } from '../app/toast';
@@ -9,6 +10,7 @@ type Module = {
   id: string; status: 'core' | 'available' | 'planned'; name: string; pitch: string; brings: string[]; plugin: string | null;
   enabled: boolean; entitled: boolean; claude: { installed: boolean; version: string | null } | null;
 };
+const ICONS: Record<string, ReactElement> = { core: <Brain size={20} />, dev: <FolderGit2 size={20} />, devops: <ServerCog size={20} />, sales: <Briefcase size={20} /> };
 
 /** The core and one module per job: what each brings, turn it on or off, add it to Claude Code. */
 export default function Modules() {
@@ -29,30 +31,31 @@ export default function Modules() {
   if (q.error || !q.data) return <div className="page"><ErrorState error={q.error} retry={() => void q.refetch()} /></div>;
   return (
     <div className="page">
-      <p className="muted" style={{ maxWidth: '72ch' }}>{t('app.modules.intro')}</p>
-      <ul className="module-grid">
-        {q.data.modules.map((m) => (
-          <li key={m.id} className={`panel module${m.status === 'planned' ? ' planned' : ''}`}>
-            <div className="panel-head">
-              <h2>{m.name}</h2>
-              <span className="spacer" />
-              {m.status === 'core' ? <span className="pill ok">{t('app.modules.always')}</span> : m.status === 'planned' ? <span className="pill">{t('modules.planned')}</span> : m.enabled ? <span className="pill ok"><Check size={12} aria-hidden="true" />{t('modules.enabled')}</span> : <span className="pill">{t('modules.disabled')}</span>}
-            </div>
-            <div className="panel-body stack">
+      <p className="page-intro">{t('app.modules.intro')}</p>
+      <ul className="modules">
+        {q.data.modules.map((m) => {
+          const planned = m.status === 'planned';
+          return (
+            <li key={m.id} className={`panel module${planned ? ' dashed soon' : ''}`}>
+              <div className="module-head">
+                <span className={`tile${planned ? ' off' : ''}`} aria-hidden="true">{ICONS[m.id] ?? <Blocks size={20} />}</span>
+                <div className="stack" style={{ gap: 4 }}>
+                  <h3>{m.name}</h3>
+                  {m.status === 'core' ? <span className="pill sm ok"><Check size={12} aria-hidden="true" />{t('app.modules.always')}</span> : planned ? <span className="pill sm">{t('modules.planned')}</span> : m.enabled ? <span className="pill sm ok"><Check size={12} aria-hidden="true" />{t('modules.enabled')}</span> : <span className="pill sm">{t('modules.disabled')}</span>}
+                </div>
+              </div>
               <p>{m.pitch}</p>
-              <ul className="brings">{m.brings.map((b) => <li key={b}>{b}</li>)}</ul>
+              {m.brings.length ? <ul className="brings">{m.brings.map((b) => <li key={b}><Check size={14} aria-hidden="true" />{b}</li>)}</ul> : null}
               {m.claude ? <p className="xs muted">{m.claude.installed ? t('modules.claudeYes', { version: m.claude.version ?? '?' }) : t('modules.claudeNo')}</p> : null}
-              {m.status !== 'planned' ? (
-                <div className="row wrap">
-                  {m.status === 'available' ? (
-                    <button type="button" className={`btn sm${m.enabled ? '' : ' primary'}`} disabled={toggle.isPending} onClick={() => toggle.mutate({ id: m.id, on: !m.enabled })}>{m.enabled ? t('app.modules.turnOff') : t('app.modules.turnOn')}</button>
-                  ) : null}
-                  {m.plugin && !m.claude?.installed ? <button type="button" className="btn sm" disabled={install.isPending} aria-busy={install.isPending} onClick={() => install.mutate(m.id)}><Download size={14} aria-hidden="true" />{t('app.modules.install')}</button> : null}
+              {!planned ? (
+                <div className="module-foot">
+                  {m.status === 'available' ? <button type="button" className="btn sm" disabled={toggle.isPending} onClick={() => toggle.mutate({ id: m.id, on: !m.enabled })}>{m.enabled ? t('app.modules.turnOff') : t('app.modules.turnOn')}</button> : null}
+                  {m.plugin && !m.claude?.installed ? <button type="button" className="btn sm primary" disabled={install.isPending} aria-busy={install.isPending} onClick={() => install.mutate(m.id)}><Download size={14} aria-hidden="true" />{t('app.modules.install')}</button> : null}
                 </div>
               ) : null}
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

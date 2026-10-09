@@ -1,111 +1,129 @@
 /*
  * OKB 1.5 — two themes to choose from, each light or dark (`data-theme`,
- * `data-mode` on <html>; see DESIGN.md).
- *   Atelier   — a developer's tool: dense, violet, monospace for paths and numbers.
- *   Classique — the interface of the first versions: emerald, airy, rounded cards.
- * One accent per theme, drawn as a gradient like the logo: the main action, the
- * current place, the focus. Data (types, levels) keeps plain colours to stay readable.
+ * `data-mode` on <html>; see DESIGN.md), drawn in gradient or flat
+ * (`data-style`), the same way everywhere.
+ *   Atelier   — violet, a dark side bar and a status bar, like an editor.
+ *   Classique — green, a light side bar, the interface of the first versions.
+ * Both themes share one font (Inter), one set of sizes and radii, one structure:
+ * only the colours change. Monospace is for code only.
  */
 :root {
-  /* type: fixed rem steps; the body size is the theme's */
-  --t-xs: 0.75rem; --t-sm: 0.8125rem; --t-md: 0.875rem; --t-lg: 1.0625rem; --t-xl: 1.25rem; --t-2xl: 1.5rem; --t-3xl: 1.875rem;
-  --lh-tight: 1.25; --lh: 1.55; --lh-read: 1.7;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-num: var(--font);
+
+  /* type: fixed rem steps */
+  --t-xs: 0.75rem; --t-sm: 0.8125rem; --t-md: 0.875rem; --t-lg: 1rem; --t-xl: 1.25rem; --t-2xl: 1.75rem; --t-3xl: 2rem;
+  --lh-tight: 1.25; --lh: 1.5; --lh-read: 1.72;
 
   /* space: 4 px grid */
-  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s14: 56px;
-  --r-pill: 999px;
-  --rail-open: 232px; --rail-folded: 56px; --topbar-h: 56px; --status-h: 0px; --measure: 70ch;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s7: 28px; --s8: 32px; --s10: 40px; --s14: 56px;
+  --r-sm: 8px; --r: 10px; --r-lg: 14px; --r-btn: 8px; --r-pill: 999px;
+  --rail-open: 240px; --rail-folded: 64px; --topbar-h: 60px; --status-h: 0px; --row-h: 48px; --measure: 68ch;
   --ease: cubic-bezier(.2, .8, .2, 1); --fast: 150ms; --base: 220ms;
+
+  /* Note types: the server gives each its colour; these are the fallbacks for products and charts. */
+  --c-p1: #3b82f6; --c-p2: #f97316; --c-p3: #0d9488; --c-p4: #8b5cf6; --c-p5: #db2777; --c-p6: #65a30d;
 }
 
 /* ------------------------------------------------------------ Atelier */
 :root, :root[data-theme='atelier'] {
-  --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --font-num: var(--mono);
-  --t-md: 0.84375rem; --row-h: 44px; --topbar-h: 48px; --status-h: 24px;
-  --r-sm: 4px; --r: 6px; --r-lg: 8px; --r-btn: 5px;
-
-  --ground: #f5f5f9; --surface: #ffffff; --sunk: #efeff5; --hover: #ececf4;
-  --ink: #1b1b2a; --ink-2: #3c3c52; --ink-3: #5f5f78;
-  --hair: #e2e2eb; --hair-strong: #cacad8;
-  --accent: #5b4be0; --on-accent: #ffffff; --accent-hover: #4c3cd2; --accent-soft: #ecebfd; --accent-text: #4a3bcc;
-  --focus: #5b4be0;
+  --status-h: 30px;
+  --ground: #f6f6f9; --surface: #ffffff; --sunk: #f2f2f7; --hover: #f0f0f6;
+  --ink: #17171f; --ink-2: #3d3d4e; --ink-3: #6a6a80;
+  --hair: #e7e7ef; --hair-strong: #d6d6e2;
+  --accent: #5b4be0; --accent-text: #4a3bcc; --accent-soft: #efedff; --on-accent: #ffffff; --focus: #5b4be0;
+  /* Filled things with words on them stay readable on their lightest stop (WCAG AA). */
+  --grad: linear-gradient(135deg, #6e5ef0 0%, #5b4be0 52%, #4535c6 100%);
+  --grad-hover: linear-gradient(135deg, #6250ec 0%, #4f3fd8 52%, #3d2eb8 100%);
+  --grad-bright: linear-gradient(90deg, #a597ff, #5b4be0);
+  --grad-soft: linear-gradient(135deg, #f4f2ff 0%, #ffffff 62%);
+  --glow: radial-gradient(closest-side, rgb(110 94 240 / .16), transparent);
+  --flat: #5b4be0; --flat-hover: #4c3cd2;
   /* The side bar stays dark in both modes, like an editor's activity bar. */
-  --nav-bg: #1d1d2b; --nav-ink: #e8e8f2; --nav-ink-2: #a3a3bd; --nav-hover: #2a2a3c; --nav-on: #2f2b52; --nav-on-ink: #ffffff; --nav-hair: #2c2c3e;
-  --status-bg: linear-gradient(90deg, #5b4be0, #3f2fbf); --status-ink: #ffffff;
-  --code-bg: #1d1d2b; --code-ink: #e0e0ee;
-  /* Gradients: the main button's, and the soft wash behind what is current. */
-  --accent-grad: linear-gradient(135deg, #6e5ef0, #4b3ad4); --accent-grad-hover: linear-gradient(135deg, #6250ec, #3f2fbf);
-  --wash: linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
-
-  --ok: #137341; --ok-soft: #e3f5ea; --warn: #8f5300; --warn-soft: #fbf0dc; --err: #b7283d; --err-soft: #fbe5e8; --info: #2d62c4; --info-soft: #e6effd;
-  --add: #e3f5ea; --add-ink: #14532d; --del: #fbe5e8; --del-ink: #8f1d34;
-  --shadow-1: 0 1px 2px rgb(20 20 40 / .05);
-  --shadow-2: 0 10px 30px rgb(20 20 40 / .12), 0 2px 6px rgb(20 20 40 / .06);
-  --shadow-3: 0 24px 64px rgb(20 20 40 / .24), 0 6px 16px rgb(20 20 40 / .10);
+  --nav-bg: #18181f; --nav-raised: #22222c; --nav-hover: #252531; --nav-ink: #f0f0f6; --nav-ink-2: #b4b4c6; --nav-muted: #8a8aa0; --nav-hair: #18181f;
+  --nav-count-bg: #2c2a44; --nav-count-ink: #cfc8ff;
+  --code-bg: #18181f; --code-ink: #e4e4ee;
+  --ok: #157347; --ok-soft: #e4f5eb; --warn: #8c5600; --warn-soft: #fcf1dd; --err: #b42335; --err-soft: #fce8eb; --info: #2d62c4; --info-soft: #e6effd;
+  --add: #e4f5eb; --add-ink: #14532d; --del: #fce8eb; --del-ink: #8f1d34;
+  --shadow-1: 0 1px 2px rgb(23 23 31 / .04), 0 1px 3px rgb(23 23 31 / .04);
+  --shadow-2: 0 12px 32px rgb(23 23 31 / .12), 0 2px 6px rgb(23 23 31 / .06);
+  --shadow-3: 0 24px 64px rgb(23 23 31 / .24), 0 6px 16px rgb(23 23 31 / .10);
   color-scheme: light;
 }
 :root[data-theme='atelier'][data-mode='dark'], :root:not([data-theme])[data-mode='dark'] {
-  --ground: #14141c; --surface: #1a1a24; --sunk: #111118; --hover: #23232f;
-  --ink: #dcdcea; --ink-2: #b9b9cc; --ink-3: #8e8ea8;
-  --hair: #2b2b3a; --hair-strong: #3a3a4d;
-  --accent: #8b7cf6; --on-accent: #12101f; --accent-hover: #9d90f8; --accent-soft: #272340; --accent-text: #b2a8ff;
-  --focus: #a99cff;
-  --nav-bg: #0f0f15; --nav-hover: #20202c; --nav-on: #272340; --nav-hair: #23232f;
-  --status-bg: linear-gradient(90deg, #3b3176, #2a2358); --status-ink: #ecebff;
-  --code-bg: #101017; --code-ink: #d6d6e8;
-  --accent-grad: linear-gradient(135deg, #a497ff, #7c6cf6); --accent-grad-hover: linear-gradient(135deg, #b1a6ff, #8b7cf6);
-  --wash: linear-gradient(90deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent) 6%, transparent));
-  --ok: #4fd18b; --ok-soft: #15291f; --warn: #f2b45a; --warn-soft: #2d2415; --err: #ff7a8c; --err-soft: #33161d; --info: #8fb0ff; --info-soft: #172038;
-  --add: #15291f; --add-ink: #8ce6b2; --del: #33161d; --del-ink: #ffa3b0;
-  --shadow-1: 0 1px 2px rgb(0 0 0 / .4);
-  --shadow-2: 0 10px 30px rgb(0 0 0 / .5);
+  --ground: #111117; --surface: #17171f; --sunk: #1d1d27; --hover: #1f1f2a;
+  --ink: #ececf3; --ink-2: #c4c4d2; --ink-3: #9090a6;
+  --hair: #262632; --hair-strong: #33333f;
+  --accent: #8b7cf6; --accent-text: #b4a9ff; --accent-soft: #252140; --on-accent: #ffffff; --focus: #a99cff;
+  --grad: linear-gradient(135deg, #6e5ef0 0%, #5b4be0 52%, #4535c6 100%);
+  --grad-hover: linear-gradient(135deg, #7a6bf4 0%, #6656e6 52%, #4f3fd0 100%);
+  --grad-bright: linear-gradient(90deg, #a597ff, #6e5ef0);
+  --grad-soft: linear-gradient(135deg, #1f1b38 0%, #17171f 62%);
+  --glow: radial-gradient(closest-side, rgb(139 124 246 / .22), transparent);
+  --flat: #6e5ef0; --flat-hover: #7a6bf4;
+  --nav-bg: #0d0d12; --nav-raised: #17171f; --nav-hover: #1a1a23; --nav-hair: #1d1d27;
+  --code-bg: #0d0d12; --code-ink: #dcdcea;
+  --ok: #4fd18b; --ok-soft: #13281c; --warn: #f2b45a; --warn-soft: #2c2314; --err: #ff7a8c; --err-soft: #331820; --info: #8fb0ff; --info-soft: #172038;
+  --add: #13281c; --add-ink: #8ce6b2; --del: #331820; --del-ink: #ffa3b0;
+  --shadow-1: none;
+  --shadow-2: 0 12px 32px rgb(0 0 0 / .5);
   --shadow-3: 0 24px 64px rgb(0 0 0 / .65);
   color-scheme: dark;
 }
 
 /* ------------------------------------------------------------ Classique */
 :root[data-theme='classique'] {
-  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --font-num: var(--font);
-  --t-md: 0.90625rem; --row-h: 52px; --topbar-h: 56px; --status-h: 0px;
-  --r-sm: 8px; --r: 12px; --r-lg: 14px; --r-btn: 8px;
-
-  --ground: #f6f7f9; --surface: #ffffff; --sunk: #f1f3f6; --hover: #f1f5f9;
-  --ink: #0f172a; --ink-2: #334155; --ink-3: #5f6e84;
-  --hair: #e3e7ec; --hair-strong: #cfd6de;
-  --accent: #08845b; --on-accent: #ffffff; --accent-hover: #077350; --accent-soft: #e7f6ef; --accent-text: #087a55;
-  --focus: #0e9f6e;
-  --nav-bg: #ffffff; --nav-ink: #0f172a; --nav-ink-2: #475569; --nav-hover: #f1f5f9; --nav-on: #e7f6ef; --nav-on-ink: #065f46; --nav-hair: #e3e7ec;
-  --status-bg: linear-gradient(90deg, #08845b, #0b6a7d); --status-ink: #ffffff;
-  --code-bg: #0f172a; --code-ink: #e2e8f0;
-  --accent-grad: linear-gradient(135deg, #08845b, #0b6a7d); --accent-grad-hover: linear-gradient(135deg, #077350, #095a6a);
-  --wash: linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 3%, transparent));
-
-  --ok: #137341; --ok-soft: #e9f8ee; --warn: #8f5300; --warn-soft: #fdf3e2; --err: #b7283d; --err-soft: #fdecec; --info: #1d4ed8; --info-soft: #e9f0fe;
-  --add: #e6f6ec; --add-ink: #166534; --del: #fdecee; --del-ink: #9f1239;
-  --shadow-1: 0 1px 2px rgb(15 23 42 / .05), 0 1px 1px rgb(15 23 42 / .03);
-  --shadow-2: 0 8px 24px rgb(15 23 42 / .08), 0 2px 6px rgb(15 23 42 / .05);
-  --shadow-3: 0 24px 60px rgb(15 23 42 / .18);
+  --status-h: 0px;
+  --ground: #f6f7f9; --surface: #ffffff; --sunk: #f2f4f7; --hover: #f2f5f8;
+  --ink: #101828; --ink-2: #344054; --ink-3: #667085;
+  --hair: #e4e7ec; --hair-strong: #d0d5dd;
+  --accent: #0a8a5e; --accent-text: #087a55; --accent-soft: #e6f6ee; --on-accent: #ffffff; --focus: #0a8a5e;
+  --grad: linear-gradient(135deg, #098257 0%, #0a7a5c 52%, #0b6f86 100%);
+  --grad-hover: linear-gradient(135deg, #087550 0%, #086d52 52%, #095f73 100%);
+  --grad-bright: linear-gradient(90deg, #34d399, #0a8a5e);
+  --grad-soft: linear-gradient(135deg, #ecfaf3 0%, #ffffff 62%);
+  --glow: radial-gradient(closest-side, rgb(16 185 129 / .18), transparent);
+  --flat: #08845b; --flat-hover: #077350;
+  --nav-bg: #ffffff; --nav-raised: #f6f7f9; --nav-hover: #f2f5f8; --nav-ink: #101828; --nav-ink-2: #475467; --nav-muted: #667085; --nav-hair: #e4e7ec;
+  --nav-count-bg: #e6f6ee; --nav-count-ink: #087a55;
+  --code-bg: #101828; --code-ink: #e4e7ec;
+  --ok: #157347; --ok-soft: #e7f6ec; --warn: #8c5600; --warn-soft: #fdf3e2; --err: #b42335; --err-soft: #fdecec; --info: #1d4ed8; --info-soft: #e9f0fe;
+  --add: #e7f6ec; --add-ink: #166534; --del: #fdecee; --del-ink: #9f1239;
+  --shadow-1: 0 1px 2px rgb(16 24 40 / .05);
+  --shadow-2: 0 12px 28px rgb(16 24 40 / .10), 0 2px 6px rgb(16 24 40 / .05);
+  --shadow-3: 0 24px 60px rgb(16 24 40 / .18);
   color-scheme: light;
 }
 :root[data-theme='classique'][data-mode='dark'] {
-  --ground: #0a0e13; --surface: #10161d; --sunk: #0c1117; --hover: #151c25;
-  --ink: #e6ebf1; --ink-2: #c3ccd8; --ink-3: #8a99ab;
-  --hair: #212b37; --hair-strong: #2d3a49;
-  --accent: #34d399; --on-accent: #052e1f; --accent-hover: #6ee7b7; --accent-soft: #0f2a22; --accent-text: #6ee7b7;
-  --focus: #34d399;
-  --nav-bg: #0d1218; --nav-ink: #e6ebf1; --nav-ink-2: #9aa8b8; --nav-hover: #151c25; --nav-on: #0f2a22; --nav-on-ink: #6ee7b7; --nav-hair: #1b242f;
-  --status-bg: linear-gradient(90deg, #0f2a22, #0c2a2e); --status-ink: #a7f3d0;
-  --code-bg: #0b1016; --code-ink: #d6dee8;
-  --accent-grad: linear-gradient(135deg, #34d399, #14b8a6); --accent-grad-hover: linear-gradient(135deg, #6ee7b7, #2dd4bf);
-  --wash: linear-gradient(90deg, color-mix(in srgb, var(--accent) 18%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
+  --ground: #0b0f14; --surface: #11161d; --sunk: #161c25; --hover: #18202a;
+  --ink: #e8edf3; --ink-2: #c2ccd8; --ink-3: #8b99aa;
+  --hair: #212a35; --hair-strong: #2d3846;
+  --accent: #34d399; --accent-text: #6ee7b7; --accent-soft: #0f2a21; --on-accent: #04261a; --focus: #34d399;
+  --grad: linear-gradient(135deg, #6ee7b7 0%, #34d399 45%, #14b8a6 100%);
+  --grad-hover: linear-gradient(135deg, #86efc4 0%, #4ade80 45%, #2dd4bf 100%);
+  --grad-bright: linear-gradient(90deg, #6ee7b7, #14b8a6);
+  --grad-soft: linear-gradient(135deg, #0f251e 0%, #11161d 62%);
+  --glow: radial-gradient(closest-side, rgb(52 211 153 / .18), transparent);
+  --flat: #34d399; --flat-hover: #6ee7b7;
+  --nav-bg: #0d1218; --nav-raised: #131a22; --nav-hover: #151c25; --nav-ink: #e8edf3; --nav-ink-2: #a3b0bf; --nav-muted: #7d8da2; --nav-hair: #18202a;
+  --nav-count-bg: #0f2a21; --nav-count-ink: #6ee7b7;
+  --code-bg: #080b10; --code-ink: #dbe3ec;
   --ok: #4ade80; --ok-soft: #10251a; --warn: #fbbf24; --warn-soft: #2a2010; --err: #f87171; --err-soft: #2c1414; --info: #60a5fa; --info-soft: #111e33;
   --add: #0f2a1b; --add-ink: #86efac; --del: #2c1219; --del-ink: #fda4af;
   --shadow-1: none;
-  --shadow-2: 0 8px 24px rgb(0 0 0 / .45);
+  --shadow-2: 0 12px 28px rgb(0 0 0 / .45);
   --shadow-3: 0 24px 60px rgb(0 0 0 / .6);
   color-scheme: dark;
+}
+
+/* ------------------------------------------------------------ gradient or flat, the same everywhere */
+:root {
+  --fill: var(--grad); --fill-hover: var(--grad-hover); --fill-bar: var(--grad-bright);
+  --hero: var(--grad-soft); --hero-glow: var(--glow);
+  --wash: var(--accent-soft);
+}
+:root[data-style='flat'] {
+  --fill: var(--flat); --fill-hover: var(--flat-hover); --fill-bar: var(--accent);
+  --hero: var(--surface); --hero-glow: none;
 }

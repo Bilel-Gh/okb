@@ -1,14 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
+import { useSyncExternalStore } from 'react';
 import { get } from './api';
 import { useT } from './i18n';
 
+/** Light or dark as shown right now: components that pick a colour by hand follow a switch at once. */
+function subscribeScheme(on: () => void): () => void {
+  if (typeof MutationObserver === 'undefined') return () => undefined;
+  const observer = new MutationObserver(on);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode', 'data-theme', 'data-style'] });
+  return () => observer.disconnect();
+}
+export function useScheme(): 'light' | 'dark' {
+  return useSyncExternalStore(subscribeScheme, () => (document.documentElement.dataset.mode === 'dark' ? 'dark' : 'light'), () => 'light');
+}
+
 /** Note categories, each with its emoji and its colour for light or dark. */
-export type Category = { id: string; emoji: string; label: { fr: string; en: string }; color: string; colorDark: string; count?: number };
+export type Category = { id: string; emoji: string; label: { fr: string; en: string }; singular?: { fr: string; en: string }; description?: { fr: string; en: string }; color: string; colorDark: string; count?: number };
 
 export function useCategories() {
   const t = useT();
   const q = useQuery({ queryKey: ['categories'], queryFn: () => get<{ categories: Category[] }>('/api/categories'), staleTime: 60_000 });
-  const dark = typeof document !== 'undefined' && document.documentElement.dataset.mode === 'dark';
+  const dark = useScheme() === 'dark';
   const byId = new Map((q.data?.categories ?? []).map((c) => [c.id, c]));
   return {
     list: q.data?.categories ?? [],
@@ -34,3 +46,9 @@ export function rememberNote(r: Omit<Recent, 'at'>): void {
 /** Each drawer of a brain has its colour, for its number in the side lists. */
 export const DRAWER_COLOR: Readonly<Record<string, string>> = { inbox: '#64748b', world: '#0891b2', subjects: '#2563eb', toolbox: '#059669', activity: '#7c3aed' };
 export const DRAWER_BY_NUMBER: readonly string[] = ['inbox', 'world', 'subjects', 'toolbox', 'activity'];
+
+/** Every note of the brain, light: its place, title, type and category (one request, shared by the pages). */
+export type NoteRow = { path: string; title: string; description: string; type: string; status: string; category: string };
+export function useNotes(enabled = true) {
+  return useQuery({ queryKey: ['notes'], queryFn: () => get<{ notes: NoteRow[] }>('/api/notes'), staleTime: 30_000, enabled });
+}

@@ -17,49 +17,49 @@ export default function ClaudePage() {
     onSuccess: (r) => { r.ok ? toast(t('app.claude.installed')) : toast(t('modules.installFailed', { error: r.error ?? '' }), 'err'); void qc.invalidateQueries({ queryKey: ['claude'] }); void qc.invalidateQueries({ queryKey: ['modules'] }); },
     onError: (e) => toast((e as Error).message, 'err'),
   });
-  if (q.isLoading) return <div className="page"><SkeletonRows rows={6} /></div>;
-  if (q.error || !q.data) return <div className="page"><ErrorState error={q.error} retry={() => void q.refetch()} /></div>;
-  const core = q.data.plugins.okb?.installed;
-  const dev = q.data.plugins['okb-dev']?.installed;
+  if (q.isLoading) return <div className="page narrow"><SkeletonRows rows={6} /></div>;
+  if (q.error || !q.data) return <div className="page narrow"><ErrorState error={q.error} retry={() => void q.refetch()} /></div>;
+  const core = Boolean(q.data.plugins.okb?.installed);
+  const dev = Boolean(q.data.plugins['okb-dev']?.installed);
   const steps = [
-    { done: q.data.cli, title: t('app.claude.step1'), body: t('app.claude.step1Body') },
-    { done: Boolean(core), title: t('app.claude.step2'), body: t('app.claude.step2Body') },
-    { done: Boolean(dev), title: t('app.claude.step3'), body: t('app.claude.step3Body') },
-    { done: false, title: t('app.claude.step4'), body: t('app.claude.step4Body') },
+    { done: q.data.cli, title: t('app.claude.step1'), body: t('app.claude.step1Body'), action: null },
+    { done: core, title: t('app.claude.step2'), body: t('app.claude.step2Body'), action: q.data.cli && !core ? 'core' : null },
+    { done: dev, title: t('app.claude.step3'), body: t('app.claude.step3Body'), action: q.data.cli && core && !dev ? 'dev' : null },
+    { done: false, title: t('app.claude.step4'), body: t('app.claude.step4Body'), action: null },
   ];
+  const now = steps.findIndex((s) => !s.done);
   return (
-    <div className="page" style={{ maxWidth: 920 }}>
-      <section className="stack" style={{ gap: 'var(--s3)' }}>
-        <h2>{t('app.claude.title')}</h2>
-        <p className="muted" style={{ maxWidth: '68ch' }}>{t('app.claude.why')}</p>
-        <ul className="brings">
-          <li>{t('app.claude.bring1')}</li><li>{t('app.claude.bring2')}</li><li>{t('app.claude.bring3')}</li><li>{t('app.claude.bring4')}</li>
-        </ul>
+    <div className="page narrow">
+      <section className="panel hero claude-hero">
+        <div className="stack" style={{ gap: 8 }}>
+          <p className="muted">{t('app.claude.title')}</p>
+          <h2>{t('app.claude.headline')}</h2>
+          <p className="muted">{t('app.claude.why')}</p>
+          <ul className="brings">{['bring1', 'bring2', 'bring3', 'bring4'].map((k) => <li key={k}><Check size={14} aria-hidden="true" />{t(`app.claude.${k}`)}</li>)}</ul>
+        </div>
       </section>
       <section className="panel" aria-labelledby="steps-h">
         <div className="panel-head"><h2 id="steps-h">{t('app.claude.how')}</h2></div>
-        <ol className="steps-line">
-          {steps.map((s, i) => (
-            <li key={s.title} className={s.done ? 'done' : undefined}>
-              <span className="step-dot" aria-hidden="true">{s.done ? <Check size={14} /> : i + 1}</span>
-              <div className="stack" style={{ gap: 4 }}><strong>{s.title}{s.done ? <span className="sr-only"> ({t('app.claude.done')})</span> : null}</strong><span className="small muted">{s.body}</span></div>
-            </li>
-          ))}
-        </ol>
-        <div className="panel-body row wrap">
-          {!q.data.cli ? <p className="notice warn small">{t('app.claude.noCli')}</p> : (
-            <>
-              {!core ? <button type="button" className="btn primary" disabled={install.isPending} aria-busy={install.isPending} onClick={() => install.mutate('core')}><Download size={16} aria-hidden="true" />{t('app.claude.installCore')}</button> : null}
-              {core && !dev ? <button type="button" className="btn primary" disabled={install.isPending} aria-busy={install.isPending} onClick={() => install.mutate('dev')}><Download size={16} aria-hidden="true" />{t('app.claude.installDev')}</button> : null}
-              {core && dev ? <p className="notice info small"><Check size={16} aria-hidden="true" />{t('app.claude.allSet')}</p> : null}
-            </>
-          )}
+        <div className="panel-body">
+          {!q.data.cli ? <p className="notice warn small" style={{ marginBottom: 12 }}>{t('app.claude.noCli')}</p> : null}
+          <ol className="steps">
+            {steps.map((s, i) => (
+              <li key={s.title} className={`step${s.done ? ' done' : i === now ? ' now' : ''}`}>
+                <span className="step-dot num" aria-hidden="true">{s.done ? <Check size={15} /> : i + 1}</span>
+                <div><b>{s.title}{s.done ? <span className="sr-only"> ({t('app.claude.done')})</span> : null}</b><small>{s.body}</small></div>
+                {s.done ? <span className="pill sm ok">{t('app.claude.doneShort')}</span> : s.action ? (
+                  <button type="button" className="btn sm primary" disabled={install.isPending} aria-busy={install.isPending} onClick={() => install.mutate(s.action!)}><Download size={14} aria-hidden="true" />{t('app.claude.add')}</button>
+                ) : <span />}
+              </li>
+            ))}
+          </ol>
+          {core && dev ? <p className="notice ok small"><Check size={16} aria-hidden="true" />{t('app.claude.allSet')}</p> : null}
         </div>
       </section>
       <section className="panel" aria-labelledby="try-h">
         <div className="panel-head"><h2 id="try-h">{t('app.claude.try')}</h2></div>
         <div className="panel-body stack">
-          {['app.claude.ex1', 'app.claude.ex2', 'app.claude.ex3'].map((k) => <code key={k} className="cmd"><Terminal size={14} aria-hidden="true" />{t(k)}</code>)}
+          {['app.claude.ex1', 'app.claude.ex2', 'app.claude.ex3'].map((k) => <code key={k} className="cmd"><Terminal size={13} aria-hidden="true" />{t(k)}</code>)}
         </div>
       </section>
     </div>

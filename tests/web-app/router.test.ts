@@ -25,9 +25,47 @@ describe('the new app reads the same addresses as before', () => {
     expect(parseRoute('#/review')).toMatchObject({ name: 'inbox' });
   });
 
-  it('sends a page not rebuilt yet to the classic app, keeping its address', () => {
-    expect(parseRoute('#/graph?focus=x.md')).toEqual({ name: 'classic', href: '/classic#/graph?focus=x.md' });
-    expect(parseRoute('#/weekly')).toEqual({ name: 'classic', href: '/classic#/weekly' });
+  it('gives every page of the first versions a place in the new destinations', () => {
+    expect(parseRoute('#/home')).toEqual({ name: 'today' });
+    expect(parseRoute('#/focus')).toEqual({ name: 'today', tab: 'focus' });
+    expect(parseRoute('#/focus?done=1')).toEqual({ name: 'today', tab: 'focus', done: true });
+    expect(parseRoute('#/weekly?step=health')).toEqual({ name: 'today', tab: 'week', step: 'health' });
+    expect(parseRoute('#/graph?focus=x.md')).toEqual({ name: 'graph', focus: 'x.md' });
+    expect(parseRoute('#/graph?brain=1')).toEqual({ name: 'graph', brain: true });
+    expect(parseRoute('#/versions/a%2Fb.md')).toEqual({ name: 'brain', path: 'a/b.md', history: true });
+    expect(parseRoute('#/inbox?new=1')).toEqual({ name: 'inbox', tab: 'captures', compose: true });
+    expect(parseRoute('#/inbox?all=1')).toEqual({ name: 'inbox', tab: 'captures', all: true });
+    expect(parseRoute('#/history')).toEqual({ name: 'inbox', tab: 'history' });
+    expect(parseRoute('#/proposal/p-1')).toEqual({ name: 'inbox', tab: 'proposals', id: 'p-1' });
+    expect(parseRoute('#/career')).toEqual({ name: 'learn', tab: 'career' });
+    expect(parseRoute('#/learn/progress')).toEqual({ name: 'learn', tab: 'progress' });
+    expect(parseRoute('#/source')).toEqual({ name: 'tools', tab: 'source' });
+    expect(parseRoute('#/skills')).toEqual({ name: 'tools', tab: 'skills' });
+    expect(parseRoute('#/templates')).toEqual({ name: 'tools', tab: 'templates' });
+    expect(parseRoute('#/categories')).toEqual({ name: 'tools', tab: 'categories' });
+    expect(parseRoute('#/health')).toEqual({ name: 'upkeep', tab: 'health' });
+    expect(parseRoute('#/doctor')).toEqual({ name: 'upkeep', tab: 'doctor' });
+    expect(parseRoute('#/usage')).toEqual({ name: 'upkeep', tab: 'usage' });
+    expect(parseRoute('#/backup')).toEqual({ name: 'upkeep', tab: 'backup' });
+    expect(parseRoute('#/settings')).toEqual({ name: 'settings' });
+    expect(parseRoute('#/settings/appearance')).toEqual({ name: 'settings', tab: 'appearance' });
+    expect(parseRoute('#/kbs')).toEqual({ name: 'settings', tab: 'brains' });
+    expect(parseRoute('#/newkb')).toEqual({ name: 'settings', tab: 'new' });
+    expect(parseRoute('#/help')).toEqual({ name: 'help' });
+  });
+
+  it('opens Today for an address it does not know', () => {
+    expect(parseRoute('#/nowhere/at/all')).toEqual({ name: 'today' });
+  });
+
+  it('writes each destination and its tabs back, so a page can be bookmarked', () => {
+    const routes = [
+      { name: 'today', tab: 'focus' }, { name: 'today', tab: 'week', step: 'health' }, { name: 'graph', focus: 'x.md' }, { name: 'graph', brain: true },
+      { name: 'brain', path: 'a/b.md', history: true }, { name: 'inbox', tab: 'captures' }, { name: 'inbox', tab: 'history' }, { name: 'inbox', tab: 'proposals', id: 'p-1' },
+      { name: 'learn', tab: 'career' }, { name: 'learn', tab: 'progress' }, { name: 'tools', tab: 'templates' }, { name: 'tools' }, { name: 'upkeep', tab: 'usage' }, { name: 'upkeep' },
+      { name: 'settings', tab: 'brains' }, { name: 'settings', tab: 'new' }, { name: 'settings', tab: 'appearance' }, { name: 'help' },
+    ] as const;
+    for (const r of routes) expect(parseRoute(hrefFor(r))).toEqual(r);
   });
 
   it('writes addresses back', () => {

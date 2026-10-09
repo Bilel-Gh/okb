@@ -98,14 +98,19 @@ Dans l'application web (`okb serve`), page **Graphe** :
 - **survoler** un point allume ses voisins ; **cliquer** ouvre un panneau (résumé,
   notes reliées) ; **double-cliquer** ouvre la note ;
 - **« Son voisinage »** ne garde que la note et ce qui l'entoure (à 1, 2 ou 3 liens) ;
-- **la légende** masque ou affiche une catégorie d'un clic ;
-- **filtres** : une zone (un dossier ou un repo), les notes isolées, les pages de
-  navigation ;
-- **regrouper** autrement : par catégorie, par zone, ou disposition libre ;
+- **à droite**, l'onglet **Types** masque ou affiche un type d'un clic, l'onglet
+  **Thèmes détectés** liste les thèmes (leurs notes, leur mélange de types) et cadre
+  celui que tu choisis ; cliquer une note ouvre sa fiche à la place ;
+- **regrouper** en haut : par **thèmes**, par **types**, par **dossiers**, ou
+  **libre** ;
+- **les options** (l'icône à côté) : quand montrer les titres, les notes isolées,
+  les pages de navigation et, dans un espace de travail, le repo à mettre en avant ;
 - **les titres ne se chevauchent jamais** : ceux des notes les plus reliées
   d'abord, les autres apparaissent en zoomant ; survoler une note affiche ses
   voisines ;
-- **la recherche** allume les notes trouvées et va sur celle que tu choisis.
+- **la recherche** allume les notes trouvées et va sur celle que tu choisis ;
+- **« Vu d'en haut »** montre ton cerveau tiroir par tiroir, en bulles : un
+  double-clic descend d'un niveau, le fil d'Ariane remonte.
 
 ### Le nom des thèmes
 

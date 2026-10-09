@@ -920,3 +920,38 @@ Pistes, par ordre proposé :
 - **Des dégradés comme dans le logo**, avec retenue : bouton principal, barre
   d'état, page courante, compteurs, accueil, niveaux. Pas sur les données.
 - Polices servies par OKB : IBM Plex Sans, Inter, JetBrains Mono (Fira retirée).
+
+## D54 — 1.5 finale : une police, un style, toutes les pages (9 octobre 2026)
+
+> Décidée avec l'utilisateur sur la maquette `interface-1-5.html` (« Inter,
+> dégradé, garder les 2 thèmes, clair par défaut ; fais ça pour toutes les
+> pages »). Corrige D53, dont le premier jet mélangeait deux polices, des titres
+> en `// commentaire` et du plat à côté du dégradé.
+
+- **Une seule police, Inter**, dans les deux thèmes ; la chasse fixe ne sert qu'au
+  code (blocs, code en ligne, commandes à copier). IBM Plex Sans n'est plus servie.
+- **Dégradé ou à plat, partout pareil** : un seul réglage (`data-style`, clé
+  `okb-style`) pour le logo, les boutons, la page courante, les badges, les
+  remplissages, l'accueil et la barre d'état ; dégradé par défaut. L'ancien choix
+  « logo à plat » est repris.
+- **Les deux thèmes, la même structure** (mêmes tailles, arrondis 8 · 10 · 14) ;
+  seules les couleurs changent. Plus de `//`, de `~/` ni de types en étiquettes de
+  code : **chaque type de note a son icône** dans un carré teinté de sa couleur ;
+  un type ajouté par une KB garde son emoji.
+- **Toutes les pages dans la nouvelle interface**, regroupées en 13 destinations
+  (Aujourd'hui, Cerveau, Graphe, Demander, À valider, Repos, Apprendre ; Outils,
+  Entretien, Modules, Claude Code, Réglages, Aide), chacune avec des onglets qui ont
+  leur adresse. Les anciennes adresses ouvrent le bon onglet ; une adresse inconnue
+  ouvre Aujourd'hui. L'ancienne interface n'est plus liée ; `/classic` reste servi
+  pour la transition.
+- **Cerveau** : arbre des dossiers dépliable à tous les niveaux ou rangement par
+  types, liste groupée par type ou par dossier et repliable, page d'un dossier
+  (sa page de 5 minutes, ses sous-dossiers) quand aucune note n'est ouverte ;
+  lecteur refait (titre, résumé, type modifiable, graphe local, versions).
+- **Graphe** porté en TypeScript (`web-app/src/graph/GraphView.ts`, d3-force
+  embarqué) : halos de thème teintés, points lumineux pour les notes très reliées,
+  « vu d'en haut » en bulles.
+- Relecture : la sélection fichier par fichier de l'ancienne page revient
+  (décocher un fichier avant d'approuver).
+- **Réexamen** : si l'utilisateur veut revoir une page précise, ou retirer
+  `/classic` une fois la transition finie.

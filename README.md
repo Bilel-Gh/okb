@@ -176,21 +176,21 @@ okb doctor     # check everything; --fix repairs what it can
 
 | Intent | Say it in Claude | Web app | Terminal |
 |---|---|---|---|
-| Jot something down, decide later | “note this: …” | Home · Inbox | `okb capture "…"` |
-| Import a transcript, document, page or code | “read this transcript” | Add a source | via Claude |
-| Find an answer in your notes | “what does my KB say about …” | Search · ⌘K | `okb ask "…"` |
-| Review and apply a proposal | “review the proposals” | To review | `okb review` |
-| Undo the last change | “undo the last change” | History | `okb undo` |
-| End a work session without losing anything | “ok, end of session” | Focus & journal | `okb done` |
-| Weekly review with spaced re-reading | “weekly review” | Weekly review | `okb weekly` |
-| Revise by active recall | “quiz me on this note” | Revise | `/okb:learn` |
-| Get started on a code repository | “I'm new to this repo” · `/okb-dev:onboard` | Repositories | `okb repo add` · `okb repo status` |
-| Feed the repository's KB after a ticket | “I finished my ticket” · `/okb-dev:ticket` | Repositories | `okb ticket done` · `okb repo update` |
-| Work across a team's repositories | “I have ticket ABC-123 on orders-service” · `/okb-dev:workspace` | Repositories | `okb workspace add` · `okb scope` · `okb ticket` |
-| Turn a procedure into a Claude skill | “turn this procedure into a skill” | Procedures → skills | `okb skillify` |
+| Jot something down, decide later | “note this: …” | Today · To review › Captures | `okb capture "…"` |
+| Import a transcript, document, page or code | “read this transcript” | Tools › Add a source | via Claude |
+| Find an answer in your notes | “what does my KB say about …” | Ask · ⌘K | `okb ask "…"` |
+| Review and apply a proposal | “review the proposals” | To review › Proposals | `okb review` |
+| Undo the last change | “undo the last change” | To review › History | `okb undo` |
+| End a work session without losing anything | “ok, end of session” | Today › Focus and journal | `okb done` |
+| Weekly review with spaced re-reading | “weekly review” | Today › Weekly review | `okb weekly` |
+| Revise by active recall | “quiz me on this note” | Learn | `/okb:learn` |
+| Get started on a code repository | “I'm new to this repo” · `/okb-dev:onboard` | Repos | `okb repo add` · `okb repo status` |
+| Feed the repository's KB after a ticket | “I finished my ticket” · `/okb-dev:ticket` | Repos | `okb ticket done` · `okb repo update` |
+| Work across a team's repositories | “I have ticket ABC-123 on orders-service” · `/okb-dev:workspace` | Repos | `okb workspace add` · `okb scope` · `okb ticket` |
+| Turn a procedure into a Claude skill | “turn this procedure into a skill” | Tools › Procedures as skills | `okb skillify` |
 | See all notes and how they connect | “show me my graph” | Graph | `okb categories` |
-| Check and repair the KB | “check my KB” | Health · Diagnostics | `okb maintain` · `okb doctor` |
-| Settings, languages, several KBs | — | Settings · KB switcher | `okb settings` · `okb kb` · `okb new` |
+| Check and repair the KB | “check my KB” | Upkeep | `okb maintain` · `okb doctor` |
+| Settings, languages, several KBs | — | Settings · brain switcher | `okb settings` · `okb kb` · `okb new` |
 
 ![Reviewing a proposal in the web app](docs/images/web-review.png)
 

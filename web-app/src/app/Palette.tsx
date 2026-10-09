@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { Command } from 'cmdk';
-import { ArrowRight, Brain, MessageCircleQuestion, FileText, FolderGit2, GraduationCap, Inbox, Monitor, Moon, PanelLeft, Palette as PaletteIcon, Puzzle, Sun, SunMedium, Terminal } from 'lucide-react';
+import { ArrowRight, MessageCircleQuestion, Monitor, Moon, PanelLeft, Palette as PaletteIcon, Sun } from 'lucide-react';
 import { useEffect, useState, type CSSProperties, type ReactElement } from 'react';
 import { get } from './api';
-import { useCategories } from './data';
+import { useCategories, useNotes } from './data';
 import { useT } from './i18n';
+import { NAV, PLACES } from './nav';
 import { go, type Route } from './router';
 import type { Appearance } from './Shell';
 import { LOGOS, LogoMark } from '../ui/Logo';
+import { CatIcon } from '../ui/CatMark';
+import { TypeMark } from '../ui/TypeMark';
 
 type FindHit = { path: string; title: string; type: string; crumbs: string[]; snippet: string; status: string };
 type Find = { hits: FindHit[]; best: FindHit | null };
@@ -20,26 +23,23 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 /** ⌘K: find a note by a few words (typos and accents forgiven), or go anywhere. */
-export function Palette({ open, onOpenChange, appearance }: { open: boolean; onOpenChange: (v: boolean) => void; appearance: Appearance }) {
+export function Palette({ open, onOpenChange, appearance, devOn }: { open: boolean; onOpenChange: (v: boolean) => void; appearance: Appearance; devOn: boolean }) {
   const t = useT();
   const cats = useCategories();
   const [q, setQ] = useState('');
   const query = useDebounced(q.trim(), 120);
   const find = useQuery({ queryKey: ['find', query], queryFn: () => get<Find>('/api/find', { q: query, limit: 12 }), enabled: open && query.length > 1 });
+  const notes = useNotes(open);
+  const categoryOf = new Map((notes.data?.notes ?? []).map((n) => [n.path, n.category]));
   useEffect(() => { if (!open) setQ(''); }, [open]);
 
   const pick = (route: Route | string) => { onOpenChange(false); go(route); };
-  const pages: { route: Route; label: string; icon: ReactElement }[] = [
-    { route: { name: 'today' }, label: t('app.nav.today'), icon: <SunMedium size={16} aria-hidden="true" /> },
-    { route: { name: 'brain' }, label: t('app.nav.brain'), icon: <Brain size={16} aria-hidden="true" /> },
-    { route: { name: 'inbox' }, label: t('app.nav.inbox'), icon: <Inbox size={16} aria-hidden="true" /> },
-    { route: { name: 'repos' }, label: t('app.nav.repos'), icon: <FolderGit2 size={16} aria-hidden="true" /> },
-    { route: { name: 'learn' }, label: t('app.nav.learn'), icon: <GraduationCap size={16} aria-hidden="true" /> },
-    { route: { name: 'modules' }, label: t('app.nav.modules'), icon: <Puzzle size={16} aria-hidden="true" /> },
-    { route: { name: 'claude' }, label: t('app.nav.claude'), icon: <Terminal size={16} aria-hidden="true" /> },
-  ];
-
-  const shownPages = pages.filter((p) => !query || p.label.toLowerCase().includes(query.toLowerCase()));
+  // Every destination, then the pages inside them (the week's review, the health, the templates…).
+  const pages = [...NAV, ...PLACES].filter((p) => !p.module || devOn).map((p) => {
+    const Icon = p.icon;
+    return { route: p.route, label: t(p.label), icon: <Icon size={16} aria-hidden="true" /> };
+  });
+  const shownPages = pages.filter((p, i) => (query ? p.label.toLowerCase().includes(query.toLowerCase()) : i < NAV.length));
   // The appearance, from the keyboard: a theme, light or dark, the side bar.
   const looks: { id: string; label: string; icon: ReactElement; run: () => void }[] = [
     { id: 'atelier', label: `${t('app.theme.look')} : ${t('app.theme.atelier')}`, icon: <PaletteIcon size={16} aria-hidden="true" />, run: () => appearance.setLook('atelier') },
@@ -48,8 +48,8 @@ export function Palette({ open, onOpenChange, appearance }: { open: boolean; onO
     { id: 'dark', label: `${t('app.theme.mode')} : ${t('app.mode.dark')}`, icon: <Moon size={16} aria-hidden="true" />, run: () => appearance.setMode('dark') },
     { id: 'auto', label: `${t('app.theme.mode')} : ${t('app.mode.auto')}`, icon: <Monitor size={16} aria-hidden="true" />, run: () => appearance.setMode('auto') },
     { id: 'rail', label: appearance.rail === 'collapsed' ? t('app.rail.expand') : t('app.rail.collapse'), icon: <PanelLeft size={16} aria-hidden="true" />, run: appearance.toggleRail },
-    ...LOGOS.map((l) => ({ id: `logo-${l}`, label: `${t('app.logo.title')} : ${t(`app.logo.${l}`)}`, icon: <LogoMark logo={l} look={appearance.look} style={appearance.logoStyle} size={16} />, run: () => appearance.setLogo(l) })),
-    ...(['gradient', 'flat'] as const).map((st) => ({ id: `logo-style-${st}`, label: `${t('app.logo.title')} : ${t(`app.logo.${st}`)}`, icon: <PaletteIcon size={16} aria-hidden="true" />, run: () => appearance.setLogoStyle(st) })),
+    ...(['gradient', 'flat'] as const).map((st) => ({ id: `style-${st}`, label: `${t('app.style.title')} : ${t(`app.style.${st}`)}`, icon: <PaletteIcon size={16} aria-hidden="true" />, run: () => appearance.setStyle(st) })),
+    ...LOGOS.map((l) => ({ id: `logo-${l}`, label: `${t('app.logo.title')} : ${t(`app.logo.${l}`)}`, icon: <LogoMark logo={l} look={appearance.look} style={appearance.style} size={16} />, run: () => appearance.setLogo(l) })),
   ];
   const shownLooks = looks.filter((l) => query && l.label.toLowerCase().includes(query.toLowerCase()));
   return (
@@ -62,7 +62,7 @@ export function Palette({ open, onOpenChange, appearance }: { open: boolean; onO
           <Command.Group heading={t('app.search.notes')}>
             {find.data.hits.map((h) => (
               <Command.Item key={h.path} value={h.path} onSelect={() => pick({ name: 'brain', path: h.path })}>
-                <FileText size={16} aria-hidden="true" />
+                <TypeMark id={categoryOf.get(h.path)} size="xs" />
                 <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.title}</span>
                 <span className="hint">{h.crumbs.slice(-2).join(' › ')}</span>
               </Command.Item>
@@ -91,7 +91,7 @@ export function Palette({ open, onOpenChange, appearance }: { open: boolean; onO
           <Command.Group heading={t('app.search.lines')}>
             {cats.list.filter((c) => (c.count ?? 1) > 0).slice(0, 10).map((c) => (
               <Command.Item key={c.id} value={`cat:${c.id}`} onSelect={() => pick({ name: 'brain', query: { cat: c.id } })}>
-                <span className="dot" style={{ '--c': cats.color(c.id) } as CSSProperties} aria-hidden="true" />{c.label[t.lang]}
+                <span className="cat xs" style={{ '--c': cats.color(c.id) } as CSSProperties} aria-hidden="true"><CatIcon id={c.id} emoji={c.emoji} size={11} /></span>{c.label[t.lang]}
               </Command.Item>
             ))}
           </Command.Group>

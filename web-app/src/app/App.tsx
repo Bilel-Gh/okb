@@ -2,57 +2,62 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { currentSession, get, setSession, type Session } from './api';
 import { I18n, makeT, type Messages, type Translate } from './i18n';
-import { useRoute } from './router';
-import { Shell } from './Shell';
+import { useRoute, type Route } from './router';
+import { Shell, type Crumb } from './Shell';
 import { applyLook, readLook, readMode } from './theme';
 import { Boundary } from '../ui/Boundary';
 import { ErrorState, SkeletonRows } from '../ui/States';
 
 const Today = lazy(() => import('../pages/Today'));
 const BrainPage = lazy(() => import('../pages/Brain'));
+const GraphPage = lazy(() => import('../pages/Graph'));
 const InboxPage = lazy(() => import('../pages/Inbox'));
 const Repos = lazy(() => import('../pages/Repos'));
 const Learn = lazy(() => import('../pages/Learn'));
 const AskPage = lazy(() => import('../pages/Ask'));
+const Tools = lazy(() => import('../pages/Tools'));
+const Upkeep = lazy(() => import('../pages/Upkeep'));
 const Modules = lazy(() => import('../pages/Modules'));
 const ClaudePage = lazy(() => import('../pages/Claude'));
+const Settings = lazy(() => import('../pages/Settings'));
+const Help = lazy(() => import('../pages/Help'));
 
 const client = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 15_000 } } });
 
 function Routes({ t }: { t: Translate }) {
   const route = useRoute();
-  useEffect(() => { if (route.name === 'classic' || route.name === 'settings') window.location.href = route.name === 'settings' ? '/classic#/settings' : route.href; }, [route]);
-  const titles: Record<string, string> = {
-    today: t('app.nav.today'), brain: t('app.nav.brain'), inbox: t('app.nav.inbox'), repos: t('app.nav.repos'),
-    learn: t('app.nav.learn'), ask: t('app.nav.ask'), modules: t('app.nav.modules'), claude: t('app.nav.claude'), settings: t('app.nav.settings'), classic: 'OKB',
-  };
   const arch = route.name === 'repos' && route.tab === 'architecture';
-  const base = arch ? t('app.repos.tab.arch') : titles[route.name] ?? 'OKB';
+  const base = arch ? t('app.repos.tab.arch') : t(`app.nav.${route.name}`);
   const [title, setTitle] = useState(base);
   useEffect(() => setTitle(base), [route.name, arch]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <Shell route={route} title={title} crumb={crumbOf(route, titles)}>
+    <Shell route={route} title={title} crumb={crumbOf(route, t)}>
       <Boundary key={route.name} labels={{ title: t('app.error.title'), updated: t('app.error.updated'), reload: t('app.reload') }}>
       <Suspense fallback={<div className="page"><SkeletonRows /></div>}>
-        {route.name === 'today' ? <Today /> : null}
+        {route.name === 'today' ? <Today route={route} /> : null}
         {route.name === 'brain' ? <BrainPage route={route} setTitle={setTitle} /> : null}
-        {route.name === 'inbox' ? <InboxPage route={route} /> : null}
-        {route.name === 'repos' ? <Repos route={route} /> : null}
-        {route.name === 'learn' ? <Learn /> : null}
+        {route.name === 'graph' ? <GraphPage route={route} /> : null}
+        {route.name === 'inbox' ? <InboxPage route={route} setTitle={setTitle} /> : null}
+        {route.name === 'repos' ? <Repos route={route} setTitle={setTitle} /> : null}
+        {route.name === 'learn' ? <Learn route={route} /> : null}
         {route.name === 'ask' ? <AskPage route={route} /> : null}
+        {route.name === 'tools' ? <Tools route={route} /> : null}
+        {route.name === 'upkeep' ? <Upkeep route={route} /> : null}
         {route.name === 'modules' ? <Modules /> : null}
         {route.name === 'claude' ? <ClaudePage /> : null}
+        {route.name === 'settings' ? <Settings route={route} /> : null}
+        {route.name === 'help' ? <Help /> : null}
       </Suspense>
       </Boundary>
     </Shell>
   );
 }
 
-/** The page a detail belongs to, shown before its title: « Cerveau / Idempotence ». */
-function crumbOf(route: ReturnType<typeof useRoute>, titles: Record<string, string>): string | undefined {
-  if (route.name === 'brain' && route.path) return titles.brain;
-  if (route.name === 'repos' && (route.id || route.tab)) return titles.repos;
-  if (route.name === 'inbox' && route.id) return titles.inbox;
+/** The page a detail belongs to, shown before its title: « Cerveau › Idempotence ». */
+function crumbOf(route: Route, t: Translate): Crumb | undefined {
+  if (route.name === 'brain' && route.path) return { label: t('app.nav.brain'), to: { name: 'brain', ...(route.query ? { query: route.query } : {}) } };
+  if (route.name === 'repos' && (route.id || route.tab)) return { label: t('app.nav.repos'), to: { name: 'repos' } };
+  if (route.name === 'inbox' && route.id) return { label: t('app.nav.inbox'), to: { name: 'inbox', tab: 'proposals' } };
   return undefined;
 }
 
@@ -86,17 +91,12 @@ export function App() {
   );
 }
 
-/** No KB yet on this computer: the guided setup lives in the classic app for now. */
+/** No KB yet on this computer: the guided setup comes first. */
 function currentKbMissing(): boolean {
   return !currentSession()?.kbs.length;
 }
 
+const FirstRun = lazy(() => import('../pages/FirstRun'));
 function NoKb({ t }: { t: Translate }) {
-  return (
-    <div className="page" style={{ maxWidth: 640 }}>
-      <h1>{t('app.kb.noneTitle')}</h1>
-      <p className="muted">{t('app.kb.noneWhy')}</p>
-      <p><a className="btn primary" href="/classic#/newkb">{t('app.kb.create')}</a></p>
-    </div>
-  );
+  return <Suspense fallback={<div className="page"><SkeletonRows /></div>}><FirstRun t={t} /></Suspense>;
 }

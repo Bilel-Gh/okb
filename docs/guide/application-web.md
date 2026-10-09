@@ -9,93 +9,85 @@ sur ton ordinateur : aucun compte, aucun service en ligne. Arrête-la avec Ctrl+
 dans le terminal. Autre port : `okb serve --port 4318` ; sans ouvrir le
 navigateur : `okb serve --no-open`.
 
-![Accueil de l’application web](../images/web-home.png)
+![Aujourd’hui, thème Atelier](../images/web-home.png)
 
-## La nouvelle interface (1.5)
+## Les destinations
 
-`okb serve` ouvre la nouvelle interface ; l’ancienne reste à l’adresse `/classic`
-pour les pages pas encore refaites (réglages, graphe, historique, revue de la
-semaine). Les destinations, dans la barre de gauche :
+La barre de gauche montre ton cerveau d’abord, puis OKB. Chaque destination a ses
+onglets, chacun avec son adresse (on peut la garder en favori).
 
-| Destination | Pour |
+| Mon cerveau | Pour |
 |---|---|
-| **Aujourd’hui** | l’accueil de ton cerveau (ses notes, ce qui attend, les cartes à réviser, sa santé), ce qui attend ton oui (Accepter, Plus tard, Non merci), reprendre une note, réviser, ta progression, les tiroirs, tes notes par type |
-| **Cerveau** | l’explorateur : les tiroirs et sujets, la liste filtrable par type, la note lue à droite avec son chemin en haut ; les mots qui ont une fiche concept montrent leur phrase au survol ; **Traduire** |
-| **Demander** | une question en français ou en anglais : les passages de tes notes qui répondent ; sur ton clic, une réponse rédigée qui cite chaque passage |
-| **À valider** | les cartes de suggestion et les propositions de notes, avec l’aperçu ou les changements ; approuver te demande une confirmation sur l’ordinateur |
-| **Repos** | **Niveau de connaissance** : chaque repo rangé par produit, avec sa barre de niveau et ce qu’il faut faire pour passer au palier suivant ; **Architecture** : le plan des repos calculé depuis le code, les preuves de chaque lien au clic, les appels que personne ne sert |
-| **Apprendre** | les cartes à réviser (Révéler, puis À revoir · Difficile · Bien · Facile, au clavier 1 à 4) et la carte des compétences |
+| **Aujourd’hui** | l’accueil : ce qui attend ton oui, reprendre une note, ce qui est utile maintenant, ta progression, réviser, capturer une idée, ton cerveau par type et par tiroir. Onglets **Focus et journal** (ta note de focus, finir une session, le journal) et **Revue de la semaine** (pas à pas) |
+| **Cerveau** | l’explorateur, en trois colonnes : à gauche l’arbre de tes dossiers, **dépliable niveau par niveau**, ou tes **types de notes** (chaque type se déplie par tiroir) ; au milieu la liste, **groupée par type ou par dossier**, chaque groupe repliable ; à droite la note, ou la page du dossier choisi (sa page de 5 minutes, ses sous-dossiers, ses notes par type) |
+| **Graphe** | toutes les notes et leurs liens, regroupées par thème, par type ou par dossier ; ou le cerveau **vu d’en haut**, tiroir par tiroir ([détails](graphe-et-categories.md)) |
+| **Demander** | une question : les passages de tes notes qui répondent ; sur ton clic, une réponse rédigée qui cite chaque passage |
+| **À valider** | **Suggestions** de Claude (Accepter, Plus tard, Non merci), **Propositions** à relire, **Captures** à trier, **Historique** des changements (annuler le dernier) |
+| **Repos** | le **niveau de connaissance** de chaque repo, l’**architecture** calculée depuis le code, et la **fiche d’un repo** : ses notes, ses questions d’onboarding par thème (réponds en ligne), sa carte, ses tickets, la fraîcheur de ses notes |
+| **Apprendre** | **Réviser** les cartes (Révéler, puis 1 à 4), ta **Progression** (niveau et badges), ta **Carrière** |
+
+| OKB | Pour |
+|---|---|
+| **Outils** | ajouter une source, transformer une procédure en skill, les modèles et ton style, les catégories |
+| **Entretien** | la santé du cerveau, les sauvegardes, l’utilisation (coûts, qualité), le diagnostic et la mise à jour |
+| **Modules**, **Claude Code** | les modules par métier ; installer OKB dans Claude Code en un clic |
+| **Réglages** | les réglages, l’apparence, tes cerveaux (ouvrir, connecter un dossier, en créer un) |
+| **Aide** | la visite guidée, le glossaire, les raccourcis, les codes d’erreur |
 
 **⌘K** (ou `/`) cherche une note par quelques mots, fautes et accents pardonnés, ou
-t’emmène sur n’importe quelle page. En bas de la barre : **Modules**, **Claude
-Code** (installer OKB dans Claude Code en un clic), **Réglages**.
+t’emmène sur n’importe quelle page ou onglet. Les anciennes adresses (`#/weekly`,
+`#/health`, `#/kbs`…) ouvrent la bonne page.
 
-![Aujourd’hui, thème Atelier](../images/web-atelier.png)
+![Cerveau : l’arbre des dossiers, la liste groupée par type et une note, thème Atelier](../images/web-atelier.png)
+
+### Lire une note
+
+Le chemin de la note en haut (chaque étape mène à son dossier), son titre et son
+résumé, puis son type (clique pour le changer : une proposition est préparée), son
+état, ses sources et sa qualité. Les mots qui ont une fiche concept montrent leur
+phrase au survol. En bas : les notes qui la citent et celles qu’elle cite, et son
+graphe local. Le menu « … » donne ses versions, l’ouverture dans Obsidian et son
+chemin.
+
+![Lire une note](../images/web-note.png)
 
 ### Choisir son apparence
 
-Le menu **Apparence** (en haut à droite, ou ⌘K puis « thème ») :
+Le menu **Apparence** (en haut à droite, dans Réglages, ou ⌘K) :
 
-- **le thème** : **Atelier** (par défaut), un outil de développeur, dense, violet,
-  avec une barre d’état en bas ; ou **Classique**, l’interface d’origine, verte et
-  aérée ;
+- **le thème** : **Atelier** (par défaut), violet, barre latérale sombre et barre
+  d’état ; ou **Classique**, vert et clair, l’interface des premières versions ;
 - **clair** (par défaut), **sombre** ou **auto** (comme ton système) ;
-- **le logo** : chacune des propositions de logo, en dégradé ou à plat (par défaut, la note liée en dégradé).
+- **le style** : **dégradé** (par défaut) ou **à plat**, pour tout le site, logo compris ;
+- **le logo** : chacune des propositions de logo.
 
-La barre de gauche se **replie** en icônes (leur nom s’affiche au survol) ou se
-**déplie** avec les textes : le bouton en haut de la barre, à côté du logo, ou **⌘\\** (Ctrl+\\).
-Tes choix sont retenus par ton navigateur.
+Une seule police partout, Inter ; le code seul est en police à chasse fixe. La
+barre de gauche se **replie** en icônes ou se **déplie** avec les textes : le
+bouton en haut de la barre, ou **⌘\\** (Ctrl+\\). Tes choix sont retenus par ton
+navigateur.
 
 ![Aujourd’hui, thème Classique](../images/web-classique.png)
 
 ![Repos › Architecture : le plan calculé depuis le code](../images/web-architecture.png)
 
-## L’ancienne interface
-
-Tout ce que fait le terminal se fait aussi dans la page.
-
-| Rubrique | Pour |
-|---|---|
-| **Accueil** | ce qui t’attend, ce qui est utile maintenant, ta dernière session, une capture rapide |
-| **Notes** | lire tes notes, colorées par catégorie : tableaux, schémas Mermaid, encadrés, notes de bas de page, « cité par » et « liens vers », graphe local, sommaire ; ouvrir dans Obsidian |
-| **Graphe** | toutes les notes et leurs liens, une couleur par catégorie ; zoom, filtres, voisinage d’une note ([détails](graphe-et-categories.md)) |
-| **Repos** | les repos de code documentés : carte, notes, questions, fraîcheur, tickets suivis et leur journal ([détails](repos.md), [espace de travail](espace-de-travail.md)) |
-| **Rechercher** | mots, alias, passages exacts |
-| **À relire** | les propositions : changements fichier par fichier, aperçu, citations des sources ; approuver, appliquer, écarter |
-| **Inbox** | trier tes captures : marquer comme traitée, jeter, ou demander à Claude d’en faire une note |
-| **Focus et journal** | écrire ton focus, finir une session, relire le journal |
-| **Revue de la semaine** | la revue guidée, étape par étape |
-| **Réviser** | des cartes tirées de tes fiches concepts |
-| **Santé** | le score de la KB, les problèmes expliqués, rafraîchir les index |
-| **Historique** | chaque changement appliqué ; annuler le dernier |
-| **Ajouter une source** | un fichier ou une adresse web |
-| **Procédures → skills** | transformer une procédure en skill Claude |
-| **Modèles et style** | les modèles de notes et ton style d’écriture |
-| **Réglages** | langues, style, aide aux notions, focus, Git, cohabitation avec d’autres outils |
-| **Diagnostic** | tout vérifier, réparer, mettre à jour OKB |
-| **Aide** | glossaire, raccourcis, codes d’erreur, visite guidée |
-
-En haut à gauche, le sélecteur de KB : passer d’une KB à l’autre, en créer une.
-En bas : thème clair ou sombre, langue (FR/EN).
-
-![Lire une note](../images/web-note.png)
-
 ## Raccourcis
 
 - **⌘K** (ou **/**) : chercher une note ou aller n’importe où.
 - **⌘\\** (Ctrl+\\) : replier ou déplier la barre de gauche.
-- **⌘↵** : capturer depuis le champ de l’inbox.
+- **⌘↵** : capturer depuis le champ des captures.
+- **Espace**, puis **1** à **4** : révéler une carte, puis dire comment ça s’est passé.
 
 ## Relire et approuver
 
 ![Relire une proposition](../images/web-review.png)
 
-Ouvre une proposition dans « À relire » : chaque fichier montre ses lignes
-ajoutées et retirées. Décoche ce que tu ne veux pas garder, puis :
+Ouvre une proposition dans **À valider › Propositions** : chaque fichier montre ses
+lignes ajoutées et retirées, ou son aperçu, et les vérifications à droite. Décoche
+les fichiers que tu ne veux pas garder, puis :
 
 - **Approuver et appliquer** : les changements entrent dans ta KB (et un commit
   Git est créé si l’historique est actif) ;
-- **Approuver seulement** : pour appliquer plus tard ;
+- **Approuver sans appliquer** : pour appliquer plus tard ;
 - **Écarter** : la proposition est abandonnée, ta KB ne change pas.
 
 Pour approuver, OKB vérifie que c’est bien **toi** : sur macOS, une fenêtre de
@@ -111,6 +103,8 @@ préparée à nouveau. Tes modifications ne sont jamais écrasées.
 ## Réglages
 
 ![Réglages](../images/web-settings.png)
+
+Dans **Réglages** (onglet Général), groupés par thème.
 
 Chaque réglage est enregistré tout de suite et s’applique sans redémarrer.
 La valeur recommandée porte une ★. Le nom technique (par exemple

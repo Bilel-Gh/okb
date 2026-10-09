@@ -1,14 +1,15 @@
 import { LOGO_COLORS, LOGOS, markSvg, type LogoId, type LogoStyle } from '../ui/Logo';
 
 /**
- * Two themes to choose from (identity 1.5): Atelier, a developer's tool, and
- * Classique, the interface of the first versions; each light, dark or as the
- * system says. Remembered on this browser; the light/dark key is the classic
- * pages' own, so both stay in step.
+ * Two themes to choose from (identity 1.5): Atelier, violet with a dark side
+ * bar, and Classique, green, the interface of the first versions; each light,
+ * dark or as the system says, drawn in gradient or flat — the logo, the buttons
+ * and the fills alike. Remembered on this browser.
  */
 export type Look = 'atelier' | 'classique';
 export type Mode = 'auto' | 'light' | 'dark';
 export type Rail = 'expanded' | 'collapsed';
+export type Style = LogoStyle;
 export const LOOKS: readonly Look[] = ['atelier', 'classique'];
 
 /** The logo shown until the person picks another (docs/design/logos/README.md). */
@@ -37,22 +38,25 @@ export function readLogo(): LogoId {
   return (LOGOS as readonly string[]).includes(v ?? '') ? (v as LogoId) : DEFAULT_LOGO;
 }
 
-export function readLogoStyle(): LogoStyle {
-  return read('okb-logo-style') === 'flat' ? 'flat' : 'gradient';
+/** Gradient unless the person chose flat (before 1.5 only the logo could be flat: that choice is kept). */
+export function readStyle(): Style {
+  const v = read('okb-style') ?? read('okb-logo-style');
+  return v === 'flat' ? 'flat' : 'gradient';
 }
 
-/** Put a theme on the page (`data-theme`, `data-mode`), remember it with the logo, and paint the tab icon to match. */
-export function applyLook({ look, mode, logo = readLogo(), logoStyle = readLogoStyle() }: { look: Look; mode: Mode; logo?: LogoId; logoStyle?: LogoStyle }): 'light' | 'dark' {
+/** Put a theme on the page (`data-theme`, `data-mode`, `data-style`), remember it with the logo, and paint the tab icon to match. */
+export function applyLook({ look, mode, logo = readLogo(), style = readStyle() }: { look: Look; mode: Mode; logo?: LogoId; style?: Style }): 'light' | 'dark' {
   const scheme = schemeOf(mode);
   const root = document.documentElement;
   root.dataset.theme = look;
   root.dataset.mode = scheme;
+  root.dataset.style = style;
   write('okb-look', look);
   write('okb-theme', mode);
   write('okb-logo', logo);
-  write('okb-logo-style', logoStyle);
+  write('okb-style', style);
   const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-  if (icon) icon.setAttribute('href', `data:image/svg+xml,${encodeURIComponent(markSvg(logo, LOGO_COLORS[look], logoStyle))}`);
+  if (icon) icon.setAttribute('href', `data:image/svg+xml,${encodeURIComponent(markSvg(logo, LOGO_COLORS[look], style))}`);
   return scheme;
 }
 

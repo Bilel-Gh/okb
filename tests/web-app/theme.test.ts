@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyLook, readLogo, readLogoStyle, readLook, readMode, readRail, saveRail } from '../../web-app/src/app/theme.js';
+import { applyLook, readLogo, readLook, readMode, readRail, readStyle, saveRail } from '../../web-app/src/app/theme.js';
 import { LOGO_COLORS, LOGOS, markSvg } from '../../web-app/src/ui/Logo.js';
 
 beforeEach(() => {
   localStorage.clear();
   delete document.documentElement.dataset.theme;
   delete document.documentElement.dataset.mode;
+  delete document.documentElement.dataset.style;
   document.head.innerHTML = '<link rel="icon" href="/favicon.svg">';
 });
 
@@ -86,14 +87,30 @@ describe('every logo proposal stays available, in gradient or flat', () => {
     for (const svg of drawn) expect(svg).toMatch(/^<svg[^>]*viewBox="0 0 32 32"/);
   });
 
-  it('draws a flat logo without any gradient, and remembers the style', () => {
-    expect(readLogoStyle()).toBe('gradient');
+  it('draws a flat logo without any gradient', () => {
     const flat = markSvg('linked', LOGO_COLORS.atelier, 'flat');
     expect(flat).not.toContain('linearGradient');
     expect(flat).toContain(LOGO_COLORS.atelier.flat);
-    applyLook({ look: 'atelier', mode: 'light', logo: 'prompt', logoStyle: 'flat' });
+  });
+});
+
+describe('gradient or flat: one style for the whole site, logo included', () => {
+  it('is in gradient until the person chooses flat, then puts the style on the page and keeps it', () => {
+    expect(readStyle()).toBe('gradient');
+    applyLook({ look: 'atelier', mode: 'light', logo: 'prompt', style: 'flat' });
+    expect(document.documentElement.dataset.style).toBe('flat');
     expect(readLogo()).toBe('prompt');
-    expect(readLogoStyle()).toBe('flat');
+    expect(readStyle()).toBe('flat');
     expect(decodeURIComponent(document.querySelector('link[rel="icon"]')!.getAttribute('href')!)).not.toContain('linearGradient');
+    applyLook({ look: 'atelier', mode: 'light', style: 'gradient' });
+    expect(document.documentElement.dataset.style).toBe('gradient');
+    expect(decodeURIComponent(document.querySelector('link[rel="icon"]')!.getAttribute('href')!)).toContain('linearGradient');
+  });
+
+  it('keeps a flat choice made when only the logo could be flat', () => {
+    localStorage.setItem('okb-logo-style', 'flat');
+    expect(readStyle()).toBe('flat');
+    localStorage.setItem('okb-style', 'gradient');
+    expect(readStyle()).toBe('gradient');
   });
 });

@@ -6,27 +6,29 @@ body {
   font-family: var(--font);
   font-size: var(--t-md);
   line-height: var(--lh);
+  letter-spacing: -0.006em;
   color: var(--ink);
   background: var(--ground);
-  font-feature-settings: 'kern', 'liga', 'cv11';
+  font-feature-settings: 'cv11', 'ss03';
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
-h1, h2, h3, h4 { margin: 0; line-height: var(--lh-tight); font-weight: 600; text-wrap: balance; color: var(--ink); }
-h1 { font-size: var(--t-2xl); letter-spacing: -0.01em; }
-h2 { font-size: var(--t-xl); }
+h1, h2, h3, h4 { margin: 0; line-height: var(--lh-tight); font-weight: 600; text-wrap: balance; color: var(--ink); letter-spacing: -0.012em; }
+h1 { font-size: var(--t-2xl); letter-spacing: -0.025em; }
+h2 { font-size: var(--t-xl); letter-spacing: -0.02em; }
 h3 { font-size: var(--t-lg); }
 p { margin: 0; }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-button { font: inherit; color: inherit; }
-input, select, textarea { font: inherit; color: inherit; }
-code, kbd, pre, samp { font-family: var(--mono); font-size: 0.9em; }
+button { font: inherit; color: inherit; letter-spacing: inherit; }
+input, select, textarea { font: inherit; color: inherit; letter-spacing: inherit; }
+/* Monospace is for code only: blocks, inline code, commands to copy. */
+code, kbd, pre, samp { font-family: var(--mono); font-size: 0.88em; letter-spacing: 0; font-feature-settings: normal; }
+kbd { font-family: var(--font); font-size: 11.5px; font-weight: 500; }
 .num, table { font-variant-numeric: tabular-nums; }
-.num { font-family: var(--font-num); }
-.mono { font-family: var(--mono); }
 
 /* The browser's own surfaces carry the theme too. */
-::selection { background: color-mix(in srgb, var(--accent) 26%, transparent); color: var(--ink); }
+::selection { background: color-mix(in srgb, var(--accent) 24%, transparent); color: var(--ink); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
 :focus:not(:focus-visible) { outline: none; }
 input, textarea { caret-color: var(--accent); }
@@ -35,7 +37,7 @@ input, textarea { caret-color: var(--accent); }
 ::-webkit-scrollbar-thumb { background: var(--hair-strong); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-.skip-link { position: absolute; left: var(--s2); top: -48px; z-index: 100; background: var(--accent-grad); color: var(--on-accent); padding: var(--s2) var(--s3); border-radius: var(--r-sm); font-weight: 600; text-decoration: none; }
+.skip-link { position: absolute; left: var(--s2); top: -48px; z-index: 100; background: var(--fill); color: var(--on-accent); padding: var(--s2) var(--s3); border-radius: var(--r-sm); font-weight: 600; text-decoration: none; }
 .skip-link:focus { top: var(--s2); }
 
 /* Motion moves things only for people who did not ask for less; colour and opacity changes stay for everyone. */

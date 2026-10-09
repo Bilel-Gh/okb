@@ -247,7 +247,7 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
 
   return (
     <div className="stack" style={{ gap: 'var(--s5)' }}>
-      <p className="muted" style={{ maxWidth: '72ch' }}>{t('app.arch.intro', { name: data.system })}</p>
+      <p className="page-intro">{t('app.arch.intro', { name: data.system })}</p>
       <div className="arch-bar">
         <div className="segmented" role="group" aria-label={t('app.arch.view')}>
           {(['containers', 'context', 'flow'] as const).map((v) => <button key={v} type="button" aria-pressed={which === v} onClick={() => setView(v)}>{t(`app.arch.view.${v}`)}</button>)}

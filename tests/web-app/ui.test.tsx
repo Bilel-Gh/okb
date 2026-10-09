@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Breadcrumb } from '../../web-app/src/ui/Breadcrumb.js';
+import { CatMark } from '../../web-app/src/ui/CatMark.js';
 import { LevelBar } from '../../web-app/src/ui/LevelBar.js';
 
 afterEach(cleanup);
@@ -35,5 +36,28 @@ describe('the knowledge level of a repository', () => {
     expect((container.querySelector('.level-fill') as HTMLElement).style.width).toBe('0%');
     rerender(<LevelBar percent={140} tier="reference" tiers={TIERS} color="#2563eb" label="x" />);
     expect((container.querySelector('.level-fill') as HTMLElement).style.width).toBe('100%');
+  });
+});
+
+describe('a note type', () => {
+  it('shows the icon of a built-in type in a square tinted with its colour', () => {
+    const { container } = render(<CatMark id="concept" color="#7c3aed" emoji="💡" label="Concepts" />);
+    const mark = container.querySelector('.cat') as HTMLElement;
+    expect(mark.querySelector('svg')).not.toBeNull();
+    expect(mark.textContent).not.toContain('💡');
+    expect(mark.style.getPropertyValue('--c')).toBe('#7c3aed');
+    expect(mark.getAttribute('title')).toBe('Concepts');
+  });
+
+  it('draws every built-in type with its own icon', () => {
+    const ids = ['concept', 'guide', 'howto', 'process', 'case', 'ticket', 'decision', 'source', 'path', 'other'];
+    const drawn = ids.map((id) => render(<CatMark id={id} color="#000000" emoji="x" label={id} />).container.querySelector('svg')!.innerHTML);
+    expect(new Set(drawn).size).toBe(ids.length);
+  });
+
+  it('keeps the emoji of a type the KB added itself', () => {
+    const { container } = render(<CatMark id="recipe" color="#123456" emoji="🍰" label="Recettes" />);
+    expect(container.querySelector('.cat svg')).toBeNull();
+    expect(container.querySelector('.cat')?.textContent).toBe('🍰');
   });
 });

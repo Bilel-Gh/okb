@@ -21,9 +21,10 @@ export function ErrorState({ error, retry }: { error: unknown; retry?: () => voi
   );
 }
 
-export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+export function Empty({ title, children, action, icon, center = false }: { title: string; children?: ReactNode; action?: ReactNode; icon?: ReactNode; center?: boolean }) {
   return (
-    <div className="empty">
+    <div className={`empty${center ? ' center' : ''}`}>
+      {icon ? <span className="empty-icon" aria-hidden="true">{icon}</span> : null}
       <h3>{title}</h3>
       {children ? <p>{children}</p> : null}
       {action}
