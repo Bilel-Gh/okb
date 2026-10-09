@@ -48,7 +48,8 @@ export function Palette({ open, onOpenChange, appearance }: { open: boolean; onO
     { id: 'dark', label: `${t('app.theme.mode')} : ${t('app.mode.dark')}`, icon: <Moon size={16} aria-hidden="true" />, run: () => appearance.setMode('dark') },
     { id: 'auto', label: `${t('app.theme.mode')} : ${t('app.mode.auto')}`, icon: <Monitor size={16} aria-hidden="true" />, run: () => appearance.setMode('auto') },
     { id: 'rail', label: appearance.rail === 'collapsed' ? t('app.rail.expand') : t('app.rail.collapse'), icon: <PanelLeft size={16} aria-hidden="true" />, run: appearance.toggleRail },
-    ...LOGOS.map((l) => ({ id: `logo-${l}`, label: `${t('app.logo.title')} : ${t(`app.logo.${l}`)}`, icon: <LogoMark logo={l} size={16} />, run: () => appearance.setLogo(l) })),
+    ...LOGOS.map((l) => ({ id: `logo-${l}`, label: `${t('app.logo.title')} : ${t(`app.logo.${l}`)}`, icon: <LogoMark logo={l} look={appearance.look} style={appearance.logoStyle} size={16} />, run: () => appearance.setLogo(l) })),
+    ...(['gradient', 'flat'] as const).map((st) => ({ id: `logo-style-${st}`, label: `${t('app.logo.title')} : ${t(`app.logo.${st}`)}`, icon: <PaletteIcon size={16} aria-hidden="true" />, run: () => appearance.setLogoStyle(st) })),
   ];
   const shownLooks = looks.filter((l) => query && l.label.toLowerCase().includes(query.toLowerCase()));
   return (

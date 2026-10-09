@@ -35,8 +35,7 @@
   --nav-bg: #1d1d2b; --nav-ink: #e8e8f2; --nav-ink-2: #a3a3bd; --nav-hover: #2a2a3c; --nav-on: #2f2b52; --nav-on-ink: #ffffff; --nav-hair: #2c2c3e;
   --status-bg: linear-gradient(90deg, #5b4be0, #3f2fbf); --status-ink: #ffffff;
   --code-bg: #1d1d2b; --code-ink: #e0e0ee;
-  /* Gradients: the logo's, the main button's, the soft wash behind what is current. */
-  --logo-a: #9a8bff; --logo-b: #4b3ad4; --logo-dark-a: #2c2655; --logo-dark-b: #121119; --logo-node-a: #b9afff; --logo-node-b: #7c6cf6;
+  /* Gradients: the main button's, and the soft wash behind what is current. */
   --accent-grad: linear-gradient(135deg, #6e5ef0, #4b3ad4); --accent-grad-hover: linear-gradient(135deg, #6250ec, #3f2fbf);
   --wash: linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
 
@@ -82,8 +81,6 @@
   --nav-bg: #ffffff; --nav-ink: #0f172a; --nav-ink-2: #475569; --nav-hover: #f1f5f9; --nav-on: #e7f6ef; --nav-on-ink: #065f46; --nav-hair: #e3e7ec;
   --status-bg: linear-gradient(90deg, #08845b, #0b6a7d); --status-ink: #ffffff;
   --code-bg: #0f172a; --code-ink: #e2e8f0;
-  /* The green-to-teal of the first logo, back in the brand. */
-  --logo-a: #19c991; --logo-b: #0b6f86; --logo-dark-a: #123a2e; --logo-dark-b: #0a0e13; --logo-node-a: #8af0c7; --logo-node-b: #14b886;
   --accent-grad: linear-gradient(135deg, #08845b, #0b6a7d); --accent-grad-hover: linear-gradient(135deg, #077350, #095a6a);
   --wash: linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--accent) 3%, transparent));
 

@@ -2,12 +2,12 @@ import * as Popover from '@radix-ui/react-popover';
 import { useQuery } from '@tanstack/react-query';
 import { Brain, Check, ChevronsUpDown, FolderGit2, GraduationCap, History, Inbox, Menu, MessageCircleQuestion, Monitor, Moon, Network, PanelLeftClose, PanelLeftOpen, Palette as PaletteIcon, Puzzle, Search, Settings, Sun, SunMedium, Terminal } from 'lucide-react';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { LOGOS, LogoMark, type LogoId } from '../ui/Logo';
+import { LOGOS, LogoMark, type LogoId, type LogoStyle } from '../ui/Logo';
 import { currentKb, currentSession, get, post } from './api';
 import { useT } from './i18n';
 import { Palette } from './Palette';
 import { hrefFor, type Route } from './router';
-import { applyLook, LOOKS, readLogo, readLook, readMode, readRail, saveRail, type Look, type Mode, type Rail } from './theme';
+import { applyLook, LOOKS, readLogo, readLogoStyle, readLook, readMode, readRail, saveRail, type Look, type Mode, type Rail } from './theme';
 import { toast, useToasts } from './toast';
 
 type Modules = { modules: { id: string; enabled: boolean }[] };
@@ -25,25 +25,28 @@ function useWaitingCount(): number {
 }
 
 /** The person's appearance: theme, light or dark, side bar folded or not. */
-export type Appearance = { look: Look; mode: Mode; rail: Rail; logo: LogoId; setLook: (l: Look) => void; setMode: (m: Mode) => void; setLogo: (l: LogoId) => void; toggleRail: () => void };
+export type Appearance = {
+  look: Look; mode: Mode; rail: Rail; logo: LogoId; logoStyle: LogoStyle;
+  setLook: (l: Look) => void; setMode: (m: Mode) => void; setLogo: (l: LogoId) => void; setLogoStyle: (s: LogoStyle) => void; toggleRail: () => void;
+};
 
 function useAppearance(): Appearance {
-  const [look, setLookState] = useState<Look>(readLook);
-  const [mode, setModeState] = useState<Mode>(readMode);
-  const [logo, setLogoState] = useState<LogoId>(readLogo);
+  const [state, setState] = useState(() => ({ look: readLook(), mode: readMode(), logo: readLogo(), logoStyle: readLogoStyle() }));
   const [rail, setRail] = useState<Rail>(() => readRail(readLook()));
-  const setLook = useCallback((l: Look) => { applyLook({ look: l, mode, logo }); setLookState(l); setRail(readRail(l)); }, [mode, logo]);
-  const setMode = useCallback((m: Mode) => { applyLook({ look, mode: m, logo }); setModeState(m); }, [look, logo]);
-  const setLogo = useCallback((l: LogoId) => { applyLook({ look, mode, logo: l }); setLogoState(l); }, [look, mode]);
+  const change = useCallback((patch: Partial<typeof state>) => setState((s) => { const next = { ...s, ...patch }; applyLook(next); return next; }), []);
+  const setLook = useCallback((look: Look) => { change({ look }); setRail(readRail(look)); }, [change]);
+  const setMode = useCallback((mode: Mode) => change({ mode }), [change]);
+  const setLogo = useCallback((logo: LogoId) => change({ logo }), [change]);
+  const setLogoStyle = useCallback((logoStyle: LogoStyle) => change({ logoStyle }), [change]);
   const toggleRail = useCallback(() => setRail((r) => { const next = r === 'collapsed' ? 'expanded' : 'collapsed'; saveRail(next); return next; }), []);
   useEffect(() => {
-    if (mode !== 'auto') return;
+    if (state.mode !== 'auto') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const on = () => applyLook({ look, mode: 'auto', logo });
+    const on = () => applyLook(state);
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
-  }, [look, mode, logo]);
-  return { look, mode, rail, logo, setLook, setMode, setLogo, toggleRail };
+  }, [state]);
+  return { ...state, rail, setLook, setMode, setLogo, setLogoStyle, toggleRail };
 }
 
 function NavLink({ to, href, icon, label, current, count, folded }: { to?: Route; href?: string; icon: ReactNode; label: string; current?: boolean; count?: number; folded: boolean }) {
@@ -116,13 +119,17 @@ function ThemeMenu({ appearance }: { appearance: Appearance }) {
             {modes.map((m) => <button type="button" key={m.id} aria-pressed={appearance.mode === m.id} onClick={() => appearance.setMode(m.id)}>{m.icon}{t(`app.mode.${m.id}`)}</button>)}
           </div>
           <p className="menu-heading">{t('app.logo.title')}</p>
-          <div className="logo-options" role="group" aria-label={t('app.logo.title')}>
+          <div className="segmented" role="group" aria-label={t('app.logo.style')}>
+            {(['gradient', 'flat'] as const).map((st) => <button type="button" key={st} aria-pressed={appearance.logoStyle === st} onClick={() => appearance.setLogoStyle(st)}>{t(`app.logo.${st}`)}</button>)}
+          </div>
+          <div className="logo-grid" role="group" aria-label={t('app.logo.title')}>
             {LOGOS.map((l) => (
-              <button type="button" key={l} className="logo-option" role="menuitemradio" aria-checked={appearance.logo === l} onClick={() => appearance.setLogo(l)} aria-description={t(`app.logo.${l}Why`)}>
-                <LogoMark logo={l} size={32} />{t(`app.logo.${l}`)}
+              <button type="button" key={l} className="logo-option" role="menuitemradio" aria-checked={appearance.logo === l} aria-label={t(`app.logo.${l}`)} title={t(`app.logo.${l}`)} onClick={() => appearance.setLogo(l)}>
+                <LogoMark logo={l} look={appearance.look} style={appearance.logoStyle} size={26} />
               </button>
             ))}
           </div>
+          <p className="logo-name small muted">{t(`app.logo.${appearance.logo}`)}</p>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -179,7 +186,13 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
       <a className="skip-link" href="#main">{t('app.skip')}</a>
       {railOpen ? <div className="rail-scrim" onClick={() => setRailOpen(false)} aria-hidden="true" /> : null}
       <aside className="rail" data-open={railOpen} aria-label={t('app.nav.label')}>
-        <a className="rail-brand" href={hrefFor({ name: 'today' })} aria-label="OKB" style={{ textDecoration: 'none', color: 'inherit' }}><LogoMark logo={appearance.logo} size={28} /><span className="rail-word">OKB</span></a>
+        <div className="rail-top">
+          <a className="rail-brand" href={hrefFor({ name: 'today' })} aria-label="OKB"><LogoMark logo={appearance.logo} look={appearance.look} style={appearance.logoStyle} size={28} /><span className="rail-word">OKB</span></a>
+          <button type="button" className="rail-toggle" onClick={appearance.toggleRail} aria-expanded={!folded} aria-keyshortcuts="Meta+Backslash Control+Backslash"
+            aria-label={folded ? t('app.rail.expand') : t('app.rail.collapse')} title={`${folded ? t('app.rail.expand') : t('app.rail.collapse')} (⌘\\)`}>
+            {folded ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
+          </button>
+        </div>
         <KbSwitcher folded={folded} />
         <nav className="rail-section" aria-label={t('app.nav.main')}>
           {nav({ name: 'today' }, <SunMedium size={18} aria-hidden="true" />, t('app.nav.today'))}
@@ -195,10 +208,6 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
           {nav({ name: 'claude' }, <Terminal size={18} aria-hidden="true" />, t('app.nav.claude'))}
           <NavLink href="/classic#/settings" icon={<Settings size={18} aria-hidden="true" />} label={t('app.nav.settings')} folded={folded} />
           <NavLink href="/classic" icon={<History size={18} aria-hidden="true" />} label={t('app.nav.classic')} folded={folded} />
-          <button type="button" className="rail-link rail-toggle" onClick={appearance.toggleRail} aria-expanded={!folded} aria-keyshortcuts="Meta+Backslash Control+Backslash"
-            aria-label={folded ? t('app.rail.expand') : t('app.rail.collapse')} title={folded ? `${t('app.rail.expand')} (⌘\\)` : undefined}>
-            {folded ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}<span className="rail-label">{t('app.rail.collapse')}</span>
-          </button>
         </div>
       </aside>
       <div className="main">

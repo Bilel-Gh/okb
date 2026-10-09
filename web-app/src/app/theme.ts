@@ -1,4 +1,4 @@
-import { LOGO_COLORS, LOGOS, markSvg, type LogoId } from '../ui/Logo';
+import { LOGO_COLORS, LOGOS, markSvg, type LogoId, type LogoStyle } from '../ui/Logo';
 
 /**
  * Two themes to choose from (identity 1.5): Atelier, a developer's tool, and
@@ -21,9 +21,10 @@ export function readLook(): Look {
   return read('okb-look') === 'classique' ? 'classique' : 'atelier';
 }
 
+/** Light unless the person chose dark or « as the system says ». */
 export function readMode(): Mode {
   const v = read('okb-theme');
-  return v === 'light' || v === 'dark' ? v : 'auto';
+  return v === 'dark' || v === 'auto' ? v : 'light';
 }
 
 export function schemeOf(mode: Mode): 'light' | 'dark' {
@@ -36,8 +37,12 @@ export function readLogo(): LogoId {
   return (LOGOS as readonly string[]).includes(v ?? '') ? (v as LogoId) : DEFAULT_LOGO;
 }
 
+export function readLogoStyle(): LogoStyle {
+  return read('okb-logo-style') === 'flat' ? 'flat' : 'gradient';
+}
+
 /** Put a theme on the page (`data-theme`, `data-mode`), remember it with the logo, and paint the tab icon to match. */
-export function applyLook({ look, mode, logo = readLogo() }: { look: Look; mode: Mode; logo?: LogoId }): 'light' | 'dark' {
+export function applyLook({ look, mode, logo = readLogo(), logoStyle = readLogoStyle() }: { look: Look; mode: Mode; logo?: LogoId; logoStyle?: LogoStyle }): 'light' | 'dark' {
   const scheme = schemeOf(mode);
   const root = document.documentElement;
   root.dataset.theme = look;
@@ -45,8 +50,9 @@ export function applyLook({ look, mode, logo = readLogo() }: { look: Look; mode:
   write('okb-look', look);
   write('okb-theme', mode);
   write('okb-logo', logo);
+  write('okb-logo-style', logoStyle);
   const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-  if (icon) icon.setAttribute('href', `data:image/svg+xml,${encodeURIComponent(markSvg(logo, LOGO_COLORS[look]))}`);
+  if (icon) icon.setAttribute('href', `data:image/svg+xml,${encodeURIComponent(markSvg(logo, LOGO_COLORS[look], logoStyle))}`);
   return scheme;
 }
 

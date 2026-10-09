@@ -2,17 +2,14 @@
 
 ## Le choix (9 octobre 2026)
 
-Le logo d'OKB 1.5 est **la note liée**, en dégradé, sous deux formes au choix dans
-l'app (menu Apparence, ou la palette ⌘K) :
+Le choix n'est pas arrêté : **toutes les propositions restent disponibles** dans
+l'app (menu Apparence, ou la palette ⌘K), chacune **en dégradé ou à plat**. Par
+défaut : **C1, la note liée** `o—•`, en dégradé.
 
-| Forme | Idée | Par défaut |
-|---|---|---|
-| **C1** `o—•` | une note qui en appelle une autre, sur le dégradé du thème | oui |
-| **C3** `o—•` sur fond sombre | la même, sur fond profond ; la note au bout dans la couleur du thème | non |
-
-Le dessin vit dans `web-app/src/ui/Logo.tsx` (la marque dans la page et l'icône
-d'onglet) ; ses couleurs suivent le thème (Atelier violet, Classique vert, clair
-ou sombre). Changer de logo par défaut = changer `DEFAULT_LOGO` dans `theme.ts`.
+Le dessin de chaque logo vit dans `web-app/src/ui/Logo.tsx` (la marque dans la page
+et l'icône d'onglet) ; ses couleurs suivent le thème (Atelier violet, Classique
+vert). Changer le logo par défaut = changer `DEFAULT_LOGO` dans
+`web-app/src/app/theme.ts`.
 
 ## L'archive
 

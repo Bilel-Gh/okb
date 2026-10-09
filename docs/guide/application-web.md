@@ -39,11 +39,11 @@ Le menu **Apparence** (en haut à droite, ou ⌘K puis « thème ») :
 - **le thème** : **Atelier** (par défaut), un outil de développeur, dense, violet,
   avec une barre d’état en bas ; ou **Classique**, l’interface d’origine, verte et
   aérée ;
-- **clair, sombre ou auto** (comme ton système) ;
-- **le logo** : la note liée sur le dégradé du thème, ou sur fond sombre.
+- **clair** (par défaut), **sombre** ou **auto** (comme ton système) ;
+- **le logo** : chacune des propositions de logo, en dégradé ou à plat (par défaut, la note liée en dégradé).
 
 La barre de gauche se **replie** en icônes (leur nom s’affiche au survol) ou se
-**déplie** avec les textes : le bouton en bas de la barre, ou **⌘\\** (Ctrl+\\).
+**déplie** avec les textes : le bouton en haut de la barre, à côté du logo, ou **⌘\\** (Ctrl+\\).
 Tes choix sont retenus par ton navigateur.
 
 ![Aujourd’hui, thème Classique](../images/web-classique.png)

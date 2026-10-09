@@ -21,7 +21,7 @@ it looks, once, in the **Appearance** menu (top right, or ⌘K):
 - **Classique** — the interface of the first versions, made consistent: emerald
   green, slate greys, airy rounded cards, emojis for the note types, the soft
   green glow on the welcome card.
-- Each theme is **light, dark or as the system says**.
+- Each theme is **light (the default), dark or as the system says**.
 
 Both themes share the same structure and components; only the tokens (colours,
 fonts, radii, density) and a few touches (comment-style titles, the status bar,
@@ -30,17 +30,21 @@ emojis or tags for types) change. Theme code: `web-app/src/styles/tokens.css`,
 
 ## The logo
 
-**The linked note**, `o—•`: a note that calls another. In gradient, in two forms
-the person chooses in the Appearance menu:
+The person is still choosing, so **every proposal stays available** in the
+Appearance menu (and ⌘K): fourteen marks from two series, each **in gradient**
+(the theme's tile with a light from above) **or flat**. The default is **the
+linked note**, `o—•` — a note that calls another — in gradient.
 
-- **`linked`** (default) — white on the theme's gradient tile;
-- **`linked-dark`** — white on a deep tile, the linked note in the theme's colour.
+- Second series (soft rounded tile): the linked note, the linked note on a dark
+  ground, the note and its links, the constellation, the living diamond, the O of
+  notes, the prompt `o_`, the prompt typing, the prompt on colour.
+- First series (plain rounded tile): the graph, the brackets, the prompt, the
+  linked note, the cards.
 
-The tile is a soft rounded square (app-icon shape) with a light from above. It
-follows the theme (violet in Atelier, green-to-teal in Classique — the gradient of
-the very first logo). The browser tab icon is redrawn to match. Drawing:
-`web-app/src/ui/Logo.tsx`. Every other proposal is archived in
-`docs/design/logos/` (two series, one SVG per variant).
+Colours follow the theme (violet in Atelier, green-to-teal in Classique — the
+gradient of the very first logo), not light or dark. The browser tab icon is
+redrawn to match. Drawing: `web-app/src/ui/Logo.tsx`; archive with every variant
+as SVG: `docs/design/logos/`.
 
 ## Colours
 
@@ -97,10 +101,11 @@ Spacing is a 4 px grid (4, 8, 12, 16, 20, 24, 32, 40, 56).
 
 - **Side bar, folding.** Folded: 56 px, icons only, each named on hover, the
   current page marked on its edge. Unfolded: 232 px, icons and words. A button at
-  the foot of the bar and **⌘\ / Ctrl+\\** fold or unfold it; the choice is kept.
+  the top of the bar, beside the logo, and **⌘\ / Ctrl+\\** fold or unfold it;
+  the choice is kept.
   Without a choice: folded in Atelier, unfolded in Classique.
 - **Top bar**: the page title (with the page it belongs to), the search (⌘K), the
-  Appearance menu (theme, light or dark, logo).
+  Appearance menu (theme, light or dark, logo and its style).
 - **Status bar** (Atelier): the brain, its notes, what waits, its health, the
   language — each a link.
 - **On a phone**: the side bar slides in from a menu button; five tabs at the

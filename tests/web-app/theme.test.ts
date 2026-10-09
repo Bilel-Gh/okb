@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyLook, readLogo, readLook, readMode, readRail, saveRail } from '../../web-app/src/app/theme.js';
-import { LOGO_COLORS, markSvg } from '../../web-app/src/ui/Logo.js';
+import { applyLook, readLogo, readLogoStyle, readLook, readMode, readRail, saveRail } from '../../web-app/src/app/theme.js';
+import { LOGO_COLORS, LOGOS, markSvg } from '../../web-app/src/ui/Logo.js';
 
 beforeEach(() => {
   localStorage.clear();
@@ -11,9 +11,9 @@ beforeEach(() => {
 });
 
 describe('two themes to choose from, each light or dark', () => {
-  it('starts on Atelier following the system, and remembers a choice', () => {
+  it('starts on Atelier in light, and remembers a choice', () => {
     expect(readLook()).toBe('atelier');
-    expect(readMode()).toBe('auto');
+    expect(readMode()).toBe('light');
     applyLook({ look: 'classique', mode: 'dark' });
     expect(document.documentElement.dataset.theme).toBe('classique');
     expect(document.documentElement.dataset.mode).toBe('dark');
@@ -25,6 +25,8 @@ describe('two themes to choose from, each light or dark', () => {
     localStorage.setItem('okb-look', 'metro');
     localStorage.setItem('okb-theme', 'sepia');
     expect(readLook()).toBe('atelier');
+    expect(readMode()).toBe('light');
+    localStorage.setItem('okb-theme', 'auto');
     expect(readMode()).toBe('auto');
   });
 
@@ -73,5 +75,25 @@ describe('the logo: the linked note, on the theme\'s gradient or on a deep groun
     expect(linked).toContain(LOGO_COLORS.classique.a);
     expect(deep).toContain(LOGO_COLORS.classique.nodeB);
     expect(deep).not.toBe(linked);
+  });
+});
+
+describe('every logo proposal stays available, in gradient or flat', () => {
+  it('offers the fourteen proposals of both series, each drawn differently', () => {
+    expect(LOGOS).toHaveLength(14);
+    const drawn = LOGOS.map((l) => markSvg(l, LOGO_COLORS.atelier));
+    expect(new Set(drawn).size).toBe(14);
+    for (const svg of drawn) expect(svg).toMatch(/^<svg[^>]*viewBox="0 0 32 32"/);
+  });
+
+  it('draws a flat logo without any gradient, and remembers the style', () => {
+    expect(readLogoStyle()).toBe('gradient');
+    const flat = markSvg('linked', LOGO_COLORS.atelier, 'flat');
+    expect(flat).not.toContain('linearGradient');
+    expect(flat).toContain(LOGO_COLORS.atelier.flat);
+    applyLook({ look: 'atelier', mode: 'light', logo: 'prompt', logoStyle: 'flat' });
+    expect(readLogo()).toBe('prompt');
+    expect(readLogoStyle()).toBe('flat');
+    expect(decodeURIComponent(document.querySelector('link[rel="icon"]')!.getAttribute('href')!)).not.toContain('linearGradient');
   });
 });

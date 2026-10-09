@@ -911,9 +911,12 @@ Pistes, par ordre proposé :
   touches changent. Menu **Apparence** et palette ⌘K.
 - **Barre latérale repliable** (icônes seules ↔ icônes et textes), bouton et ⌘\ ;
   choix retenu, sinon repliée en Atelier et dépliée en Classique.
-- **Logo : la note liée** `o—•`, en dégradé, deux formes au choix (sur le dégradé
-  du thème, par défaut ; sur fond sombre). Les autres propositions sont archivées
-  dans `docs/design/logos/`.
+- **Logo : la note liée** `o—•`, en dégradé, par défaut. Le choix n'étant pas
+  arrêté, les quatorze propositions des deux séries restent toutes disponibles
+  dans le menu Apparence, chacune en dégradé ou à plat ; archive dans
+  `docs/design/logos/`.
+- **Clair par défaut** (sombre et auto au choix) ; le bouton qui replie la barre
+  est en haut, à côté du logo.
 - **Des dégradés comme dans le logo**, avec retenue : bouton principal, barre
   d'état, page courante, compteurs, accueil, niveaux. Pas sur les données.
 - Polices servies par OKB : IBM Plex Sans, Inter, JetBrains Mono (Fira retirée).

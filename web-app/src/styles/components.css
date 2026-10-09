@@ -7,8 +7,12 @@
   padding: var(--s3) var(--s2);
   background: var(--nav-bg); color: var(--nav-ink); border-right: 1px solid var(--nav-hair);
 }
-.rail-brand { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 6px; font-weight: 700; font-size: var(--t-lg); white-space: nowrap; }
+.rail-top { display: flex; align-items: center; gap: var(--s1); min-height: 36px; }
+.rail-brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 36px; padding: 0 6px; font-weight: 700; font-size: var(--t-lg); white-space: nowrap; color: inherit; text-decoration: none; }
 .logo-mark { flex: none; display: block; }
+.logo-mark svg { display: block; width: 100%; height: 100%; }
+.rail-toggle { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--nav-ink-2); cursor: pointer; }
+.rail-toggle:hover { background: var(--nav-hover); color: var(--nav-ink); }
 .rail-word { letter-spacing: .01em; }
 .rail-section, .rail-foot { display: flex; flex-direction: column; gap: 2px; }
 .rail-foot { margin-top: auto; padding-top: var(--s2); border-top: 1px solid var(--nav-hair); }
@@ -35,7 +39,8 @@
 
 /* Folded: the icons only, each named on hover; the active page keeps a mark on its edge. */
 .shell[data-rail='collapsed'] .rail { align-items: center; padding: var(--s3) 8px; }
-.shell[data-rail='collapsed'] .rail-brand { padding: 0; justify-content: center; }
+.shell[data-rail='collapsed'] .rail-top { flex-direction: column; gap: var(--s2); }
+.shell[data-rail='collapsed'] .rail-brand { padding: 0; justify-content: center; flex: none; }
 .shell[data-rail='collapsed'] :is(.rail-word, .rail-label, .rail-kb-text, .rail-kb > svg) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .shell[data-rail='collapsed'] .rail-section, .shell[data-rail='collapsed'] .rail-foot { align-items: center; }
 .shell[data-rail='collapsed'] .rail-link { width: 40px; min-height: 40px; padding: 0; justify-content: center; }
@@ -242,12 +247,14 @@ a.title:hover { text-decoration: underline; }
 .theme-option small { display: block; color: var(--ink-3); font-size: var(--t-xs); line-height: 1.35; white-space: normal; }
 .theme-option > svg:last-child { margin-left: auto; color: var(--accent-text); flex: none; }
 .theme-swatch { flex: none; width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--hair-strong); }
-.logo-options { display: flex; gap: var(--s2); padding: 0 var(--s2) var(--s2); }
-.menu .logo-option { flex: 1; flex-direction: column; justify-content: center; gap: 6px; min-height: 76px; padding: var(--s2); border: 1px solid var(--hair); text-align: center; font-size: var(--t-xs); }
+.logo-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: var(--s2) var(--s2) 0; }
+.menu .logo-option { justify-content: center; width: auto; min-height: 0; aspect-ratio: 1; padding: 3px; border: 1px solid transparent; border-radius: var(--r-sm); }
+.menu .logo-option:hover { border-color: var(--hair-strong); background: transparent; }
 .menu .logo-option[aria-checked='true'] { border-color: var(--accent); background: var(--wash), var(--surface); }
+.logo-name { padding: var(--s1) var(--s3) var(--s2); }
 .swatch-atelier { background: linear-gradient(135deg, #1d1d2b 0 52%, transparent 52%), linear-gradient(135deg, #9a8bff, #4b3ad4); }
 .swatch-classique { background: linear-gradient(135deg, #f6f7f9 0 52%, transparent 52%), linear-gradient(135deg, #19c991, #0b6f86); }
-.theme-menu .segmented { display: flex; margin: 0 var(--s2) var(--s2); }
+.theme-menu .segmented { display: flex; margin: 0 var(--s2) var(--s1); }
 .theme-menu .segmented button { flex: 1; justify-content: center; min-height: 30px; }
 
 /* ------------------------------------------------------ responsive shell */
