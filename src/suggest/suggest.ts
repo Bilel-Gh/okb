@@ -12,6 +12,7 @@ import { readRootConfig } from '../kb/registry.js';
 import { assertNoSecrets } from '../security/guard.js';
 import { statePaths } from '../state/paths.js';
 import { OkbError } from '../util/errors.js';
+import { withStateLock } from '../util/state-lock.js';
 import { readJsonIfExists, writeJsonAtomic } from '../util/fsx.js';
 import type { BundlePath } from '../util/paths.js';
 
@@ -199,17 +200,20 @@ export function buildCard(config: OkbConfig, input: SuggestInput, ctx: SuggestCo
 /** Add a card to the queue; the same card twice is the same suggestion. */
 export async function addSuggestion(config: OkbConfig, input: SuggestInput, ctx: SuggestContext, now = new Date()): Promise<{ suggestion: Suggestion; created: boolean }> {
   const card = buildCard(config, input, ctx, now);
-  const queue = await loadQueue(config, now);
-  const sameSubject = (s: Suggestion) => (s.input.product ?? '') === (card.input.product ?? '') && (s.input.repo ?? '') === (card.input.repo ?? '') && (s.input.theme ?? '') === (card.input.theme ?? '');
-  const same = queue.find((s) => s.type === card.type && key(s.title) === key(card.title) && sameSubject(s) && ['pending', 'later', 'accepted', 'declined'].includes(s.status));
-  if (same) {
-    const shown = { ...same, shownAt: now.toISOString() };
-    await saveQueue(config, queue.map((s) => (s === same ? shown : s)));
-    return { suggestion: shown, created: false };
-  }
-  const stored = { ...card, shownAt: now.toISOString() };
-  await saveQueue(config, [...queue, stored]);
-  return { suggestion: stored, created: true };
+  // Cards added at once (a hook, the app, the CLI) all reach the queue.
+  return withStateLock(file(config), async () => {
+    const queue = await loadQueue(config, now);
+    const sameSubject = (s: Suggestion) => (s.input.product ?? '') === (card.input.product ?? '') && (s.input.repo ?? '') === (card.input.repo ?? '') && (s.input.theme ?? '') === (card.input.theme ?? '');
+    const same = queue.find((s) => s.type === card.type && key(s.title) === key(card.title) && sameSubject(s) && ['pending', 'later', 'accepted', 'declined'].includes(s.status));
+    if (same) {
+      const shown = { ...same, shownAt: now.toISOString() };
+      await saveQueue(config, queue.map((s) => (s === same ? shown : s)));
+      return { suggestion: shown, created: false };
+    }
+    const stored = { ...card, shownAt: now.toISOString() };
+    await saveQueue(config, [...queue, stored]);
+    return { suggestion: stored, created: true };
+  });
 }
 
 export async function findSuggestion(config: OkbConfig, id: string): Promise<Suggestion> {
@@ -219,17 +223,19 @@ export async function findSuggestion(config: OkbConfig, id: string): Promise<Sug
 }
 
 export async function setStatus(config: OkbConfig, id: string, status: SuggestionStatus, by?: Suggestion['decidedBy'], proposalId?: string, env: NodeJS.ProcessEnv = process.env): Promise<Suggestion> {
-  const queue = await loadQueue(config);
-  const found = queue.find((x) => x.id === id);
-  if (!found) throw new OkbError('E_NOT_FOUND', `no suggestion ${id}`, { key: 'suggestUnknown', params: { id } });
-  // Every decision is the person's (in the web app, the terminal, or their answer read by the consent hook): it carries their id.
-  const who = by ? await person(env).catch(() => null) : null;
-  const next: Suggestion = {
-    ...found, status, decidedAt: new Date().toISOString(), ...(by ? { decidedBy: by } : {}), ...(who ? { decidedPerson: who.id } : {}),
-    ...(proposalId ? { proposalIds: [...(found.proposalIds ?? []), proposalId] } : {}),
-  };
-  await saveQueue(config, queue.map((s) => (s === found ? next : s)));
-  return next;
+  return withStateLock(file(config), async () => {
+    const queue = await loadQueue(config);
+    const found = queue.find((x) => x.id === id);
+    if (!found) throw new OkbError('E_NOT_FOUND', `no suggestion ${id}`, { key: 'suggestUnknown', params: { id } });
+    // Every decision is the person's (in the web app, the terminal, or their answer read by the consent hook): it carries their id.
+    const who = by ? await person(env).catch(() => null) : null;
+    const next: Suggestion = {
+      ...found, status, decidedAt: new Date().toISOString(), ...(by ? { decidedBy: by } : {}), ...(who ? { decidedPerson: who.id } : {}),
+      ...(proposalId ? { proposalIds: [...(found.proposalIds ?? []), proposalId] } : {}),
+    };
+    await saveQueue(config, queue.map((s) => (s === found ? next : s)));
+    return next;
+  });
 }
 
 /* ------------------------------------------------------------------ budget */

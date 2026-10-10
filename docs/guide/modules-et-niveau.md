@@ -122,8 +122,11 @@ okb translate "Livrer une version" --to en --save      # en faire une note (prop
   retraduites. Oubliée après 30 jours sans lecture.
 - Le code, les schémas, les citations et les liens restent tels quels.
 - Le coût compte dans le **budget du jour** (`budget.daily`), avec les cartes.
-- Une note 🔒 n'est envoyée à l'IA qu'après ta confirmation (`--confirm-secret`) ;
-  une note qui contient un secret, jamais.
+- Une note 🔒 n'est envoyée à l'IA qu'après ta confirmation (`--confirm-secret`),
+  valable pour son contenu du moment ; une note qui contient un secret, jamais. Les
+  termes de tes fiches 🔒 ne partent pas non plus avec la traduction d'une autre
+  note.
+- « Enregistrer comme note » n'apparaît qu'une fois la note entière traduite.
 - La langue de départ est celle de la note (déclarée par `lang`, sinon devinée à
   ses mots), pas forcément celle du profil.
 - L'IA utilisée : Claude Code s'il est installé, sinon ta clé

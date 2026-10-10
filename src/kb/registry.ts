@@ -6,6 +6,7 @@ import type { OkbConfig } from '../config/schema.js';
 import type { Lang } from '../i18n/index.js';
 import { OkbError } from '../util/errors.js';
 import { ensureDir, readTextIfExists, walkFiles, writeTextAtomic } from '../util/fsx.js';
+import { withStateLock } from '../util/state-lock.js';
 
 /**
  * Every KB a person has, as people see them: a name, a folder, a language.
@@ -30,8 +31,10 @@ export async function readRootConfig(env: NodeJS.ProcessEnv = process.env): Prom
 
 export async function writeRootConfig(update: (root: RootConfig) => RootConfig, env: NodeJS.ProcessEnv = process.env): Promise<void> {
   const path = resolve(okbHome(env), 'config.yaml');
-  const next = update(await readRootConfig(env));
-  await writeTextAtomic(path, YAML.stringify(next, { lineWidth: 0 }));
+  await withStateLock(path, async () => {
+    const next = update(await readRootConfig(env));
+    await writeTextAtomic(path, YAML.stringify(next, { lineWidth: 0 }));
+  });
 }
 
 export async function setUiLanguage(language: Lang | 'auto', env: NodeJS.ProcessEnv = process.env): Promise<void> {

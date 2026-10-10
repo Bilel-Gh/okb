@@ -1,9 +1,8 @@
 import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import { posix, resolve } from 'node:path';
 import YAML from 'yaml';
-import { complete } from '../ai/provider.js';
+import { sendToAi } from '../ai/gate.js';
 import { oneAtATime } from '../ai/queue.js';
-import { recordAiUsage } from '../ai/usage.js';
 import { glossary } from '../brain/views.js';
 import { layoutOf } from '../brain/layout.js';
 import type { OkbConfig } from '../config/schema.js';
@@ -20,6 +19,7 @@ import { OkbError } from '../util/errors.js';
 import { writeJsonAtomic } from '../util/fsx.js';
 import { sha256 } from '../util/hash.js';
 import { asBundlePath, type BundlePath } from '../util/paths.js';
+import { withStateLock } from '../util/state-lock.js';
 
 /**
  * Translate a note on demand, one language at a time, never in advance. The
@@ -97,11 +97,23 @@ function restore(translated: string, parts: readonly string[], source: string): 
 
 /* --------------------------------------------------------------- cache */
 
-type Cache = {
+export type Cache = {
   v: 1; path: string; lang: string; lastRead: string; updatedAt: string;
   meta?: { hash: string; title: string; description: string };
   sections: Record<string, string[]>;
 };
+
+/**
+ * The cache to save: what is on disk now (another translation may have written
+ * it meanwhile) with this translation's sections on top. `live`: after a full
+ * translation, the sections the note still holds; older versions go (F2.0-36).
+ */
+export function mergeCache(onDisk: Cache, mine: Cache, live: ReadonlySet<string> | null): Cache {
+  const sections = { ...onDisk.sections, ...mine.sections };
+  if (live) for (const k of Object.keys(sections)) if (!live.has(k)) delete sections[k];
+  const meta = mine.meta ?? onDisk.meta;
+  return { ...onDisk, ...mine, ...(meta ? { meta } : {}), sections };
+}
 
 const cacheDir = (config: OkbConfig) => resolve(statePaths(config).root, 'translations');
 const cacheFile = (config: OkbConfig, path: string, lang: string) => resolve(cacheDir(config), `${sha256(path).slice(0, 20)}.${lang}.json`);
@@ -138,7 +150,12 @@ type Plan = {
   readonly meta: { hash: string; title: string; description: string };
   readonly source: string;
   readonly cache: Cache;
+  /** The note itself: 🔒 or not, and the content the person saw (their yes holds for it). */
+  readonly note: { readonly secret: boolean; readonly hash: string };
 };
+
+/** The person's yes for a 🔒 note: `true` from the terminal (the note as it is now), or the content hash the web page showed. */
+export type SecretYes = boolean | string;
 
 const STOP: Readonly<Record<string, readonly string[]>> = {
   fr: ['le', 'la', 'les', 'des', 'est', 'une', 'pour', 'avec', 'dans', 'qui', 'que', 'pas', 'sur', 'au', 'du', 'et'],
@@ -167,7 +184,7 @@ function sourceLanguage(config: OkbConfig): string {
   return (config.writing.language ?? config.profile.answer.language ?? 'en').slice(0, 2);
 }
 
-async function plan(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, options: { confirmSecret?: boolean } = {}): Promise<Plan> {
+async function plan(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, options: { confirmSecret?: SecretYes } = {}): Promise<Plan> {
   if (!(LANGUAGES as readonly string[]).includes(lang)) throw new OkbError('E_INVALID', `language ${lang} is not offered`, { key: 'translateLanguage', params: { lang, langs: LANGUAGES.join(', ') } });
   const bundle = await loadBundleFor(config);
   const doc = bundle.docs.get(path);
@@ -193,11 +210,25 @@ async function plan(config: OkbConfig, path: BundlePath, lang: string, scope: Sc
   const all = [meta.title, meta.description, ...sections.flatMap((s) => s.texts.map((x) => x.text))].join('\n');
   const secrets = findSecrets(all);
   if (secrets.length) throw new OkbError('E_SECRET', 'the note holds a secret: it is not sent to the AI', { key: 'translateHasSecret', params: { kind: secrets[0]!.kind } });
-  return { bundle, segs, sections, meta, source, cache: await loadCache(config, path, lang) };
+  return { bundle, segs, sections, meta, source, cache: await loadCache(config, path, lang), note: { secret: isSecret(entry.ext), hash: entry.sha256.slice(0, 24) } };
 }
 
 function missing(p: Plan): { metaNeeded: boolean; sections: Plan['sections'] } {
   return { metaNeeded: p.cache.meta?.hash !== p.meta.hash, sections: p.sections.filter((s) => !p.cache.sections[s.hash]) };
+}
+
+/**
+ * The brain's terms, given to the model so it keeps them as written. Never the
+ * terms of a 🔒 or private card: its title and aliases are what it hides (F2.0-30).
+ */
+function sendableTerms(bundle: Bundle, config: OkbConfig): string[] {
+  return glossary(layoutOf(config), bundle)
+    .filter((g) => {
+      const ext = bundle.byPath.get(asBundlePath(g.path))?.ext as { confidentiality?: string } | undefined;
+      return !isSecret(ext) && ext?.confidentiality !== 'private';
+    })
+    .flatMap((g) => [g.term, ...g.aliases])
+    .filter((t) => !findSecrets(t).length);
 }
 
 function requestFor(p: Plan, lang: string, terms: readonly string[]) {
@@ -230,35 +261,36 @@ function parseBlocks(text: string, count: number): (string | null)[] {
 
 /* ---------------------------------------------------------------- public */
 
-export async function estimateTranslation(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: boolean; now?: Date } = {}): Promise<{ tokens: number; cached: number; toTranslate: number; budget: { spent: number; daily: number } }> {
+export async function estimateTranslation(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: SecretYes; now?: Date } = {}): Promise<{ tokens: number; cached: number; toTranslate: number; budget: { spent: number; daily: number }; hash: string }> {
   const p = await plan(config, path, lang, scope, options);
   // The same request as the translation itself, the brain's terms included.
-  const r = requestFor(p, lang, glossary(layoutOf(config), p.bundle).flatMap((g) => [g.term, ...g.aliases]));
+  const r = requestFor(p, lang, sendableTerms(p.bundle, config));
   const tokens = r.blocks.length ? estimateTokens(r.system + r.prompt) * 2 : 0;
   const [spent, daily] = await Promise.all([spentToday(config, options.now ?? new Date()), dailyBudget(env)]);
-  return { tokens, cached: p.sections.length - r.sections.length, toTranslate: r.sections.length, budget: { spent, daily } };
+  // `hash`: the content this estimate describes; a yes to send a 🔒 note is given for it.
+  return { tokens, cached: p.sections.length - r.sections.length, toTranslate: r.sections.length, budget: { spent, daily }, hash: p.note.hash };
 }
 
-export function translateNote(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: boolean; now?: Date } = {}): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
+export function translateNote(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: SecretYes; now?: Date } = {}): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
   return oneAtATime(() => translateNow(config, path, lang, scope, env, options));
 }
 
-async function translateNow(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv, options: { confirmSecret?: boolean; now?: Date }): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
+async function translateNow(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv, options: { confirmSecret?: SecretYes; now?: Date }): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
   const now = options.now ?? new Date();
   const p = await plan(config, path, lang, scope, options);
-  const terms = glossary(layoutOf(config), p.bundle).flatMap((g) => [g.term, ...g.aliases]);
-  const r = requestFor(p, lang, terms);
+  const r = requestFor(p, lang, sendableTerms(p.bundle, config));
   let tokens = 0;
   let done = 0;
   let failed = 0;
   const cache = p.cache;
   if (r.blocks.length) {
     const cost = estimateTokens(r.system + r.prompt) * 2;
-    const [spent, budget] = await Promise.all([spentToday(config, now), dailyBudget(env)]);
-    if (spent + cost > budget) throw new OkbError('E_INVALID', `daily budget reached (${spent} + ${cost} > ${budget} tokens)`, { key: 'budgetExceeded', params: { spent, cost, budget } });
-    const answer = await complete({ system: r.system, prompt: r.prompt, size: 'small', maxTokens: Math.min(16_000, cost + 500) }, env);
+    const yes = options.confirmSecret === undefined || options.confirmSecret === false ? [] : [{ path, hash: options.confirmSecret === true ? p.note.hash : options.confirmSecret }];
+    const answer = await sendToAi(config, {
+      purpose: 'translate', system: r.system, prompt: r.prompt, size: 'small', maxTokens: Math.min(16_000, cost + 500), cost,
+      notes: [{ path, secret: p.note.secret, hash: p.note.hash }], consent: yes,
+    }, env, now);
     tokens = answer.tokens.input + answer.tokens.output;
-    await recordAiUsage(config, { tokens, purpose: 'translate', provider: answer.provider }, now);
     const parsed = parseBlocks(answer.text, r.blocks.length);
     // Only what came back whole is kept: a block missing, cut, or that lost a link target is asked again next time.
     const results = r.blocks.map((b, i) => {
@@ -276,24 +308,28 @@ async function translateNow(config: OkbConfig, path: BundlePath, lang: string, s
       if (texts.every((x) => x !== null)) { cache.sections[s.hash] = texts as string[]; done++; } else failed++;
     }
   }
-  // Keep only what the current note still holds (old versions of a section go).
-  if (scope === 'full') {
-    const live = new Set(p.sections.map((s) => s.hash));
-    for (const k of Object.keys(cache.sections)) if (!live.has(k)) delete cache.sections[k];
-  }
   cache.lastRead = now.toISOString();
   if (r.blocks.length) cache.updatedAt = now.toISOString();
   await mkdir(cacheDir(config), { recursive: true });
-  await writeJsonAtomic(cacheFile(config, path, lang), cache);
+  // Saved over what is on disk now: a translation that ran meanwhile (from the CLI or the app) keeps its sections.
+  const live = scope === 'full' ? new Set(p.sections.map((s) => s.hash)) : null;
+  const saved = await withStateLock(cacheFile(config, path, lang), async () => {
+    const merged = mergeCache(await loadCache(config, path, lang), cache, live);
+    await writeJsonAtomic(cacheFile(config, path, lang), merged);
+    return merged;
+  });
+  cache.sections = saved.sections;
+  if (saved.meta) cache.meta = saved.meta;
   void purgeTranslations(config, now).catch(() => 0);
   // The translated view: the sections in scope, text replaced, everything else as it was.
   const inScope = new Map(p.sections.map((s) => [s.index, cache.sections[s.hash] ?? s.texts.map((x) => x.text)]));
   const counters = new Map<number, number>();
-  const body = p.segs.filter((s) => inScope.has(s.section)).map((s) => {
+  // The whole note keeps every part, even a section with nothing to translate (code only).
+  const body = p.segs.filter((s) => scope === 'full' || inScope.has(s.section)).map((s) => {
     if (s.kind !== 'text' || !s.text.trim()) return s.text;
     const i = counters.get(s.section) ?? 0;
     counters.set(s.section, i + 1);
-    return inScope.get(s.section)![i] ?? s.text;
+    return inScope.get(s.section)?.[i] ?? s.text;
   }).join('\n').trim();
   const title = cache.meta?.title ?? p.meta.title;
   return {

@@ -58,7 +58,8 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
       const { asBundlePath } = await import('../util/paths.js');
       const { renderMarkdown } = await import('./render.js');
       const path = asBundlePath(String(b.path ?? ''));
-      const r = await translateNote(config, path, String(b.lang ?? ''), b.scope === 'full' ? 'full' : 'brief', ctx.env, { confirmSecret: b.confirmSecret === true });
+      // From the page, a yes for a 🔒 note is the content hash the person saw, never a bare true.
+      const r = await translateNote(config, path, String(b.lang ?? ''), b.scope === 'full' ? 'full' : 'brief', ctx.env, { confirmSecret: typeof b.confirmSecret === 'string' && b.confirmSecret ? b.confirmSecret : false });
       return { ok: true, ...r, html: await renderMarkdown(r.markdown, path) };
     },
     'POST /api/translate/save': async (ctx, _q, b) => {

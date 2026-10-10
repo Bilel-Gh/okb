@@ -1,12 +1,10 @@
-import { complete } from '../ai/provider.js';
+import { sendToAi } from '../ai/gate.js';
 import { oneAtATime } from '../ai/queue.js';
 import { plain } from '../concepts/one-liner.js';
-import { recordAiUsage } from '../ai/usage.js';
 import type { OkbConfig } from '../config/schema.js';
 import type { Bundle } from '../kb/bundle.js';
 import { isSecret } from '../security/confidential.js';
 import { findSecrets } from '../security/secrets.js';
-import { dailyBudget, spentToday } from '../suggest/suggest.js';
 import { estimateTokens } from '../util/context-meter.js';
 import { OkbError } from '../util/errors.js';
 import type { BundlePath } from '../util/paths.js';
@@ -71,8 +69,8 @@ export function composeAnswer(config: OkbConfig, question: string, passages: rea
 }
 
 async function answerNow(config: OkbConfig, question: string, passages: readonly Passage[], env: NodeJS.ProcessEnv, now: Date): Promise<{ answer: string; tokens: number; used: number[] }> {
-  // Only what may leave the computer: no 🔒 note, no passage that looks like it holds a secret.
-  const sendable = passages.filter((p) => !p.secret && !findSecrets(p.text).length);
+  // Only what may leave the computer: no 🔒 note, no passage whose title or text looks like it holds a secret.
+  const sendable = passages.filter((p) => !p.secret && !findSecrets(`${p.title}\n${p.text}`).length);
   if (!sendable.length) throw new OkbError('E_INVALID', 'no passage can be sent to the AI', { key: 'askNothingToSend' });
   const lang = (config.writing.language ?? config.profile.answer.language ?? 'en').startsWith('fr') ? 'French' : 'English';
   const system = [
@@ -81,12 +79,12 @@ async function answerNow(config: OkbConfig, question: string, passages: readonly
     'Be short and plain: three to six sentences, no preamble.',
   ].join('\n');
   const prompt = `Question: ${question}\n\n${sendable.map((p) => `[${p.n}] ${p.title}\n${p.text}`).join('\n\n')}`;
-  const cost = estimateTokens(system + prompt) + 400;
-  const [spent, budget] = await Promise.all([spentToday(config, now), dailyBudget(env)]);
-  if (spent + cost > budget) throw new OkbError('E_INVALID', `daily budget reached (${spent} + ${cost} > ${budget} tokens)`, { key: 'budgetExceeded', params: { spent, cost, budget } });
-  const r = await complete({ system, prompt, size: 'small', maxTokens: 700 }, env);
+  // The question goes too: the way out to the AI refuses it when it holds a secret.
+  const r = await sendToAi(config, {
+    purpose: 'ask', system, prompt, size: 'small', maxTokens: 700, cost: estimateTokens(system + prompt) + 400,
+    notes: sendable.map((p) => ({ path: String(p.path), secret: false })),
+  }, env, now);
   const tokens = r.tokens.input + r.tokens.output;
-  await recordAiUsage(config, { tokens, purpose: 'ask', provider: r.provider }, now);
   const used = [...new Set([...r.text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])).filter((n) => sendable.some((p) => p.n === n)))];
   return { answer: r.text.trim(), tokens, used };
 }

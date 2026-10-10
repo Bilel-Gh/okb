@@ -18,7 +18,8 @@ const isCode = (f: InventoryFile) => (f.kind === 'source' || f.kind === 'entry' 
 class IfaceSet {
   private readonly items = new Map<string, Iface>();
   add(kind: IfaceKind, name: string, evidence: Evidence, detail?: string): void {
-    const key = `${kind}\u0000${name}`;
+    // An HTTP call is also told apart by its base: GET /health on two services is two calls (F2.0-34).
+    const key = `${kind}\u0000${name}${kind === 'http-call' ? `\u0000${detail ?? ''}` : ''}`;
     const found = this.items.get(key);
     if (found) { this.items.set(key, { ...found, count: (found.count ?? 1) + 1 }); return; }
     this.items.set(key, { kind, name, evidence, ...(detail ? { detail } : {}) });

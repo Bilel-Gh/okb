@@ -109,7 +109,8 @@ export function flowView(model: SystemModel, start: string, call: string, option
     if (used.has(l.id)) continue;
     used.add(l.id);
     arrows.push(l);
-    steps.push({ from: name(l.from), to: name(l.to), what: l.calls[0]?.what ?? '', verb: l.verb });
+    // The first step is the call the person chose, not the first call of its link (F2.0-34).
+    steps.push({ from: name(l.from), to: name(l.to), what: l === first ? call : (l.calls[0]?.what ?? ''), verb: l.verb });
     if (expanded.has(l.to)) continue;
     expanded.add(l.to);
     const next = model.links.filter((x) => x.from === l.to && (x.kind === 'http' || x.kind === 'event')).sort((a, b) => (a.calls[0]?.line ?? 0) - (b.calls[0]?.line ?? 0));

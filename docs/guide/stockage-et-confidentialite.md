@@ -27,6 +27,20 @@ que tu approuves) est à toi seul :
 
 L'application web l'affiche normalement, avec un badge 🔒.
 
+## Ce qui part vers l'IA
+
+Quand OKB appelle lui-même une IA (traduire, « Demander », l'examen d'un repo),
+tout passe par un même contrôle avant de quitter ton ordinateur :
+
+- **le message entier est vérifié** : un secret (clé, jeton, mot de passe) où que ce
+  soit (dans la question, un titre, un terme) et rien ne part ;
+- **une note 🔒 ne part qu'avec ton accord**, donné pour son contenu actuel : si la
+  note change après ton accord, il faut confirmer à nouveau ;
+- **les termes de tes fiches 🔒** ne sont jamais donnés à l'IA, même pour traduire
+  une autre note ;
+- **le budget du jour est vérifié avant l'appel**, et ce qu'un appel a consommé est
+  compté même quand sa réponse est inutilisable (coupée par sa limite).
+
 ## Les données personnelles
 
 Quand une proposition contient un email, un numéro de téléphone, un IBAN, un

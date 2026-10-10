@@ -76,7 +76,7 @@ export function comparePack(bundle: Bundle, pack: Pack, into: string): { added: 
   for (const n of pack.notes) {
     const local = bundle.snapshot.files.get(asBundlePath(posix.join(root, n.path)));
     if (local === undefined) added.push(n);
-    else if (sha256(local) !== sha256(n.content)) changed.push(n);
+    else if (sha256(canonical(local)) !== sha256(canonical(n.content))) changed.push(n);
     else same++;
   }
   return { added, changed, same };
@@ -104,6 +104,22 @@ export async function mergePack(config: OkbConfig, pack: Pack, into: string, bun
 }
 
 /** The note as it came, with `x_okb.pack` saying where from (the author stays in `generated.by`). */
+/**
+ * A note as two brains can compare it: without what a merge adds or drops —
+ * where it came from (`x_okb.pack`) and its identity in the other brain
+ * (`x_okb.id`). An unchanged note merged earlier is then the same (F2.0-38).
+ */
+function canonical(content: string): string {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(content);
+  if (!m) return content;
+  let data: Record<string, unknown>;
+  try { data = (YAML.parse(m[1]!) as Record<string, unknown>) ?? {}; } catch { return content; }
+  const { pack: _pack, id: _id, ...ext } = (data.x_okb as Record<string, unknown> | undefined) ?? {};
+  const rest = { ...data };
+  if (Object.keys(ext).length) rest.x_okb = ext; else delete rest.x_okb;
+  return `${YAML.stringify(rest, { lineWidth: 0 })}\n${content.slice(m[0].length)}`;
+}
+
 function withOrigin(content: string, pack: Pack): string {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(content);
   if (!m) return content;

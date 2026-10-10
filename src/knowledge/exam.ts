@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
-import { complete, type AiRequest, type AiResult } from '../ai/provider.js';
+import { sendToAi } from '../ai/gate.js';
+import type { AiRequest, AiResult } from '../ai/provider.js';
 import { oneAtATime } from '../ai/queue.js';
 import { recordAiUsage } from '../ai/usage.js';
 import { repoPlace } from '../brain/products.js';
@@ -176,7 +177,7 @@ async function prepare(config: OkbConfig, repo: ExamRepo, options: { env: NodeJS
   const ask = (text: string) => {
     if (!scope.size) return [];
     const { passages } = passagesFor(config, bundle, text, { notes: 4, perNote: 2, scope });
-    return passages.filter((p) => !p.secret && !findSecrets(p.text).length);
+    return passages.filter((p) => !p.secret && !findSecrets(`${p.title}\n${p.text}`).length);
   };
   for (const q of QUESTIONS) {
     if (!wanted(q.id, false)) continue;
@@ -261,7 +262,9 @@ export function runExam(config: OkbConfig, repo: ExamRepo, options: { env?: Node
 async function examNow(config: OkbConfig, repo: ExamRepo, options: { env?: NodeJS.ProcessEnv; only?: readonly string[]; bundle?: Bundle; now?: Date; ask?: Ask }): Promise<ExamResult> {
   const env = options.env ?? process.env;
   const now = options.now ?? new Date();
-  const ask: Ask = options.ask ?? ((req) => complete(req, env));
+  // The way out to the AI counts each call itself; an injected `ask` (tests) is counted here.
+  const viaGate = !options.ask;
+  const ask: Ask = options.ask ?? ((req) => sendToAi(config, { ...req, purpose: 'exam' }, env, now));
   const lang = langOf(config);
   const prepared = await prepare(config, repo, { env, ...(options.only ? { only: options.only } : {}), ...(options.bundle ? { bundle: options.bundle } : {}) });
   const answering = prepared.filter((q) => q.found > 0);
@@ -285,7 +288,7 @@ async function examNow(config: OkbConfig, repo: ExamRepo, options: { env?: NodeJ
     .map((q) => ({ q, answer: (answers.get(q.id)?.answer ?? '').trim() }))
     .filter(({ q, answer }) => q.reference !== 'none' && answer && !answer.includes(NOT_IN_NOTES));
   const grades = toGrade.length ? await call(gradeRequest(lang, toGrade), 'grades') : new Map<string, Record<string, string>>();
-  if (tokens) await recordAiUsage(config, { tokens, purpose: 'exam', provider }, now);
+  if (tokens && !viaGate) await recordAiUsage(config, { tokens, purpose: 'exam', provider }, now);
 
   const items: ExamItem[] = prepared.map((q) => {
     const base = { id: q.id, question: q.text, custom: q.custom, found: q.found, notes: [...new Set(q.passages.map((p) => String(p.path)))], reference: q.reference };

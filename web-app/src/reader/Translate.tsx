@@ -9,7 +9,7 @@ import { toast } from '../app/toast';
 import { ErrorState } from '../ui/States';
 
 const LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt'] as const;
-type Estimate = { tokens: number; cached: number; toTranslate: number; budget?: { spent: number; daily: number } };
+type Estimate = { tokens: number; cached: number; toTranslate: number; budget?: { spent: number; daily: number }; hash?: string };
 type Result = { ok: true; title: string; html: string; translated: number; failed: number; cached: number; tokens: number };
 
 /**
@@ -24,15 +24,19 @@ export function Translate({ path, source: noteLang, onShow, shown }: { path: str
   const [scope, setScope] = useState<'brief' | 'full'>('brief');
   const [open, setOpen] = useState(false);
   const [confirmSecret, setConfirmSecret] = useState(false);
+  // The scope of the translation on screen: « save as a note » needs the whole note translated.
+  const [doneScope, setDoneScope] = useState<'brief' | 'full' | null>(null);
   const estimate = useQuery({
     queryKey: ['translate-estimate', path, lang, scope, confirmSecret],
     queryFn: () => get<Estimate>('/api/translate/estimate', { path, lang, scope, confirmSecret: confirmSecret ? '1' : undefined }),
     enabled: open, retry: false,
   });
   const run = useMutation({
-    mutationFn: () => post<Result>('/api/translate', { path, lang, scope, confirmSecret }),
+    // A yes for a 🔒 note holds for the content the estimate described (its hash), never for a later version.
+    mutationFn: () => post<Result>('/api/translate', { path, lang, scope, confirmSecret: confirmSecret && estimate.data?.hash ? estimate.data.hash : false }),
     onSuccess: (r) => {
       onShow({ html: r.html, lang });
+      setDoneScope(scope);
       if (r.failed) toast(tn(t, 'app.translate.partial', r.failed));
       setOpen(false);
     },
@@ -74,7 +78,7 @@ export function Translate({ path, source: noteLang, onShow, shown }: { path: str
             {run.error ? <ErrorState error={run.error} /> : null}
             <div className="row">
               <button type="button" className="btn primary sm" disabled={!estimate.data || run.isPending} aria-busy={run.isPending} onClick={() => run.mutate()}>{run.isPending ? t('app.translate.running') : t('app.translate.go')}</button>
-              {shown === lang && scope === 'full' ? <button type="button" className="btn sm" disabled={save.isPending} onClick={() => save.mutate()}><Save size={14} aria-hidden="true" />{t('app.translate.save')}</button> : null}
+              {shown === lang && scope === 'full' && doneScope === 'full' ? <button type="button" className="btn sm" disabled={save.isPending} onClick={() => save.mutate()}><Save size={14} aria-hidden="true" />{t('app.translate.save')}</button> : null}
             </div>
             <p className="xs muted">{t('app.translate.note')}</p>
           </div>

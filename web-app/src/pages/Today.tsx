@@ -53,11 +53,15 @@ export function Waiting({ limit, only }: { limit?: number; only?: 'cards' }) {
   if (s.error) return <div className="panel-body"><ErrorState error={s.error} retry={() => void s.refetch()} /></div>;
   const cards = (s.data?.suggestions ?? []).filter((x) => x.status === 'pending' || x.status === 'later');
   const proposals = only === 'cards' ? [] : (p.data?.proposals ?? []).filter((x) => x.status === 'prepared');
+  // Proposals that could not be read are not « nothing waiting » (F2.0-41).
+  const failed = only !== 'cards' && p.error ? <div className="panel-body"><ErrorState error={p.error} retry={() => void p.refetch()} /></div> : null;
   if (!cards.length && !proposals.length) {
-    return <Empty icon={<Check size={22} />} title={t('app.waiting.emptyTitle')}>{t('app.waiting.empty')}</Empty>;
+    return failed ?? <Empty icon={<Check size={22} />} title={t('app.waiting.emptyTitle')}>{t('app.waiting.empty')}</Empty>;
   }
   const shownCards = limit ? cards.slice(0, limit) : cards;
   return (
+    <>
+    {failed}
     <ul className="rows" aria-label={t('app.waiting.title')}>
       {proposals.map((x) => (
         <li key={x.id}>
@@ -85,6 +89,7 @@ export function Waiting({ limit, only }: { limit?: number; only?: 'cards' }) {
       ))}
       {limit && cards.length > limit ? <li><a className="btn sm ghost" href={hrefFor({ name: 'inbox', tab: 'suggestions' })}>{tn(t, 'app.waiting.more', cards.length - limit)}</a></li> : null}
     </ul>
+    </>
   );
 }
 

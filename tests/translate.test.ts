@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadBundleFor } from '../src/kb/bundle.js';
-import { estimateTranslation, proposeTranslation, purgeTranslations, segments, translateNote } from '../src/translate/translate.js';
+import { estimateTranslation, mergeCache, proposeTranslation, purgeTranslations, segments, translateNote } from '../src/translate/translate.js';
 import { asBundlePath } from '../src/util/paths.js';
 import { demoBrain } from './helpers/brain.js';
 
@@ -292,4 +292,25 @@ describe('two AI calls at once (review M10)', () => {
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect(results.find((r) => r.status === 'rejected')).toMatchObject({ reason: { key: 'budgetExceeded' } });
   }, 60_000);
+});
+
+describe('the defects of the 9 October review (F2.0-36)', () => {
+  it('a note made only of code comes back whole, not as an empty page', async () => {
+    const b = await demoBrain();
+    const path = '3 Boîte à outils/Recettes/Lancer les tests.md';
+    await mkdir(resolve(b.kb, '3 Boîte à outils', 'Recettes'), { recursive: true });
+    await writeFile(resolve(b.kb, path), ['---', 'type: Guide', 'title: Lancer les tests', 'description: La commande.', '---', '', '```bash', 'npm test -- --run', '```', ''].join('\n'));
+    const r = await translateNote(b.config, asBundlePath(path), 'en', 'full', { ...b.env, OKB_AI: 'fake' });
+    expect(r.markdown).toContain('npm test -- --run');
+  }, 60_000);
+
+  it('saving the cache keeps the sections another translation wrote meanwhile', () => {
+    const onDisk = { v: 1 as const, path: 'n.md', lang: 'en', lastRead: '2026-10-10T08:00:00Z', updatedAt: '2026-10-10T08:00:00Z', meta: { hash: 'm', title: 'T', description: 'D' }, sections: { a: ['A'], b: ['B'], c: ['C'] } };
+    const mine = { v: 1 as const, path: 'n.md', lang: 'en', lastRead: '2026-10-10T09:00:00Z', updatedAt: '2026-10-10T09:00:00Z', sections: { a: ['A2'] } };
+    const brief = mergeCache(onDisk, mine, null);
+    expect(brief.sections).toEqual({ a: ['A2'], b: ['B'], c: ['C'] });
+    expect(brief.meta).toEqual(onDisk.meta);
+    const full = mergeCache(onDisk, mine, new Set(['a', 'b']));
+    expect(Object.keys(full.sections).sort()).toEqual(['a', 'b']);
+  });
 });

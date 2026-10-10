@@ -998,3 +998,43 @@ Pistes, par ordre proposé :
   servirait un état « modifié » périmé après un commit).
 - **Version 1.5.0** dans `package.json` et les deux plugins ; rien n'est poussé ni
   tagué sans l'accord de l'utilisateur.
+
+## D56 — 2.0, itération 1 : la confiance d'abord (10 octobre 2026)
+
+**Problème.** L'audit du 9 octobre relevait trois fuites possibles vers l'IA (P1) et une dizaine de défauts d'intégrité (P2). Chaque fonction qui appelait un modèle (traduire, Demander, l'examen) construisait et contrôlait seule ce qu'elle envoyait. Les fichiers d'état lus, modifiés puis réécrits pouvaient perdre une écriture concurrente.
+
+**Décisions.**
+
+- **Une seule porte de sortie vers l'IA** (`src/ai/gate.ts`, F2.0-23). Le message exact est contrôlé en entier : un secret où que ce soit, et rien ne part.
+  - Une note 🔒 part seulement avec un accord donné pour son contenu, c'est-à-dire son empreinte. Depuis l'app, l'accord est l'empreinte que l'estimation a montrée, jamais un simple `true`.
+  - Le budget est vérifié avant l'appel.
+  - L'usage est compté même quand l'appel échoue après avoir consommé des tokens. Le fournisseur joint cet usage à l'erreur.
+  - Les files `oneAtATime` restent chez les appelants : la porte n'attend jamais dessus.
+  - Corrige F2.0-30, 31, 32 et 37.
+- **Un verrou d'état** (`src/util/state-lock.ts`, F2.0-15).
+  - Il sérialise les lectures-modifications-écritures d'un même fichier : file d'attente dans le processus, et dossier `<fichier>.lock` entre processus.
+  - Il attend jusqu'à 5 s et reprend le verrou d'un processus mort de cet ordinateur. Sinon, il échoue avec `E_CONFLICT` (`stateBusy`).
+  - Il protège : le journal des tickets (F2.0-33), la file des suggestions, les cartes et objectifs d'apprentissage, les réglages d'un profil, `config.yaml` et le cache des traductions.
+  - Le cache des traductions est fusionné à l'écriture, avec `mergeCache`.
+  - Les lecteurs ne prennent pas le verrou : un renommage atomique leur donne toujours un fichier entier.
+- **Les autres défauts de l'audit.**
+  - F2.0-34 (architecture) :
+    - le parcours d'un flux garde l'appel choisi ;
+    - une route n'est indexée que pour sa méthode, et seules `route()`, `all` et `use` répondent à toutes ;
+    - un appel HTTP se distingue aussi par sa base.
+  - F2.0-35 : la clé du cache des scores couvre toutes les notes, le fichier d'événements et le jour.
+  - F2.0-36 : la traduction complète d'une note faite seulement de code rend la note entière.
+  - F2.0-38 : un pack se compare sans `x_okb.pack` ni `x_okb.id`.
+  - F2.0-39 : une carte est notée une fois par affichage, et une nouvelle série repart de sa première carte.
+  - F2.0-41 : une erreur de chargement des propositions s'affiche comme une erreur.
+  - F2.0-42 : « Aller au contenu » met le focus sans changer d'adresse.
+  - F2.0-40 était déjà corrigé dans la 1.5.
+
+**Conséquences.**
+- Toute nouvelle fonction qui appelle un modèle passe par `sendToAi`.
+- Toute nouvelle écriture d'état en lecture-modification-écriture passe par `withStateLock`.
+- 25 tests de plus, dont une reproduction par défaut ; chaque reproduction a échoué avant sa correction.
+
+**Réexamen.**
+- Revoir quand l'état opérationnel passera dans SQLite (F2.0-18) : ses transactions remplaceront le verrou pour ces fichiers.
+- Revoir si un appelant doit envoyer volontairement une note privée (`private`) à l'IA.

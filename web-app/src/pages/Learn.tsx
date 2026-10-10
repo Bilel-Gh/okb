@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Award, BookOpen, Briefcase, CalendarCheck, CircleCheck, Eye, GraduationCap, Hammer, Layers, Repeat, Scale, Sparkles, Terminal, TriangleAlert, Trophy } from 'lucide-react';
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { get, post } from '../app/api';
 import { tn, useT } from '../app/i18n';
 import { hrefFor, type Route } from '../app/router';
@@ -27,7 +27,7 @@ const BADGE_ICONS: Record<string, ReactElement> = {
 
 /* ================================================================ review */
 
-function Review() {
+export function Review() {
   const t = useT();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['learn'], queryFn: () => get<LearnData>('/api/learn') });
@@ -36,20 +36,30 @@ function Review() {
   const [shown, setShown] = useState(false);
   const queue = q.data ? [...q.data.due, ...q.data.fresh] : [];
   const card = queue[index];
+  // One grade per card shown: a second key press while the first is on its way does nothing (F2.0-39).
+  const grading = useRef(false);
   const grade = useMutation({
     mutationFn: (rating: (typeof RATINGS)[number]) => post<{ ok: true; level: string }>('/api/learn/grade', { id: card!.id, rating }),
     onSuccess: () => { setShown(false); setIndex((i) => i + 1); void qc.invalidateQueries({ queryKey: ['progress'] }); },
     onError: (e) => toast((e as Error).message, 'err'),
+    onSettled: () => { grading.current = false; },
   });
+  const rate = (rating: (typeof RATINGS)[number]) => {
+    if (grading.current) return;
+    grading.current = true;
+    grade.mutate(rating);
+  };
+  // A new list of due cards (after the last one, or from the server) starts from its first card.
+  useEffect(() => { setIndex(0); setShown(false); }, [q.dataUpdatedAt]);
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       if (!card || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (!shown && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); setShown(true); }
-      else if (shown && ['1', '2', '3', '4'].includes(e.key)) grade.mutate(RATINGS[Number(e.key) - 1]!);
+      else if (shown && ['1', '2', '3', '4'].includes(e.key)) rate(RATINGS[Number(e.key) - 1]!);
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
-  }, [card, shown, grade]);
+  }, [card, shown, rate]);
   useEffect(() => { if (q.data && index >= queue.length && index > 0) void qc.invalidateQueries({ queryKey: ['learn'] }); }, [index, queue.length, q.data, qc]);
 
   if (q.isLoading) return <SkeletonRows rows={6} />;
@@ -69,7 +79,7 @@ function Review() {
                 <a className="small link" href={hrefFor({ name: 'brain', path: card.path })}>{t('app.learn.open', { title: card.title })} <ArrowRight size={13} aria-hidden="true" style={{ verticalAlign: '-2px' }} /></a>
                 <div className="grades" role="group" aria-label={t('app.learn.how')}>
                   {RATINGS.map((r, i) => (
-                    <button key={r} type="button" className={`btn${r === 'good' ? ' primary' : ''}`} disabled={grade.isPending} onClick={() => grade.mutate(r)}>
+                    <button key={r} type="button" className={`btn${r === 'good' ? ' primary' : ''}`} disabled={grade.isPending} onClick={() => rate(r)}>
                       {t(`app.learn.rate.${r}`)}<kbd aria-hidden="true">{i + 1}</kbd>
                     </button>
                   ))}

@@ -212,7 +212,7 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
 
   return (
     <div className="shell" data-rail={appearance.rail}>
-      <a className="skip-link" href="#main">{t('app.skip')}</a>
+      <SkipLink label={t('app.skip')} />
       {railOpen ? <div className="rail-scrim" onClick={() => setRailOpen(false)} aria-hidden="true" /> : null}
       <aside className="rail" data-open={railOpen} aria-label={t('app.nav.label')}>
         <div className="rail-top">
@@ -262,5 +262,20 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
         {toasts.map((x) => <div key={x.id} className={`toast${x.kind === 'err' ? ' err' : ''}`}>{x.text}</div>)}
       </div>
     </div>
+  );
+}
+
+/**
+ * « Skip to content »: the focus goes to the page. The link does not follow
+ * #main, which the hash router would read as an address (F2.0-42).
+ */
+export function SkipLink({ label }: { label: string }) {
+  return (
+    <a className="skip-link" href="#main" onClick={(e) => {
+      e.preventDefault();
+      const main = document.getElementById('main');
+      main?.focus();
+      main?.scrollIntoView?.({ block: 'start' });
+    }}>{label}</a>
   );
 }

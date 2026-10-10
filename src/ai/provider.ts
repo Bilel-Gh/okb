@@ -47,8 +47,11 @@ export function claudeArgs(size: AiRequest['size'], system: string): string[] {
 export function parseClaudeJson(stdout: string): { text: string; tokens: { input: number; output: number } } {
   let data: { is_error?: boolean; result?: unknown; usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number; output_tokens?: number } };
   try { data = JSON.parse(stdout.trim().split('\n').filter(Boolean).pop() ?? '{}'); } catch { throw new OkbError('E_IO', `Claude Code gave an unreadable answer: ${stdout.slice(0, 200)}`, { key: 'aiFailed', params: { error: stdout.slice(0, 200) } }); }
-  if (data.is_error || typeof data.result !== 'string' || !data.result.trim()) throw new OkbError('E_IO', `Claude Code: ${String(data.result || 'no answer')}`, { key: 'aiFailed', params: { error: String(data.result || 'no answer').slice(0, 200) } });
   const u = data.usage ?? {};
+  const used = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.output_tokens ?? 0);
+  if (data.is_error || typeof data.result !== 'string' || !data.result.trim()) {
+    throw new OkbError('E_IO', `Claude Code: ${String(data.result || 'no answer')}`, { key: 'aiFailed', params: { error: String(data.result || 'no answer').slice(0, 200) }, ...(used ? { detail: { usage: { tokens: used, provider: 'claude-code' } } } : {}) });
+  }
   return { text: data.result, tokens: { input: (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0), output: u.output_tokens ?? 0 } };
 }
 
@@ -89,10 +92,11 @@ async function callApi(req: AiRequest, env: NodeJS.ProcessEnv): Promise<AiResult
   }).catch((e: Error) => { throw new OkbError('E_IO', `the AI service cannot be reached: ${e.message}`, { key: 'aiFailed', params: { error: e.message } }); });
   const body = (await r.json().catch(() => ({}))) as { content?: { type: string; text?: string }[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number }; error?: { message?: string } };
   if (!r.ok) throw new OkbError('E_IO', `AI service: ${body.error?.message ?? r.status}`, { key: 'aiFailed', params: { error: String(body.error?.message ?? r.status) } });
-  // A cut or refused answer is not an answer: say so rather than use half of it.
-  if (body.stop_reason === 'max_tokens' || body.stop_reason === 'refusal') throw new OkbError('E_IO', `AI service stopped: ${body.stop_reason}`, { key: 'aiFailed', params: { error: body.stop_reason } });
+  const tokens = (body.usage?.input_tokens ?? 0) + (body.usage?.output_tokens ?? 0);
+  // A cut or refused answer is not an answer: say so rather than use half of it, and tell what it used.
+  if (body.stop_reason === 'max_tokens' || body.stop_reason === 'refusal') throw new OkbError('E_IO', `AI service stopped: ${body.stop_reason}`, { key: 'aiFailed', params: { error: body.stop_reason }, detail: { usage: { tokens, provider: 'api' } } });
   const text = (body.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('');
-  if (!text.trim()) throw new OkbError('E_IO', 'AI service: empty answer', { key: 'aiFailed', params: { error: 'empty answer' } });
+  if (!text.trim()) throw new OkbError('E_IO', 'AI service: empty answer', { key: 'aiFailed', params: { error: 'empty answer' }, detail: { usage: { tokens, provider: 'api' } } });
   return { text, tokens: { input: body.usage?.input_tokens ?? 0, output: body.usage?.output_tokens ?? 0 }, provider: 'api' };
 }
 

@@ -8,6 +8,7 @@ import { isBrainPlace, type RepoPlace } from '../repo/pack.js';
 import { assertNoSecrets } from '../security/guard.js';
 import { statePaths } from '../state/paths.js';
 import { OkbError } from '../util/errors.js';
+import { withStateLock } from '../util/state-lock.js';
 import { ensureDir, readJsonIfExists, readTextIfExists, writeJsonAtomic, writeTextAtomic } from '../util/fsx.js';
 
 /**
@@ -137,6 +138,10 @@ export async function startTicket(config: OkbConfig, input: StartInput): Promise
   const title = input.title?.trim() || (input.text ? titleFrom(input.text, ref) : null) || undefined;
   if (input.text) assertNoSecrets({ text: input.text }, 'ticket text');
   if (input.title) assertNoSecrets({ title: input.title }, 'ticket title');
+  return withStateLock(fileOf(config, ref), () => startTicketNow(config, input, ref, title));
+}
+
+async function startTicketNow(config: OkbConfig, input: StartInput, ref: string, title: string | undefined): Promise<{ record: TicketRecord; created: boolean; attached: boolean }> {
   const now = new Date().toISOString();
   const existing = await readJsonIfExists<TicketRecord>(fileOf(config, ref));
   let textFile = existing?.textFile ?? null;
@@ -169,6 +174,10 @@ export async function startTicket(config: OkbConfig, input: StartInput): Promise
 
 /** Add what the work taught to the ticket's journal: a decision, a trap, a question, a note. */
 export async function addJournal(config: OkbConfig, ref: string, entry: { kind: (typeof NOTE_KINDS)[number]; text: string; repo?: string }): Promise<TicketRecord> {
+  return withStateLock(fileOf(config, ticketId(ref)), () => addJournalNow(config, ref, entry));
+}
+
+async function addJournalNow(config: OkbConfig, ref: string, entry: { kind: (typeof NOTE_KINDS)[number]; text: string; repo?: string }): Promise<TicketRecord> {
   const record = await loadTicket(config, ref);
   if (!record) throw new OkbError('E_NOT_FOUND', `no ticket ${ref}`, { key: 'ticketUnknown', params: { ref } });
   const text = entry.text.trim().slice(0, MAX_TEXT);
@@ -178,6 +187,10 @@ export async function addJournal(config: OkbConfig, ref: string, entry: { kind: 
 }
 
 export async function finishTicket(config: OkbConfig, ref: string): Promise<TicketRecord> {
+  return withStateLock(fileOf(config, ticketId(ref)), () => finishTicketNow(config, ref));
+}
+
+async function finishTicketNow(config: OkbConfig, ref: string): Promise<TicketRecord> {
   const record = await loadTicket(config, ref);
   if (!record) throw new OkbError('E_NOT_FOUND', `no ticket ${ref}`, { key: 'ticketUnknown', params: { ref } });
   if (record.status === 'done') return record;
@@ -239,7 +252,17 @@ export async function syncTicket(config: OkbConfig, record: TicketRecord, repos:
     updatedRepos.push(branch === tr.branch ? tr : { ...tr, branch });
   }
   if (!added.length && !changed) return { record, added, progress };
-  const saved = await saveTicket(config, { ...record, repos: updatedRepos, journal: [...record.journal, ...added] });
+  // Saved over the latest record, not the one read before the Git calls: a note added meanwhile stays.
+  const saved = await withStateLock(fileOf(config, record.ref), async () => {
+    const latest = (await loadTicket(config, record.ref)) ?? record;
+    const shas = new Set(latest.journal.filter((j) => j.sha).map((j) => j.sha));
+    const branches = new Map(updatedRepos.map((r) => [r.id, r.branch]));
+    return saveTicket(config, {
+      ...latest,
+      repos: latest.repos.map((r) => (branches.has(r.id) && !r.branch ? { ...r, branch: branches.get(r.id) ?? r.branch } : r)),
+      journal: [...latest.journal, ...added.filter((a) => !a.sha || !shas.has(a.sha))],
+    });
+  });
   return { record: saved, added, progress };
 }
 

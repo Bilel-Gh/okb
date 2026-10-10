@@ -1,6 +1,9 @@
 import type { Iface, RepoMap } from '../repo/types.js';
 import { normalizePath } from './paths.js';
 
+/** Methods that stand for any method: a route declared this way answers every call to its path. */
+const GENERIC_METHODS = new Set(['ANY', 'ALL', 'USE']);
+
 export { normalizePath } from './paths.js';
 
 /**
@@ -95,11 +98,13 @@ export function buildModel(maps: readonly RepoMap[], options: { lang?: 'fr' | 'e
     } else links.push({ ...l, id: `${l.kind}:${l.from}>${l.to}` });
   };
 
+  // A route answers its own method; only a route that takes every method (route(), all, use) answers any call (F2.0-34).
+  // `* path` lists every route of a path, for a call whose method the code does not say.
   const routes = new Map<string, { map: RepoMap; route: Iface }[]>();
   for (const m of maps) {
     for (const p of m.provides.filter((x) => x.kind === 'http-route')) {
       const { method, path } = splitCall(p.name);
-      for (const key of [`${method} ${path}`, `ANY ${path}`]) routes.set(key, [...(routes.get(key) ?? []), { map: m, route: p }]);
+      for (const key of [GENERIC_METHODS.has(method) ? `ANY ${path}` : `${method} ${path}`, `* ${path}`]) routes.set(key, [...(routes.get(key) ?? []), { map: m, route: p }]);
     }
   }
   const hasRoutes = (m: RepoMap) => m.provides.some((p) => p.kind === 'http-route');
@@ -108,7 +113,7 @@ export function buildModel(maps: readonly RepoMap[], options: { lang?: 'fr' | 'e
     // HTTP: a call matched to a route of another repository, method and path; else by the base variable's name.
     for (const c of a.consumes.filter((x) => x.kind === 'http-call')) {
       const { method, path } = splitCall(c.name);
-      const exact = (routes.get(`${method} ${path}`) ?? []).filter((r) => r.map !== a);
+      const exact = (routes.get(GENERIC_METHODS.has(method) ? `* ${path}` : `${method} ${path}`) ?? []).filter((r) => r.map !== a);
       const anyMethod = exact.length ? [] : (routes.get(`ANY ${path}`) ?? []).filter((r) => r.map !== a);
       const sameRoute = exact.length ? exact : anyMethod;
       const base = c.detail?.startsWith('base ') ? c.detail.slice(5) : null;

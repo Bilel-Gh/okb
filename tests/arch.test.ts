@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { checkDiagram } from '../src/arch/check.js';
@@ -11,7 +12,7 @@ import type { RepoMap } from '../src/repo/types.js';
 import { shop } from './helpers/arch.js';
 import { useRepoSandboxes, workKb } from './helpers/repo.js';
 import { TEST_ROOT } from './helpers/sandbox.js';
-import { json, run } from './helpers/team.js';
+import { json, repo, run } from './helpers/team.js';
 
 useRepoSandboxes();
 
@@ -167,4 +168,56 @@ describe('the system map in the web app', () => {
       await new Promise((done) => server.close(done));
     }
   }, 180_000);
+});
+
+describe('the defects of the 9 October review (F2.0-34)', () => {
+  /** Two small repositories: a front that calls an API in ways the API does not all serve. */
+  async function mini(): Promise<RepoMap[]> {
+    const root = await realpath(await mkdtemp(resolve(tmpdir(), 'okb-arch-mini-')));
+    const front = resolve(root, 'front');
+    const api = resolve(root, 'items-api');
+    await repo(front, {
+      'package.json': JSON.stringify({ name: 'front', private: true, dependencies: { axios: '^1.7.2' } }),
+      'src/client.js': [
+        "const axios = require('axios');",
+        'export const getItem = (id) => axios.get(`${process.env.ITEMS_URL}/items/${id}`);',
+        'export const replaceItem = (id, v) => axios.post(`${process.env.ITEMS_URL}/items/${id}`, v);',
+        'export const itemsUp = () => axios.get(`${process.env.ITEMS_URL}/health`);',
+        'export const billingUp = () => axios.get(`${process.env.BILLING_URL}/health`);',
+        '',
+      ].join('\n'),
+    }, 'init front');
+    await repo(api, {
+      'package.json': JSON.stringify({ name: 'items-api', private: true, dependencies: { express: '^4.19.2' } }),
+      'src/server.js': [
+        "const express = require('express');",
+        'const app = express();',
+        "app.get('/items/:id', (req, res) => res.json({}));",
+        "app.get('/health', (req, res) => res.json({ ok: true }));",
+        'app.listen(3000);',
+        '',
+      ].join('\n'),
+    }, 'init items-api');
+    return Promise.all([scanRepository({ id: 'front', name: 'front', path: front }), scanRepository({ id: 'items-api', name: 'items-api', path: api })]);
+  }
+
+  it('a flow keeps the call that was chosen, not the first call of the link', async () => {
+    const model = buildModel(await maps());
+    const flow = flowView(model, 'repo:shop-web', 'GET /orders/{}');
+    expect(flow.steps[0]).toMatchObject({ from: expect.any(String), what: 'GET /orders/{}' });
+  }, 120_000);
+
+  it('a call is linked only to a route of the same method; the other one becomes a question', async () => {
+    const model = buildModel(await mini());
+    const link = model.links.find((l) => l.from === 'repo:front' && l.to === 'repo:items-api');
+    expect(link?.calls.map((c) => c.what)).toContain('GET /items/{}');
+    expect(link?.calls.map((c) => c.what)).not.toContain('POST /items/{}');
+    expect(model.questions.map((q) => q.what)).toContain('POST /items/{}');
+  }, 120_000);
+
+  it('two calls to the same path on two different bases stay two calls', async () => {
+    const [front] = await mini();
+    const health = front!.consumes.filter((c) => c.kind === 'http-call' && c.name === 'GET /health');
+    expect(health.map((c) => c.detail).sort()).toEqual(['base BILLING_URL', 'base ITEMS_URL']);
+  }, 120_000);
 });

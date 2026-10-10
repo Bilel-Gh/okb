@@ -3,6 +3,7 @@ import YAML from 'yaml';
 import { loadConfig, okbHome } from '../config/load.js';
 import { readRootConfig, setUiLanguage, writeRootConfig } from '../kb/registry.js';
 import { OkbError } from '../util/errors.js';
+import { withStateLock } from '../util/state-lock.js';
 import { readTextIfExists, writeTextAtomic } from '../util/fsx.js';
 
 /**
@@ -134,19 +135,22 @@ export async function writeSetting(profileId: string, key: string, raw: unknown,
     return value;
   }
   const path = resolve(okbHome(env), 'profiles', profileId, 'profile.yaml');
-  const before = await readTextIfExists(path);
-  if (before === null) throw new OkbError('E_NOT_FOUND', `KB "${profileId}" is not installed`, { key: 'kbUnknown', params: { id: profileId } });
-  const doc = YAML.parseDocument(before);
-  if (def.type === 'text' && value === '') doc.deleteIn(def.path as string[]);
-  else doc.setIn(def.path as string[], value);
-  await writeTextAtomic(path, String(doc));
-  try {
-    await loadConfig({ env, profileId });
-  } catch (cause) {
-    await writeTextAtomic(path, before);
-    throw new OkbError('E_CONFIG', `the new value of ${key} makes the profile invalid; nothing changed`, { key: 'settingRejected', params: { name: key }, cause });
-  }
-  return value;
+  // Two settings saved at once (two clicks, the CLI and the app) must both stay.
+  return withStateLock(path, async () => {
+    const before = await readTextIfExists(path);
+    if (before === null) throw new OkbError('E_NOT_FOUND', `KB "${profileId}" is not installed`, { key: 'kbUnknown', params: { id: profileId } });
+    const doc = YAML.parseDocument(before);
+    if (def.type === 'text' && value === '') doc.deleteIn(def.path as string[]);
+    else doc.setIn(def.path as string[], value);
+    await writeTextAtomic(path, String(doc));
+    try {
+      await loadConfig({ env, profileId });
+    } catch (cause) {
+      await writeTextAtomic(path, before);
+      throw new OkbError('E_CONFIG', `the new value of ${key} makes the profile invalid; nothing changed`, { key: 'settingRejected', params: { name: key }, cause });
+    }
+    return value;
+  });
 }
 
 /**

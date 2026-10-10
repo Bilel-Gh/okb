@@ -6,6 +6,7 @@ import { positionOf } from '../brain/tree.js';
 import type { OkbConfig } from '../config/schema.js';
 import type { Bundle } from '../kb/bundle.js';
 import { appendLine, readJsonIfExists, readLines, writeJsonAtomic } from '../util/fsx.js';
+import { withStateLock } from '../util/state-lock.js';
 
 /**
  * Spaced review of what the brain holds. A card is a concept note (« C'est
@@ -154,6 +155,10 @@ async function readLog(config: OkbConfig): Promise<LogLine[]> {
 
 /** One answer graded: the card's next review date. */
 export async function gradeCard(config: OkbConfig, id: string, rating: Grade, now = new Date()): Promise<{ id: string; level: Level; due: string; interval: number }> {
+  return withStateLock(resolve(dir(config), 'cards.json'), () => gradeNow(config, id, rating, now));
+}
+
+async function gradeNow(config: OkbConfig, id: string, rating: Grade, now: Date): Promise<{ id: string; level: Level; due: string; interval: number }> {
   const store = await loadStore(config);
   const before = store.cards[id];
   const scheduler = fsrs(generatorParameters({ enable_fuzz: false }));
@@ -216,18 +221,22 @@ export async function listObjectives(config: OkbConfig): Promise<Objective[]> {
 }
 
 export async function addObjective(config: OkbConfig, input: { text: string; subject?: string; by?: string }, now = new Date()): Promise<Objective> {
-  const all = await loadObjectives(config);
-  const o: Objective = { id: `o-${hash(`${input.text}\n${now.toISOString()}`).slice(0, 6)}`, text: input.text.trim(), subject: input.subject ?? null, by: input.by ?? null, createdAt: now.toISOString().slice(0, 10), doneAt: null };
-  await writeJsonAtomic(resolve(dir(config), 'objectives.json'), { objectives: [...all, o] });
-  return o;
+  return withStateLock(resolve(dir(config), 'objectives.json'), async () => {
+    const all = await loadObjectives(config);
+    const o: Objective = { id: `o-${hash(`${input.text}\n${now.toISOString()}`).slice(0, 6)}`, text: input.text.trim(), subject: input.subject ?? null, by: input.by ?? null, createdAt: now.toISOString().slice(0, 10), doneAt: null };
+    await writeJsonAtomic(resolve(dir(config), 'objectives.json'), { objectives: [...all, o] });
+    return o;
+  });
 }
 
 export async function finishObjective(config: OkbConfig, id: string, now = new Date()): Promise<Objective | null> {
-  const all = await loadObjectives(config);
-  const i = all.findIndex((o) => o.id === id);
-  if (i < 0) return null;
-  const done = { ...all[i]!, doneAt: now.toISOString().slice(0, 10) };
-  all[i] = done;
-  await writeJsonAtomic(resolve(dir(config), 'objectives.json'), { objectives: all });
-  return done;
+  return withStateLock(resolve(dir(config), 'objectives.json'), async () => {
+    const all = await loadObjectives(config);
+    const i = all.findIndex((o) => o.id === id);
+    if (i < 0) return null;
+    const done = { ...all[i]!, doneAt: now.toISOString().slice(0, 10) };
+    all[i] = done;
+    await writeJsonAtomic(resolve(dir(config), 'objectives.json'), { objectives: all });
+    return done;
+  });
 }

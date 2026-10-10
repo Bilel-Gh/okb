@@ -100,3 +100,21 @@ describe('the person behind a pack (review M12)', () => {
     expect(pack.from.person).toBe((await person(env)).id);
   }, 60_000);
 });
+
+describe('the defects of the 9 October review (F2.0-38)', () => {
+  it('a pack already merged and unchanged is the same, even exported again later', async () => {
+    const { config, kb } = await demoBrain();
+    const pack: Pack = await exportPack(config, await loadBundleFor(config), FOLDER);
+    const note = { path: 'Piège du cache.md', title: 'Piège du cache', content: '---\ntype: Guide\ntitle: Piège du cache\ndescription: Le cache garde l’ancienne config.\nstatus: stable\ngenerated:\n  by: human:collegue\n  at: 2026-09-01T10:00:00Z\nx_okb:\n  id: n-collegue-1\n---\n\n# Piège du cache\n\nVider le cache après un changement de config.\n' };
+    const theirs: Pack = { ...pack, notes: [...pack.notes, note] };
+    const proposal = await mergePack(config, theirs, FOLDER);
+    const { materializeFile } = await import('../src/proposal/materialize.js');
+    // The merge applied: the note is in the brain with where it came from.
+    await writeFile(resolve(kb, FOLDER, 'Piège du cache.md'), materializeFile(proposal.changes[0]!.path, null, proposal.changes)!);
+    const again = comparePack(await loadBundleFor(config), theirs, FOLDER);
+    expect(again.changed.map((n) => n.path)).toEqual([]);
+    expect(again.added.map((n) => n.path)).toEqual([]);
+    const later = comparePack(await loadBundleFor(config), { ...theirs, exportedAt: '2026-12-01T10:00:00Z' }, FOLDER);
+    expect(later.changed.map((n) => n.path)).toEqual([]);
+  }, 60_000);
+});
