@@ -1,8 +1,9 @@
 import { formatDate, lang, languageName, relativeTime, t, tn } from '../../i18n/index.js';
-import { computeStatus, type Status } from '../../status/status.js';
+import type { Status } from '../../status/status.js';
+import { invoke } from '../../engine/registry.js';
 import { flagBool } from '../args.js';
 import { paint, sym, tilde } from '../ui/term.js';
-import { config, kbFlag, type Ctx } from './common.js';
+import { actorOf, config, kbFlag, type Ctx } from './common.js';
 
 /** One line for status bars: `📚 atlas · 🎯 3 j · 📥 2 · ⏳ 1`. */
 export function statusLine(s: Status, scope?: { repo: string | null; ticket: string | null } | null): string {
@@ -62,18 +63,14 @@ export async function cmdStatus(ctx: Ctx): Promise<number> {
     return 0;
   }
   const cfg = await config(ctx.args);
-  const s = await computeStatus(cfg, { light: flagBool(ctx.args, 'brief') });
+  const s = await invoke('kb.status', { light: flagBool(ctx.args, 'brief') }, { config: cfg, env: process.env, actor: actorOf() });
   // The repository and ticket OKB is narrowed to, when they belong to this KB.
   const { resolveScope } = await import('../../work/scope.js');
   const sc = await resolveScope(process.cwd()).catch(() => null);
   const scope = sc && sc.kb === cfg.profile.id ? { repo: sc.repo?.name ?? null, ticket: sc.ticket?.status === 'active' ? sc.ticket.ref : null } : null;
   if (ctx.mode === 'json') {
-    // For the panel in Claude Code: suggestion cards waiting for a decision, cards to review.
-    const { loadQueue } = await import('../../suggest/suggest.js');
-    const { dueCount } = await import('../../learn/learn.js');
-    const suggestions = (await loadQueue(cfg).catch(() => [])).filter((q) => q.status === 'pending' || q.status === 'later').length;
-    const due = await dueCount(cfg).catch(() => 0);
-    ctx.out.json({ ok: true, ...s, scope, suggestions, due, line: statusLine(s, scope), ui: lang() });
+    // For the panel in Claude Code, with the suggestion cards waiting for a decision and the cards to review.
+    ctx.out.json({ ok: true, ...s, scope, line: statusLine(s, scope), ui: lang() });
     return 0;
   }
   if (flagBool(ctx.args, 'brief')) {

@@ -52,3 +52,18 @@ d'écrire, comme avant.
 Pour mesurer toi-même : `npm run bench:speed` (sans IA, sans token).
 
 Décision : D57.
+
+## Itération 3 — un seul moteur
+
+- **Les mêmes réponses partout.** Une recherche donne les mêmes notes, dans le même
+  ordre, que tu la fasses dans l'application ou le terminal. La recherche du
+  terminal tient maintenant compte des étoiles des notes.
+- **Les assistants du terminal se branchent par MCP** : `claude mcp add okb -- okb mcp`.
+  Ils cherchent et lisent tes notes, voient l'état de ta KB et te proposent des
+  cartes. Ils ne voient jamais une note 🔒 et ne décident jamais à ta place.
+  Voir [brancher un assistant](../guide/assistants-mcp.md).
+- **Un module éteint l'est partout** : ses actions disparaissent aussi des
+  assistants, et tes notes restent lisibles.
+- **Une demande mal formée** est refusée avec le nom du champ en cause.
+
+Décision : D58.

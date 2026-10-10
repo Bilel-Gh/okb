@@ -1079,3 +1079,45 @@ La cible de la 2.0, une recherche répétée sous 200 ms au p95 à 5 000 notes, 
 - Revoir quand l'état opérationnel passera dans SQLite (F2.0-18).
 - Revoir si une KB dépasse 20 000 notes : les mémoires par texte sont plafonnées à 20 000 entrées.
 - F2.0-21 est découpée. La vitesse et le coût sont mesurés ici. « Ce que j'ai fait mardi » et le temps d'entretien par jour viendront avec le journal par projet et l'écran du soir (itérations 5 et 7), et seront relevés à l'itération 8.
+
+## D58 — 2.0, itération 3 : un seul moteur, et les modules qui s'éteignent pour de bon (10 octobre 2026)
+
+**Problème.** Une même action était écrite plusieurs fois, et les versions divergeaient. La recherche de la CLI ne comptait pas les étoiles, celle du web montrait les notes 🔒 quel que soit le demandeur, et les deux n'avaient ni la même limite ni la même façon d'enregistrer une recherche. Les assistants branchés par MCP n'avaient aucun accès propre. Enfin, éteindre le module développeur cachait ses commandes, mais rien n'empêchait le cœur de dépendre de son code.
+
+**Décisions.**
+
+- **Une opération s'écrit une fois** (`src/engine/`, F2.0-17). Elle déclare :
+  - son identifiant (`notes.find`) ;
+  - son module ;
+  - son effet (`read`, `state` ou `propose`) ;
+  - son entrée, un schéma zod qui donne aussi le schéma JSON pour MCP ;
+  - sa fonction.
+- **`invoke`** refuse une opération dont le module est éteint (`moduleOff`) et valide l'entrée (`invalidInput`, avec le champ en cause) avant de lancer quoi que ce soit.
+- **Le contexte dit qui demande** : `person` ou `agent`. Claude par la CLI (`invokedBy`) et tout appel MCP sont des agents. Un agent ne voit aucune note 🔒, ni en recherche ni en lecture (`secretNoteForAgent`).
+- **Pas d'approbation dans le moteur.** Approuver, appliquer, annuler et décider d'une carte ne sont pas des opérations. Un test vérifie qu'aucun identifiant ne ressemble à ces gestes.
+- **Trois façons d'appeler.**
+  - Le web garde ses adresses, et l'app ne change pas.
+  - La CLI garde son affichage.
+  - `okb mcp` est un serveur MCP en stdio, écrit sans dépendance : `initialize`, `ping`, `tools/list` et `tools/call`, avec les versions 2024-11-05 à 2025-11-25 du protocole. Les noms d'outils remplacent le point par `_`. Les annotations disent si un outil ne fait que lire.
+- **MCP n'est pas inscrit d'office** dans le plugin. On l'ajoute avec `claude mcp add okb -- okb mcp`, et chaque assistant sera essayé avant d'être annoncé (vision, § assistants).
+- **Six premières opérations** :
+  - `notes.find` (même règles partout : étoiles, filtrage 🔒 des agents, limite de 10 par défaut, enregistrement seulement d'une recherche finie) ;
+  - `notes.read` ;
+  - `kb.status` ;
+  - `suggestions.list` ;
+  - `suggestions.add` (la raison reste facultative, pour les skills qui ne la donnent pas encore) ;
+  - `repos.list`, du module développeur.
+
+  Les autres actions passeront dans le moteur avec les écrans qu'elles servent.
+- **Les scores mis en cache** quittent le serveur web pour `src/scores/cached.ts`, afin que le moteur s'en serve.
+- **Le contrat des modules** (F2.0-25). Chaque opération appartient à un module ; un module éteint disparaît de MCP et refuse ses opérations. Un test de frontière interdit au cœur d'importer `repo/`, `work/`, `arch/`, `dev/` ou `knowledge/`, à part dans les adaptateurs (CLI, web) et le registre. Les 18 liens existants, dans onze fichiers, sont listés : la liste ne peut que diminuer.
+
+**Conséquences.**
+- Une action nouvelle s'écrit comme opération, puis la CLI et le web l'appellent.
+- Un test compare la recherche par le web, la CLI de la personne, la CLI de Claude et MCP. L'ancienne CLI l'aurait fait échouer.
+- La recherche de la CLI tient compte des étoiles, comme celle du web : l'ordre des résultats peut changer légèrement.
+
+**Réexamen.**
+- Les liens du cœur vers les tickets, quand le Projet entrera dans le cœur (itération 5).
+- L'inscription de `okb mcp` dans le plugin, après essai sur Claude Code, Codex, Copilot et Cursor.
+- Les notes `private` (et pas seulement `secret`) pour les agents : aujourd'hui, elles leur restent visibles, comme avant.

@@ -8,6 +8,8 @@ import { listRepos } from '../../repo/registry.js';
 import { flagBool, flagString, type ParsedArgs } from '../args.js';
 import type { Output, OutputMode } from '../output.js';
 import { interactive } from '../ui/prompt.js';
+import type { Actor } from '../../engine/operation.js';
+import { invokedBy } from '../../usage/events.js';
 
 export type Ctx = {
   readonly args: ParsedArgs;
@@ -69,4 +71,9 @@ export function kbFlag(args: ParsedArgs, cfg?: OkbConfig): string {
 
 export function abs(path: string): string {
   return resolve(path);
+}
+
+/** Who runs this command, for the engine (src/engine): Claude through the CLI is an agent. */
+export function actorOf(env: NodeJS.ProcessEnv = process.env): Actor {
+  return invokedBy(env) === 'claude' ? 'agent' : 'person';
 }

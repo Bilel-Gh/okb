@@ -43,6 +43,7 @@ ne transforme une affirmation en fait techniquement vérifié.
 | `categories/` | catégories de notes (couleur, emoji, modèles, types, dossiers), déduites sans rien écrire ; surcharges `.okb/categories.yaml` ; changement par proposition |
 | `kb/graph.ts` | le graphe de la KB : nœuds, liens exacts (Markdown analysé), prérequis, rétroliens, comptes par catégorie |
 | `revise/` | révision du style d’une note : éléments protégés, frontmatter, proposition de remplacement |
+| `engine/` | les opérations écrites une fois (entrée validée, module, effet), `invoke`, et `okb mcp` pour les assistants |
 | `web/` | lecteur local sans mutations : notes, recherche, propositions exactes, style et audit |
 | `security/` | détection des secrets (clés, jetons, identifiants) dans propositions, captures, focus et notes |
 | `inbox/`, `weekly/` | inbox privée hors KB, revue hebdomadaire en lecture seule avec relectures espacées |
@@ -50,6 +51,18 @@ ne transforme une affirmation en fait techniquement vérifié.
 | `skillify/` | brouillon de skill Claude Code à partir d’une note procédure, process ou automatisation |
 | `repo/` | repos de code : carte déterministe, plan de lecture, 25 questions d’onboarding, dossier v3 cité à la ligne, fraîcheur Git, ticket, paysage multi-repos, confidentialité (voir [REPOS.md](REPOS.md)) |
 | `plugin/` | quatorze skills, dix-neuf commandes, trois agents, trois hooks (garde d’approbation, focus et repo au démarrage, intentions) et `bin/okb` |
+
+## Un seul moteur
+
+Une action d'OKB s'écrit une fois, comme opération (`src/engine/`, D58), avec son
+module, son effet (`read`, `state`, `propose`) et son entrée validée par zod.
+`invoke` la lance pour le web, la CLI et `okb mcp`. Le contexte dit qui demande :
+un agent (Claude par la CLI, un assistant par MCP) ne voit jamais une note 🔒.
+Approuver, appliquer et décider d'une carte ne sont pas des opérations.
+
+Un module éteint masque ses opérations. `tests/module-boundary.test.ts` interdit
+au cœur d'importer le code du module développeur (`repo/`, `work/`, `arch/`,
+`dev/`, `knowledge/`), sauf une dette listée qui ne peut que diminuer.
 
 ## Lire une KB par révision
 

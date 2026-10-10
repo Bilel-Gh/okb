@@ -32,7 +32,7 @@ import { readSettings, writeSetting } from '../settings/settings.js';
 import { draftSkill, writeSkillDraft } from '../skillify/skillify.js';
 import { acquire, extractSource } from '../sources/registry.js';
 import { ensureState, statePaths } from '../state/paths.js';
-import { computeStatus, gitState, health, proposalSummaries, proposalTitle, receipts } from '../status/status.js';
+import { gitState, health, proposalSummaries, proposalTitle, receipts } from '../status/status.js';
 import { renderBrief } from '../style/brief.js';
 import { resolveStyle } from '../style/resolve.js';
 import { switchProfile } from '../setup/setup.js';
@@ -44,7 +44,9 @@ import { asBundlePath } from '../util/paths.js';
 import { weeklyReport } from '../weekly/weekly.js';
 import { confirmPresence, presenceMethod } from './presence.js';
 import { renderMarkdown } from './render.js';
-import { brainRoutes, crumbsOf, scoresFor } from './api-brain.js';
+import { brainRoutes, crumbsOf } from './api-brain.js';
+import { scoresFor } from '../scores/cached.js';
+import { invoke } from '../engine/registry.js';
 import { nextRoutes } from './api-next.js';
 
 export type ApiContext = {
@@ -234,8 +236,7 @@ export const ROUTES: Record<string, Handler> = {
   },
   'GET /api/status': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
-    const s = await computeStatus(config);
-    return { ...s, name: config.profile.displayName || config.profile.id };
+    return invoke('kb.status', {}, { config, env: ctx.env, actor: 'person' });
   },
   'GET /api/notes': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));

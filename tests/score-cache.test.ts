@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadBundleFor } from '../src/kb/bundle.js';
 import { noteEvent } from '../src/scores/scores.js';
-import { scoresFor } from '../src/web/api-brain.js';
+import { scoresFor } from '../src/scores/cached.js';
 import { demoBrain } from './helpers/brain.js';
 
 describe('the scores the web app shows (F2.0-35)', () => {

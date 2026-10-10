@@ -10,11 +10,12 @@ import { listProducts } from '../brain/products.js';
 import { hubOf, positionOf } from '../brain/tree.js';
 import { brainShape, glossary, subjectIndex } from '../brain/views.js';
 import type { OkbConfig } from '../config/schema.js';
-import { findNotes, knowledgeGaps, recordEmpty } from '../find/find.js';
 import { loadBundleFor, type Bundle } from '../kb/bundle.js';
-import { noteEvent, scoreBundle, type NoteScore } from '../scores/scores.js';
-import { dailyBudget, loadQueue, setStatus, spentToday } from '../suggest/suggest.js';
+import { noteEvent } from '../scores/scores.js';
+import { forgetScores, scoresFor } from '../scores/cached.js';
+import { loadQueue, setStatus } from '../suggest/suggest.js';
 import { statePaths } from '../state/paths.js';
+import { invoke } from '../engine/registry.js';
 import { OkbError } from '../util/errors.js';
 import { sha256 } from '../util/hash.js';
 import { asBundlePath, type BundlePath } from '../util/paths.js';
@@ -33,27 +34,6 @@ type B = Record<string, unknown>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Ctx = { env: NodeJS.ProcessEnv } & Record<string, any>;
 type KbConfig = (ctx: any, kb: unknown) => Promise<OkbConfig>;
-
-const scoreCache = new Map<string, { key: string; scores: Map<string, NoteScore> }>();
-
-/**
- * Scores of every note, computed once per version of what they depend on
- * (F2.0-35): every note's content, what the person did with the notes (read,
- * cited, rated: the events file) and the day (a note ages, a new one grows).
- */
-export async function scoresFor(config: OkbConfig, bundle: Bundle): Promise<Map<string, NoteScore>> {
-  const events = await stat(resolve(statePaths(config).root, 'usage', 'notes.jsonl')).catch(() => null);
-  const key = sha256([
-    ...bundle.entries.map((e) => `${e.path}\u0000${e.sha256}`),
-    `events\u0000${events ? `${events.size}:${events.mtimeMs}` : 'none'}`,
-    `day\u0000${new Date().toISOString().slice(0, 10)}`,
-  ].join('\n'));
-  const hit = scoreCache.get(config.kb.root);
-  if (hit && hit.key === key) return hit.scores;
-  const scores = new Map((await scoreBundle(config, bundle)).map((s) => [s.path as string, s]));
-  scoreCache.set(config.kb.root, { key, scores });
-  return scores;
-}
 
 /** The breadcrumb of a note, each step with the subject's page when it exists. */
 export function crumbsOf(config: OkbConfig, bundle: Bundle, path: BundlePath): { title: string; path: string | null }[] {
@@ -110,21 +90,11 @@ export function brainRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q,
     },
     'GET /api/find': async (ctx, q) => {
       const config = await kbConfig(ctx, q.get('kb'));
-      const query = (q.get('q') ?? '').trim();
-      if (query.length > 300) throw new OkbError('E_INVALID', 'Enter 1–300 characters.');
-      const bundle = await loadBundleFor(config);
-      const scores = await scoresFor(config, bundle);
-      const result = findNotes(config, bundle, query, {
-        limit: Number(q.get('limit') ?? 30),
-        ...(q.get('drawer') ? { drawer: q.get('drawer')! } : {}), ...(q.get('product') ? { product: q.get('product')! } : {}),
-        ...(q.get('repo') ? { repo: q.get('repo')! } : {}), ...(q.get('type') ? { type: q.get('type')! } : {}),
-        scores: new Map([...scores].map(([p, s]) => [p, s.global])),
-      });
-      if (q.get('final') === '1') {
-        if (!result.hits.length) await recordEmpty(config, query);
-        for (const h of result.hits.slice(0, 3)) await noteEvent(config, h.path, 'search');
-      }
-      return { ...result, hits: result.hits.map((h) => ({ ...h, stars: scores.get(h.path)?.stars ?? null })) };
+      const opt = (k: string) => (q.get(k) ? { [k]: q.get(k)! } : {});
+      return invoke('notes.find', {
+        query: q.get('q') ?? '', limit: Number(q.get('limit') ?? 30), ...opt('drawer'), ...opt('product'), ...opt('repo'), ...opt('type'), ...opt('status'),
+        final: q.get('final') === '1',
+      }, { config, env: ctx.env, actor: 'person' });
     },
     'GET /api/glossary': async (ctx, q) => {
       const config = await kbConfig(ctx, q.get('kb'));
@@ -132,11 +102,7 @@ export function brainRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q,
     },
     'GET /api/suggestions': async (ctx, q) => {
       const config = await kbConfig(ctx, q.get('kb'));
-      const queue = await loadQueue(config);
-      const { noteType } = await import('../brain/types.js');
-      // Each card with its note category: its line colour in the web app.
-      const suggestions = queue.filter((s) => q.get('all') === '1' || s.status === 'pending' || s.status === 'later').map((s) => ({ ...s, category: noteType(s.type)?.category ?? 'other' }));
-      return { suggestions, budget: { daily: await dailyBudget(ctx.env), spent: await spentToday(config) }, gaps: await knowledgeGaps(config) };
+      return invoke('suggestions.list', { all: q.get('all') === '1' }, { config, env: ctx.env, actor: 'person' });
     },
     // Deciding on a card in the web app is the person's own act.
     'POST /api/suggestions/decide': async (ctx, _q, b) => {
@@ -155,7 +121,7 @@ export function brainRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q,
     'POST /api/rate': async (ctx, _q, b) => {
       const config = await kbConfig(ctx, b.kb);
       await noteEvent(config, asBundlePath(String(b.path ?? '')), b.verdict === 'down' ? 'down' : 'up');
-      scoreCache.delete(config.kb.root);
+      forgetScores(config.kb.root);
       return { ok: true };
     },
     'GET /api/history': async (ctx, q) => {

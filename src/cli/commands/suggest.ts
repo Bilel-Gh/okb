@@ -11,7 +11,8 @@ import { OkbError } from '../../util/errors.js';
 import { asBundlePath } from '../../util/paths.js';
 import { flagBool, flagNumber, flagString } from '../args.js';
 import { paint } from '../ui/term.js';
-import { effective, type Ctx } from './common.js';
+import { actorOf, effective, type Ctx } from './common.js';
+import { invoke } from '../../engine/registry.js';
 
 function lang(config: OkbConfig): 'fr' | 'en' {
   const l = layoutOf(config)?.lang ?? config.writing.language ?? config.profile.answer.language;
@@ -42,15 +43,13 @@ export async function cmdSuggest(ctx: Ctx): Promise<number> {
   switch (sub) {
     case 'add':
     case 'card': {
-      const bundle = await loadBundleFor(config);
-      const sctx = await contextFor(config, bundle);
       const input = inputOf(ctx);
       if (sub === 'card') {
-        const card = buildCard(config, input, sctx);
+        const card = buildCard(config, input, await contextFor(config, await loadBundleFor(config)));
         if (ctx.mode === 'json') ctx.out.json({ ok: true, card, text: renderCard(card, l) }); else ctx.out.line(renderCard(card, l));
         return 0;
       }
-      const { suggestion, created } = await addSuggestion(config, input, sctx);
+      const { suggestion, created } = await invoke('suggestions.add', input, { config, env: process.env, actor: actorOf() });
       const mode = await suggestMode(config);
       const now = suggestion.pertinence.total >= 80 && mode === 'live';
       if (ctx.mode === 'json') { ctx.out.json({ ok: true, created, showNow: now, mode, suggestion, text: renderCard(suggestion, l) }); return 0; }
@@ -58,11 +57,9 @@ export async function cmdSuggest(ctx: Ctx): Promise<number> {
       return 0;
     }
     case 'list': {
-      const queue = (await loadQueue(config)).filter((s) => flagBool(ctx.args, 'all') || s.status === 'pending' || s.status === 'later');
-      const total = queue.filter((s) => s.status === 'pending' || s.status === 'later').reduce((n, s) => n + s.cost.tokens, 0);
-      const budget = await dailyBudget();
-      const spent = await spentToday(config);
-      if (ctx.mode === 'json') { ctx.out.json({ ok: true, suggestions: queue, totalTokens: total, budget: { daily: budget, spent } }); return 0; }
+      const listed = await invoke('suggestions.list', { all: flagBool(ctx.args, 'all') }, { config, env: process.env, actor: actorOf() });
+      const { suggestions: queue, totalTokens: total, budget: { daily: budget, spent } } = listed;
+      if (ctx.mode === 'json') { ctx.out.json({ ok: true, ...listed }); return 0; }
       if (!queue.length) { ctx.out.info(t('suggest.none')); return 0; }
       ctx.out.grid(queue.map((s) => [s.id, `${s.pertinence.total}`, s.title, paint.dim(s.breadcrumb), `≈${s.cost.tokens}`]));
       ctx.out.line(paint.dim(t('suggest.budget', { spent, budget, total })));
