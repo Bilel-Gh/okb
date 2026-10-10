@@ -34,11 +34,11 @@ fail() { printf '%s✖ %s%s\n  %s\n' "$R" "$1" "$N" "$2" >&2; exit 1; }
 
 printf '\n%sOKB%s %s· %s%s\n\n' "$B" "$N" "$D" "$(say 'second brain for Claude Code and Obsidian' 'second cerveau pour Claude Code et Obsidian')" "$N"
 
-# 1. Node 22.12 or newer, and npm.
-command -v node >/dev/null 2>&1 || fail "$(say 'Node.js is missing' 'Node.js est absent')" "$(say 'Install Node 22.12 or newer (https://nodejs.org), then run this script again.' 'Installe Node 22.12 ou plus récent (https://nodejs.org), puis relance ce script.')"
-node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||(a===22&&b>=12)?0:1)' \
-  || fail "$(say "Node $(node --version) is too old" "Node $(node --version) est trop ancien")" "$(say 'OKB needs Node 22.12 or newer. With nvm: nvm install 22 && nvm use 22.' 'OKB demande Node 22.12 ou plus récent. Avec nvm : nvm install 22 && nvm use 22.')"
-command -v npm >/dev/null 2>&1 || fail "$(say 'npm is missing' 'npm est absent')" "$(say 'npm comes with Node.js: reinstall Node 22.12+.' 'npm est fourni avec Node.js : réinstalle Node 22.12+.')"
+# 1. Node 22.13 or newer, and npm.
+command -v node >/dev/null 2>&1 || fail "$(say 'Node.js is missing' 'Node.js est absent')" "$(say 'Install Node 22.13 or newer (https://nodejs.org), then run this script again.' 'Installe Node 22.13 ou plus récent (https://nodejs.org), puis relance ce script.')"
+node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||(a===22&&b>=13)?0:1)' \
+  || fail "$(say "Node $(node --version) is too old" "Node $(node --version) est trop ancien")" "$(say 'OKB needs Node 22.13 or newer. With nvm: nvm install 22 && nvm use 22.' 'OKB demande Node 22.13 ou plus récent. Avec nvm : nvm install 22 && nvm use 22.')"
+command -v npm >/dev/null 2>&1 || fail "$(say 'npm is missing' 'npm est absent')" "$(say 'npm comes with Node.js: reinstall Node 22.13+.' 'npm est fourni avec Node.js : réinstalle Node 22.13+.')"
 step "Node $(node --version)"
 
 # 2. Dependencies and build, inside this folder only.

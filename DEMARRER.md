@@ -6,7 +6,7 @@ n’entre dans tes notes sans ton accord.
 
 ## 1. Installer (5 minutes)
 
-Il te faut Node.js 22.12 ou plus récent. Depuis le dossier d’OKB :
+Il te faut Node.js 22.13 ou plus récent. Depuis le dossier d’OKB :
 
 ```bash
 ./scripts/install.sh

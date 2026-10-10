@@ -127,12 +127,6 @@ describe('note categories', () => {
     expect(notes.notes.find((n: { path: string }) => n.path === 'flows/run-a-delivery-job.md').category).toBe('howto');
     const cats = await (await fetch(`${url}/api/categories`)).json();
     expect(cats.categories.find((c: { id: string }) => c.id === 'howto').templates.map((t: { id: string }) => t.id)).toEqual(['procedure', 'tutorial', 'repo-start', 'repo-delivery', 'environments', 'repo-test', 'repo-debug', 'method', 'recipe', 'checklist', 'cheatsheet']);
-    for (const asset of ['/vendor/d3-force.js', '/js/graph.js', '/js/views/graph.js', '/js/views/categories.js']) {
-      const r = await fetch(`${url}${asset}`);
-      expect(r.status, asset).toBe(200);
-      expect(r.headers.get('content-type')).toContain('javascript');
-    }
-    expect(await (await fetch(`${url}/vendor/d3-force.js`)).text()).toContain('forceSimulation');
     const token = ((await (await fetch(`${url}/api/session`)).json()) as { token: string }).token;
     const set = await fetch(`${url}/api/categories/set`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-OKB-Token': token }, body: JSON.stringify({ path: 'reference/glossary.md', category: 'concept' }) });
     expect((await set.json()).proposalId).toMatch(/^p-/);

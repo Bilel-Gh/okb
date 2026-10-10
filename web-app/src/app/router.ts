@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 
 /**
  * Hash addresses, the same as the first versions' (`#/note/<path>`, `#/notes?q=`,
- * `#/weekly`…), so links written in notes, the terminal and Claude keep working:
- * every page of the first versions now lives in one of the destinations below.
+ * `#/weekly`…), so links written in notes, the terminal and Claude keep working.
+ * The 2.0 groups the pages into five screens (nav.ts): `#/projects`, `#/memory`,
+ * `#/assistant` and `#/progress` are their own addresses.
  */
 export type TodayTab = 'focus' | 'week';
 export type InboxTab = 'suggestions' | 'proposals' | 'captures' | 'history';
@@ -15,6 +16,7 @@ export type Route =
   | { name: 'today'; tab?: TodayTab; done?: boolean; step?: string }
   | { name: 'brain'; path?: string; anchor?: string; query?: Record<string, string>; history?: boolean }
   | { name: 'graph'; focus?: string; brain?: boolean }
+  | { name: 'projects'; id?: string }
   | { name: 'repos'; id?: string; tab?: 'architecture'; view?: 'containers' | 'context' | 'flow'; from?: string; call?: string }
   | { name: 'inbox'; tab?: InboxTab; id?: string; all?: boolean; compose?: boolean }
   | { name: 'learn'; tab?: LearnTab }
@@ -53,7 +55,12 @@ export function parseRoute(hash: string): Route {
     case 'notes':
     case 'brain':
     case 'search':
+    case 'memory':
       return { name: 'brain', query: q };
+    case 'projects':
+      return { name: 'projects' };
+    case 'project':
+      return rest ? { name: 'projects', id: decodeURIComponent(rest) } : { name: 'projects' };
     case 'note': {
       const [encoded = '', anchor] = rest.split('#');
       const path = decodeURIComponent(encoded);
@@ -81,9 +88,12 @@ export function parseRoute(hash: string): Route {
       return { name: 'inbox', tab: 'history' };
     case 'learn':
       return rest === 'progress' ? { name: 'learn', tab: 'progress' } : { name: 'learn' };
+    case 'progress':
+      return { name: 'learn' };
     case 'career':
       return { name: 'learn', tab: 'career' };
     case 'ask':
+    case 'assistant':
       return q.q ? { name: 'ask', q: q.q } : { name: 'ask' };
     case 'tools':
       return { name: 'tools' };
@@ -137,6 +147,7 @@ export function hrefFor(route: Route): string {
       return `#/notes${q ? `?${q}` : ''}`;
     }
     case 'graph': return withQuery('#/graph', { focus: route.focus, brain: route.brain ? '1' : undefined });
+    case 'projects': return route.id ? `#/project/${encodeURIComponent(route.id)}` : '#/projects';
     case 'repos': {
       if (route.id) return `#/repo/${encodeURIComponent(route.id)}`;
       if (route.tab !== 'architecture') return '#/repos';

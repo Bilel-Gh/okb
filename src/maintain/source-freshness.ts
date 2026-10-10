@@ -9,7 +9,7 @@ import { statePaths } from '../state/paths.js';
 import { assertInsideRoot } from '../util/paths.js';
 import type { MaintainIssue } from './maintain.js';
 
-type Freshness =
+export type Freshness =
   | { state: 'unchanged' | 'changed' | 'missing' }
   | { state: 'unknown'; reason: string };
 
@@ -42,21 +42,9 @@ export async function checkSourceFreshness(config: OkbConfig, bundle: Bundle): P
     }
   }
   if (references.size === 0) return out;
-  const locations = await recordedLocalSources(config, new Set(references.keys()));
-  const current = new Map<string, Promise<Freshness | string>>();
+  const states = await localSourceStates(config, references.keys());
   for (const [hash, notes] of references) {
-    const paths = locations.get(hash);
-    let result: Freshness;
-    if (!paths?.size) {
-      result = { state: 'unknown', reason: 'no local file reference is available in the private operational state' };
-    } else if (paths.size > 1) {
-      result = { state: 'unknown', reason: 'several local file references share this fingerprint; the original source is ambiguous' };
-    } else {
-      const path = [...paths][0]!;
-      // A single file may be cited through several historical fingerprints.
-      const value = await rawFingerprint(path, config.sources.limits.maxBytes, current);
-      result = typeof value === 'string' ? { state: value === hash ? 'unchanged' : 'changed' } : value;
-    }
+    const result = states.get(hash)!;
     if (result.state === 'unchanged') continue;
     const source = `urn:sha256:${hash}`;
     for (const path of notes) {
@@ -74,6 +62,34 @@ export async function checkSourceFreshness(config: OkbConfig, bundle: Bundle): P
           hint: 'No freshness verdict was inferred. Only referenced local files with recorded fingerprints can be checked; web sources are never fetched.' });
       }
     }
+  }
+  return out;
+}
+
+/**
+ * The state of local sources by fingerprint: unchanged, changed, missing, or
+ * unknown with its reason. Nothing is fetched and nothing is kept.
+ */
+export async function localSourceStates(config: OkbConfig, hashes: Iterable<string>): Promise<Map<string, Freshness>> {
+  const wanted = new Set([...hashes].map((h) => h.toLowerCase()));
+  const out = new Map<string, Freshness>();
+  if (!wanted.size) return out;
+  const locations = await recordedLocalSources(config, wanted);
+  const current = new Map<string, Promise<Freshness | string>>();
+  for (const hash of wanted) {
+    const paths = locations.get(hash);
+    let result: Freshness;
+    if (!paths?.size) {
+      result = { state: 'unknown', reason: 'no local file reference is available in the private operational state' };
+    } else if (paths.size > 1) {
+      result = { state: 'unknown', reason: 'several local file references share this fingerprint; the original source is ambiguous' };
+    } else {
+      const path = [...paths][0]!;
+      // A single file may be cited through several historical fingerprints.
+      const value = await rawFingerprint(path, config.sources.limits.maxBytes, current);
+      result = typeof value === 'string' ? { state: value === hash ? 'unchanged' : 'changed' } : value;
+    }
+    out.set(hash, result);
   }
   return out;
 }

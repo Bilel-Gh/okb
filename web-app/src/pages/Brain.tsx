@@ -303,7 +303,7 @@ export default function BrainPage({ route, setTitle }: { route: Extract<Route, {
     if (need.every((p) => open.has(p))) return;
     setOpen((prev) => new Set([...prev, ...need]));
   }, [folder, route.path]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!route.path) setTitle(t('app.nav.brain')); }, [route.path, setTitle, t]);
+  useEffect(() => { if (!route.path) setTitle(t('app.screen.memory')); }, [route.path, setTitle, t]);
   useEffect(() => { setQ(query.q ?? ''); }, [query.q]);
 
   const all = notes.data?.notes ?? [];

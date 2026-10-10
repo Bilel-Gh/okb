@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { screenOf, screenTabs } from '../../web-app/src/app/nav.js';
 import { parseRoute, hrefFor } from '../../web-app/src/app/router.js';
 
 describe('the new app reads the same addresses as before', () => {
@@ -77,5 +78,44 @@ describe('the new app reads the same addresses as before', () => {
     // Filters stay while a note is open.
     expect(hrefFor({ name: 'brain', path: 'a.md', query: { cat: 'concept' } })).toBe('#/note/a.md?cat=concept');
     expect(parseRoute('#/note/a.md?cat=concept')).toMatchObject({ name: 'brain', path: 'a.md', query: { cat: 'concept' } });
+  });
+});
+
+describe('the five screens of the 2.0 (F2.0-01)', () => {
+  it('each screen has its address, and the projects have theirs', () => {
+    expect(parseRoute('#/projects')).toEqual({ name: 'projects' });
+    expect(parseRoute('#/project/P-1a2b3c')).toEqual({ name: 'projects', id: 'P-1a2b3c' });
+    expect(parseRoute('#/memory')).toEqual({ name: 'brain', query: {} });
+    expect(parseRoute('#/assistant')).toEqual({ name: 'ask' });
+    expect(parseRoute('#/progress')).toEqual({ name: 'learn' });
+    expect(hrefFor({ name: 'projects' })).toBe('#/projects');
+    expect(hrefFor({ name: 'projects', id: 'P-1a2b3c' })).toBe('#/project/P-1a2b3c');
+  });
+
+  it('every page belongs to one screen, to « À valider » or to the « Plus » menu; old addresses land in the right screen', () => {
+    const screen = (hash: string) => screenOf(parseRoute(hash));
+    expect(screen('#/')).toBe('today');
+    expect(screen('#/weekly')).toBe('today');
+    expect(screen('#/projects')).toBe('projects');
+    expect(screen('#/repos')).toBe('projects');
+    expect(screen('#/repo/orders-service')).toBe('projects');
+    expect(screen('#/repos/architecture')).toBe('projects');
+    expect(screen('#/notes')).toBe('memory');
+    expect(screen('#/note/a%2Fb.md')).toBe('memory');
+    expect(screen('#/graph')).toBe('memory');
+    expect(screen('#/ask')).toBe('assistant');
+    expect(screen('#/claude')).toBe('assistant');
+    expect(screen('#/learn')).toBe('progress');
+    expect(screen('#/career')).toBe('progress');
+    for (const other of ['#/review', '#/suggestions', '#/inbox', '#/tools', '#/health', '#/modules', '#/settings', '#/help']) expect(screen(other), other).toBeNull();
+  });
+
+  it('the screens with several pages show them as tabs; the developer pages only with the module', () => {
+    const labels = (hash: string, dev: boolean) => screenTabs(parseRoute(hash), dev).map((t) => [t.label, t.current]);
+    expect(labels('#/graph', true)).toEqual([['app.memory.notes', false], ['app.memory.graph', true]]);
+    expect(labels('#/ask', true)).toEqual([['app.assistant.ask', true], ['app.assistant.terminal', false]]);
+    expect(labels('#/repos/architecture', true)).toEqual([['app.projects.all', false], ['app.projects.repos', false], ['app.projects.arch', true]]);
+    expect(labels('#/projects', false)).toEqual([]);
+    expect(labels('#/', true)).toEqual([]);
   });
 });

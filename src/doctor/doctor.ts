@@ -107,12 +107,14 @@ function frontmatterOf(text: string): string {
 export async function doctor(config: OkbConfig | null, error?: Error): Promise<DoctorReport> {
   const checks: Check[] = [];
 
-  const [major] = process.versions.node.split('.').map(Number);
+  // 22.13 is the first version whose own SQLite (the operational state) needs no flag.
+  const [major = 0, minor = 0] = process.versions.node.split('.').map(Number);
+  const nodeOk = major > 22 || (major === 22 && minor >= 13);
   checks.push({
     name: 'node',
-    status: (major ?? 0) >= 22 ? 'ok' : 'fail',
+    status: nodeOk ? 'ok' : 'fail',
     detail: `v${process.versions.node}`,
-    ...((major ?? 0) >= 22 ? {} : { hint: 'okb requires Node 22.12 or newer.' }),
+    ...(nodeOk ? {} : { hint: 'okb requires Node 22.13 or newer.' }),
   });
 
   if (!config) {

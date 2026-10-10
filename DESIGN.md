@@ -1,10 +1,10 @@
 ---
 name: OKB
 description: A local second brain with two themes to choose from — Atelier and Classique — each light or dark, drawn in gradient or flat, in one font (Inter), under the linked-note logo.
-version: 1.5
+version: 2.0
 ---
 
-# Design System: OKB 1.5
+# Design System: OKB 2.0
 
 Chosen by the user on 8–9 October 2026 from mockups (the last one,
 `interface-1-5.html`, validated with « Inter, dégradé, les deux thèmes, clair par
@@ -31,29 +31,29 @@ untidy.
 
 Theme code: `web-app/src/styles/tokens.css`, `web-app/src/app/theme.ts`.
 
-## The destinations
+## The five screens
 
-Every page of the first versions lives in one of thirteen destinations; the side
-bar shows them in two groups. Old addresses (`#/weekly`, `#/health`, `#/kbs`…)
-open the right tab (`web-app/src/app/router.ts`).
+The 2.0 keeps the 1.5's look (Atelier and Classique, unchanged) and groups its
+thirteen destinations into five screens (`web-app/src/app/nav.ts`). Old addresses
+(`#/notes`, `#/graph`, `#/repos`, `#/weekly`, `#/health`…) open the right page in
+the right screen (`web-app/src/app/router.ts`).
 
-| My brain | Holds |
+| Screen | Holds |
 |---|---|
 | Aujourd’hui | the day · Focus et journal (focus note, end a session, journal) · Revue de la semaine |
-| Cerveau | the explorer: folders or types as a foldable tree, the list grouped and foldable, the note or the folder's page |
-| Graphe | every note by detected theme, type or folder; the brain seen from above |
-| Demander | the passages that answer, then an answer that cites them |
-| À valider | Suggestions · Propositions · Captures · Historique |
-| Repos | level of knowledge · architecture · a repository's full page |
-| Apprendre | Réviser · Progression (level, badges) · Carrière |
+| Projets | the projects (where each stands, its next step) · with the developer module: Repos (level of knowledge, a repository's page) · Architecture |
+| Mémoire | Notes: the explorer (folders or types as a foldable tree, the grouped list, the note or the folder's page) · Graphe: every note by theme, type or folder, the brain seen from above, the notes to tidy |
+| Assistant | Demander: the passages that answer, then an answer that cites them · Dans ton terminal: OKB in Claude Code |
+| Progresser | Réviser · Progression (level, badges) · Carrière |
 
-| OKB | Holds |
+| Elsewhere | Holds |
 |---|---|
-| Outils | add a source · procedures as skills · templates and style · categories |
-| Entretien | health · backups · usage · diagnosis |
-| Modules, Claude Code | the modules; installing OKB in Claude Code |
+| À valider (top bar) | Notes à écrire · Changements prêts · Captures · Historique |
+| Plus (menu) | Outils (add a source, skills, templates and style, categories, share) · Santé (health, backups, usage, diagnosis) · Modules · Aide |
 | Réglages | general · appearance · my brains · create a brain |
-| Aide | guided tour, glossary, shortcuts, error codes |
+
+Words on screen stay simple: no « KB », « proposition » or « bundle »
+(`tests/web-app/words.test.ts`).
 
 ## The logo
 
@@ -97,12 +97,21 @@ drawers and the products; data stays in plain colours.
 - **Side bar**: 240 px with words or 64 px with icons (each named on hover); the
   button at the top beside the logo, or ⌘\. The current page is filled with
   `--fill`. Folded in Atelier, unfolded in Classique until the person chooses.
+- **Side bar content**: the five screens, then at the foot the « Plus » menu (a
+  popover with one line of help per entry) and Réglages.
 - **Top bar**: the page (with the page it belongs to, as a link), the search (⌘K),
-  the Appearance menu.
+  « Garde ça » (⌘J, a popover with one field: what the person writes is kept at
+  once), « À valider » with its count, the Appearance menu.
+- **Screen tabs**: a slim bar under the top bar when the screen has several pages
+  (Mémoire, Assistant, Projets with the developer module).
 - **Status bar** (Atelier): the brain, its notes, what waits, its health.
-- **On a phone**: the side bar slides in; five tabs at the bottom.
+- **On a phone**: the side bar slides in; the five screens as tabs at the bottom.
 
 ## Components
+
+`reader/Provenance.tsx` is the « Sources et validité » zone under a note (a native
+`details`: sources, author, approval, validity, and the on-request freshness check).
+`pages/Projects.tsx` holds `KindMark` (a project's kind in a tinted square).
 
 `ui/`: `CatMark`/`TypeMark` (type icon in a tinted square), `PageTabs` (a
 destination's pages, each with its address), `Breadcrumb`, `LevelBar`, `Ring` (a

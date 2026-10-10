@@ -227,7 +227,7 @@ export default function Learn({ route }: { route: Extract<Route, { name: 'learn'
   const tab = route.tab;
   return (
     <div className="page">
-      <PageTabs label={t('app.nav.learn')} tabs={[
+      <PageTabs label={t('app.screen.progress')} tabs={[
         { to: { name: 'learn' }, label: t('app.learn.tab.review'), current: !tab, icon: Layers },
         { to: { name: 'learn', tab: 'progress' }, label: t('app.learn.tab.progress'), current: tab === 'progress', icon: Trophy },
         { to: { name: 'learn', tab: 'career' }, label: t('app.learn.tab.career'), current: tab === 'career', icon: Briefcase },

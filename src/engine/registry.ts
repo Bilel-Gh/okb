@@ -1,8 +1,11 @@
 import { enabledModules, moduleDef } from '../modules/catalog.js';
+import { registerProjectSource } from '../projects/sources.js';
 import { reposList } from '../repo/operations.js';
+import { devProjects } from '../work/projects.js';
 import { OkbError } from '../util/errors.js';
 import { kbStatus } from './ops/kb.js';
 import { notesFind, notesRead } from './ops/notes.js';
+import { projectsCreate, projectsGet, projectsList, projectsUpdate } from './ops/projects.js';
 import { suggestionsAdd, suggestionsList } from './ops/suggestions.js';
 import type { Operation, OpContext } from './operation.js';
 
@@ -16,8 +19,15 @@ const OPS = {
   'kb.status': kbStatus,
   'suggestions.list': suggestionsList,
   'suggestions.add': suggestionsAdd,
+  'projects.list': projectsList,
+  'projects.get': projectsGet,
+  'projects.create': projectsCreate,
+  'projects.update': projectsUpdate,
   'repos.list': reposList,
 } as const;
+
+// What each module brings to the core's objects: the core never imports a module.
+registerProjectSource('dev', devProjects);
 
 export type OpId = keyof typeof OPS;
 type OutputOf<K extends OpId> = Awaited<ReturnType<(typeof OPS)[K]['run']>>;

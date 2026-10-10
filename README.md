@@ -166,7 +166,7 @@ and writing — and adds what a long-lived knowledge base needs:
 
 ## Quick start
 
-Node **22.12+**; [Claude Code](https://code.claude.com) and [Obsidian](https://obsidian.md) recommended.
+Node **22.13+**; [Claude Code](https://code.claude.com) and [Obsidian](https://obsidian.md) recommended.
 
 ```bash
 git clone <this repository> okb && cd okb
@@ -235,7 +235,7 @@ okb doctor     # check everything; --fix repairs what it can
 | **Second-brain rituals** | Private inbox, weekly review with spaced re-reading (J+1, 7, 30, 90), active recall, focus note and end-of-session journal |
 | **Natural language** | A prompt hook recognises OKB requests in plain French or English and offers the matching command; it stays silent for other tools' knowledge bases |
 | **Terminal assistants (MCP)** | `okb mcp` lets Claude Code, Codex, Copilot or Cursor search and read your notes and suggest new ones, with the same engine as the app and the CLI; 🔒 notes stay hidden and approval stays yours |
-| **Web app** | Local only, every terminal feature, light and dark themes, keyboard palette, readable on a phone |
+| **Web app** | Local only; five screens (Today, Projects, Memory, Assistant, Progress), “Keep this” and “To decide” on every screen; light and dark themes, keyboard palette, readable on a phone |
 | **Errors that help** | Every error says what happened, why, and what to do; `okb explain <code>` |
 | **Maintenance** | Broken links, ambiguous concepts, stale notes, style and template drift, secrets in notes, link-preserving moves |
 | **Safety** | Credentials refused everywhere; organisation and team overlays can only narrow what a profile allows |

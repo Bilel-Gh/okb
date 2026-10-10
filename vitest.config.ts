@@ -10,7 +10,9 @@ export default defineConfig({
     testTimeout: 90_000,
     hookTimeout: 60_000,
     pool: 'forks',
-    maxWorkers: 4,
+    // Three at a time: with four, the commands the tests spawn (Git, the hooks, the CLI)
+    // sometimes miss their own short time limits on a loaded machine.
+    maxWorkers: 3,
     // Messages for people are localised; the suite reads them in English, and never asks questions.
     // A test never reads or writes the person's own ~/.okb: the default home is a throwaway folder.
     env: { OKB_HOME: resolve(tmpdir(), 'okb-vitest-home'), OKB_LANG: 'en', OKB_NO_INTERACTIVE: '1', NO_COLOR: '1', OKB_WEB_APPROVAL: 'off', CLAUDECODE: '', CLAUDE_CODE_ENTRYPOINT: '', OKB_VIA_CLAUDE: '' },

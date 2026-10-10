@@ -1,0 +1,51 @@
+// @vitest-environment happy-dom
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Shell } from '../../web-app/src/app/Shell.js';
+import type { Route } from '../../web-app/src/app/router.js';
+
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+
+function mount(route: Route, calls: { url: string; body?: unknown }[] = []) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  qc.setQueryData(['status'], { name: 'Démo', notes: 12, concepts: 2, toReview: 1 });
+  qc.setQueryData(['suggestions'], { suggestions: [{ status: 'pending' }, { status: 'pending' }, { status: 'later' }] });
+  qc.setQueryData(['modules'], { modules: [{ id: 'dev', enabled: true }] });
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : undefined });
+    const body = String(url).includes('/api/suggestions') ? { suggestions: [] } : String(url).includes('/api/status') ? { name: 'Démo', notes: 12, concepts: 2 } : { ok: true };
+    return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+  }));
+  return render(<QueryClientProvider client={qc}><Shell route={route} title="Titre"><p>Page</p></Shell></QueryClientProvider>);
+}
+
+describe('the shell of the 2.0 (F2.0-01)', () => {
+  it('shows five screens, the current one marked, and its pages as tabs', () => {
+    mount({ name: 'graph' });
+    const rail = screen.getByRole('navigation', { name: 'app.nav.screens' });
+    const links = [...rail.querySelectorAll('a')].map((a) => [a.getAttribute('aria-label'), a.getAttribute('aria-current')]);
+    expect(links.slice(0, 5)).toEqual([
+      ['app.screen.today', null], ['app.screen.projects', null], ['app.screen.memory', 'page'], ['app.screen.assistant', null], ['app.screen.progress', null],
+    ]);
+    const tabs = screen.getByRole('navigation', { name: 'app.screen.memory' });
+    expect([...tabs.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('aria-current')])).toEqual([['app.memory.notes', null], ['app.memory.graph', 'page']]);
+  });
+
+  it('« À valider » is on every screen, with what waits', () => {
+    mount({ name: 'today' });
+    const validate = screen.getByRole('link', { name: 'app.nav.inbox, 3' });
+    expect(validate.getAttribute('href')).toBe('#/review');
+  });
+
+  it('« Garde ça » opens with ⌘J and keeps what the person wrote at once', async () => {
+    const calls: { url: string; body?: unknown }[] = [];
+    mount({ name: 'today' }, calls);
+    act(() => { fireEvent.keyDown(window, { key: 'j', metaKey: true }); });
+    const field = await screen.findByPlaceholderText('app.keep.placeholder');
+    fireEvent.change(field, { target: { value: 'Le quota passe à 500 lundi' } });
+    await act(async () => { fireEvent.submit(field.closest('form')!); });
+    await waitFor(() => expect(calls.some((c) => c.url.includes('/api/capture'))).toBe(true));
+    expect(calls.find((c) => c.url.includes('/api/capture'))!.body).toMatchObject({ text: 'Le quota passe à 500 lundi' });
+  });
+});

@@ -15,6 +15,8 @@ export type GraphNode = GraphNodeIn & { area: string; in: number; out: number; c
 export type GraphData = {
   nodes: GraphNode[]; edges: GraphEdgeIn[]; categories: (Category & { count: number })[]; areas: { id: string; count: number }[];
   unresolved: number; communities: GraphTheme[]; modularity: number; workspace: Workspace | null;
+  /** The notes to tidy (F2.0-19): isolated, or outside the drawers. */
+  tidy?: { isolated: { path: string; title: string }[]; misplaced: { path: string; title: string }[] };
 };
 
 export function useGraphData(nav = false) {

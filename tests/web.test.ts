@@ -1,5 +1,4 @@
-import { execFileSync } from 'node:child_process';
-import { access, readFile, readdir, writeFile, symlink } from 'node:fs/promises';
+import { access, readFile, writeFile, symlink } from 'node:fs/promises';
 import { request } from 'node:http';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -178,19 +177,15 @@ describe('OKB web app', () => {
     const page = await fetch(url);
     expect(page.headers.get('Content-Security-Policy')).toContain("script-src 'self'");
     expect(page.headers.get('Content-Security-Policy')).toContain("frame-ancestors 'none'");
-    // The new app (React, built into web/app) answers on « / » once built; the classic one stays on « /classic ».
-    const built = await access(resolve(TEST_ROOT, '..', 'web', 'app', 'index.html')).then(() => true, () => false);
+    // The app (React, built into web/app) answers on « / »; the first versions' interface is gone (F2.0-26).
     const home = await page.text();
-    if (built) {
-      expect(home).toContain('/app/assets/');
-      expect(home).not.toMatch(/<script(?![^>]*\bsrc=)[^>]*>/);
-    } else expect(home).toContain('/js/main.js');
-    expect(await (await fetch(`${url}/classic`)).text()).toContain('/js/main.js');
-    expect((await fetch(`${url}/app.css`)).status).toBe(200);
-    const webJs = resolve(TEST_ROOT, '..', 'web', 'js');
-    for (const file of [...(await readdir(webJs)).map((f) => resolve(webJs, f)), ...(await readdir(resolve(webJs, 'views'))).map((f) => resolve(webJs, 'views', f))]) {
-      if (file.endsWith('.js')) expect(() => execFileSync(process.execPath, ['--check', file])).not.toThrow();
-    }
+    expect(home).toContain('/app/assets/');
+    expect(home).not.toMatch(/<script(?![^>]*\bsrc=)[^>]*>/);
+    const classic = await fetch(`${url}/classic`, { redirect: 'manual' });
+    expect(classic.status).toBe(302);
+    expect(classic.headers.get('location')).toBe('/');
+    expect((await fetch(`${url}/js/main.js`)).status).toBe(404);
+    expect((await fetch(`${url}/favicon.svg`)).status).toBe(200);
   });
 
   it('renders notes safely: no raw HTML, callouts, in-app links, footnotes', async () => {

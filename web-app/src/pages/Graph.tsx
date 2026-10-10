@@ -123,6 +123,7 @@ export default function GraphPage({ route }: { route: Extract<Route, { name: 'gr
   const [tab, setTab] = useState<'types' | 'themes'>('types');
   const [q, setQ] = useState('');
   const [scope, setScope] = useState('');
+  const [tidy, setTidy] = useState<'isolated' | 'misplaced' | null>(null);
   const [stats, setStats] = useState({ nodes: 0, edges: 0, lonely: 0 });
   const above = route.brain === true;
   const data = graph.data;
@@ -179,6 +180,12 @@ export default function GraphPage({ route }: { route: Extract<Route, { name: 'gr
     const near = new Set(ws.edges.filter((e) => e.from === scope || e.to === scope).map((e) => `repos/${e.from === scope ? e.to : e.from}`));
     v.setHighlight([...mine, ...tied, ...data!.nodes.filter((n) => near.has(n.area)).map((n) => n.id)]);
   }, [scope, data]);
+
+  // The notes to tidy, lit at a glance: isolated, or outside the drawers.
+  useEffect(() => {
+    const ids = tidy ? (data?.tidy?.[tidy] ?? []).map((n) => n.path) : null;
+    viewRef.current?.setHighlight(ids && ids.length ? ids : null);
+  }, [tidy, data]);
 
   const hits = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -283,6 +290,24 @@ export default function GraphPage({ route }: { route: Extract<Route, { name: 'gr
               <NodeCard node={selected} view={view} all={byId} onClose={() => { view.select(null); setSelected(null); }} onFocus={(id) => setFocus(id)} />
             ) : (
               <>
+                {data?.tidy && (data.tidy.isolated.length || data.tidy.misplaced.length) ? (
+                  <section className="graph-tidy" aria-label={t('app.graph.tidy')}>
+                    <h3>{t('app.graph.tidy')}</h3>
+                    {(['misplaced', 'isolated'] as const).filter((k) => data.tidy![k].length).map((k) => (
+                      <button type="button" key={k} aria-pressed={tidy === k} onClick={() => setTidy(tidy === k ? null : k)} title={t(`app.graph.tidy.${k}Why`)}>
+                        <span className={`tidy-dot ${k}`} aria-hidden="true" />
+                        <span className="grow">{tn(t, `app.graph.tidy.${k}`, data.tidy![k].length)}</span>
+                        {tidy === k ? <Eye size={14} aria-hidden="true" /> : null}
+                      </button>
+                    ))}
+                    {tidy ? (
+                      <ul className="tidy-list">
+                        {data.tidy[tidy].slice(0, 8).map((n) => <li key={n.path}><a href={hrefFor({ name: 'brain', path: n.path })} className="clip">{n.title}</a></li>)}
+                        {data.tidy[tidy].length > 8 ? <li className="muted small">{t('app.graph.tidy.more', { n: data.tidy[tidy].length - 8 })}</li> : null}
+                      </ul>
+                    ) : null}
+                  </section>
+                ) : null}
                 <div className="segmented" role="tablist" aria-label={t('app.graph.side')}>
                   <button type="button" role="tab" aria-selected={tab === 'types'} aria-pressed={tab === 'types'} onClick={() => setTab('types')}>{t('app.graph.types')}</button>
                   <button type="button" role="tab" aria-selected={tab === 'themes'} aria-pressed={tab === 'themes'} onClick={() => setTab('themes')}>{t('web.graph.themes')} <span className="n">{data?.communities.length ?? 0}</span></button>

@@ -1,29 +1,95 @@
-import { Archive, BadgeCheck, Blocks, Brain, Briefcase, CalendarCheck, CircleHelp, FileStack, FolderGit2, FolderPlus, GraduationCap, HardDrive, HeartPulse, Inbox, Layers, MessageCircleQuestion, Package, Palette, ScrollText, Settings, Share2, Sparkles, Stethoscope, Sun, Tags, Target, Terminal, Upload, Wrench, type LucideIcon } from 'lucide-react';
+import { Archive, BadgeCheck, Blocks, Brain, Briefcase, CalendarCheck, CheckCheck, CircleHelp, FileStack, FolderGit2, FolderKanban, FolderPlus, HardDrive, HeartPulse, Inbox, Layers, Library, MessageCircle, MessageCircleQuestion, Network, Package, Palette, ScrollText, Settings, Share2, Sparkles, Sprout, Stethoscope, Sun, Tags, Target, Terminal, Upload, Wrench, type LucideIcon } from 'lucide-react';
 import type { Route } from './router';
 
 /**
- * The destinations of the side bar, in two groups: the person's brain, and OKB
- * itself. Every page of the first versions lives in one of them (see router.ts).
+ * The five screens of the 2.0 (F2.0-01): today, the projects, the memory, the
+ * assistant, progressing. Every page of the 1.5 lives in one of them, in
+ * « À valider » (the top bar) or in the « Plus » menu; old addresses still open
+ * the right page (router.ts).
  */
-export type NavEntry = { route: Route; label: string; icon: LucideIcon; section: 'brain' | 'okb'; module?: 'dev'; count?: 'waiting' };
+export type ScreenId = 'today' | 'projects' | 'memory' | 'assistant' | 'progress';
+export type NavEntry = { route: Route; label: string; icon: LucideIcon; module?: 'dev'; hint?: string };
+
+export const SCREENS: readonly (NavEntry & { id: ScreenId })[] = [
+  { id: 'today', route: { name: 'today' }, label: 'app.screen.today', icon: Sun },
+  { id: 'projects', route: { name: 'projects' }, label: 'app.screen.projects', icon: FolderKanban },
+  { id: 'memory', route: { name: 'brain' }, label: 'app.screen.memory', icon: Library },
+  { id: 'assistant', route: { name: 'ask' }, label: 'app.screen.assistant', icon: MessageCircle },
+  { id: 'progress', route: { name: 'learn' }, label: 'app.screen.progress', icon: Sprout },
+];
+
+/** What waits for the person's yes: a button of the top bar, on every screen. */
+export const VALIDATE: NavEntry = { route: { name: 'inbox' }, label: 'app.nav.inbox', icon: CheckCheck };
+
+/** Everything that is not daily: the « Plus » menu. */
+export const MORE: readonly NavEntry[] = [
+  { route: { name: 'tools' }, label: 'app.nav.tools', icon: Wrench, hint: 'app.more.tools' },
+  { route: { name: 'upkeep' }, label: 'app.nav.upkeep', icon: HeartPulse, hint: 'app.more.upkeep' },
+  { route: { name: 'modules' }, label: 'app.nav.modules', icon: Blocks, hint: 'app.more.modules' },
+  { route: { name: 'help' }, label: 'app.nav.help', icon: CircleHelp, hint: 'app.more.help' },
+];
+export const SETTINGS: NavEntry = { route: { name: 'settings' }, label: 'app.nav.settings', icon: Settings };
+
+/** The screen a page belongs to; null for « À valider » and the pages of the « Plus » menu. */
+export function screenOf(route: Route): ScreenId | null {
+  switch (route.name) {
+    case 'today': return 'today';
+    case 'projects': case 'repos': return 'projects';
+    case 'brain': case 'graph': return 'memory';
+    case 'ask': case 'claude': return 'assistant';
+    case 'learn': return 'progress';
+    default: return null;
+  }
+}
+
+/** The name of the page in the top bar: its screen's, else its own. */
+export function titleKey(route: Route): string {
+  const screen = screenOf(route);
+  return screen ? SCREENS.find((s) => s.id === screen)!.label : `app.nav.${route.name}`;
+}
+
+export type ScreenTab = { to: Route; label: string; current: boolean; icon: LucideIcon };
+
+/** The pages of a screen, as tabs under the top bar; a screen with one page has none. */
+export function screenTabs(route: Route, devOn: boolean): ScreenTab[] {
+  switch (screenOf(route)) {
+    case 'memory':
+      return [
+        { to: { name: 'brain' }, label: 'app.memory.notes', current: route.name === 'brain', icon: Library },
+        { to: { name: 'graph' }, label: 'app.memory.graph', current: route.name === 'graph', icon: Share2 },
+      ];
+    case 'assistant':
+      return [
+        { to: { name: 'ask' }, label: 'app.assistant.ask', current: route.name === 'ask', icon: MessageCircleQuestion },
+        { to: { name: 'claude' }, label: 'app.assistant.terminal', current: route.name === 'claude', icon: Terminal },
+      ];
+    case 'projects': {
+      if (!devOn) return [];
+      const arch = route.name === 'repos' && route.tab === 'architecture';
+      return [
+        { to: { name: 'projects' }, label: 'app.projects.all', current: route.name === 'projects', icon: FolderKanban },
+        { to: { name: 'repos' }, label: 'app.projects.repos', current: route.name === 'repos' && !arch, icon: FolderGit2 },
+        { to: { name: 'repos', tab: 'architecture' }, label: 'app.projects.arch', current: arch, icon: Network },
+      ];
+    }
+    default:
+      return [];
+  }
+}
+
+/** Every destination, for the ⌘K palette: the screens first. */
 export const NAV: readonly NavEntry[] = [
-  { route: { name: 'today' }, label: 'app.nav.today', icon: Sun, section: 'brain' },
-  { route: { name: 'brain' }, label: 'app.nav.brain', icon: Brain, section: 'brain' },
-  { route: { name: 'graph' }, label: 'app.nav.graph', icon: Share2, section: 'brain' },
-  { route: { name: 'ask' }, label: 'app.nav.ask', icon: MessageCircleQuestion, section: 'brain' },
-  { route: { name: 'inbox' }, label: 'app.nav.inbox', icon: Inbox, section: 'brain', count: 'waiting' },
-  { route: { name: 'repos' }, label: 'app.nav.repos', icon: FolderGit2, section: 'brain', module: 'dev' },
-  { route: { name: 'learn' }, label: 'app.nav.learn', icon: GraduationCap, section: 'brain' },
-  { route: { name: 'tools' }, label: 'app.nav.tools', icon: Wrench, section: 'okb' },
-  { route: { name: 'upkeep' }, label: 'app.nav.upkeep', icon: HeartPulse, section: 'okb' },
-  { route: { name: 'modules' }, label: 'app.nav.modules', icon: Blocks, section: 'okb' },
-  { route: { name: 'claude' }, label: 'app.nav.claude', icon: Terminal, section: 'okb' },
-  { route: { name: 'settings' }, label: 'app.nav.settings', icon: Settings, section: 'okb' },
-  { route: { name: 'help' }, label: 'app.nav.help', icon: CircleHelp, section: 'okb' },
+  ...SCREENS,
+  VALIDATE,
+  { route: { name: 'graph' }, label: 'app.memory.graph', icon: Share2 },
+  { route: { name: 'repos' }, label: 'app.projects.repos', icon: FolderGit2, module: 'dev' },
+  ...MORE,
+  { route: { name: 'claude' }, label: 'app.assistant.terminal', icon: Terminal },
+  SETTINGS,
 ];
 
 /** The pages inside the destinations, for the ⌘K palette. */
-export const PLACES: readonly { route: Route; label: string; icon: LucideIcon; module?: 'dev' }[] = [
+export const PLACES: readonly NavEntry[] = [
   { route: { name: 'today', tab: 'focus' }, label: 'app.today.tab.focus', icon: Target },
   { route: { name: 'today', tab: 'focus', done: true }, label: 'app.today.endSession', icon: BadgeCheck },
   { route: { name: 'today', tab: 'week' }, label: 'app.today.tab.week', icon: CalendarCheck },
@@ -31,7 +97,7 @@ export const PLACES: readonly { route: Route; label: string; icon: LucideIcon; m
   { route: { name: 'inbox', tab: 'captures' }, label: 'app.inbox.tab.captures', icon: Archive },
   { route: { name: 'inbox', tab: 'captures', compose: true }, label: 'app.inbox.capture', icon: Inbox },
   { route: { name: 'inbox', tab: 'history' }, label: 'app.inbox.tab.history', icon: ScrollText },
-  { route: { name: 'repos', tab: 'architecture' }, label: 'app.repos.tab.arch', icon: FolderGit2, module: 'dev' },
+  { route: { name: 'repos', tab: 'architecture' }, label: 'app.repos.tab.arch', icon: Network, module: 'dev' },
   { route: { name: 'learn', tab: 'progress' }, label: 'app.learn.tab.progress', icon: Layers },
   { route: { name: 'learn', tab: 'career' }, label: 'app.learn.tab.career', icon: Briefcase },
   { route: { name: 'tools', tab: 'source' }, label: 'app.tools.tab.source', icon: Upload },

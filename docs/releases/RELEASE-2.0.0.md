@@ -67,3 +67,26 @@ Décision : D57.
 - **Une demande mal formée** est refusée avec le nom du champ en cause.
 
 Décision : D58.
+## Itération 4 — le grand ménage
+
+L'application garde son apparence (le thème Atelier), mais elle est rangée autrement.
+
+- **Cinq écrans** au lieu de treize destinations : Aujourd'hui, Projets, Mémoire,
+  Assistant, Progresser. Rien n'a disparu : chaque ancienne page est dans un écran,
+  et tes anciens favoris ouvrent la bonne page.
+- **En haut de chaque écran** : Chercher (⌘K), **Garde ça** (⌘J) pour noter une
+  ligne tout de suite, et **À valider** avec le nombre de choses qui attendent ton oui.
+- **Le menu Plus** range ce qui n'est pas quotidien : outils, santé, modules, aide.
+- **Projets** : un nouvel écran. Un projet dit où il en est en une phrase et sa
+  prochaine étape. Avec le module développeur, tes tickets et tes repos y sont déjà.
+- **Des mots simples** : plus de « KB » ni de « proposition » à l'écran. On dit
+  « tes notes », « changement prêt à relire », « note à écrire ».
+- **Sources et validité**, sous chaque note : d'où vient ce qu'elle dit, qui l'a
+  écrite, quand tu l'as approuvée, jusqu'à quand elle tient, et un bouton pour
+  vérifier si ses sources ont changé.
+- **Le graphe** montre d'un clic les notes hors des tiroirs et celles que rien ne relie.
+- **L'ancienne interface** (`/classic`) est retirée : son adresse mène à l'application.
+
+À savoir : OKB demande maintenant Node 22.13 ou plus récent.
+
+Décision : D59.

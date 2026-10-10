@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { currentSession, get, setSession, type Session } from './api';
 import { I18n, makeT, type Messages, type Translate } from './i18n';
+import { titleKey } from './nav';
 import { useRoute, type Route } from './router';
 import { Shell, type Crumb } from './Shell';
 import { applyLook, readLook, readMode } from './theme';
@@ -13,6 +14,7 @@ const BrainPage = lazy(() => import('../pages/Brain'));
 const GraphPage = lazy(() => import('../pages/Graph'));
 const InboxPage = lazy(() => import('../pages/Inbox'));
 const Repos = lazy(() => import('../pages/Repos'));
+const Projects = lazy(() => import('../pages/Projects'));
 const Learn = lazy(() => import('../pages/Learn'));
 const AskPage = lazy(() => import('../pages/Ask'));
 const Tools = lazy(() => import('../pages/Tools'));
@@ -26,10 +28,9 @@ const client = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchO
 
 function Routes({ t }: { t: Translate }) {
   const route = useRoute();
-  const arch = route.name === 'repos' && route.tab === 'architecture';
-  const base = arch ? t('app.repos.tab.arch') : t(`app.nav.${route.name}`);
+  const base = t(titleKey(route));
   const [title, setTitle] = useState(base);
-  useEffect(() => setTitle(base), [route.name, arch]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => setTitle(base), [route.name]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Shell route={route} title={title} crumb={crumbOf(route, t)}>
       <Boundary key={route.name} labels={{ title: t('app.error.title'), updated: t('app.error.updated'), reload: t('app.reload') }}>
@@ -38,6 +39,7 @@ function Routes({ t }: { t: Translate }) {
         {route.name === 'brain' ? <BrainPage route={route} setTitle={setTitle} /> : null}
         {route.name === 'graph' ? <GraphPage route={route} /> : null}
         {route.name === 'inbox' ? <InboxPage route={route} setTitle={setTitle} /> : null}
+        {route.name === 'projects' ? <Projects route={route} setTitle={setTitle} /> : null}
         {route.name === 'repos' ? <Repos route={route} setTitle={setTitle} /> : null}
         {route.name === 'learn' ? <Learn route={route} /> : null}
         {route.name === 'ask' ? <AskPage route={route} /> : null}
@@ -53,10 +55,11 @@ function Routes({ t }: { t: Translate }) {
   );
 }
 
-/** The page a detail belongs to, shown before its title: « Cerveau › Idempotence ». */
+/** The page a detail belongs to, shown before its title: « Mémoire › Idempotence ». */
 function crumbOf(route: Route, t: Translate): Crumb | undefined {
-  if (route.name === 'brain' && route.path) return { label: t('app.nav.brain'), to: { name: 'brain', ...(route.query ? { query: route.query } : {}) } };
-  if (route.name === 'repos' && (route.id || route.tab)) return { label: t('app.nav.repos'), to: { name: 'repos' } };
+  if (route.name === 'brain' && route.path) return { label: t('app.screen.memory'), to: { name: 'brain', ...(route.query ? { query: route.query } : {}) } };
+  if (route.name === 'projects' && route.id) return { label: t('app.screen.projects'), to: { name: 'projects' } };
+  if (route.name === 'repos' && route.id) return { label: t('app.projects.repos'), to: { name: 'repos' } };
   if (route.name === 'inbox' && route.id) return { label: t('app.nav.inbox'), to: { name: 'inbox', tab: 'proposals' } };
   return undefined;
 }

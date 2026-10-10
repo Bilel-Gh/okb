@@ -409,3 +409,56 @@ a.stat:hover b { color: var(--accent-text); }
   .stat span { display: block; line-height: 1.3; }
   .stat span svg { display: none; }
 }
+
+/* ---------------------------------------------------------------- the 2.0 shell: five screens, « Garde ça », « À valider » */
+.rail-link[data-current='true'] { background: var(--nav-raised); color: var(--nav-ink); }
+.screen-tabs { flex: none; display: flex; align-items: center; padding: 10px var(--s8); border-bottom: 1px solid var(--hair); background: var(--surface); }
+.keep-btn { gap: 7px; font-weight: 550; }
+.keep-btn kbd { margin-left: 2px; }
+.validate-btn { gap: 7px; font-weight: 550; text-decoration: none; }
+.validate-btn[aria-current='page'] { border-color: var(--accent); color: var(--accent-text); }
+.validate-btn .count { min-width: 22px; height: 20px; padding: 0 7px; border-radius: var(--r-pill); display: grid; place-items: center; background: var(--fill); color: var(--on-accent); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.menu.keep-pop { width: min(460px, calc(100vw - 24px)); padding: var(--s3); }
+.keep-pop form { display: flex; flex-direction: column; gap: var(--s3); }
+.keep-pop textarea { width: 100%; min-height: 76px; padding: 10px var(--s3); border: 1px solid var(--hair-strong); border-radius: var(--r); background: var(--surface); color: var(--ink); font: inherit; font-size: 15px; line-height: 1.5; resize: vertical; }
+.keep-pop textarea::placeholder { color: var(--ink-3); }
+.keep-pop textarea:focus-visible { outline: 3px solid color-mix(in srgb, var(--focus) 22%, transparent); outline-offset: 0; border-color: var(--focus); }
+.keep-foot { display: flex; align-items: center; gap: var(--s3); }
+.keep-foot .small { flex: 1; min-width: 0; }
+.menu.keep-pop .btn { width: auto; min-height: 0; padding: 0 11px; border: 1px solid transparent; justify-content: center; }
+.menu.keep-pop .btn.primary { color: var(--on-accent); }
+.menu.keep-pop .btn.primary:hover { background: var(--fill-hover); color: var(--on-accent); }
+.menu.more-menu { width: 300px; }
+.menu.more-menu a { align-items: flex-start; padding: 8px var(--s3); min-height: 0; text-decoration: none; }
+.menu.more-menu a svg { margin-top: 2px; color: var(--ink-3); flex: none; }
+.menu.more-menu b { display: block; font-weight: 550; color: var(--ink); }
+.menu.more-menu small { display: block; color: var(--ink-3); font-size: 12.5px; line-height: 1.35; }
+
+/* ---------------------------------------------------------------- projects */
+.segmented .n { margin-left: 6px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.project-new { padding: var(--s5); display: flex; flex-direction: column; gap: var(--s4); }
+.project-rows > li.link-row > a { display: grid; grid-template-columns: 34px minmax(0, 1.4fr) minmax(0, 1.6fr) 110px; gap: 14px; align-items: center; padding: 14px 20px; }
+.project-now { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13.5px; color: var(--ink-2); }
+.project-now > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-now .meta { display: flex; align-items: center; gap: 5px; }
+.project-now .meta svg { color: var(--accent-text); flex: none; }
+.project-when { text-align: right; white-space: nowrap; }
+.project-head { display: flex; align-items: center; gap: var(--s4); padding: var(--s5) var(--s5) var(--s4); flex-wrap: wrap; }
+.project-head h2 { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.2; }
+.project-head .grow { flex: 1 1 260px; min-width: 0; }
+.project-head .meta { color: var(--ink-3); font-size: 13px; margin-top: 2px; }
+.project-lines { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s5); padding: var(--s4) var(--s5) var(--s5); border-top: 1px solid var(--hair); }
+.input.project-line { width: 100%; font-size: 15px; }
+textarea.input.project-line { height: auto; min-height: 60px; padding: 8px var(--s3); line-height: 1.5; resize: vertical; }
+
+@media (max-width: 900px) {
+  .screen-tabs { padding: 8px var(--s3); }
+  .project-rows > li.link-row > a { grid-template-columns: 34px minmax(0, 1fr); }
+  .project-now, .project-when { grid-column: 2; text-align: left; }
+  .project-now > span { white-space: normal; }
+  .project-lines { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .keep-btn .hide-narrow, .validate-btn .hide-narrow { display: none; }
+  .keep-btn, .validate-btn { padding: 0 9px; }
+}

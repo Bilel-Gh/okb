@@ -1,6 +1,6 @@
 # Installer OKB
 
-Il te faut **Node.js 22.12 ou plus récent** (`node --version`) et
+Il te faut **Node.js 22.13 ou plus récent** (`node --version`) et
 [Claude Code](https://code.claude.com). [Obsidian](https://obsidian.md) est
 facultatif : l'application web d'OKB lit et cherche tes notes.
 

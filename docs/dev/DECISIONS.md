@@ -1121,3 +1121,35 @@ La cible de la 2.0, une recherche répétée sous 200 ms au p95 à 5 000 notes, 
 - Les liens du cœur vers les tickets, quand le Projet entrera dans le cœur (itération 5).
 - L'inscription de `okb mcp` dans le plugin, après essai sur Claude Code, Codex, Copilot et Cursor.
 - Les notes `private` (et pas seulement `secret`) pour les agents : aujourd'hui, elles leur restent visibles, comme avant.
+
+## D59 — 2.0, itération 4 : le grand ménage, cinq écrans et des mots simples (11 octobre 2026)
+
+**Problème.** La 1.5 avait treize destinations dans la barre de gauche, des mots internes à l'écran (« KB », « proposition »), une ancienne interface encore servie sur `/classic`, et rien sur une note ne disait d'où elle venait ni si elle tenait encore.
+
+**Ce que le propriétaire a décidé.** Le 11 octobre, après avoir vu des maquettes dans trois styles (l'actuel et deux nouveaux), il a écarté les nouveaux styles : l'interface garde le thème Atelier de la 1.5, sans changement d'identité. Les cinq écrans viennent de la vision validée le 10 octobre.
+
+**Décisions.**
+
+- **Cinq écrans** (F2.0-01) : Aujourd'hui, Projets, Mémoire, Assistant, Progresser.
+  - Les treize destinations y sont rangées (`web-app/src/app/nav.ts`, `screenOf`). Les noms des pages dans le code ne changent pas, pour ne casser aucune adresse.
+  - Un écran qui a plusieurs pages les montre en onglets sous la barre du haut : Notes et Graphe ; Demander et Dans ton terminal ; Projets, Repos et Architecture avec le module développeur.
+  - « À valider » quitte la barre de gauche pour la barre du haut, avec son nombre, sur tous les écrans.
+  - « Garde ça » (⌘J) est sur tous les écrans : une ligne écrite par la personne part tout de suite dans ses captures, sans validation.
+  - Le reste va dans le menu « Plus » (Outils, Santé, Modules, Aide), et les Réglages restent à un clic.
+  - Nouvelles adresses : `#/projects`, `#/project/<id>`, `#/memory`, `#/assistant`, `#/progress`.
+- **Les mots simples** (F2.0-02). Aucun message que l'app affiche ne dit « KB », « proposition » ou « bundle » : on dit « cerveau », « tes notes », « changement prêt à relire », « note à écrire ». Un test lit les clés que l'app nomme et refuse ces mots, en français et en anglais ; un autre vérifie que chaque clé existe dans les deux langues. Le renommage en « espaces » viendra avec l'itération 7.
+- **La fin de l'ancienne interface** (F2.0-26). `web/index.html`, `web/js/` et `web/app.css` sont supprimés ; `/classic` redirige vers l'application ; la route `/vendor/d3-force.js`, que seule l'ancienne interface utilisait, disparaît.
+- **Sources et validité** (F2.0-27, `src/kb/provenance.ts`). Pour chaque note : ses sources (une par ressource, avec le nombre de phrases qui la citent), qui l'a écrite (la personne ou l'IA, d'après `generated.by`), quand elle a été approuvée (le dernier reçu complet et non annulé qui l'a écrite) et jusqu'à quand elle tient (`stale_after`).
+  - Savoir si une source locale a changé se demande d'un clic (`GET /api/note/freshness`) : la comparaison lit l'état privé et les fichiers, elle n'est donc pas faite à chaque ouverture. Rien n'est téléchargé ni deviné.
+  - `notes.read` rend aussi ces informations aux assistants.
+- **Les notes à ranger dans le graphe** (F2.0-19, `src/brain/tidy.ts`). Le graphe reste dans Mémoire. Il montre les notes hors des tiroirs et celles que rien ne relie aux autres, leur fil d'Ariane mis à part ; un clic les allume.
+- **L'écran Projets** s'appuie sur l'objet Projet et la base d'état SQLite, posés ici et décrits avec l'itération 5 (D60).
+- **Node 22.13** devient le minimum : c'est la première version dont le SQLite intégré marche sans option.
+
+**Conséquences.**
+- Une page nouvelle se range dans un écran (`screenOf`) ou dans le menu Plus ; son libellé passe le test des mots.
+- La documentation et les captures d'écran des guides parlent de cinq écrans ; les captures seront refaites avant la sortie de la 2.0.
+
+**Réexamen.**
+- Le choix de l'espace à la place du choix du cerveau, à l'itération 7.
+- La place de « Dans ton terminal » quand l'Assistant deviendra une conversation (2.3).

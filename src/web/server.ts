@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { existsSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { createRequire } from 'node:module';
@@ -21,21 +21,6 @@ import { MUTATING, routeFor, type ApiContext } from './api.js';
  */
 const WEB_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'web');
 const TYPES: Record<string, string> = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.json': 'application/json', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff' };
-
-/** d3-force and the three modules it needs, as browser globals (`window.d3`), in load order. */
-function forcePaths(): string[] | null {
-  try {
-    const require = createRequire(import.meta.url);
-    // d3 packages export only their entry point: find each package folder from it.
-    return ['d3-dispatch', 'd3-quadtree', 'd3-timer', 'd3-force'].map((name) => {
-      const entry = require.resolve(name);
-      const root = entry.slice(0, entry.lastIndexOf(`${sep}node_modules${sep}${name}${sep}`) + `${sep}node_modules${sep}${name}`.length);
-      return resolve(root, 'dist', `${name}.min.js`);
-    });
-  } catch {
-    return null;
-  }
-}
 
 /** When OKB was built: this file is rewritten by every build, so its date tells one build from the next. */
 export function buildStamp(): string {
@@ -91,7 +76,6 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   const ctx: ApiContext = { env: options.env ?? process.env, defaultConfig: config, token: randomBytes(24).toString('hex'), build: { boot, now: buildStamp }, stop: () => stopServer() };
   const assets = await snapshotWeb();
   const mermaid = mermaidPath();
-  const force = forcePaths();
   let origin = '';
 
   const server = createServer(async (req, res) => {
@@ -129,19 +113,14 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
         return;
       }
       if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); json({ error: 'GET only.' }, 405); return; }
-      if (url.pathname === '/vendor/d3-force.js' && force) {
-        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'max-age=86400' });
-        res.end((await Promise.all(force.map((f) => readFile(f, 'utf8')))).join(';\n'));
-        return;
-      }
       if (url.pathname === '/vendor/mermaid.js' && mermaid) {
         res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'max-age=86400' });
         res.end(await readFile(mermaid));
         return;
       }
-      // The new app (web-app/, built into web/app) answers on « / » once built; the classic app stays on « /classic ».
-      const hasApp = assets ? assets.has('app/index.html') : existsSync(resolve(WEB_ROOT, 'app', 'index.html'));
-      const rel = url.pathname === '/' ? (hasApp ? 'app/index.html' : 'index.html') : url.pathname === '/classic' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
+      // The first versions' interface is gone (F2.0-26): its address leads to the app, with the page asked for.
+      if (url.pathname === '/classic') { res.writeHead(302, { Location: '/' }); res.end(); return; }
+      const rel = url.pathname === '/' ? 'app/index.html' : decodeURIComponent(url.pathname.slice(1));
       const file = resolve(WEB_ROOT, rel);
       if (!file.startsWith(WEB_ROOT + sep) || rel.includes('\0')) { json({ error: 'Not found.' }, 404); return; }
       const content = assets ? assets.get(rel.split(sep).join('/')) ?? null : await readFile(file).catch(() => null);

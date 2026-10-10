@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { findNotes, recordEmpty, type FindHit, type FindResult } from '../../find/find.js';
 import { loadBundleFor } from '../../kb/bundle.js';
+import { provenanceOf } from '../../kb/provenance.js';
 import { scoresFor } from '../../scores/cached.js';
 import { noteEvent } from '../../scores/scores.js';
 import { isSecret } from '../../security/confidential.js';
@@ -48,7 +49,7 @@ export const notesRead = defineOperation({
   id: 'notes.read',
   module: 'core',
   effect: 'read',
-  summary: 'Read one note of the knowledge base by its path (as returned by notes.find): its title, type, description and Markdown body.',
+  summary: 'Read one note of the knowledge base by its path (as returned by notes.find): its title, type, description, Markdown body, and its sources and validity (who wrote it, when it was approved, whether it is stale).',
   input: z.object({ path: text(500).describe('The note path relative to the knowledge base, e.g. "2 Produits/Billing/Overview.md".') }).strict(),
   async run({ config, actor }, input) {
     let path: BundlePath;
@@ -59,6 +60,6 @@ export const notesRead = defineOperation({
     if (!entry || !doc) throw new OkbError('E_NOT_FOUND', 'Note not found in this bundle.', { key: 'noteNotFound' });
     const secret = isSecret(entry.ext);
     if (secret && actor === 'agent') throw new OkbError('E_SECRET', 'this note is 🔒: the person reads it in OKB', { key: 'secretNoteForAgent' });
-    return { path, title: entry.title, type: entry.type, description: entry.description, status: entry.status, secret, body: doc.body };
+    return { path, title: entry.title, type: entry.type, description: entry.description, status: entry.status, secret, body: doc.body, provenance: await provenanceOf(config, bundle, path) };
   },
 });

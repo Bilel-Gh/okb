@@ -65,7 +65,7 @@ dossier d’OKB : `node dist/cli/index.js …`.
 npm exec -- node --version
 ```
 
-Il faut 22.12 ou plus. Avec nvm : `nvm use 22`.
+Il faut 22.13 ou plus. Avec nvm : `nvm use 22`.
 
 ## Le plugin et le moteur n’ont pas la même version
 

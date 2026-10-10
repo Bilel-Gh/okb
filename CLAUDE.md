@@ -4,7 +4,7 @@ This is the generic product, not a personal knowledge base. Read README.md and
 only the relevant docs/workflow when needed. Personal profiles and source material
 belong outside this repository. Use fictitious fixtures for development.
 
-- Node 22.12+; install with `npm ci`.
+- Node 22.13+; install with `npm ci`.
 - Gate changes with `npm run release:check`.
 - Validate Claude metadata with `claude plugin validate ./plugin --strict`.
 - Every KB mutation, including maintenance, goes through a proposal and apply.

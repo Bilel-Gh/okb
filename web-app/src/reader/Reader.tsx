@@ -14,10 +14,12 @@ import { ErrorState, SkeletonRows } from '../ui/States';
 import { ConceptBubbles } from './Bubble';
 import { dropCrumbLine, drawDiagrams, markTerms, outline, wireLinks, type OutlineItem, type Term } from './enhance';
 import { LocalGraph } from './LocalGraph';
+import { Provenance, type ProvenanceData } from './Provenance';
 import { Translate } from './Translate';
 
 export type NoteView = {
   path: string; title: string; type: string; status: string; description: string; category: string; confidentiality: string; sources: number; lang?: string;
+  provenance?: ProvenanceData;
   crumbs: { title: string; path: string | null }[];
   terms: (Term & { description: string })[];
   score: { stars: number; global: number; quality: number; value: number; young: boolean; notes: string[] } | null;
@@ -146,7 +148,7 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
           <TypeMenu path={n.path} category={n.category} />
           {n.status === 'draft' ? <span className="pill warn">{t('app.note.draft')}</span> : n.status === 'stable' ? <span className="pill ok"><Check size={13} aria-hidden="true" />{t('app.note.stable')}</span> : null}
           {n.confidentiality === 'secret' ? <span className="pill err" title={t('web.notes.secretHint')}><Lock size={12} aria-hidden="true" />{t('web.notes.secret')}</span> : null}
-          {n.sources ? <span className="pill">{tn(t, 'app.note.sources', n.sources)}</span> : null}
+          {n.provenance?.stale ? <a className="pill warn" href="#sources" onClick={(e) => { e.preventDefault(); const el = document.getElementById('sources') as HTMLDetailsElement | null; if (el) { el.open = true; el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } }}>{t('app.note.toReview')}</a> : null}
           {n.score ? <span className="pill" title={scoreWhy}>{t('app.note.quality', { n: n.score.quality })}</span> : null}
           <span className="spacer" />
           <span className="note-actions">
@@ -172,6 +174,7 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
         </div>
         {translated ? <p className="notice info small" role="status">{t('app.translate.showing', { lang: translated.lang.toUpperCase() })} <button type="button" className="btn sm ghost" onClick={() => setTranslated(null)}>{t('app.translate.original')}</button></p> : null}
         <div ref={article} className="prose" lang={translated?.lang} />
+        {n.provenance ? <Provenance path={n.path} data={n.provenance} /> : null}
         {n.backlinks.length || n.outlinks.length ? (
           <footer className="reader-links">
             <Links title={t('web.notes.backlinks')} items={n.backlinks} />

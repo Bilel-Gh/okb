@@ -1,11 +1,11 @@
 import * as Popover from '@radix-ui/react-popover';
-import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronRight, ChevronsUpDown, Menu, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Palette as PaletteIcon, Search, Sun } from 'lucide-react';
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Check, CheckCheck, ChevronRight, ChevronsUpDown, Ellipsis, Menu, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Palette as PaletteIcon, Plus, Search, Sun } from 'lucide-react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { LOGOS, LogoMark, type LogoId } from '../ui/Logo';
 import { currentKb, currentSession, get, post } from './api';
 import { useT } from './i18n';
-import { NAV, type NavEntry } from './nav';
+import { MORE, SCREENS, SETTINGS, screenOf, screenTabs, type NavEntry } from './nav';
 import { Palette } from './Palette';
 import { hrefFor, type Route } from './router';
 import { applyLook, LOOKS, readLogo, readLook, readMode, readRail, readStyle, saveRail, type Look, type Mode, type Rail, type Style } from './theme';
@@ -56,15 +56,85 @@ function useAppearance(): Appearance {
   return { ...state, rail, setLook, setMode, setStyle, setLogo, toggleRail };
 }
 
-function NavLink({ entry, current, count, folded }: { entry: NavEntry; current: boolean; count?: number; folded: boolean }) {
+function NavLink({ entry, current, folded }: { entry: NavEntry; current: boolean; folded: boolean }) {
   const t = useT();
   const label = t(entry.label);
-  const name = count ? `${label}, ${count}` : label;
   const Icon = entry.icon;
   return (
-    <a className="rail-link" href={hrefFor(entry.route)} aria-current={current ? 'page' : undefined} aria-label={name} title={folded ? name : undefined}>
-      <Icon size={18} strokeWidth={1.8} aria-hidden="true" /><span className="rail-label">{label}</span>{count ? <span className="count" aria-hidden="true">{count}</span> : null}
+    <a className="rail-link" href={hrefFor(entry.route)} aria-current={current ? 'page' : undefined} aria-label={label} title={folded ? label : undefined}>
+      <Icon size={18} strokeWidth={1.8} aria-hidden="true" /><span className="rail-label">{label}</span>
     </a>
+  );
+}
+
+/** Everything that is not daily, one click away: tools, health, modules, help. */
+function MoreMenu({ folded, current }: { folded: boolean; current: boolean }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const label = t('app.more.label');
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
+        <button type="button" className="rail-link" aria-label={label} title={folded ? label : undefined} data-current={current || undefined}>
+          <Ellipsis size={18} strokeWidth={1.8} aria-hidden="true" /><span className="rail-label">{label}</span>
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content className="menu more-menu" side="right" align="end" sideOffset={8} aria-label={label}>
+          {MORE.map((e) => {
+            const Icon = e.icon;
+            return (
+              <a key={e.label} href={hrefFor(e.route)} onClick={() => setOpen(false)}>
+                <Icon size={16} aria-hidden="true" />
+                <span style={{ minWidth: 0 }}><b>{t(e.label)}</b>{e.hint ? <small>{t(e.hint)}</small> : null}</span>
+              </a>
+            );
+          })}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+/**
+ * « Garde ça » (⌘J), on every screen: a line the person writes is kept at
+ * once, in their captures; it never waits for a yes, since they wrote it.
+ */
+function Keep({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const field = useRef<HTMLTextAreaElement>(null);
+  const save = async () => {
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    try {
+      await post('/api/capture', { text });
+      toast(t('app.keep.kept'));
+      setText('');
+      onOpenChange(false);
+      void qc.invalidateQueries({ queryKey: ['inbox'] });
+      void qc.invalidateQueries({ queryKey: ['status-full'] });
+    } catch (e) { toast((e as Error).message, 'err'); } finally { setBusy(false); }
+  };
+  return (
+    <Popover.Root open={open} onOpenChange={onOpenChange}>
+      <Popover.Trigger asChild>
+        <button type="button" className="btn keep-btn" aria-keyshortcuts="Meta+J Control+J" aria-label={t('app.keep.button')}>
+          <Plus size={16} aria-hidden="true" /><span className="hide-narrow">{t('app.keep.button')}</span><kbd aria-hidden="true" className="hide-narrow">⌘J</kbd>
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content className="menu keep-pop" align="end" sideOffset={8} aria-label={t('app.keep.button')} onOpenAutoFocus={(e) => { e.preventDefault(); field.current?.focus(); }}>
+          <form onSubmit={(e) => { e.preventDefault(); void save(); }}>
+            <textarea ref={field} value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder={t('app.keep.placeholder')} aria-label={t('app.keep.placeholder')}
+              onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void save(); } }} />
+            <div className="keep-foot"><span className="small muted">{t('app.keep.hint')}</span><button type="submit" className="btn primary sm" disabled={!text.trim() || busy}>{t('app.keep.save')}</button></div>
+          </form>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
@@ -189,6 +259,7 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
   const devOn = useDevModule();
   const [railOpen, setRailOpen] = useState(false);
   const [palette, setPalette] = useState(false);
+  const [keep, setKeep] = useState(false);
   const toasts = useToasts();
   const folded = appearance.rail === 'collapsed';
 
@@ -198,6 +269,7 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
     const on = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLElement && e.target.isContentEditable);
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((v) => !v); }
+      else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); setKeep((v) => !v); }
       else if ((e.metaKey || e.ctrlKey) && e.key === '\\') { e.preventDefault(); appearance.toggleRail(); }
       else if (e.key === '/' && !typing) { e.preventDefault(); setPalette(true); }
     };
@@ -206,9 +278,9 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
   }, [appearance]);
   useEffect(() => { if (currentSession()?.outdated) toast(t('app.outdated')); }, [t]);
 
-  const entries = NAV.filter((e) => !e.module || devOn);
-  const link = (e: NavEntry) => <NavLink key={e.label} entry={e} current={route.name === e.route.name} count={e.count === 'waiting' ? waiting : undefined} folded={folded} />;
-  const tabs = entries.filter((e) => ['today', 'brain', 'inbox', 'repos', 'learn'].includes(e.route.name));
+  const screen = screenOf(route);
+  const tabs = screenTabs(route, devOn);
+  const inMore = MORE.some((e) => e.route.name === route.name);
 
   return (
     <div className="shell" data-rail={appearance.rail}>
@@ -223,13 +295,12 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
           </button>
         </div>
         <KbSwitcher folded={folded} />
-        <nav className="rail-section" aria-label={t('app.nav.section.brain')}>
-          <p className="rail-heading">{t('app.nav.section.brain')}</p>
-          {entries.filter((e) => e.section === 'brain').map(link)}
+        <nav className="rail-section" aria-label={t('app.nav.screens')}>
+          {SCREENS.map((e) => <NavLink key={e.id} entry={e} current={screen === e.id} folded={folded} />)}
         </nav>
-        <nav className="rail-section rail-foot" aria-label={t('app.nav.section.okb')}>
-          <p className="rail-heading">{t('app.nav.section.okb')}</p>
-          {entries.filter((e) => e.section === 'okb').map(link)}
+        <nav className="rail-section rail-foot" aria-label={t('app.more.label')}>
+          <MoreMenu folded={folded} current={inMore} />
+          <NavLink entry={SETTINGS} current={route.name === 'settings'} folded={folded} />
         </nav>
       </aside>
       <div className="main">
@@ -242,17 +313,31 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
           <button type="button" className="search-btn" onClick={() => setPalette(true)} aria-keyshortcuts="Meta+K" aria-label={t('app.search.open')}>
             <Search size={16} aria-hidden="true" /><span className="hide-narrow">{t('app.search.placeholder')}</span><kbd aria-hidden="true">⌘K</kbd>
           </button>
+          <Keep open={keep} onOpenChange={setKeep} />
+          <a className="btn validate-btn" href={hrefFor({ name: 'inbox' })} aria-current={route.name === 'inbox' ? 'page' : undefined} aria-label={waiting ? `${t('app.nav.inbox')}, ${waiting}` : t('app.nav.inbox')}>
+            <CheckCheck size={16} aria-hidden="true" /><span className="hide-narrow">{t('app.nav.inbox')}</span>{waiting ? <span className="count" aria-hidden="true">{waiting}</span> : null}
+          </a>
           <ThemeMenu appearance={appearance} />
         </header>
+        {tabs.length ? (
+          <nav className="screen-tabs" aria-label={t(SCREENS.find((x) => x.id === screen)!.label)}>
+            <div className="tabs">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return <a key={hrefFor(tab.to)} href={hrefFor(tab.to)} aria-current={tab.current ? 'page' : undefined}><Icon size={15} aria-hidden="true" />{t(tab.label)}</a>;
+              })}
+            </div>
+          </nav>
+        ) : null}
         <main id="main" tabIndex={-1}><AppearanceContext.Provider value={appearance}>{children}</AppearanceContext.Provider></main>
         <StatusBar waiting={waiting} />
       </div>
       <nav className="tabbar" aria-label={t('app.nav.main')}>
-        {tabs.map((e) => {
+        {SCREENS.map((e) => {
           const Icon = e.icon;
           return (
-            <a key={e.label} href={hrefFor(e.route)} aria-current={route.name === e.route.name ? 'page' : undefined}>
-              <Icon size={22} strokeWidth={1.8} aria-hidden="true" />{t(e.label)}{e.count === 'waiting' && waiting ? <span className="count">{waiting}</span> : null}
+            <a key={e.id} href={hrefFor(e.route)} aria-current={screen === e.id ? 'page' : undefined}>
+              <Icon size={22} strokeWidth={1.8} aria-hidden="true" />{t(e.label)}
             </a>
           );
         })}

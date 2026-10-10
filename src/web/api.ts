@@ -47,6 +47,8 @@ import { renderMarkdown } from './render.js';
 import { brainRoutes, crumbsOf } from './api-brain.js';
 import { scoresFor } from '../scores/cached.js';
 import { invoke } from '../engine/registry.js';
+import { engineRoutes } from './api-engine.js';
+import { provenanceOf, sourceStates } from '../kb/provenance.js';
 import { nextRoutes } from './api-next.js';
 
 export type ApiContext = {
@@ -142,6 +144,7 @@ async function kbsWithKind(env: NodeJS.ProcessEnv) {
 
 const BRAIN = brainRoutes(kbConfig);
 const NEXT = nextRoutes(kbConfig);
+const ENGINE = engineRoutes(kbConfig);
 
 export const ROUTES: Record<string, Handler> = {
   /* ---------- session ---------- */
@@ -269,7 +272,9 @@ export const ROUTES: Record<string, Handler> = {
     // A workspace KB is also drawn from above: its repositories, their connections, the scope.
     const { workspaceGraph } = await import('../work/graph-view.js');
     const workspace = await workspaceGraph(config, bundle, q.get('focus')).catch(() => null);
-    return { ...buildGraph(bundle, cx.categories, cx.templates, { includeNav: q.get('nav') === '1' }), workspace };
+    // The notes to tidy, seen at a glance (F2.0-19): isolated, or outside the drawers.
+    const { toTidy } = await import('../brain/tidy.js');
+    return { ...buildGraph(bundle, cx.categories, cx.templates, { includeNav: q.get('nav') === '1' }), workspace, tidy: toTidy(config, bundle) };
   },
   'GET /api/categories': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
@@ -310,10 +315,21 @@ export const ROUTES: Record<string, Handler> = {
       lang: (await import('../translate/translate.js')).noteLanguage(doc.data as Record<string, unknown>, doc.body, (config.writing.language ?? config.profile.answer.language ?? 'en').slice(0, 2)),
       category: graph.nodes.find((n) => n.id === path)?.category ?? 'other',
       sources: Array.isArray((doc.data as { sources?: unknown[] }).sources) ? (doc.data as { sources: unknown[] }).sources.length : 0,
+      // Sources and validity (F2.0-27): where it comes from, who wrote it, when it was approved, until when it holds.
+      provenance: await provenanceOf(config, bundle, path),
       html: await renderMarkdown(doc.raw, path), raw: doc.raw,
       backlinks: incoming.map(pickNode).slice(0, 60), outlinks: outgoing.map(pickNode).slice(0, 60),
       obsidian: obsidianUrl(resolve(config.kb.root, path)),
     };
+  },
+  /** Whether the local sources of a note changed since they were read; asked for, never on every opening. */
+  'GET /api/note/freshness': async (ctx, q) => {
+    const config = await kbConfig(ctx, q.get('kb'));
+    const path = asBundlePath(q.get('path') ?? '');
+    const p = await provenanceOf(config, await loadBundleFor(config), path);
+    const local = p.sources.filter((s) => s.kind === 'local' && s.resource).map((s) => s.resource!);
+    const states = await sourceStates(config, local);
+    return { sources: local.map((resource) => ({ resource, state: states.get(resource) ?? 'unknown' })) };
   },
   'GET /api/search': async (ctx, q) => {
     const config = await kbConfig(ctx, q.get('kb'));
@@ -692,13 +708,13 @@ async function bulkProposal(config: OkbConfig, raw: unknown[], make: (path: stri
   return { ok: true, proposalId: proposal.id, notes: made.length, skipped };
 }
 
-export const MUTATING = new Set([...Object.keys(ROUTES), ...Object.keys(BRAIN), ...Object.keys(NEXT)].filter((k) => k.startsWith('POST ')));
+export const MUTATING = new Set([...Object.keys(ROUTES), ...Object.keys(BRAIN), ...Object.keys(NEXT), ...Object.keys(ENGINE)].filter((k) => k.startsWith('POST ')));
 /** Routes of the developer module (repositories, workspaces): off when the person turned the module off. */
 const DEV_ROUTE = /^(GET|POST) \/api\/(repos?|workspaces?)(\/|$)/;
 
 export function routeFor(method: string, pathname: string): Handler | undefined {
   const key = `${method} ${pathname}`;
-  const handler = ROUTES[key] ?? (BRAIN as Record<string, Handler>)[key] ?? (NEXT as Record<string, Handler>)[key];
+  const handler = ROUTES[key] ?? (BRAIN as Record<string, Handler>)[key] ?? (NEXT as Record<string, Handler>)[key] ?? (ENGINE as Record<string, Handler>)[key];
   if (!handler || !DEV_ROUTE.test(key)) return handler;
   return async (ctx, q, b) => {
     const { featureOn } = await import('../modules/catalog.js');

@@ -28,13 +28,13 @@ async function smokeReader(bin, proposalId) {
     });
     const page = await fetch(url);
     assert.equal(page.status, 200);
-    // The installed package ships the new app (built into web/app) on « / », and the classic one on « /classic ».
+    // The installed package ships the app (built into web/app) on « / ».
     const home = await page.text();
     const entry = /src="(\/app\/assets\/[^"]+\.js)"/.exec(home)?.[1];
     assert(entry, 'the new web app is in the package');
     assert.equal((await fetch(`${url}${entry}`)).status, 200, entry);
-    assert((await (await fetch(`${url}/classic`)).text()).includes('/js/main.js'));
-    for (const asset of ['/js/main.js', '/js/core.js', '/js/views/review.js', '/app.css', '/favicon.svg', '/vendor/mermaid.js', '/vendor/d3-force.js', '/js/graph.js']) assert.equal((await fetch(`${url}${asset}`)).status, 200, asset);
+    assert.equal((await fetch(`${url}/classic`, { redirect: 'manual' })).status, 302);
+    for (const asset of ['/favicon.svg', '/vendor/mermaid.js']) assert.equal((await fetch(`${url}${asset}`)).status, 200, asset);
     assert.equal((await fetch(`${url}/api/capture`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"text":"x"}' })).status, 403);
     assert((await (await fetch(`${url}/api/status`)).json()).name);
     assert((await (await fetch(`${url}/api/search?q=dispatcher`)).json()).hits.length > 0);

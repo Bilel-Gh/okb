@@ -11,7 +11,6 @@ import { go, hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
 import { Prose } from '../reader/Prose';
 import { LevelBar, type Tier } from '../ui/LevelBar';
-import { PageTabs } from '../ui/PageTabs';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { ExamPanel } from './Exam';
 
@@ -398,13 +397,7 @@ export default function Repos({ route, setTitle }: { route: Extract<Route, { nam
   const t = useT();
   useScheme();
   const q = useQuery({ queryKey: ['repos'], queryFn: () => get<ReposData>('/api/repos') });
-  const tabs = (
-    <PageTabs label={t('app.repos.tabs')} tabs={[
-      { to: { name: 'repos' }, label: t('app.repos.tab.level'), current: route.tab !== 'architecture', icon: FolderGit2 },
-      { to: { name: 'repos', tab: 'architecture' }, label: t('app.repos.tab.arch'), current: route.tab === 'architecture', icon: Network },
-    ]} />
-  );
-  if (route.tab === 'architecture') return <div className="page">{tabs}<Suspense fallback={<SkeletonRows rows={6} />}><Arch route={route} /></Suspense></div>;
+  if (route.tab === 'architecture') return <div className="page"><Suspense fallback={<SkeletonRows rows={6} />}><Arch route={route} /></Suspense></div>;
   if (q.isLoading) return <div className="page"><SkeletonRows rows={6} /></div>;
   if (q.error || !q.data) return <div className="page"><ErrorState error={q.error} retry={() => void q.refetch()} /></div>;
   if (route.id) return <div className="page"><Detail data={q.data} id={route.id} setTitle={setTitle} /></div>;
@@ -417,7 +410,7 @@ export default function Repos({ route, setTitle }: { route: Extract<Route, { nam
   const active = q.data.tickets.filter((tk) => tk.status === 'active');
   return (
     <div className="page">
-      <div className="page-head">{tabs}<p className="page-intro grow">{t('app.repos.introShort')}</p></div>
+      <p className="page-intro">{t('app.repos.introShort')}</p>
       {unlinked ? <p className="notice plain small"><Link2 size={16} aria-hidden="true" />{t('app.repos.unlinkedNotice')}</p> : null}
       {active.length ? <Tickets tickets={active} showRepos /> : null}
       {all.length ? products.map((product) => {

@@ -2,7 +2,7 @@
 
 ## Installation propre
 
-Node 22.12+ et npm sont nécessaires. Le plugin vise Claude Code ; le fichier de
+Node 22.13+ et npm sont nécessaires. Le plugin vise Claude Code ; le fichier de
 manifest peut être vérifié avec `claude plugin validate ./plugin`. Le chargement
 local utilise `claude --plugin-dir "$PWD/plugin"`. Les évaluations natives livrées
 nécessitent une version qui expose `claude plugin eval` (voir EVALUATION.md).

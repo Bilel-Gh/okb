@@ -3,16 +3,16 @@
 # OKB sources that came with the plugin: the marketplace checkout Claude Code
 # keeps (~/.claude/plugins/marketplaces/<name>), or the OKB_SOURCE given. The
 # engine lives in ~/.okb/app and its launcher in ~/.okb/bin/okb, which the
-# plugin's bin/okb finds. Needs Node 22.12+ and npm. Prints one JSON line.
+# plugin's bin/okb finds. Needs Node 22.13+ and npm. Prints one JSON line.
 set -eu
 home="${OKB_HOME:-$HOME/.okb}"
 app="$home/app"
 say() { printf '%s\n' "$1"; }
 fail() { say "{\"ok\":false,\"error\":\"$1\"}"; exit 1; }
 
-command -v node >/dev/null 2>&1 || fail "node-missing: install Node.js 22.12 or later (https://nodejs.org)"
-major=$(node -p 'process.versions.node.split(".")[0]')
-[ "$major" -ge 22 ] || fail "node-too-old: Node $(node -v) found, 22.12 or later is needed"
+command -v node >/dev/null 2>&1 || fail "node-missing: install Node.js 22.13 or later (https://nodejs.org)"
+node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||(a===22&&b>=13)?0:1)' \
+  || fail "node-too-old: Node $(node -v) found, 22.13 or later is needed"
 command -v npm >/dev/null 2>&1 || fail "npm-missing"
 
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
