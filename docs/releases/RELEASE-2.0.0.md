@@ -32,3 +32,23 @@ Ces notes grandissent à chaque itération.
   - « Aller au contenu » ne change plus d'adresse.
 
 Décision : D56. Vérification : `npm run release:check` (676 tests).
+
+## Itération 2 — la vitesse sur un gros cerveau
+
+OKB ne relit plus toutes tes notes à chaque clic : il garde ce qu'il a lu et ne
+relit que les notes qui ont changé. Sur un cerveau fictif de 4 715 notes :
+
+| | Avant | Après |
+|---|---:|---:|
+| Une recherche, une fois l'app ouverte | 4 s | 0,08 s |
+| L'accueil | 13 s | 0,44 s |
+| Une recherche juste après une modification | 4 s | 0,26 s |
+| La toute première recherche | 9,6 s | 1 s |
+
+Une modification faite dans Obsidian ou dans un autre éditeur se voit toujours à la
+requête suivante. Quand tu approuves une proposition, OKB relit tout le disque avant
+d'écrire, comme avant.
+
+Pour mesurer toi-même : `npm run bench:speed` (sans IA, sans token).
+
+Décision : D57.

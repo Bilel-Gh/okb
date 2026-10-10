@@ -1038,3 +1038,44 @@ Pistes, par ordre proposé :
 **Réexamen.**
 - Revoir quand l'état opérationnel passera dans SQLite (F2.0-18) : ses transactions remplaceront le verrou pour ces fichiers.
 - Revoir si un appelant doit envoyer volontairement une note privée (`private`) à l'IA.
+
+## D57 — 2.0, itération 2 : lire une KB par révision (10 octobre 2026)
+
+**Problème.** Chaque requête relisait et réanalysait toutes les notes : à 4 715 notes, 3,4 s pour charger, 4 s pour une recherche et 13 s pour les six requêtes de l'accueil (audit du 9 octobre, remesuré le 10 sur la 2.0 en cours). Une note était aussi analysée trois fois au chargement (titres, ancres, liens), et le contrôle des liens l'analysait encore.
+
+**Décisions.**
+
+- **Un instantané par KB, invalidé fichier par fichier** (`src/kb/bundle.ts`, F2.0-22).
+  - Pour chaque fichier, OKB garde un tampon (inode, taille, dates de modification et de changement) et la note analysée.
+  - Une nouvelle lecture liste les fichiers, lit leur tampon et ne relit que ceux qui ont changé. Si rien n'a changé, c'est le même objet `Bundle` qui revient, et les index et vues qui en dépendent restent valables.
+  - Un fichier changé moins de 2 s avant d'être vu est relu à chaque fois jusqu'à ce qu'il se pose. Certains systèmes de fichiers ont des dates grossières, et deux écritures rapides pourraient avoir le même tampon. Une note relue au texte identique garde son analyse.
+  - Les requêtes qui arrivent ensemble partagent la lecture de chaque note.
+  - L'application d'une proposition relit tous les fichiers (`fresh`), en réutilisant l'analyse des textes inchangés.
+  - Au plus huit KB sont gardées en mémoire.
+- **Une seule analyse par texte** (`bodyFacts` dans `src/markdown/ast.ts`). Les liens, les ancres et les titres de premier niveau viennent d'une seule lecture du Markdown, gardée par texte et partagée par le chargement, le contrôle des liens, le graphe, la recherche, les scores et la maintenance. Les valeurs partagées sont gelées.
+- **Le contrôle des liens garde ce qu'il a lu d'une note** (`src/links/check.ts`). Ses liens, ses ancres et la ligne où commence son corps sont gardés par texte. Les problèmes, eux, sont recalculés à chaque fois : une cible supprimée ou un titre retiré se voient même si la note qui pointe n'a pas changé.
+- **L'index de recherche suit les notes qui changent** (`src/find/find.ts`). Les notes changées, ajoutées ou supprimées sont retirées puis remises dans l'index. Au-delà de 30 % de notes changées, ou si le plan du cerveau change, l'index est reconstruit. Un test vérifie qu'un index mis à jour répond exactement comme un index neuf.
+- **Une mesure reproductible** (`npm run bench:speed`, `scripts/perf.mjs`) : des cerveaux fictifs de 415, 1 215 et 4 715 notes, sans IA. Elle mesure le chargement, la première recherche, la recherche répétée (médiane et p95), l'accueil et la recherche juste après une modification.
+
+**Résultats, à 4 715 notes (macOS, Node 24, cerveau fictif).**
+
+| Mesure | Avant | Après |
+|---|---:|---:|
+| Premier chargement | 3,4 s | 1,6 s |
+| Chargement suivant | 3,4 s | 0,09 s |
+| Première recherche | 9,6 s | 1,0 s |
+| Recherche répétée, p95 | 4,0 s | 0,08 s |
+| Accueil, six requêtes | 13,0 s | 0,44 s |
+| Recherche juste après une modification | 4,0 s | 0,26 s |
+
+La cible de la 2.0, une recherche répétée sous 200 ms au p95 à 5 000 notes, est atteinte sur ce cerveau fictif. Elle reste à confirmer sur un vrai cerveau.
+
+**Conséquences.**
+- `loadBundle` peut être appelé autant de fois qu'on veut : une KB inchangée coûte une liste de fichiers et leurs tampons (environ 50 ms à 4 715 notes).
+- Une vue dérivée d'un `Bundle` peut se garder tant que l'objet est le même.
+- Ce qui vient de `extractLinks`, `headingSlugs` et `bodyFacts` est partagé : on ne le modifie pas.
+
+**Réexamen.**
+- Revoir quand l'état opérationnel passera dans SQLite (F2.0-18).
+- Revoir si une KB dépasse 20 000 notes : les mémoires par texte sont plafonnées à 20 000 entrées.
+- F2.0-21 est découpée. La vitesse et le coût sont mesurés ici. « Ce que j'ai fait mardi » et le temps d'entretien par jour viendront avec le journal par projet et l'écran du soir (itérations 5 et 7), et seront relevés à l'itération 8.

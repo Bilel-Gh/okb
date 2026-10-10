@@ -10,7 +10,8 @@ import { secretError } from '../security/guard.js';
 
 /** Reject new structural problems, while allowing repair of an imperfect legacy KB. */
 export async function validatePlannedFiles(config: OkbConfig, desired: ReadonlyMap<string, { before: string | null; after: string | null }>): Promise<void> {
-  const bundle = await loadBundleFor(config);
+  // Applying checks the disk itself, not the last reading of it.
+  const bundle = await loadBundleFor(config, { fresh: true });
   const snapshot = new Map(bundle.snapshot.files);
   for (const [path, { before, after }] of desired) {
     if (after === null) { snapshot.delete(path as BundlePath); continue; }

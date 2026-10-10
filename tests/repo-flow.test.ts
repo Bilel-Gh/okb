@@ -84,7 +84,7 @@ describe('okb repo in the terminal', () => {
     const refused = await run(['repo', 'add', '--json'], env, root);
     expect(JSON.parse(refused.stdout).error).toMatchObject({ key: 'repoNeedsKb' });
     const before = await run(['repo', 'context', '--json'], env, root);
-    expect(JSON.parse(before.stdout).context).toContain('Git repository OKB does not document yet ("orders-service")');
+    expect(JSON.parse(before.stdout).context, before.stdout + before.stderr).toContain('Git repository OKB does not document yet ("orders-service")');
 
     const added = await run(['repo', 'add', '--new-kb', 'Travail', '--dir', resolve(dirs[0]!, 'kb-travail'), '--json'], env, root);
     const body = JSON.parse(added.stdout);

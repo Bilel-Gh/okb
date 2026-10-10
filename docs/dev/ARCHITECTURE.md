@@ -51,6 +51,19 @@ ne transforme une affirmation en fait techniquement vérifié.
 | `repo/` | repos de code : carte déterministe, plan de lecture, 25 questions d’onboarding, dossier v3 cité à la ligne, fraîcheur Git, ticket, paysage multi-repos, confidentialité (voir [REPOS.md](REPOS.md)) |
 | `plugin/` | quatorze skills, dix-neuf commandes, trois agents, trois hooks (garde d’approbation, focus et repo au démarrage, intentions) et `bin/okb` |
 
+## Lire une KB par révision
+
+Toute requête commence par `loadBundle` (D57). Une KB inchangée ne coûte que la
+liste de ses fichiers et leurs tampons (inode, taille, dates) : le même objet
+`Bundle` revient, et les vues qui en dérivent (index de recherche, scores) restent
+valables tant qu'il est le même. Seules les notes changées sont relues. L'analyse
+du Markdown d'un texte (liens, ancres, titres) est faite une fois et partagée
+(`bodyFacts`). L'application d'une proposition relit le disque (`fresh`).
+
+`npm run bench:speed` mesure la vitesse sur des cerveaux fictifs de 415 à 4 715
+notes, sans IA. Cible de la 2.0 : une recherche répétée sous 200 ms au p95 à
+5 000 notes.
+
 ## Choix assumés
 
 **Fichiers avant base vectorielle.** Les notes restent lisibles, diffables et

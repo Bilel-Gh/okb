@@ -92,3 +92,28 @@ describe('the brain seen from above, by levels', () => {
     expect(repo.nodes.filter((n) => n.kind === 'note').length).toBeGreaterThan(3);
   }, 60_000);
 });
+
+describe('the search index follows the notes that change (F2.0-22)', () => {
+  it('after notes are changed, added and deleted, it answers exactly like an index built from scratch', async () => {
+    const { cp, unlink, readFile } = await import('node:fs/promises');
+    const { config, bundle } = await demo();
+    const queries = ['export', 'zorglub', 'quokka', 'déploiement', 'réunion client'];
+    for (const q of queries) findNotes(config, bundle, q);
+    const changed = bundle.entries.find((e) => !e.reserved && e.path.includes('/'))!;
+    const removed = bundle.entries.filter((e) => !e.reserved && e.path !== changed.path)[5]!;
+    const file = resolve(config.kb.root, changed.path);
+    await writeFile(file, (await readFile(file, 'utf8')).replace(/\n# .*\n/, '\n# Zorglub et compagnie\n'));
+    await unlink(resolve(config.kb.root, removed.path));
+    await writeFile(resolve(config.kb.root, 'quokka.md'), note('Quokka', 'Un petit marsupial, et un mot rare : zorglub.'));
+    const next = await loadBundleFor(config);
+
+    const copy = resolve(config.kb.root, '..', 'copie');
+    await cp(config.kb.root, copy, { recursive: true });
+    const fresh = { ...config, kb: { ...config.kb, root: copy } };
+    const freshBundle = await loadBundleFor(fresh);
+    const shape = (r: ReturnType<typeof findNotes>) => r.hits.map((h) => `${h.path}:${h.score}`).sort();
+    for (const q of queries) expect(shape(findNotes(config, next, q)), q).toEqual(shape(findNotes(fresh, freshBundle, q)));
+    expect(findNotes(config, next, 'quokka').best?.path).toBe('quokka.md');
+    expect(findNotes(config, next, removed.title).hits.map((h) => h.path)).not.toContain(removed.path);
+  });
+});

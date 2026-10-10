@@ -65,7 +65,7 @@ describe('three kinds of KB', () => {
     const root = await gitFixture();
     const { s, env } = await person();
     const made = await json(['init', '--yes', '--name', 'Orders', '--kind', 'repo', '--repo', root], env, s.dir);
-    expect(made).toMatchObject({ ok: true, created: true, repo: { id: 'orders-service', kb: 'orders' }, kb: { id: 'orders', kind: 'repo', confidential: true } });
+    expect(made, JSON.stringify(made)).toMatchObject({ ok: true, created: true, repo: { id: 'orders-service', kb: 'orders' }, kb: { id: 'orders', kind: 'repo', confidential: true } });
     const { config } = await loadConfig({ profileId: 'orders' });
     expect(config.kb.brain).toMatchObject({ preset: 'work' });
     const repo = (await listRepos()).find((r) => r.id === 'orders-service')!;

@@ -93,15 +93,19 @@ function typeOf(e: KbEntry): string {
   return e.ext.brain?.type ?? e.ext.template ?? e.type;
 }
 
-type Built = { key: string; index: MiniSearch<Doc>; meaning: MiniSearch<{ id: string; roots: string }>; docs: Map<string, Doc>; bodies: Map<string, string>; out: Map<string, BundlePath[]>; incoming: Map<string, BundlePath[]> };
+type MeaningDoc = { id: string; roots: string };
+type Built = {
+  key: string; layoutKey: string; shas: Map<string, string>;
+  index: MiniSearch<Doc>; meaning: MiniSearch<MeaningDoc>; docs: Map<string, Doc>; meaningDocs: Map<string, MeaningDoc>; bodies: Map<string, string>;
+  out: Map<string, BundlePath[]>; incoming: Map<string, BundlePath[]>;
+};
 const cache = new Map<string, Built>();
 /** How much the meaning can add, relative to the best word match (tuned on tests/fixtures/reformulated). */
 const MEANING_WEIGHT = 0.6;
+/** Beyond this share of changed notes, building again is quicker than updating. */
+const REBUILD_SHARE = 0.3;
 
-function build(layout: BrainLayout | null, bundle: Bundle): Built {
-  const key = sha256(bundle.entries.map((e) => `${e.path}:${e.sha256}`).join('|'));
-  const hit = cache.get(bundle.root);
-  if (hit && hit.key === key) return hit;
+function emptyIndexes(): { index: MiniSearch<Doc>; meaning: MiniSearch<MeaningDoc> } {
   const index = new MiniSearch<Doc>({
     fields: ['title', 'aliases', 'headings', 'errors', 'place', 'body'],
     storeFields: ['title', 'type'],
@@ -109,23 +113,55 @@ function build(layout: BrainLayout | null, bundle: Bundle): Built {
     searchOptions: { boost: { title: 6, aliases: 6, errors: 4, headings: 2, place: 1.5, body: 1 }, fuzzy: 0.2, prefix: true, processTerm },
   });
   // The meaning index: roots of words and families of synonyms (src/find/meaning.ts), searched beside the words.
-  const meaning = new MiniSearch<{ id: string; roots: string }>({ fields: ['roots'], processTerm: (t) => t, searchOptions: { processTerm: (t) => t } });
-  const docs = new Map<string, Doc>();
-  const bodies = new Map<string, string>();
-  for (const e of bundle.entries) {
-    if (e.reserved) continue;
-    const doc = bundle.docs.get(e.path);
-    const body = doc ? plain(doc.body) : '';
-    const brain = e.ext.brain ?? {};
-    const aliases = [...(e.ext.aliases ?? []), brain.ref ?? '', posix.basename(e.path, '.md')].filter(Boolean);
-    const place = layout ? positionOf(layout, e.path).crumbs.join(' ') : posix.dirname(e.path).replace(/\//g, ' ');
-    const d: Doc = { id: e.path, title: e.title, aliases: aliases.join(' '), headings: e.headings.join(' '), errors: doc ? errorsOf(doc.body) : '', place, body: body.slice(0, 6000), type: typeOf(e) };
-    docs.set(e.path, d);
-    bodies.set(e.path, body);
-    index.add(d);
-    // The title counts three times: it says what the note is about.
-    const titleRoots = roots(`${e.title} ${aliases.join(' ')}`).join(' ');
-    meaning.add({ id: e.path, roots: [titleRoots, titleRoots, titleRoots, roots(e.headings.join(' ')).join(' '), roots(body.slice(0, 6000)).join(' ')].join(' ') });
+  const meaning = new MiniSearch<MeaningDoc>({ fields: ['roots'], processTerm: (t) => t, searchOptions: { processTerm: (t) => t } });
+  return { index, meaning };
+}
+
+/** What the indexes hold for one note: a function of the note and the layout only. */
+function docsOf(layout: BrainLayout | null, bundle: Bundle, e: KbEntry): { doc: Doc; meaning: MeaningDoc; body: string } {
+  const note = bundle.docs.get(e.path);
+  const body = note ? plain(note.body) : '';
+  const brain = e.ext.brain ?? {};
+  const aliases = [...(e.ext.aliases ?? []), brain.ref ?? '', posix.basename(e.path, '.md')].filter(Boolean);
+  const place = layout ? positionOf(layout, e.path).crumbs.join(' ') : posix.dirname(e.path).replace(/\//g, ' ');
+  const doc: Doc = { id: e.path, title: e.title, aliases: aliases.join(' '), headings: e.headings.join(' '), errors: note ? errorsOf(note.body) : '', place, body: body.slice(0, 6000), type: typeOf(e) };
+  // The title counts three times: it says what the note is about.
+  const titleRoots = roots(`${e.title} ${aliases.join(' ')}`).join(' ');
+  const meaning = { id: e.path, roots: [titleRoots, titleRoots, titleRoots, roots(e.headings.join(' ')).join(' '), roots(body.slice(0, 6000)).join(' ')].join(' ') };
+  return { doc, meaning, body };
+}
+
+/**
+ * The indexes of a KB, tied to its revision (F2.0-22): built once, then
+ * updated note by note when some notes changed, were added or were deleted.
+ * An update leaves the indexes as a build from scratch would.
+ */
+function build(layout: BrainLayout | null, bundle: Bundle): Built {
+  const key = sha256(bundle.entries.map((e) => `${e.path}:${e.sha256}`).join('|'));
+  const layoutKey = JSON.stringify(layout);
+  const hit = cache.get(bundle.root);
+  if (hit && hit.key === key && hit.layoutKey === layoutKey) return hit;
+
+  const indexed = bundle.entries.filter((e) => !e.reserved);
+  const shas = new Map(indexed.map((e) => [e.path as string, e.sha256]));
+  const changed = hit && hit.layoutKey === layoutKey ? indexed.filter((e) => hit.shas.get(e.path) !== e.sha256) : null;
+  const gone = hit && changed ? [...hit.shas.keys()].filter((p) => !shas.has(p)) : null;
+  const update = hit && changed && gone && changed.length + gone.length <= Math.max(1, indexed.length * REBUILD_SHARE);
+
+  const base = update ? hit : { ...emptyIndexes(), docs: new Map<string, Doc>(), meaningDocs: new Map<string, MeaningDoc>(), bodies: new Map<string, string>() };
+  const { index, meaning, docs, meaningDocs, bodies } = base;
+  for (const p of update ? [...gone!, ...changed!.map((e) => e.path as string)] : []) {
+    const before = docs.get(p);
+    if (!before) continue;
+    index.remove(before);
+    meaning.remove(meaningDocs.get(p)!);
+    docs.delete(p); meaningDocs.delete(p); bodies.delete(p);
+  }
+  for (const e of update ? changed! : indexed) {
+    const made = docsOf(layout, bundle, e);
+    docs.set(e.path, made.doc); meaningDocs.set(e.path, made.meaning); bodies.set(e.path, made.body);
+    index.add(made.doc);
+    meaning.add(made.meaning);
   }
   // Links between notes, once per version of the KB (the breadcrumb's links go up to the subjects: not relations).
   const out = new Map<string, BundlePath[]>();
@@ -136,7 +172,7 @@ function build(layout: BrainLayout | null, bundle: Bundle): Built {
     out.set(p, targets);
     for (const t of targets) incoming.set(t, [...(incoming.get(t) ?? []), p as BundlePath]);
   }
-  const built = { key, index, meaning, docs, bodies, out, incoming };
+  const built = { key, layoutKey, shas, index, meaning, docs, meaningDocs, bodies, out, incoming };
   cache.set(bundle.root, built);
   return built;
 }

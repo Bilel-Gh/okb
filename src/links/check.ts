@@ -66,26 +66,14 @@ export function checkLinks(
   let scannedLinks = 0;
   let scannedFiles = 0;
 
-  const anchorCache = new Map<BundlePath, Set<string>>();
-  const anchorsOf = (p: BundlePath): Set<string> => {
-    const cached = anchorCache.get(p);
-    if (cached) return cached;
-    const text = snapshot.files.get(p) ?? '';
-    const doc = safeParse(p, text);
-    const set = headingSlugs(doc?.body ?? text);
-    anchorCache.set(p, set);
-    return set;
-  };
+  const anchorsOf = (p: BundlePath): ReadonlySet<string> => factsOf(p, snapshot.files.get(p) ?? '').anchors;
 
   for (const [file, text] of snapshot.files) {
     if (!file.endsWith('.md')) continue;
     scannedFiles += 1;
-    const doc = safeParse(file, text);
-    const body = doc?.body ?? text;
-    const offset = doc?.bodyOffset ?? 0;
-    const lineBase = doc ? countLines(text.slice(0, offset)) : 0;
+    const { links, lineBase } = factsOf(file, text);
 
-    for (const link of extractLinks(body)) {
+    for (const link of links) {
       scannedLinks += 1;
       const c = classifyLink(link.url, file);
       byKind[c.kind] = (byKind[c.kind] ?? 0) + 1;
@@ -180,6 +168,27 @@ function resolvesIn(renderer: Renderer, url: string, c: Classification): boolean
   }
   if (c.kind === 'internal' || c.kind === 'internal-asset' || c.kind === 'anchor') return true;
   return false;
+}
+
+/**
+ * What a note's text says about links, read once per text (F2.0-22): its
+ * links, the line its body starts on and the anchors its headings make. It
+ * depends on the text alone, so a check after one note changed reads only
+ * that note again. The issues themselves are always recomputed.
+ */
+type FileFacts = { readonly links: ReturnType<typeof extractLinks>; readonly lineBase: number; readonly anchors: ReadonlySet<string> };
+const facts = new Map<string, FileFacts>();
+const MAX_FACTS = 20_000;
+
+function factsOf(path: BundlePath, text: string): FileFacts {
+  const hit = facts.get(text);
+  if (hit) return hit;
+  const doc = safeParse(path, text);
+  const body = doc?.body ?? text;
+  const made = { links: extractLinks(body), lineBase: doc ? countLines(text.slice(0, doc.bodyOffset)) : 0, anchors: headingSlugs(body) };
+  if (facts.size >= MAX_FACTS) facts.clear();
+  facts.set(text, made);
+  return made;
 }
 
 function safeParse(path: BundlePath, text: string) {

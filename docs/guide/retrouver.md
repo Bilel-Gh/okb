@@ -10,6 +10,9 @@ recherche.
 - Elle cherche dans les deux langues : `facture` trouve aussi `invoice`.
 - Une référence (`ABC-123`) ou un titre exact passe en premier.
 - Filtres : `--product`, `--repo`, `--type known-error,recipe`.
+- Elle reste rapide sur un gros cerveau : une fois l'application ouverte, OKB ne
+  relit que les notes qui ont changé. Sur un cerveau fictif de 4 700 notes, une
+  recherche répond en moins d'un dixième de seconde.
 
 ## Les notes viennent à toi
 

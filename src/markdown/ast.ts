@@ -23,8 +23,33 @@ export type LinkRef = {
   readonly kind: 'inline' | 'image' | 'definition' | 'autolink';
 };
 
-export function extractLinks(body: string): LinkRef[] {
+/**
+ * What the structure of a text says, read once per text (F2.0-22): its links,
+ * the anchors its headings make and its top-level headings. Loading a KB, the
+ * link checker, the graph, search, scores and maintenance all ask for them,
+ * mostly for notes that did not change. The values are shared, so frozen.
+ */
+export type BodyFacts = { readonly links: readonly LinkRef[]; readonly anchors: ReadonlySet<string>; readonly topHeadings: readonly string[] };
+const factsByText = new Map<string, BodyFacts>();
+const MAX_TEXTS = 20_000;
+
+export function bodyFacts(body: string): BodyFacts {
+  const hit = factsByText.get(body);
+  if (hit) return hit;
   const tree = parseMarkdown(body);
+  const topHeadings: string[] = [];
+  for (const node of tree.children) if (node.type === 'heading') topHeadings.push(textOf(node).trim());
+  const facts = Object.freeze({ links: Object.freeze(linksOf(tree, body)), anchors: slugsOf(tree), topHeadings: Object.freeze(topHeadings) });
+  if (factsByText.size >= MAX_TEXTS) factsByText.clear();
+  factsByText.set(body, facts);
+  return facts;
+}
+
+export function extractLinks(body: string): readonly LinkRef[] {
+  return bodyFacts(body).links;
+}
+
+function linksOf(tree: Root, body: string): LinkRef[] {
   const out: LinkRef[] = [];
   visit(tree, (node: any) => {
     if (node.type !== 'link' && node.type !== 'image' && node.type !== 'definition') return;
@@ -196,8 +221,11 @@ export function headingSlug(text: string): string {
     .replace(/\s+/g, '-');
 }
 
-export function headingSlugs(body: string): Set<string> {
-  const tree = parseMarkdown(body);
+export function headingSlugs(body: string): ReadonlySet<string> {
+  return bodyFacts(body).anchors;
+}
+
+function slugsOf(tree: Root): Set<string> {
   const counts = new Map<string, number>();
   const out = new Set<string>();
   visit(tree, 'heading', (node: any) => {

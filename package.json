@@ -36,6 +36,7 @@
     "validate:plugin": "node scripts/validate-plugin.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",
     "release:check": "npm run check && npm run validate:plugin && npm run smoke:package",
+    "bench:speed": "npm run build && node scripts/perf.mjs",
     "dev:web": "vite --config web-app/vite.config.ts"
   },
   "dependencies": {

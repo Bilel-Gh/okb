@@ -119,3 +119,47 @@ describe('moving a document', () => {
     expect(report.issues.filter((i) => i.level === 'error')).toEqual([]);
   });
 });
+
+describe('link checking reuses what it read of an unchanged note (F2.0-22)', () => {
+  const md = (body: string) => `---\ntitle: T\n---\n\n${body}\n`;
+  const snap = (files: Record<string, string>) => snapshotFromEntries(Object.entries(files));
+
+  it('a link that breaks because its target disappeared is reported, though the linking note did not change', () => {
+    const a = md('[B](b.md)');
+    expect(checkLinks(snap({ 'a.md': a, 'b.md': md('# B') })).issues).toEqual([]);
+    expect(checkLinks(snap({ 'a.md': a })).issues.map((i) => i.code)).toEqual(['LINK_BROKEN_TARGET']);
+  });
+
+  it('a heading removed from the target breaks the anchor that pointed to it', () => {
+    const a = md('[B](b.md#deux)');
+    expect(checkLinks(snap({ 'a.md': a, 'b.md': md('# Un\n\n## Deux') })).issues).toEqual([]);
+    expect(checkLinks(snap({ 'a.md': a, 'b.md': md('# Un') })).issues.map((i) => i.code)).toEqual(['LINK_BROKEN_ANCHOR']);
+  });
+
+  it('the same text in two notes is checked from each note’s own place', () => {
+    const text = md('[C](c.md)');
+    const report = checkLinks(snap({ 'x/a.md': text, 'y/a.md': text, 'x/c.md': md('# C') }));
+    expect(report.issues.map((i) => i.file)).toEqual(['y/a.md']);
+  });
+});
+
+describe('the links of a text are read once (F2.0-22)', () => {
+  it('the same text gives back the same list of links, without parsing it again', async () => {
+    const { extractLinks } = await import('../src/markdown/ast.js');
+    const body = '# T\n\n[A](a.md) et [B](b.md)\n';
+    const first = extractLinks(body);
+    expect(first.map((l) => l.url)).toEqual(['a.md', 'b.md']);
+    expect(extractLinks(`${body}`)).toBe(first);
+    expect(Object.isFrozen(first)).toBe(true);
+  });
+
+  it('the headings, anchors and links of a text come from a single reading of it', async () => {
+    const { bodyFacts, extractLinks, headingSlugs } = await import('../src/markdown/ast.js');
+    const body = '# Titre\n\n> ## Dans une citation\n\n## Deux\n\n[A](a.md)\n';
+    const facts = bodyFacts(body);
+    expect(facts.topHeadings).toEqual(['Titre', 'Deux']);
+    expect([...facts.anchors]).toEqual(['titre', 'dans-une-citation', 'deux']);
+    expect(headingSlugs(body)).toBe(facts.anchors);
+    expect(extractLinks(body)).toBe(facts.links);
+  });
+});
