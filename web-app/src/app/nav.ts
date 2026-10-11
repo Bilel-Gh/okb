@@ -33,7 +33,7 @@ export const SETTINGS: NavEntry = { route: { name: 'settings' }, label: 'app.nav
 /** The screen a page belongs to; null for « À valider » and the pages of the « Plus » menu. */
 export function screenOf(route: Route): ScreenId | null {
   switch (route.name) {
-    case 'today': return 'today';
+    case 'today': case 'day': return 'today';
     case 'projects': case 'repos': return 'projects';
     case 'brain': case 'graph': case 'documents': return 'memory';
     case 'ask': case 'claude': return 'assistant';

@@ -270,14 +270,11 @@ async function brainSession(ctx: Ctx): Promise<number> {
   let config: OkbConfig;
   try { config = (await effective(ctx.args)).config; } catch { return 0; }
   const layout = layoutOf(config);
-  const { backupsEnabled } = await import('../../brain/backup.js');
-  if (await backupsEnabled().catch(() => false)) {
-    const latest = (await listBackups(config).catch(() => []))[0];
-    if (!latest || Date.now() - Date.parse(latest.createdAt) > 20 * 3_600_000) {
-      const { spawn } = await import('node:child_process');
-      const child = spawn(process.execPath, [process.argv[1]!, 'backup', 'run', '--kb', config.profile.id, '--quiet'], { detached: true, stdio: 'ignore', env: process.env });
-      child.unref();
-    }
+  const { backupDue } = await import('../../brain/backup.js');
+  if (await backupDue(config).catch(() => false)) {
+    const { spawn } = await import('node:child_process');
+    const child = spawn(process.execPath, [process.argv[1]!, 'backup', 'run', '--kb', config.profile.id, '--quiet'], { detached: true, stdio: 'ignore', env: process.env });
+    child.unref();
   }
   if (!layout) return 0;
   const { sessionBrief } = await import('../../brain/session.js');
@@ -469,13 +466,26 @@ export async function cmdBackup(ctx: Ctx): Promise<number> {
   if (sub === 'restore') {
     const to = flagString(ctx.args, 'to');
     if (!arg || !to) throw new OkbError('E_INVALID', 'okb backup restore <date> --to <new folder>', { key: 'backupRestoreUsage' });
-    const r = await restoreBackup(config, arg, to);
-    if (ctx.mode === 'json') ctx.out.json({ ok: true, ...r }); else ctx.out.ok(t('backup.restored', { files: r.files, to: paint.path(r.to) }));
+    const as = flagString(ctx.args, 'as');
+    const r = await restoreBackup(config, arg, to, process.env, as ? { as } : {});
+    if (ctx.mode === 'json') ctx.out.json({ ok: true, ...r });
+    else { ctx.out.ok(t('backup.restored', { files: r.files, to: paint.path(r.to) })); if (r.profile) { ctx.out.ok(t('backup.restoredAs', { id: r.profile })); ctx.out.next([`okb kb switch ${r.profile}`]); } }
     return 0;
+  }
+  if (sub === 'drill') {
+    const { drillRestore } = await import('../../brain/backup.js');
+    const r = await drillRestore(config);
+    if (ctx.mode === 'json') { ctx.out.json(r); return r.ok ? 0 : 1; }
+    if (r.ok) ctx.out.ok(t('backup.drilled', { date: r.date, notes: r.notes, documents: r.documents, projects: r.projects, actions: r.actions, entries: r.entries }));
+    else { ctx.out.fail(t('backup.drillFailed', { date: r.date, n: r.problems.length })); for (const p of r.problems.slice(0, 10)) ctx.out.line(`   ${p}`); }
+    return r.ok ? 0 : 1;
   }
   const list = await listBackups(config);
   if (ctx.mode === 'json') { ctx.out.json({ ok: true, dir: await backupRoot(), backups: list }); return 0; }
   ctx.out.line(paint.dim(`${t('backup.where')} ${await backupRoot()}`));
+  const { backupStatus } = await import('../../brain/backup.js');
+  const status = await backupStatus(config);
+  ctx.out.line(paint.dim(status.drilledAt ? t(status.drillOk ? 'backup.drillLast' : 'backup.drillLastFailed', { date: status.drilledAt.slice(0, 10) }) : t('backup.drillNever')));
   if (!list.length) { ctx.out.info(t('backup.none')); ctx.out.next(['okb backup run']); return 0; }
   ctx.out.grid(list.map((b) => [b.date, `${b.files} ${t('backup.files')}`, `${Math.round(b.bytes / 1024)} Ko`]));
   return 0;

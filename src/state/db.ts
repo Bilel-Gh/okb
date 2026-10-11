@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
@@ -7,7 +7,7 @@ import { statePaths } from './paths.js';
 
 /**
  * The operational state (F2.0-18): what gets ticked, dated or computed
- * (projects, actions, the journal) lives in one SQLite file per profile, in the
+ * (projects, actions, the journal, the documents' index, the reviews) lives in one SQLite file per profile, in the
  * profile's state folder: outside the notes and outside any synced folder.
  * Knowledge stays in Markdown, readable without OKB.
  *
@@ -82,6 +82,11 @@ const MIGRATIONS: readonly string[] = [
    );
    CREATE INDEX documents_sha ON documents(sha256);
    CREATE VIRTUAL TABLE documents_fts USING fts5(title, body, tokenize = 'unicode61 remove_diacritics 2');`,
+  // 3: the reviews (each card's schedule and the log of answers), and what was imported from a 1.5 state.
+  `CREATE TABLE reviews (card_id TEXT PRIMARY KEY, state TEXT NOT NULL, updated_at TEXT NOT NULL);
+   CREATE TABLE review_log (seq INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, card_id TEXT NOT NULL, rating INTEGER NOT NULL, was TEXT NOT NULL, next TEXT NOT NULL);
+   CREATE INDEX review_log_at ON review_log(at);
+   CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);`,
 ];
 
 /** Node still calls its SQLite experimental; the warning has no place in a person's terminal. */
@@ -152,6 +157,51 @@ export function openDb(config: OkbConfig): Db {
   };
   open.set(file, { db, raw });
   return db;
+}
+
+/**
+ * A whole copy of the state database, taken while it is in use (`VACUUM INTO`):
+ * one file with everything committed, never the three files of a database
+ * someone is writing. False when the profile has no database yet.
+ */
+export function copyDb(config: OkbConfig, target: string): boolean {
+  if (!existsSync(dbFile(config))) return false;
+  openDb(config);
+  open.get(dbFile(config))!.raw.exec(`VACUUM INTO '${target.replace(/'/g, "''")}'`);
+  return true;
+}
+
+/** What a copy of the database holds, read without changing it; `sound` is SQLite's own check of the file. */
+export function inspectDb(file: string): { sound: boolean; documents: number; projects: number; actions: number; entries: number; reviews: number } {
+  const { DatabaseSync: Database } = loadSqlite();
+  const raw = new Database(file, { readOnly: true });
+  try {
+    const count = (table: string) => { try { return (raw.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n; } catch { return 0; } };
+    const sound = (raw.prepare('PRAGMA integrity_check').get() as { integrity_check?: string } | undefined)?.integrity_check === 'ok';
+    return { sound, documents: count('documents'), projects: count('projects'), actions: count('actions'), entries: count('journal'), reviews: count('reviews') };
+  } finally {
+    raw.close();
+  }
+}
+
+/** A value of the `meta` table, read without creating or changing the database; null when there is none. */
+export function readMeta(config: OkbConfig, key: string): string | null {
+  if (!existsSync(dbFile(config))) return null;
+  const { DatabaseSync: Database } = loadSqlite();
+  const raw = open.get(dbFile(config))?.raw ?? new Database(dbFile(config), { readOnly: true });
+  try {
+    return (raw.prepare('SELECT value FROM meta WHERE key = ?').get(key) as { value: string } | undefined)?.value ?? null;
+  } catch {
+    return null;
+  } finally {
+    if (!open.has(dbFile(config))) raw.close();
+  }
+}
+
+/** How many cards were studied and how many answers were given, as the database holds them. */
+export function reviewCounts(config: OkbConfig): { cards: number; answers: number } {
+  const db = openDb(config);
+  return { cards: db.get<{ n: number }>('SELECT COUNT(*) AS n FROM reviews')!.n, answers: db.get<{ n: number }>('SELECT COUNT(*) AS n FROM review_log')!.n };
 }
 
 /** Close every open file (tests, and before a backup copies the file). */

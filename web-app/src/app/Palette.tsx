@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Command } from 'cmdk';
-import { ArrowRight, MessageCircleQuestion, Monitor, Moon, PanelLeft, Palette as PaletteIcon, Paperclip, Sun } from 'lucide-react';
+import { ArrowRight, CalendarDays, MessageCircleQuestion, Monitor, Moon, PanelLeft, Palette as PaletteIcon, Paperclip, Sun } from 'lucide-react';
 import { useEffect, useState, type CSSProperties, type ReactElement } from 'react';
 import { get, post } from './api';
 import { useCategories, useNotes } from './data';
@@ -11,6 +11,7 @@ import type { Appearance } from './Shell';
 import { LOGOS, LogoMark } from '../ui/Logo';
 import { CatIcon } from '../ui/CatMark';
 import { TypeMark } from '../ui/TypeMark';
+import { dayTitle, looksLikeDay } from '../pages/Day';
 
 type FindHit = { path: string; title: string; type: string; crumbs: string[]; snippet: string; status: string };
 type Find = { hits: FindHit[]; best: FindHit | null; documents?: { id: string; title: string; snippet: string }[] };
@@ -29,6 +30,8 @@ export function Palette({ open, onOpenChange, appearance, devOn }: { open: boole
   const [q, setQ] = useState('');
   const query = useDebounced(q.trim(), 120);
   const find = useQuery({ queryKey: ['find', query], queryFn: () => get<Find>('/api/find', { q: query, limit: 12 }), enabled: open && query.length > 1 });
+  // « mardi », « hier », « le 14 février »: the journal of that day, one keystroke away.
+  const dayOf = useQuery({ queryKey: ['day-words', query], queryFn: () => get<{ day: string }>('/api/day', { day: query }), enabled: open && looksLikeDay(query), retry: false });
   const notes = useNotes(open);
   const categoryOf = new Map((notes.data?.notes ?? []).map((n) => [n.path, n.category]));
   useEffect(() => { if (!open) setQ(''); }, [open]);
@@ -72,6 +75,14 @@ export function Palette({ open, onOpenChange, appearance, devOn }: { open: boole
             </Command.Item>
             <Command.Item value={`all:${query}`} onSelect={() => pick({ name: 'brain', query: { q: query } })}>
               <ArrowRight size={16} aria-hidden="true" />{t('app.search.all', { q: query })}
+            </Command.Item>
+          </Command.Group>
+        ) : null}
+        {dayOf.data && looksLikeDay(query) ? (
+          <Command.Group heading={t('app.day.title')}>
+            <Command.Item value={`day:${dayOf.data.day}`} onSelect={() => pick({ name: 'day', day: dayOf.data!.day })}>
+              <CalendarDays size={16} aria-hidden="true" />
+              <span style={{ flex: 1 }}>{t('app.day.palette', { date: dayTitle(dayOf.data.day, t.lang) })}</span>
             </Command.Item>
           </Command.Group>
         ) : null}

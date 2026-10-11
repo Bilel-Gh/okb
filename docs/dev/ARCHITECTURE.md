@@ -74,6 +74,16 @@ Un fichier que la personne garde va tel quel dans `_Documents/<année>/` (D61,
 elle est réservée à la personne. Le chargeur de KB ignore ce dossier : un
 document n'est pas une note. La liste et le texte lu (FTS5) sont dans `okb.db`.
 
+## Durer
+
+La sauvegarde (`src/brain/backup.ts`) copie les notes, l'état (la base par
+`VACUUM INTO`) et les réglages ; `drillRestore` essaie une restauration dans un
+dossier temporaire. `src/migrate/v2.ts` fait passer un cerveau de la 1.5 à la
+2.0 (essai à blanc, application, retour). `src/indicators/indicators.ts` donne
+quatre indicateurs séparés. Les parcours (`tests/journeys/`) pilotent
+l'application construite dans un vrai navigateur ; les pannes sont dans
+`tests/failures.test.ts` (D63).
+
 ## Les espaces
 
 Chaque cerveau est dans Mon bagage ou dans Travail (`src/spaces/space.ts`, D62).

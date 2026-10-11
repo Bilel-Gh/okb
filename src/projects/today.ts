@@ -10,6 +10,7 @@ import { readReceipts } from '../weekly/weekly.js';
 import { listActions, type Action } from './actions.js';
 import { listEntries, type Entry } from './journal.js';
 import { listProjects, type Project } from './projects.js';
+import { backupStatus } from '../brain/backup.js';
 import { eveningView } from '../evening/evening.js';
 
 /**
@@ -30,6 +31,8 @@ export type TodayView = {
   /** The notes that entered the memory in the last seven days. */
   readonly learned: readonly { readonly path: string; readonly title: string; readonly at: string }[];
   readonly review: { readonly due: number };
+  /** Where the daily backup stands, for a line the person sees every day. */
+  readonly backup: { readonly state: 'ok' | 'late' | 'never' | 'off'; readonly date: string | null };
   /** What an assistant prepared and waits for the person's yes: notes to write, changes ready (the evening screen). */
   readonly toValidate: number;
   /** One thing to understand: a concept the notes use and the person never opened. */
@@ -85,6 +88,7 @@ export async function todayView(config: OkbConfig, env: NodeJS.ProcessEnv, bundl
     done: entries.filter((e) => e.kind !== 'resume').slice(0, 12),
     learned: [...learned.values()].slice(0, 8),
     review: { due: await dueCount(config, now).catch(() => 0) },
+    backup: await backupStatus(config, env, now).then((b) => ({ state: b.state, date: b.last?.date ?? null }), () => ({ state: 'never' as const, date: null })),
     toValidate: await eveningView(config, env, now).then((e) => e.cards.length + e.changes.length + e.apart.length, () => 0),
     understand: unreadConcept(bundle, (path) => scores.get(path)?.parts.value.used ?? 0),
   };

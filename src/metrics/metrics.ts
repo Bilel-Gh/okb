@@ -9,6 +9,8 @@ import { scoreBundle } from '../scores/scores.js';
 import { loadQueue } from '../suggest/suggest.js';
 import { readEvents } from '../usage/events.js';
 import { estimateTokens } from '../util/context-meter.js';
+import { dayView } from '../projects/dayview.js';
+import { localDay, shiftDay } from '../util/day.js';
 
 /**
  * The 1.0 success criteria, measured on the person's own brain, without AI and
@@ -107,6 +109,37 @@ export async function metrics(config: OkbConfig, bundle: Bundle, options: { days
   // Use: what the brain gave back over the period.
   const j = await journal(config, bundle, { days, now }).catch(() => null);
   if (j) out.push({ id: 'use', value: `${j.totals.created} note(s) created, ${j.totals.updated} updated, ${j.totals.ticketsDone} ticket(s) done, ${j.totals.reviews} card(s) reviewed`, params: { created: j.totals.created, updated: j.totals.updated, done: j.totals.ticketsDone, reviews: j.totals.reviews }, target: 'the brain in daily use', verdict: j.totals.created + j.totals.updated + j.totals.reviews > 0 ? 'ok' : 'watch' });
+
+  // « Ce que j'ai fait mardi »: how long OKB takes to find one day of the journal (the person's ten seconds are mostly typing).
+  const tuesday = localDay(shiftDay(now, -(((now.getDay() - 2 + 7) % 7) || 7)));
+  const started = performance.now();
+  const found = await dayView(config, options.env ?? process.env, tuesday, now).catch(() => null);
+  const ms = Math.round(performance.now() - started);
+  out.push({ id: 'day', value: `${ms} ms to find a day of the journal (${found?.entries.length ?? 0} line(s) that day)`, params: { ms, lines: found?.entries.length ?? 0 }, target: '≤ 1 s', verdict: found && ms <= 1000 ? 'ok' : 'watch' });
+
+  // Upkeep: the time spent saying yes, no and later, estimated from those gestures. Gestures less than five minutes apart are one sitting; a sitting lasts from its first gesture to its last, plus half a minute.
+  const { listInbox } = await import('../inbox/inbox.js');
+  const { receipts } = await import('../status/status.js');
+  const gestures = [
+    ...queue.filter((s) => s.decidedAt && s.decidedBy && s.decidedAt >= since).map((s) => s.decidedAt!),
+    ...(await receipts(config).catch(() => [])).map((r) => r.appliedAt).filter((at) => at >= since),
+    ...(await listInbox(config, { statuses: ['done', 'dropped'], now }).catch(() => [])).flatMap((i) => (i.settledAt && i.settledAt >= since ? [i.settledAt] : [])),
+  ].map((at) => Date.parse(at)).filter((n) => !Number.isNaN(n)).sort((a, b) => a - b);
+  let seconds = 0;
+  for (let i = 0; i < gestures.length; i++) {
+    const first = gestures[i]!;
+    while (i + 1 < gestures.length && gestures[i + 1]! - gestures[i]! <= 5 * 60_000) i++;
+    seconds += (gestures[i]! - first) / 1000 + 30;
+  }
+  const activeDays = new Set(gestures.map((g) => localDay(new Date(g)))).size;
+  const minutes = activeDays ? Math.round((seconds / 60 / activeDays) * 10) / 10 : 0;
+  out.push({ id: 'upkeep', value: activeDays ? `≈ ${minutes} min a day over ${activeDays} day(s) (${gestures.length} gestures)` : 'no upkeep yet', params: { minutes, days: activeDays, gestures: gestures.length }, target: '≤ 3 min a day', verdict: !activeDays ? 'n/a' : minutes <= 3 ? 'ok' : 'watch', ...(activeDays ? {} : { variant: 'none' }) });
+
+  // Tokens: what the work with Claude cost over the period, per day, from the local session logs.
+  const { computeStats, readSessions } = await import('../usage/stats.js');
+  const usage = await readSessions(options.env).then((r) => computeStats(r.sessions, { days, now, logs: r.logs }), () => null);
+  const tokensPerDay = usage ? Math.round(usage.okb.tokens / days) : 0;
+  out.push({ id: 'tokens', value: `≈ ${tokensPerDay} tokens a day with OKB over ${days} days`, params: { perDay: tokensPerDay, total: usage?.okb.tokens ?? 0, days }, target: 'known', verdict: usage ? 'ok' : 'n/a' });
 
   return { metrics: out, period: { from: since.slice(0, 10), to: now.toISOString().slice(0, 10) } };
 }

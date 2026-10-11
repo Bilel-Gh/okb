@@ -550,3 +550,25 @@ textarea.input.project-line { height: auto; min-height: 60px; padding: 8px var(-
   .evening-foot { position: static; padding: 14px var(--s4); }
   .evening-foot .btn { margin-left: 0; width: 100%; justify-content: center; }
 }
+
+.backup-bad { color: var(--err); }
+.hello-backup { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; color: var(--ink-3); text-decoration: none; }
+.hello-backup:hover { color: var(--ink); }
+.hello-backup.warn { color: var(--warn); }
+
+/* The four indicators: apart, each with what it is made of and what to do. */
+.indicators { list-style: none; margin: 0; padding: 4px 20px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s4); }
+.indicator { display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--hair); border-radius: var(--r); background: var(--surface); min-width: 0; }
+.indicator-head { display: flex; align-items: center; gap: 10px; }
+.indicator-head h3 { margin: 0; font-size: 14px; font-weight: 600; flex: 1; min-width: 0; }
+.indicator-head .num { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.indicator-head .num small { font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.indicator p { margin: 0; }
+.indicator-gaps { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.indicator-gaps .link { display: inline-flex; align-items: center; gap: 4px; }
+.indicator-gaps code { display: block; margin-top: 3px; overflow-wrap: anywhere; }
+.indicator-ok { color: var(--ok); }
+
+.day-title { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 18px; }
+.day-title svg { color: var(--accent-text); }
+.day-rows .meta { width: 44px; flex: none; }

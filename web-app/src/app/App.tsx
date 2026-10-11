@@ -16,6 +16,7 @@ const InboxPage = lazy(() => import('../pages/Inbox'));
 const Repos = lazy(() => import('../pages/Repos'));
 const Projects = lazy(() => import('../pages/Projects'));
 const DocumentsPage = lazy(() => import('../pages/Documents'));
+const DayPage = lazy(() => import('../pages/Day'));
 const Learn = lazy(() => import('../pages/Learn'));
 const AskPage = lazy(() => import('../pages/Ask'));
 const Tools = lazy(() => import('../pages/Tools'));
@@ -40,6 +41,7 @@ function Routes({ t }: { t: Translate }) {
         {route.name === 'brain' ? <BrainPage route={route} setTitle={setTitle} /> : null}
         {route.name === 'graph' ? <GraphPage route={route} /> : null}
         {route.name === 'documents' ? <DocumentsPage /> : null}
+        {route.name === 'day' ? <DayPage day={route.day} /> : null}
         {route.name === 'inbox' ? <InboxPage route={route} setTitle={setTitle} /> : null}
         {route.name === 'projects' ? <Projects route={route} setTitle={setTitle} /> : null}
         {route.name === 'repos' ? <Repos route={route} setTitle={setTitle} /> : null}

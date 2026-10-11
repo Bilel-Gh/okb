@@ -37,7 +37,8 @@
     "smoke:package": "node scripts/smoke-package.mjs",
     "release:check": "npm run check && npm run validate:plugin && npm run smoke:package",
     "bench:speed": "npm run build && node scripts/perf.mjs",
-    "dev:web": "vite --config web-app/vite.config.ts"
+    "dev:web": "vite --config web-app/vite.config.ts",
+    "test:journeys": "npm run build && vitest run --config vitest.journeys.config.ts"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
@@ -75,6 +76,7 @@
     "cmdk": "^1.1.1",
     "happy-dom": "^20.14.5",
     "lucide-react": "^1.52.0",
+    "playwright-core": "^1.64.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "typescript": "^5.7.2",

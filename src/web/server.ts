@@ -9,6 +9,7 @@ import type { OkbConfig } from '../config/schema.js';
 import { has, t } from '../i18n/index.js';
 import { OkbError } from '../util/errors.js';
 import { MUTATING, routeFor, type ApiContext } from './api.js';
+import { backupDue, runBackup } from '../brain/backup.js';
 
 /**
  * The OKB web app: every terminal workflow in the browser, on this computer only.
@@ -159,5 +160,13 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   if (!address || typeof address === 'string') throw new OkbError('E_IO', 'cannot determine local reader address');
   origin = `http://127.0.0.1:${address.port}`;
   stopServer = () => { server.closeAllConnections(); server.close(); };
+  // The app alone must be enough: it takes the day's snapshot too (F2.0-14), a little after it opens, then checks every hour.
+  if (config) {
+    const snapshot = () => { void backupDue(config, ctx.env).then((due) => (due ? runBackup(config, { env: ctx.env }) : null)).catch(() => undefined); };
+    const soon = setTimeout(snapshot, 30_000);
+    const hourly = setInterval(snapshot, 3_600_000);
+    soon.unref(); hourly.unref();
+    server.once('close', () => { clearTimeout(soon); clearInterval(hourly); });
+  }
   return { server, url: origin };
 }

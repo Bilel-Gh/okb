@@ -36,6 +36,9 @@ OKB ne s'inscrit pas tout seul dans tes assistants : tu choisis où le brancher.
 | `documents_list` | chercher dans tes documents (les fichiers gardés tels quels) |
 | `baggage_draft`, `baggage_keep` | « Garder dans mon bagage » : une note de travail sans aucun détail du travail, préparée pour ton bagage ; tu l'approuves là-bas |
 | `evening_view` | ce qui attend ton oui : les notes proposées et les changements prêts |
+| `day_view` | ce qui s'est passé un jour donné (« mardi », « hier », une date) |
+| `indicators_view` | quatre indicateurs séparés : couverture, fraîcheur, qualité, compréhension, avec quoi faire pour chaque manque |
+| `backup_status` | où en est la sauvegarde, et quand une restauration a été essayée |
 | `repos_list` | les repos documentés (module développeur) |
 
 ## Ce qu'il ne peut pas faire

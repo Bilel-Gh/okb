@@ -9,7 +9,7 @@ import { resolveInternal } from '../links/portable.js';
 import { statePaths } from '../state/paths.js';
 import { readJsonIfExists, writeJsonAtomic } from '../util/fsx.js';
 import type { BundlePath } from '../util/paths.js';
-import { lastVerified, listBackups } from './backup.js';
+import { backupStatus, lastVerified, listBackups } from './backup.js';
 import { layoutOf, rootFile } from './layout.js';
 import { positionOf } from './tree.js';
 
@@ -19,7 +19,7 @@ import { positionOf } from './tree.js';
  */
 export type IntegrityCode =
   | 'sync-copy' | 'sync-conflict' | 'duplicate-id' | 'missing-id' | 'outside-layout' | 'broken-link'
-  | 'orphan-file' | 'unreadable' | 'no-disk-encryption' | 'no-backup' | 'old-backup' | 'unverified-backup' | 'moved-note';
+  | 'orphan-file' | 'unreadable' | 'no-disk-encryption' | 'no-backup' | 'old-backup' | 'unverified-backup' | 'untested-restore' | 'moved-note';
 
 export type IntegrityFinding = {
   readonly code: IntegrityCode;
@@ -109,6 +109,10 @@ export async function checkIntegrity(config: OkbConfig, bundle: Bundle, options:
     if (age > 2) out.push({ code: 'old-backup', level: 'warning', detail: backups[0]!.date });
     const v = await lastVerified(config, env);
     if (!v || (now.getTime() - Date.parse(v.at)) / 86_400_000 > 35 || v.bad || v.missing) out.push({ code: 'unverified-backup', level: v && (v.bad || v.missing) ? 'error' : 'info' });
+    // A backup is worth what its restore is worth: tried within the last five weeks, and everything came back.
+    const status = await backupStatus(config, env, now);
+    if (status.drillOk === false) out.push({ code: 'untested-restore', level: 'error' });
+    else if (!status.drilledAt || (now.getTime() - Date.parse(status.drilledAt)) / 86_400_000 > 35) out.push({ code: 'untested-restore', level: 'info' });
   }
   return out;
 }

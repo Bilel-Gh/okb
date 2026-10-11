@@ -1253,3 +1253,42 @@ La cible de la 2.0, une recherche répétée sous 200 ms au p95 à 5 000 notes, 
 - L'espace Partagé, avec les tiroirs (2.1).
 - « En arrivant sur un nouveau sujet, ce que ton bagage contient d'utile » : lire le bagage depuis le travail, dans ce sens-là seulement (3.1).
 - Écrire les notes acceptées depuis l'application, quand l'assistant y sera (2.3).
+
+## D63 — 2.0, itération 8 : durer — une sauvegarde qui ramène tout, un passage à la 2.0 qu'on peut regarder, des indicateurs séparés (11 octobre 2026)
+
+**Problème.** La sauvegarde copiait les fichiers d'une base en cours d'écriture et ne restaurait que les notes : ni projets, ni actions, ni journal, ni réglages. Personne n'avait jamais essayé une restauration. Passer un cerveau de la 1.5 à la 2.0 se faisait sans le dire. Un seul chiffre de « santé » cachait ce qui manquait. Et rien ne vérifiait l'application comme une personne s'en sert, ni ce qui arrive quand ça coupe.
+
+**Décisions.**
+
+- **Une sauvegarde qui ramène tout** (F2.0-14, `src/brain/backup.ts`).
+  - Un instantané contient les notes et les documents, l'état, et les réglages du cerveau. La base d'état est copiée entière et cohérente (`VACUUM INTO`), jamais comme les trois fichiers d'une base en cours d'écriture. La clé d'approbation n'y est toujours pas.
+  - L'instantané note ce qu'il contient (notes, documents, projets, actions, lignes de journal, révisions).
+  - `restore --as <nom>` ramène un cerveau entier comme **nouveau** cerveau. Une restauration ne remplace jamais un cerveau qui existe.
+  - **L'essai de restauration** (`okb backup drill`) restaure le dernier instantané dans un dossier temporaire, vérifie chaque empreinte, ouvre la base, la compte et compare avec ce que l'instantané disait. Rien du cerveau n'est touché. Un essai de plus de cinq semaines est signalé ; un essai en échec est une erreur. Un test fait cet essai à chaque version.
+  - **Visible** : Aujourd'hui dit « Sauvegardé » ou prévient ; la page Santé dit où, quand, et quand la restauration a été essayée. L'application prend la sauvegarde du jour toute seule (trente secondes après son ouverture, puis chaque heure), comme le faisait déjà le début d'une session Claude.
+- **Les révisions dans la base** (F2.0-18, `src/learn/learn.ts`). L'état de chaque carte et le journal des réponses vont dans `okb.db`. Une réponse écrit la carte et sa ligne ensemble, ou rien. Un cerveau de la 1.5 est lu une fois depuis ses deux fichiers, dans une transaction ; **les fichiers restent tels quels**, donc la 1.5 ouvre encore son état.
+  - La progression n'a rien à déménager : elle est calculée à partir des journaux.
+  - Les tickets restent dans leurs fichiers : c'est l'état du module développeur, il passera dans la base avec le quotidien du dev (2.4).
+- **Passer à la 2.0** (F2.0-16, `src/migrate/v2.ts`, `okb migrate 2.0`).
+  - Essai à blanc par défaut : il lit, et ne crée rien, pas même la base.
+  - `--apply` : la sauvegarde d'abord, puis les révisions, puis la vérification (tout est arrivé), puis la marque. Chaque étape se rejoue : une migration coupée se termine en relançant la commande.
+  - `--rollback` : les fichiers de la 1.5 reçoivent tout ce qui a été étudié depuis, et la base oublie les révisions. Les notes ne sont jamais touchées, dans aucun sens.
+  - Validé sur des copies de cerveaux réels (essai à blanc, application, essai de restauration, retour) : les empreintes des originaux sont identiques avant et après.
+- **Des indicateurs honnêtes** (F2.0-24, `src/indicators/indicators.ts`). Quatre, séparés : la couverture (les termes utilisés ont-ils leur fiche), la fraîcheur (une source a-t-elle changé, une date est-elle passée), la qualité (comment les notes sont écrites), la compréhension (ce que la personne a étudié et sait).
+  - Chacun dit de quoi il est fait : tant sur tant.
+  - **Pas de chiffre quand il n'y a rien à mesurer** : jamais un 100 par défaut.
+  - Chaque manque mène à un geste : une note à ouvrir, un écran, une commande.
+- **Les mesures** (F2.0-21). Un jour dit en mots (« mardi », « hier », « le 14 février ») ouvre ce jour du journal : `okb journal mardi`, ⌘K, `#/day/<date>`. `okb metrics` mesure le temps pour retrouver un jour, le temps d'entretien par jour (estimé à partir des gestes de validation : des gestes à moins de cinq minutes d'écart font une séance) et les tokens par jour.
+- **Les parcours et les pannes** (F2.0-20).
+  - Neuf parcours dans un vrai navigateur (Playwright, `npm run test:journeys`) : les cinq écrans, À valider, les espaces, le téléphone, « ce que j'ai fait ». Une erreur de page fait échouer un parcours. Ils ne font pas partie de `npm run check`, qui doit tourner partout sans navigateur.
+  - Les pannes sont dans la suite ordinaire : quatre fenêtres qui écrivent en même temps, une coupure au milieu d'une écriture, le même port lancé deux fois, un fichier arrivé avant la coupure, une migration coupée.
+
+**Conséquences.**
+- Le moteur compte trois opérations de plus : `backup.status`, `indicators.view`, `day.view`.
+- Un fichier resté dans `_Documents/` après une coupure est repris tel quel au lieu d'être copié une seconde fois.
+- `playwright-core` est une dépendance de développement ; les parcours utilisent le Chromium de Playwright s'il est installé, sinon Chrome ou Edge.
+
+**Réexamen.**
+- La page d'une note porte deux titres de niveau 1 (la barre du haut et la note) : à corriger avec l'accessibilité de la 3.0.
+- Faire entrer les parcours dans la vérification d'avant version, quand un navigateur est garanti sur la machine qui publie.
+- La porte de la 2.0 demande un mois d'usage réel : les mesures sont là pour le dire, pas pour le remplacer.

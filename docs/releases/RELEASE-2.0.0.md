@@ -160,4 +160,29 @@ Voir [les documents](../guide/documents.md) et
 qui va dans Mon bagage. Pour changer : Réglages › Espace de ce cerveau.
 Voir [deux espaces](../guide/espaces.md).
 
+## Itération 8 — durer
+
+- **Une sauvegarde qui ramène tout.** Chaque jour : tes notes, tes documents, tes
+  projets, tes actions, ton journal, tes révisions et tes réglages. Aujourd'hui
+  affiche « Sauvegardé », ou te prévient.
+- **La restauration, réellement essayée.** `okb backup drill`, ou **Tester la
+  restauration** dans Santé : la dernière sauvegarde est restaurée dans un dossier
+  temporaire, vérifiée, comptée. `okb backup restore <date> --to <dossier> --as
+  <nom>` ramène un cerveau entier comme nouveau cerveau.
+- **Passer de la 1.5 à la 2.0** : `okb migrate 2.0` montre ce qui va se passer sans
+  rien changer ; `--apply` le fait, sauvegarde d'abord ; `--rollback` revient en
+  arrière. Tes notes ne sont jamais touchées.
+- **Quatre indicateurs séparés** dans Santé et `okb indicators` : couverture,
+  fraîcheur, qualité, compréhension. Chacun dit de quoi il est fait, et chaque
+  manque mène à un geste. Pas de chiffre quand il n'y a rien à mesurer.
+- **Ce que j'ai fait mardi.** Tape « mardi », « hier » ou une date dans la recherche
+  (⌘K), ou `okb journal mardi` : le journal de ce jour-là.
+- **Les mesures** dans `okb metrics` : le temps pour retrouver un jour, le temps
+  d'entretien par jour, les tokens par jour.
+- **Plus solide** : deux fenêtres qui écrivent en même temps, une coupure en pleine
+  écriture, l'application lancée deux fois — c'est testé.
+
+Voir [passer de la 1.5 à la 2.0](../guide/passer-a-la-2-0.md) et
+[stockage et sauvegardes](../guide/stockage-et-confidentialite.md).
+
 Décision : D60.

@@ -66,6 +66,14 @@ ticket apparaissent dans le journal de son projet.
 Un jour, c'est ton jour à toi : une ligne écrite à une heure du matin est rangée
 au jour où tu l'écris.
 
+### Ce que j'ai fait mardi
+
+Tape un jour dans la recherche (⌘K) : « mardi », « hier », « le 14 février ».
+OKB ouvre le journal de ce jour-là, avec les flèches pour passer au jour d'avant
+et au jour d'après. Dans le terminal : `okb journal mardi`.
+
+Un jour de la semaine désigne le dernier avant aujourd'hui.
+
 ## « Où j'en étais »
 
 Quand tu quittes un projet, clique **Je quitte le projet** (ou `okb project leave

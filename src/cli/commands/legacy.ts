@@ -43,6 +43,7 @@ import { asBundlePath, type BundlePath } from '../../util/paths.js';
 import { flagBool, flagList, flagNumber, flagString, flagValues, type ParsedArgs } from '../args.js';
 import type { Output, OutputMode } from '../output.js';
 import { effective } from './common.js';
+import { t as say } from '../../i18n/index.js';
 
 export async function cmdSetup(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
   if (args.positionals[0] === 'switch') {
@@ -689,6 +690,29 @@ export async function cmdNav(args: ParsedArgs, out: Output, mode: OutputMode): P
 
 export async function cmdMigrate(args: ParsedArgs, out: Output, mode: OutputMode): Promise<number> {
   const { config } = await effective(args);
+
+  // The move of a 1.5 brain to the 2.0: a dry run unless --apply; --rollback is the way back.
+  if (args.positionals[0] === '2.0' || args.positionals[0] === 'v2') {
+    const { applyV2, planV2, rollbackV2 } = await import('../../migrate/v2.js');
+    if (flagBool(args, 'rollback')) {
+      const back = await rollbackV2(config);
+      if (mode === 'json') out.json({ ok: true, ...back });
+      else { out.line(say('migrate.v2.rolledBack', { cards: back.reviews.cards, answers: back.reviews.answers })); out.line(say('migrate.v2.notesUntouched')); }
+      return 0;
+    }
+    if (flagBool(args, 'apply')) {
+      const done = await applyV2(config);
+      if (mode === 'json') out.json({ ok: true, dryRun: false, ...done });
+      else { out.line(say('migrate.v2.applied', { snapshot: done.snapshot, cards: done.reviews.cards, answers: done.reviews.answers })); out.line(say('migrate.v2.notesUntouched')); out.line(say('migrate.v2.next')); }
+      return 0;
+    }
+    const plan = await planV2(config);
+    if (mode === 'json') { out.json({ ok: true, dryRun: true, ...plan }); return 0; }
+    out.line(say(plan.done ? 'migrate.v2.alreadyDone' : 'migrate.v2.dryRun', { kb: config.profile.displayName || config.profile.id }));
+    for (const s of plan.steps) out.line(`  ${s.state === 'done' ? '✓' : s.state === 'todo' ? '•' : '?'} ${say(`migrate.v2.${s.id}.${s.state}`, Object.fromEntries(Object.entries(s.detail).map(([k, v]): [string, string | number] => [k, k === 'space' ? say(`app.space.${v}`) : v])))}`);
+    if (!plan.done) out.line(say('migrate.v2.howToApply'));
+    return 0;
+  }
 
   const rollbackId = flagString(args, 'rollback');
   if (rollbackId) {

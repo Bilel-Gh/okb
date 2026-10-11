@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { brainGraph } from '../brain/graph.js';
 import { checkIntegrity } from '../brain/integrity.js';
 import { layoutOf } from '../brain/layout.js';
-import { listBackups, runBackup, verifyBackup } from '../brain/backup.js';
+import { drillRestore, listBackups, runBackup, verifyBackup } from '../brain/backup.js';
 import { noteHistory, readVersion, trash } from '../brain/history.js';
 import { addWaiting, nowView, renderNow, resolveWaiting, setObjective } from '../brain/now.js';
 import { listProducts } from '../brain/products.js';
@@ -158,6 +158,7 @@ export function brainRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q,
       return { findings: await checkIntegrity(config, bundle, { env: ctx.env }), backups: await listBackups(config, ctx.env).catch(() => []) };
     },
     'POST /api/backup/run': async (ctx, _q, b) => ({ ...(await runBackup(await kbConfig(ctx, b.kb), { force: b.force === true, env: ctx.env })), ok: true }),
+    'POST /api/backup/drill': async (ctx, _q, b) => drillRestore(await kbConfig(ctx, b.kb), ctx.env),
     'POST /api/backup/verify': async (ctx, _q, b) => ({ ...(await verifyBackup(await kbConfig(ctx, b.kb), typeof b.date === 'string' ? b.date : undefined, ctx.env)), ok: true }),
     'POST /api/now/objective': async (ctx, _q, b) => ({ ok: true, objective: await setObjective(await kbConfig(ctx, b.kb), typeof b.text === 'string' ? b.text : null) }),
     'POST /api/now/wait': async (ctx, _q, b) => ({ ok: true, waiting: await addWaiting(await kbConfig(ctx, b.kb), String(b.text ?? ''), String(b.who ?? '')) }),

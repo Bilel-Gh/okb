@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronRight, CircleAlert, CircleCheck, CircleX, Copy, FileSearch, HardDrive, HeartPulse, Info, Layers, MessageSquare, RefreshCw, ShieldCheck, Stethoscope, Trash2, TriangleAlert } from 'lucide-react';
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { Check, ChevronRight, CircleAlert, CircleCheck, CircleX, Copy, FileSearch, HardDrive, HeartPulse, Info, Layers, MessageSquare, RefreshCw, RotateCcw, ShieldCheck, Stethoscope, Trash2, TriangleAlert } from 'lucide-react';
+import { type CSSProperties, type ReactNode, useState } from 'react';
 import { get, post } from '../app/api';
 import { tn, useT, type Translate } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../ui/Confirm';
 import { PageTabs } from '../ui/PageTabs';
 import { ErrorState, SkeletonRows } from '../ui/States';
 import { Ring } from '../ui/Ring';
+import { Indicators } from './Indicators';
 
 type HealthGroup = { code: string; title: string; why?: string; fix?: string; items: { level: 'error' | 'warning' | 'info'; where: string; message: string }[] };
 type Health = { scanned: number; okf: boolean; health: { score: number; errors: number; warnings: number; infos: number }; groups: HealthGroup[] };
@@ -36,10 +37,11 @@ function HealthTab() {
   const groups = [...r.data.groups].sort((a, b) => (order[a.items[0]?.level ?? 'info'] ?? 3) - (order[b.items[0]?.level ?? 'info'] ?? 3));
   return (
     <>
+      <Indicators />
       <section className="panel hero health-hero">
         <Ring score={h.score} tone={tone} />
         <div className="grow stack" style={{ gap: 6 }}>
-          <h2>{t('maintain.title')}</h2>
+          <h2>{t('app.upkeep.healthTitle')}</h2>
           <p className="muted">{tn(t, 'maintain.scanned', r.data.scanned)} · {r.data.okf ? t('maintain.conform') : t('maintain.notConform')}</p>
           <div className="row wrap"><span className={`pill sm ${h.errors ? 'err' : ''}`}>{tn(t, 'status.errors', h.errors)}</span><span className={`pill sm ${h.warnings ? 'warn' : ''}`}>{tn(t, 'status.warnings', h.warnings)}</span><span className="pill sm">{tn(t, 'maintain.infos', h.infos)}</span></div>
         </div>
@@ -75,21 +77,33 @@ function HealthTab() {
 
 /* ================================================================ backups and storage */
 
-function BackupTab() {
+type BackupState = { state: 'ok' | 'late' | 'never' | 'off'; where: string; last: { date: string; at: string; files: number } | null; drilledAt: string | null; drillOk: boolean | null };
+type Drill = { ok: boolean; date: string; notes: number; documents: number; projects: number; actions: number; entries: number; problems: string[] };
+
+export function BackupTab() {
   const t = useT();
   const qc = useQueryClient();
   const st = useQuery({ queryKey: ['storage'], queryFn: () => get<Storage>('/api/storage') });
+  const status = useQuery({ queryKey: ['backup-status'], queryFn: () => get<BackupState>('/api/backup/status') });
+  const [drill, setDrill] = useState<Drill | null>(null);
+  const [drilling, setDrilling] = useState(false);
+  // A backup is worth what its restore is worth: this really restores the last snapshot somewhere temporary, and checks it.
+  const tryRestore = async () => {
+    setDrilling(true); setDrill(null);
+    try { setDrill(await post<Drill>('/api/backup/drill', {})); void qc.invalidateQueries({ queryKey: ['backup-status'] }); } catch (e) { toast((e as Error).message, 'err'); } finally { setDrilling(false); }
+  };
   const tr = useQuery({ queryKey: ['trash'], queryFn: () => get<{ items: unknown[] }>('/api/trash') });
   if (st.isLoading) return <SkeletonRows rows={4} />;
   if (st.error || !st.data) return <ErrorState error={st.error} retry={() => void st.refetch()} />;
   const last = st.data.backups[0];
+  const b = status.data;
   const run = async () => {
-    try { const out = await post<{ created: boolean; info: { date: string } }>('/api/backup/run', {}); toast(out.created ? t('web.storage.backupDone') : t('backup.already', { date: out.info.date })); void qc.invalidateQueries({ queryKey: ['storage'] }); } catch (e) { toast((e as Error).message, 'err'); }
+    try { const out = await post<{ created: boolean; info: { date: string } }>('/api/backup/run', {}); toast(out.created ? t('web.storage.backupDone') : t('backup.already', { date: out.info.date })); void qc.invalidateQueries({ queryKey: ['storage'] }); void qc.invalidateQueries({ queryKey: ['backup-status'] }); } catch (e) { toast((e as Error).message, 'err'); }
   };
   const verify = async () => {
     try { const out = await post<{ date: string; bad: unknown[]; missing: unknown[]; files: number }>('/api/backup/verify', {}); toast(out.bad.length || out.missing.length ? t('backup.broken', { date: out.date, bad: out.bad.length + out.missing.length }) : t('backup.verified', { date: out.date, files: out.files }), out.bad.length || out.missing.length ? 'err' : undefined); } catch (e) { toast((e as Error).message, 'err'); }
   };
-  const findings = st.data.findings.filter((f) => !['no-backup', 'old-backup', 'unverified-backup'].includes(f.code) || !last);
+  const findings = st.data.findings.filter((f) => !['no-backup', 'old-backup', 'unverified-backup', 'untested-restore'].includes(f.code) || !last);
   const by = new Map<string, Storage['findings']>();
   for (const f of findings) by.set(f.code, [...(by.get(f.code) ?? []), f]);
   return (
@@ -98,10 +112,21 @@ function BackupTab() {
         <div className="panel-head"><h2><HardDrive size={17} aria-hidden="true" />{t('app.upkeep.backups')}</h2></div>
         <div className="panel-body stack">
           <p className={`notice ${last ? 'ok' : 'warn'}`}>{last ? <ShieldCheck size={18} aria-hidden="true" /> : <TriangleAlert size={18} aria-hidden="true" />}<span>{last ? t('web.storage.lastBackup', { date: last.date, files: last.files }) : t('backup.none')}</span></p>
+          {b?.state === 'late' ? <p className="notice warn"><TriangleAlert size={18} aria-hidden="true" /><span>{t('app.backup.late')}</span></p> : null}
+          {b?.state === 'off' ? <p className="notice warn"><TriangleAlert size={18} aria-hidden="true" /><span>{t('app.backup.off')}</span></p> : null}
+          {last && b ? (
+            <p className={`small ${b.drillOk === false ? 'backup-bad' : 'muted'}`}>
+              {b.drilledAt ? t(b.drillOk ? 'app.backup.drillLast' : 'app.backup.drillFailed', { date: new Date(b.drilledAt).toLocaleDateString(t.lang, { day: 'numeric', month: 'long' }) }) : t('app.backup.drillNever')}
+            </p>
+          ) : null}
           <div className="row wrap">
             <button type="button" className="btn primary sm" onClick={() => void run()}><HardDrive size={14} aria-hidden="true" />{t('web.storage.backupNow')}</button>
             {last ? <button type="button" className="btn sm" onClick={() => void verify()}><ShieldCheck size={14} aria-hidden="true" />{t('web.storage.verify')}</button> : null}
+            {last ? <button type="button" className="btn sm" disabled={drilling} aria-busy={drilling || undefined} onClick={() => void tryRestore()}><RotateCcw size={14} aria-hidden="true" />{t('app.backup.drill')}</button> : null}
           </div>
+          {drill?.ok ? <p className="notice ok" role="status"><CircleCheck size={18} aria-hidden="true" /><span>{t('backup.drilled', { date: drill.date, notes: drill.notes, documents: drill.documents, projects: drill.projects, actions: drill.actions, entries: drill.entries })}</span></p> : null}
+          {drill && !drill.ok ? <div className="notice err" role="alert"><TriangleAlert size={18} aria-hidden="true" /><div className="stack" style={{ gap: 4 }}><span>{t('backup.drillFailed', { date: drill.date, n: drill.problems.length })}</span><code className="xs">{drill.problems.slice(0, 5).join(' · ')}</code></div></div> : null}
+          {b ? <p className="small muted">{t('backup.where')} <code>{b.where}</code></p> : null}
         </div>
       </section>
       <section className="panel">

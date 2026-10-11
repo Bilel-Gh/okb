@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, BadgeCheck, CalendarCheck, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, FileDiff, GraduationCap, HeartPulse, Hourglass, Inbox, Layers, ListTodo, NotebookPen, Pencil, Play, Plus, Sparkles, Sun, Target, Trash2, X } from 'lucide-react';
+import { ArrowRight, BadgeCheck, CalendarCheck, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, FileDiff, GraduationCap, HeartPulse, Hourglass, Inbox, Layers, ListTodo, NotebookPen, Pencil, Play, Plus, ShieldAlert, ShieldCheck, Sparkles, Sun, Target, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { get, post } from '../app/api';
 import { tn, useT } from '../app/i18n';
@@ -102,7 +102,7 @@ function Panel({ title, icon, link, children, flush = false }: { title: string; 
 
 /* ================================================================ today */
 
-function Hello({ todo, waiting, due }: { todo: number | null; waiting: number | null; due: number | null }) {
+function Hello({ todo, waiting, due, backup }: { todo: number | null; waiting: number | null; due: number | null; backup?: { state: 'ok' | 'late' | 'never' | 'off'; date: string | null } | undefined }) {
   const t = useT();
   const status = useStatus();
   const hour = new Date().getHours();
@@ -113,6 +113,11 @@ function Hello({ todo, waiting, due }: { todo: number | null; waiting: number | 
         <p className="muted">{hour >= 5 && hour < 18 ? t('app.today.morning') : t('app.today.evening')}</p>
         <h2 id="hello-h">{s?.name ?? '…'}</h2>
         <p className="muted">{new Date().toLocaleDateString(t.lang, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        {backup ? (
+          <a className={`hello-backup${backup.state === 'ok' ? '' : ' warn'}`} href={hrefFor({ name: 'upkeep', tab: 'backup' })}>
+            {backup.state === 'ok' ? <ShieldCheck size={14} aria-hidden="true" /> : <ShieldAlert size={14} aria-hidden="true" />}{t(`app.today.backup.${backup.state}`)}
+          </a>
+        ) : null}
       </div>
       <div className="stats">
         <a className="stat" href="#todo"><b className="num">{todo ?? '–'}</b><span><ListTodo size={14} aria-hidden="true" />{t('app.today.stat.todo')}</span></a>
@@ -151,6 +156,7 @@ type TodayData = {
   learned: { path: string; title: string; at: string }[];
   review: { due: number };
   toValidate: number;
+  backup: { state: 'ok' | 'late' | 'never' | 'off'; date: string | null };
   understand: { path: string; title: string; usedBy: number } | null;
 };
 
@@ -203,7 +209,7 @@ function TodayTab() {
 
   return (
     <>
-      <Hello todo={d ? d.todo.length : null} waiting={d ? d.waiting.length : null} due={d ? d.review.due : null} />
+      <Hello todo={d ? d.todo.length : null} waiting={d ? d.waiting.length : null} due={d ? d.review.due : null} backup={d?.backup} />
       {day.error ? <ErrorState error={day.error} retry={() => void day.refetch()} /> : null}
       <div className="grid-2">
         <div className="stack lg">

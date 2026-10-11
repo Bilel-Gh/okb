@@ -4,6 +4,7 @@ import type { OkbConfig } from '../config/schema.js';
 import { statePaths } from '../state/paths.js';
 import { receipts } from '../status/status.js';
 import { loadQueue } from '../suggest/suggest.js';
+import { reviewLog } from '../learn/learn.js';
 
 /**
  * Personal progress (roadmap §5.2): experience for what the person does with
@@ -119,7 +120,7 @@ export async function activities(config: OkbConfig): Promise<Activity[]> {
   const root = statePaths(config).root;
   const [opens, reviews, queue, applied] = await Promise.all([
     jsonLines<{ at: string; path: string; kind: string }>(resolve(root, 'usage', 'notes.jsonl')),
-    jsonLines<{ at: string; id: string }>(resolve(root, 'learn', 'log.jsonl')),
+    reviewLog(config).catch(() => []),
     loadQueue(config).catch(() => []),
     receipts(config).catch(() => []),
   ]);

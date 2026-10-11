@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { careerLeaks, careerPrep, careerStatus, exportCareer } from '../../career/career.js';
-import { t } from '../../i18n/index.js';
+import { lang, t } from '../../i18n/index.js';
 import { loadBundleFor } from '../../kb/bundle.js';
 import { addObjective, dueCards, finishObjective, gradeCard, listObjectives, parseRating, quizMaterial, skillsMap } from '../../learn/learn.js';
 import { findRepo } from '../../repo/registry.js';
@@ -162,6 +162,17 @@ export async function cmdJournal(ctx: Ctx): Promise<number> {
     const { entries } = await invoke('journal.list', { project: project! }, c);
     if (ctx.mode === 'json') { ctx.out.json({ ok: true, entries }); return 0; }
     for (const e of entries) ctx.out.line(`${paint.dim(`${e.day} · ${e.kind}`)}  ${e.text}`);
+    return 0;
+  }
+  // `okb journal mardi`, `okb journal hier`, `okb journal 2027-03-02`: what happened that day.
+  if (ctx.args.positionals.length) {
+    const { invoke } = await import('../../engine/registry.js');
+    const { actorOf } = await import('./common.js');
+    const view = await invoke('day.view', { day: ctx.args.positionals.join(' ') }, { config, env: process.env, actor: actorOf() });
+    if (ctx.mode === 'json') { ctx.out.json({ ok: true, ...view }); return 0; }
+    ctx.out.heading(new Date(`${view.day}T12:00:00`).toLocaleDateString(lang() === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+    if (!view.entries.length) ctx.out.info(t('day.nothing'));
+    for (const e of view.entries) ctx.out.line(`${paint.dim(`${e.at.slice(11, 16)} · ${e.kind}`)}  ${e.text}${e.project ? paint.dim(` · ${e.project.title}`) : ''}`);
     return 0;
   }
   const { journal } = await import('../../journal/journal.js');

@@ -1,4 +1,4 @@
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { extname, posix, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { OkbConfig } from '../config/schema.js';
@@ -100,9 +100,12 @@ export async function addDocument(config: OkbConfig, input: NewDocument, now = n
   const folder = posix.join(DOCUMENTS_DIR, String(now.getFullYear()));
   const dir = resolve(config.kb.root, folder);
   await mkdir(dir, { recursive: true });
-  const file = await freeName(dir, name);
+  // A file already there with these very bytes and no entry is this one, kept just before a cut: it is taken as it is, not copied again.
+  const there = await readFile(resolve(dir, name)).catch(() => null);
+  const adopted = there !== null && sha256(there) === hash && !db.get<{ id: string }>('SELECT id FROM documents WHERE path = ?', posix.join(folder, name));
+  const file = adopted ? name : await freeName(dir, name);
   // `wx`: never over an existing file, whatever happened between the listing and now.
-  await writeFile(resolve(dir, file), input.bytes, { flag: 'wx' });
+  if (!adopted) await writeFile(resolve(dir, file), input.bytes, { flag: 'wx' });
   const title = (input.title?.trim() || file.slice(0, file.length - extname(file).length)).slice(0, 200);
   const { text, limitations } = await textOf(config, input.bytes, file);
   const id = newId('D');

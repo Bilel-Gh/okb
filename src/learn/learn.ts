@@ -5,7 +5,8 @@ import { drawerLabel, layoutOf } from '../brain/layout.js';
 import { positionOf } from '../brain/tree.js';
 import type { OkbConfig } from '../config/schema.js';
 import type { Bundle } from '../kb/bundle.js';
-import { appendLine, readJsonIfExists, readLines, writeJsonAtomic } from '../util/fsx.js';
+import { openDb, type Db } from '../state/db.js';
+import { readJsonIfExists, readLines, writeJsonAtomic, writeTextAtomic } from '../util/fsx.js';
 import { withStateLock } from '../util/state-lock.js';
 
 /**
@@ -86,8 +87,35 @@ export function collectCards(config: OkbConfig, bundle: Bundle): StudyCard[] {
 
 function dir(config: OkbConfig): string { return resolve(config.stateHome, 'learn'); }
 
+/**
+ * The reviews live in the state database (F2.0-18). A brain from the 1.5 kept
+ * them in two files (`cards.json`, `log.jsonl`): they are read once, in one
+ * transaction, and left as they were, so the 1.5 still opens its own state.
+ */
+async function reviewsDb(config: OkbConfig): Promise<Db> {
+  const db = openDb(config);
+  const imported = () => db.get<{ value: string }>("SELECT value FROM meta WHERE key = 'learn.imported'");
+  if (imported()) return db;
+  const store = await readJsonIfExists<Store>(resolve(dir(config), 'cards.json')).catch(() => null);
+  const lines = await readLines(resolve(dir(config), 'log.jsonl')).catch(() => [] as string[]);
+  db.tx(() => {
+    // Another window may have done it while the files were read.
+    if (imported()) return;
+    for (const [id, s] of Object.entries(store?.cards ?? {})) db.run('INSERT OR IGNORE INTO reviews (card_id, state, updated_at) VALUES (?, ?, ?)', id, JSON.stringify(s), s.last_review ?? s.due);
+    for (const text of lines) {
+      let line: Partial<LogLine>;
+      try { line = JSON.parse(text) as Partial<LogLine>; } catch { continue; }
+      if (line.at && line.id) db.run('INSERT INTO review_log (at, card_id, rating, was, next) VALUES (?, ?, ?, ?, ?)', line.at, line.id, Number(line.rating ?? 0), String(line.was ?? 'new'), String(line.next ?? ''));
+    }
+    db.run("INSERT INTO meta (key, value) VALUES ('learn.imported', ?)", new Date().toISOString());
+  });
+  return db;
+}
+
 async function loadStore(config: OkbConfig): Promise<Store> {
-  return (await readJsonIfExists<Store>(resolve(dir(config), 'cards.json'))) ?? { version: 1, cards: {} };
+  const cards: Record<string, Saved> = {};
+  for (const row of (await reviewsDb(config)).all<{ card_id: string; state: string }>('SELECT card_id, state FROM reviews')) cards[row.card_id] = JSON.parse(row.state) as Saved;
+  return { version: 1, cards };
 }
 
 const toCard = (s: Saved): Card => ({ ...s, due: new Date(s.due), ...(s.last_review ? { last_review: new Date(s.last_review) } : {}) }) as Card;
@@ -113,7 +141,7 @@ export async function dueCards(config: OkbConfig, bundle: Bundle, options: { now
   const now = options.now ?? new Date();
   const store = await loadStore(config);
   const today = now.toISOString().slice(0, 10);
-  const log = await readLog(config);
+  const log = await reviewLog(config);
   const todays = log.filter((l) => l.at.startsWith(today));
   const newToday = new Set(todays.filter((l) => l.was === 'new').map((l) => l.id)).size;
   const newLeft = Math.max(0, (options.newPerDay ?? 10) - newToday);
@@ -144,30 +172,41 @@ export function parseRating(raw: string): Grade | null {
   return RATINGS[raw.trim().toLowerCase()] ?? null;
 }
 
-type LogLine = { at: string; id: string; rating: number; was: Level; next: string };
+export type LogLine = { at: string; id: string; rating: number; was: Level; next: string };
 
-async function readLog(config: OkbConfig): Promise<LogLine[]> {
-  const lines = await readLines(resolve(dir(config), 'log.jsonl')).catch(() => [] as string[]);
-  const out: LogLine[] = [];
-  for (const l of lines) { try { out.push(JSON.parse(l) as LogLine); } catch { /* a torn line */ } }
-  return out;
+/** Every answer given, oldest first. */
+export async function reviewLog(config: OkbConfig): Promise<LogLine[]> {
+  return (await reviewsDb(config)).all<LogLine>('SELECT at, card_id AS id, rating, was, next FROM review_log ORDER BY seq');
 }
 
-/** One answer graded: the card's next review date. */
+/** One answer graded: the card's next review date. The card and the line of the log are written together, or not at all. */
 export async function gradeCard(config: OkbConfig, id: string, rating: Grade, now = new Date()): Promise<{ id: string; level: Level; due: string; interval: number }> {
-  return withStateLock(resolve(dir(config), 'cards.json'), () => gradeNow(config, id, rating, now));
+  const db = await reviewsDb(config);
+  return db.tx(() => {
+    const row = db.get<{ state: string }>('SELECT state FROM reviews WHERE card_id = ?', id);
+    const before = row ? (JSON.parse(row.state) as Saved) : undefined;
+    const scheduler = fsrs(generatorParameters({ enable_fuzz: false }));
+    const next = scheduler.next(before ? toCard(before) : createEmptyCard(now), now, rating).card;
+    const saved = toSaved(next);
+    db.run('INSERT INTO reviews (card_id, state, updated_at) VALUES (?, ?, ?) ON CONFLICT(card_id) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at', id, JSON.stringify(saved), now.toISOString());
+    db.run('INSERT INTO review_log (at, card_id, rating, was, next) VALUES (?, ?, ?, ?, ?)', now.toISOString(), id, rating, levelOf(before), saved.due);
+    return { id, level: levelOf(saved), due: saved.due, interval: Math.max(0, Math.round((next.due.getTime() - now.getTime()) / 86_400_000)) };
+  });
 }
 
-async function gradeNow(config: OkbConfig, id: string, rating: Grade, now: Date): Promise<{ id: string; level: Level; due: string; interval: number }> {
+/** The database forgets the reviews (after they were exported): a later move starts again from the files. */
+export function clearReviews(config: OkbConfig): void {
+  const db = openDb(config);
+  db.tx(() => { db.run('DELETE FROM reviews'); db.run('DELETE FROM review_log'); db.run("DELETE FROM meta WHERE key = 'learn.imported'"); });
+}
+
+/** Going back to the 1.5: its two files get everything studied since (the notes were never touched). */
+export async function exportReviews(config: OkbConfig): Promise<{ cards: number; log: number }> {
   const store = await loadStore(config);
-  const before = store.cards[id];
-  const scheduler = fsrs(generatorParameters({ enable_fuzz: false }));
-  const next = scheduler.next(before ? toCard(before) : createEmptyCard(now), now, rating).card;
-  const saved = toSaved(next);
-  store.cards[id] = saved;
+  const log = await reviewLog(config);
   await writeJsonAtomic(resolve(dir(config), 'cards.json'), store);
-  await appendLine(resolve(dir(config), 'log.jsonl'), JSON.stringify({ at: now.toISOString(), id, rating, was: levelOf(before), next: saved.due } satisfies LogLine));
-  return { id, level: levelOf(saved), due: saved.due, interval: Math.max(0, Math.round((next.due.getTime() - now.getTime()) / 86_400_000)) };
+  await writeTextAtomic(resolve(dir(config), 'log.jsonl'), log.map((l) => JSON.stringify(l)).join('\n') + (log.length ? '\n' : ''));
+  return { cards: Object.keys(store.cards).length, log: log.length };
 }
 
 /** Cards already studied that are due now (new cards not counted): cheap, no KB read. */

@@ -36,7 +36,7 @@ En bas de la barre, le menu **Plus** range ce qui n’est pas quotidien :
 | Plus | Pour |
 |---|---|
 | **Outils** | ajouter une source, transformer une procédure en skill, les modèles et ton style, les catégories, **Partager** (un pack pour un collègue, ou recevoir le sien) |
-| **Santé** | la santé de tes notes, les sauvegardes, l’utilisation (coûts, qualité), le diagnostic et la mise à jour |
+| **Santé** | **où en sont tes notes** en quatre indicateurs séparés (couverture, fraîcheur, qualité, compréhension), chacun avec ce dont il est fait et quoi faire pour chaque manque ; la santé des notes, les sauvegardes et **l’essai de restauration**, l’utilisation (coûts, qualité), le diagnostic et la mise à jour |
 | **Modules** | les modules par métier |
 | **Aide** | la visite guidée, le glossaire, les raccourcis, les codes d’erreur |
 

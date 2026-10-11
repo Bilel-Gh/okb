@@ -4,9 +4,9 @@ import { sessionsSince } from '../focus/focus.js';
 import { listInbox } from '../inbox/inbox.js';
 import type { Bundle } from '../kb/bundle.js';
 import { loadQueue } from '../suggest/suggest.js';
-import { readLines } from '../util/fsx.js';
 import { readReceipts } from '../weekly/weekly.js';
 import { moduleRawEvents, moduleWork } from '../projects/sources.js';
+import { reviewLog } from '../learn/learn.js';
 
 /**
  * What happened, day by day, from what OKB already records: notes created or
@@ -83,9 +83,7 @@ export async function journal(config: OkbConfig, bundle: Bundle, options: { days
     if (s.status === 'declined') at(s.decidedAt).declined++;
   }
   for (const item of await listInbox(config, { now }).catch(() => [])) if (inRange(item.capturedAt)) at(item.capturedAt).captures++;
-  for (const line of await readLines(resolve(config.stateHome, 'learn', 'log.jsonl')).catch(() => [] as string[])) {
-    try { const l = JSON.parse(line) as { at?: string }; if (l.at && inRange(l.at)) at(l.at).reviews++; } catch { /* a torn line */ }
-  }
+  for (const l of await reviewLog(config).catch(() => [])) if (inRange(l.at)) at(l.at).reviews++;
 
   const out: JournalDay[] = [...days.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date, d]) => ({
     date, created: [...d.created.values()], updated: [...d.updated.values()], ticketsStarted: d.ticketsStarted, ticketsDone: d.ticketsDone,

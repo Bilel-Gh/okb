@@ -237,6 +237,7 @@ okb doctor     # check everything; --fix repairs what it can
 | **Keeping the thread** | Projects (where each stands, its next step), actions and what you wait for (spotted in a line you type, with its date, no AI), a journal by day and by project, “where I was” prepared when you leave a project, and a Today screen that answers six questions |
 | **Documents and writing** | A file kept as it is (a PDF, a slide deck, a mail, a photo) and found by a word of its text; a style (technical, normal, simplified) and a length (short, normal, detailed) with a default per kind of note; six moments spotted without AI and offered at the end of the session, three at most |
 | **Spaces and the yes** | Two spaces that never mix, “My baggage” (yours for life) and “Work”; “Keep in my baggage” carries a lesson across with no detail of the workplace; one screen to say “yes to all, except…” to what an assistant prepared, with one confirmation |
+| **Built to last** | A daily snapshot of everything (notes, documents, projects, actions, journal, reviews, settings) and a restore that is really tried; a dry-run migration from 1.5 with a way back; four honest indicators kept apart; “what I did on Tuesday” one keystroke away; journeys run in a real browser and failure tests |
 | **Terminal assistants (MCP)** | `okb mcp` lets Claude Code, Codex, Copilot or Cursor search and read your notes and suggest new ones, with the same engine as the app and the CLI; 🔒 notes stay hidden and approval stays yours |
 | **Web app** | Local only; five screens (Today, Projects, Memory, Assistant, Progress), “Keep this” and “To decide” on every screen; light and dark themes, keyboard palette, readable on a phone |
 | **Errors that help** | Every error says what happened, why, and what to do; `okb explain <code>` |
@@ -294,6 +295,7 @@ as absent. No audio transcription, OCR or browser automation is bundled.
 
 ```bash
 npm run release:check   # typecheck, tests, plugin checks, clean packed install with a fictitious workflow
+npm run test:journeys   # the built app in a real browser, screen by screen (needs a Chromium, Chrome or Edge)
 claude plugin validate ./plugin --strict
 ```
 

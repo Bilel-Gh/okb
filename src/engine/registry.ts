@@ -1,9 +1,12 @@
 import { enabledModules, moduleDef } from '../modules/catalog.js';
 import { reposList } from '../repo/operations.js';
 import { OkbError } from '../util/errors.js';
+import { backupStatusOp } from './ops/backup.js';
 import { baggageDraftOp, baggageKeep } from './ops/baggage.js';
+import { dayViewOp } from './ops/day.js';
 import { documentsAdd, documentsList, documentsUpdate } from './ops/documents.js';
 import { eveningViewOp } from './ops/evening.js';
+import { indicatorsView } from './ops/indicators.js';
 import { kbStatus } from './ops/kb.js';
 import { notesFind, notesRead } from './ops/notes.js';
 import { actionsAdd, actionsDetect, actionsList, actionsUpdate, journalAdd, journalList } from './ops/actions.js';
@@ -40,6 +43,9 @@ const OPS = {
   'baggage.draft': baggageDraftOp,
   'baggage.keep': baggageKeep,
   'evening.view': eveningViewOp,
+  'backup.status': backupStatusOp,
+  'indicators.view': indicatorsView,
+  'day.view': dayViewOp,
   'repos.list': reposList,
 } as const;
 

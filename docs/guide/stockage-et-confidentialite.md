@@ -7,12 +7,37 @@
 | les versions d'une note | `okb history <note>`, `--show N`, `--restore N` (une proposition) |
 | une note supprimée depuis moins de 30 jours | `okb trash` |
 | les sauvegardes | `okb backup` (lister), `okb backup run`, `okb backup verify` |
-| restaurer une sauvegarde | `okb backup restore <date> --to <nouveau dossier>` (jamais par-dessus ta KB) |
+| savoir si la sauvegarde sert à quelque chose | `okb backup drill` : une restauration réellement essayée |
+| restaurer tes notes | `okb backup restore <date> --to <nouveau dossier>` (jamais par-dessus ta KB) |
+| retrouver tout un cerveau | `okb backup restore <date> --to <dossier> --as <nom>` : notes, documents, projets, actions, journal, révisions et réglages |
 | vérifier la santé du cerveau | `okb brain check`, puis `okb brain repair` (une proposition) |
 
-Les sauvegardes sont quotidiennes (7 jours, 4 semaines, 12 mois), vérifiées par
-empreinte, dans `~/.okb/backups` par défaut (`backup.dir`). OKB ne fait pas de Git
-dans tes KB : si tu veux Git, c'est toi qui le gères.
+### La sauvegarde de chaque jour
+
+Une fois par jour, OKB prend une copie de tout : tes notes et tes documents,
+l'état (une copie entière de la base : projets, actions, journal, révisions) et
+les réglages du cerveau. Elle part toute seule, que tu ouvres l'application ou
+une session Claude. La clé qui signe tes approbations n'y est jamais.
+
+- **Où** : `~/.okb/backups` par défaut (`backup.dir`). Un disque externe est plus
+  sûr : le même disque ne survit pas au disque.
+- **Combien** : 7 jours, puis 4 semaines, puis 12 mois. Les fichiers inchangés
+  ne sont pas recopiés.
+- **Où j'en suis** : Aujourd'hui affiche « Sauvegardé », ou te prévient si la
+  dernière a plus de deux jours. **Plus › Santé › Sauvegardes** donne le détail.
+
+### La restauration, réellement essayée
+
+Une sauvegarde qu'on n'a jamais restaurée ne prouve rien. **Tester la
+restauration** (ou `okb backup drill`) restaure la dernière sauvegarde dans un
+dossier temporaire, relit chaque fichier contre son empreinte, ouvre la base et
+compare ce qui est revenu avec ce que la sauvegarde disait contenir. Le dossier
+est supprimé à la fin. Rien de ton cerveau n'est touché.
+
+OKB te le rappelle quand elle n'a pas été essayée depuis cinq semaines, et te
+le dit en rouge si elle a échoué.
+
+OKB ne fait pas de Git dans tes KB : si tu veux Git, c'est toi qui le gères.
 
 ## Les notes confidentielles 🔒
 

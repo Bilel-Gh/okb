@@ -195,3 +195,18 @@ export async function cmdBaggage(ctx: Ctx): Promise<number> {
       throw new OkbError('E_INVALID', `unknown baggage command "${sub}"`, { hint: 'okb baggage draft <note> | okb baggage keep <note> [--file <version relue.md>] [--title "<titre>"]' });
   }
 }
+
+/** `okb indicators` — coverage, freshness, quality and understanding, apart, each with what to do about its gaps. */
+export async function cmdIndicators(ctx: Ctx): Promise<number> {
+  const c = await context(ctx);
+  const { indicators } = await invoke('indicators.view', {}, c);
+  if (ctx.mode === 'json') { ctx.out.json({ ok: true, indicators }); return 0; }
+  for (const i of indicators) {
+    ctx.out.line(`${paint.bold(t(`indicator.${i.id}`))}  ${i.value === null ? paint.dim(t('indicator.none')) : i.id === 'quality' ? `${i.value}/100` : `${i.value} %`}  ${paint.dim(t(`indicator.${i.id}.of`, { have: String(i.of.have), total: String(i.of.total) }))}`);
+    for (const g of i.gaps) {
+      ctx.out.line(`   • ${t(`indicator.gap.${g.id}`, { n: String(g.count) })}${g.examples.length ? paint.dim(` : ${g.examples.slice(0, 3).map((e) => e.title).join(', ')}`) : ''}`);
+      ctx.out.line(paint.dim(`     → ${g.action.kind === 'command' ? g.action.to : g.action.kind === 'route' ? t(`indicator.route.${g.action.to}`) : `okb read "${g.action.to}"`}`));
+    }
+  }
+  return 0;
+}

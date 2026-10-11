@@ -38,6 +38,9 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
     'POST /api/documents': op('documents.add', (_q, b) => pick(b, ['name', 'data', 'title', 'project', 'note'])),
     'POST /api/document/update': op('documents.update', (_q, b) => ({ ...pick(b, ['id', 'title', 'note', 'secret']), ...(b.project !== undefined ? { project: b.project } : {}) })),
     'GET /api/evening': op('evening.view', () => ({})),
+    'GET /api/backup/status': op('backup.status', () => ({})),
+    'GET /api/indicators': op('indicators.view', () => ({})),
+    'GET /api/day': op('day.view', (q) => ({ day: q.get('day') ?? '' })),
     'GET /api/baggage/draft': op('baggage.draft', (q) => ({ path: q.get('path') ?? '' })),
     'POST /api/baggage/keep': op('baggage.keep', (_q, b) => pick(b, ['path', 'text', 'title'])),
     // Open the file itself, with the application the computer uses for it.
