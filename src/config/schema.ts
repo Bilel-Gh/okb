@@ -83,6 +83,12 @@ const kbSchema = z
      */
     kind: z.enum(['topic', 'repo', 'workspace']).optional(),
     /**
+     * The space this KB is in (src/spaces): `baggage` is what belongs to the person
+     * and follows them for life, `work` is one employer's or one client's. Absent:
+     * a career brain is the baggage, any other KB is work.
+     */
+    space: z.enum(['baggage', 'work']).optional(),
+    /**
      * A brain (OKB 1.0): the KB is organised in numbered drawers and subjects
      * (src/brain). Absent on KBs made before 1.0 until `okb brain migrate`.
      */

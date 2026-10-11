@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
  * `#/assistant` and `#/progress` are their own addresses.
  */
 export type TodayTab = 'focus' | 'week';
-export type InboxTab = 'suggestions' | 'proposals' | 'captures' | 'history';
+export type InboxTab = 'all' | 'suggestions' | 'proposals' | 'captures' | 'history';
 export type LearnTab = 'progress' | 'career';
 export type ToolsTab = 'source' | 'skills' | 'templates' | 'categories' | 'share';
 export type UpkeepTab = 'health' | 'doctor' | 'usage' | 'backup';
@@ -85,6 +85,8 @@ export function parseRoute(hash: string): Route {
     case 'review':
     case 'proposal':
       return rest ? { name: 'inbox', tab: 'proposals', id: decodeURIComponent(rest) } : { name: 'inbox' };
+    case 'changes':
+      return { name: 'inbox', tab: 'proposals' };
     case 'inbox':
       return { name: 'inbox', tab: 'captures', ...(q.new === '1' ? { compose: true } : {}), ...(q.all === '1' ? { all: true } : {}) };
     case 'history':
@@ -160,6 +162,7 @@ export function hrefFor(route: Route): string {
     case 'inbox':
       if (route.id) return `#/review/${encodeURIComponent(route.id)}`;
       if (route.tab === 'suggestions') return '#/suggestions';
+      if (route.tab === 'proposals') return '#/changes';
       if (route.tab === 'captures') return withQuery('#/inbox', { new: route.compose ? '1' : undefined, all: route.all ? '1' : undefined });
       if (route.tab === 'history') return '#/history';
       return '#/review';

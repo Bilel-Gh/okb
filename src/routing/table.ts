@@ -141,11 +141,14 @@ export const ROUTING_RULES: readonly RoutingRule[] = [
   },
   {
     skill: 'okb-career',
-    when: 'achievements, feedback, goals, one-on-one or annual review preparation, the CV, or a portable copy of career notes',
+    when: 'achievements, feedback, goals, one-on-one or annual review preparation, the CV, a portable copy of career notes, or keeping a work lesson in the person’s baggage',
     notWhen: 'project or ticket notes, or a meeting that is not about the user\'s career',
     positive: [
       strong(/\b(entretien (individuel|annuel)|one[- ]on[- ]one|1:1|annual review|revue annuelle|[ée]valuation annuelle)\b/i),
       strong(/\b(carri[eè]re|career|cv|r[ée]alisations?|achievements?|entretien)\b.{0,30}\b(pr[ée]pare|note|garde|ajoute|mets? à jour|update|add|keep)|\b(pr[ée]pare|note|garde|ajoute|mets? à jour|update|add|keep)[a-z]*\b.{0,30}\b(carri[eè]re|career|cv|r[ée]alisations?|achievements?|entretien)\b/i),
+      // « Garder dans mon bagage »: a lesson learned at work, kept for life without the workplace.
+      strong(/\b(dans|in|to|into) (mon|my) (bagage|baggage)\b/i),
+      weak(/\b(bagage|baggage)\b/i),
       weak(/\b(feedback|retour (de|du) (mon )?manager|objectifs? de l['’]ann[ée]e|promotion|augmentation)\b/i),
       // « pour mon entretien », « for my review »: the person's own career is meant.
       weak(/\b(pour (mon|ma) (entretien|cv|bilan|[ée]valuation|revue)|for my (review|cv|resume|appraisal))\b/i),

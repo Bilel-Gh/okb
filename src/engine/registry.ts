@@ -1,7 +1,9 @@
 import { enabledModules, moduleDef } from '../modules/catalog.js';
 import { reposList } from '../repo/operations.js';
 import { OkbError } from '../util/errors.js';
+import { baggageDraftOp, baggageKeep } from './ops/baggage.js';
 import { documentsAdd, documentsList, documentsUpdate } from './ops/documents.js';
+import { eveningViewOp } from './ops/evening.js';
 import { kbStatus } from './ops/kb.js';
 import { notesFind, notesRead } from './ops/notes.js';
 import { actionsAdd, actionsDetect, actionsList, actionsUpdate, journalAdd, journalList } from './ops/actions.js';
@@ -35,6 +37,9 @@ const OPS = {
   'documents.add': documentsAdd,
   'documents.list': documentsList,
   'documents.update': documentsUpdate,
+  'baggage.draft': baggageDraftOp,
+  'baggage.keep': baggageKeep,
+  'evening.view': eveningViewOp,
   'repos.list': reposList,
 } as const;
 

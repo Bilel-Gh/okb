@@ -140,4 +140,24 @@ la fin de la session » par défaut. Pour retrouver la proposition immédiate :
 Voir [les documents](../guide/documents.md) et
 [rien n'est écrit sans ton oui](../guide/demander-avant-ecrire.md).
 
+## Itération 7 — les espaces et le oui
+
+- **Deux espaces qui ne se mélangent jamais.** **Mon bagage** : ce qui t'appartient
+  et te suit toute ta vie. **Travail** : les notes d'un employeur ou d'un client.
+  Tu choisis l'espace en haut à gauche, puis le cerveau.
+- **Garder dans mon bagage.** Sur une note de travail, OKB prépare une version sans
+  aucun détail du travail : noms, références, adresses et montants laissent place
+  à des mots neutres. Tu relis, tu réécris, et la note attend ton oui dans ton
+  bagage. Une version qui nomme encore le travail est refusée.
+- **Le bagage ne se partage pas** : ni envoi, ni réception d'un pack.
+- **Oui à tout, sauf…** « À valider » s'ouvre sur tout ce qui attend, coché. Tu
+  décoches ce que tu ne veux pas et tu dis oui au reste : **une seule
+  confirmation** pour tous les changements.
+- **Ce que tu écris passe tout de suite** ; ce qu'un assistant prépare attend ton
+  oui. Aujourd'hui te rappelle combien de choses attendent.
+
+À savoir : un cerveau existant est rangé dans Travail, sauf un cerveau « carrière »
+qui va dans Mon bagage. Pour changer : Réglages › Espace de ce cerveau.
+Voir [deux espaces](../guide/espaces.md).
+
 Décision : D60.

@@ -10,6 +10,7 @@ import { readReceipts } from '../weekly/weekly.js';
 import { listActions, type Action } from './actions.js';
 import { listEntries, type Entry } from './journal.js';
 import { listProjects, type Project } from './projects.js';
+import { eveningView } from '../evening/evening.js';
 
 /**
  * Today (F2.0-04) answers six questions: what do I pick up, what did I do,
@@ -29,6 +30,8 @@ export type TodayView = {
   /** The notes that entered the memory in the last seven days. */
   readonly learned: readonly { readonly path: string; readonly title: string; readonly at: string }[];
   readonly review: { readonly due: number };
+  /** What an assistant prepared and waits for the person's yes: notes to write, changes ready (the evening screen). */
+  readonly toValidate: number;
   /** One thing to understand: a concept the notes use and the person never opened. */
   readonly understand: { readonly path: string; readonly title: string; readonly usedBy: number } | null;
 };
@@ -82,6 +85,7 @@ export async function todayView(config: OkbConfig, env: NodeJS.ProcessEnv, bundl
     done: entries.filter((e) => e.kind !== 'resume').slice(0, 12),
     learned: [...learned.values()].slice(0, 8),
     review: { due: await dueCount(config, now).catch(() => 0) },
+    toValidate: await eveningView(config, env, now).then((e) => e.cards.length + e.changes.length + e.apart.length, () => 0),
     understand: unreadConcept(bundle, (path) => scores.get(path)?.parts.value.used ?? 0),
   };
 }

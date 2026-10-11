@@ -4,7 +4,8 @@ import type { OkbConfig } from '../config/schema.js';
 import { noteKind } from '../brain/types.js';
 import type { Bundle } from '../kb/bundle.js';
 import { OkbError } from '../util/errors.js';
-import { modulePrivateNames, moduleRawEvents, moduleWork } from '../projects/sources.js';
+import { moduleRawEvents, moduleWork } from '../projects/sources.js';
+import { detailsIn, workplaceNames, type Detail } from '../spaces/details.js';
 
 /**
  * The career side of a brain: achievements told as STAR stories, feedback
@@ -119,42 +120,21 @@ export async function careerPrep(config: OkbConfig, bundle: Bundle, since: strin
 
 /* ------------------------------------------------ the portable check */
 
-export type Leak = { readonly path: string; readonly line: number; readonly text: string; readonly kind: 'product' | 'client' | 'repository' | 'ticket' | 'email' | 'url' | 'amount' | 'custom' };
-
-const TICKET = /\b[A-Z][A-Z0-9]{1,9}-\d{1,6}\b/g;
-const EMAIL = /\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b/g;
-const URL = /\bhttps?:\/\/[^\s)>\]]+/g;
-const AMOUNT = /(?:\b\d[\d\s.,]*\s?(?:k€|M€|€|EUR|USD|\$)|[$€]\s?\d[\d\s.,]*)/g;
-const PUBLIC_HOSTS = /^(https?:\/\/)?([\w-]+\.)*(wikipedia\.org|github\.com|developer\.mozilla\.org|nodejs\.org|claude\.com|anthropic\.com|npmjs\.com|w3\.org)\b/i;
+export type Leak = Detail & { readonly path: string };
 
 /**
  * What would leak if the career notes left the company: product, client and
  * repository names, ticket references, emails, internal links, amounts, and the
- * person's own list of words. Run on the career notes before a portable copy.
+ * person's own list of words (src/spaces/details.ts). Run on the career notes
+ * before a portable copy.
  */
 export async function careerLeaks(config: OkbConfig, bundle: Bundle, extraWords: readonly string[] = []): Promise<Leak[]> {
-  const names: { re: RegExp; kind: Leak['kind'] }[] = [];
-  const word = (w: string) => new RegExp(`(^|[^\\p{L}\\p{N}])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}\\p{N}]|$)`, 'iu');
-  const { listProducts } = await import('../brain/products.js');
-  for (const p of await listProducts(config).catch(() => [])) if (p.name.length > 2) names.push({ re: word(p.name), kind: 'product' });
-  for (const r of await modulePrivateNames().catch(() => [])) if (r.name.length > 2 && r.kind === 'repository') names.push({ re: word(r.name), kind: 'repository' });
-  for (const e of bundle.entries) if (noteKind(e) === 'client' && e.title.length > 2) names.push({ re: word(e.title), kind: 'client' });
-  for (const w of extraWords) if (w.trim().length > 1) names.push({ re: word(w.trim()), kind: 'custom' });
+  const names = await workplaceNames(config, bundle, extraWords);
   const out: Leak[] = [];
   for (const e of bundle.entries) {
     if (!(CAREER_KINDS as readonly string[]).includes(noteKind(e) ?? '')) continue;
     const doc = bundle.docs.get(e.path);
-    if (!doc) continue;
-    doc.body.split('\n').forEach((line, i) => {
-      if (line.startsWith('🧭')) return;
-      const plain = line.replace(/\]\([^)]*\)/g, ']');
-      const push = (text: string, kind: Leak['kind']) => out.push({ path: e.path, line: i + 1, text: text.trim(), kind });
-      for (const n of names) { const m = n.re.exec(plain); if (m) push(m[0].replace(/^[^\p{L}\p{N}]|[^\p{L}\p{N}]$/gu, ''), n.kind); }
-      for (const m of plain.matchAll(TICKET)) push(m[0], 'ticket');
-      for (const m of plain.matchAll(EMAIL)) push(m[0], 'email');
-      for (const m of line.matchAll(URL)) if (!PUBLIC_HOSTS.test(m[0])) push(m[0], 'url');
-      for (const m of plain.matchAll(AMOUNT)) if (/\d/.test(m[0])) push(m[0], 'amount');
-    });
+    if (doc) for (const d of detailsIn(doc.body, names)) out.push({ ...d, path: e.path });
   }
   return out;
 }

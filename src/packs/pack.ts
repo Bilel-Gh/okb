@@ -8,6 +8,7 @@ import type { Proposal } from '../proposal/model.js';
 import { saveProposal } from '../proposal/store.js';
 import { isSecret } from '../security/confidential.js';
 import { findSecrets } from '../security/secrets.js';
+import { spaceOf } from '../spaces/space.js';
 import { OkbError } from '../util/errors.js';
 import { sha256 } from '../util/hash.js';
 import { asBundlePath } from '../util/paths.js';
@@ -43,7 +44,17 @@ function assertPack(p: unknown): asserts p is Pack {
 
 const clean = (folder: string) => folder.replace(/^\/+|\/+$/g, '');
 
+/**
+ * The baggage is the person's own (F2.0-12): it never leaves in a share, and a
+ * pack from someone's work does not enter it. Its only door is « Garder dans
+ * mon bagage », which takes nothing of a workplace along.
+ */
+function assertShareable(config: OkbConfig): void {
+  if (spaceOf(config) === 'baggage') throw new OkbError('E_INVALID', 'the baggage is never shared', { key: 'spaceBaggageStays' });
+}
+
 export async function exportPack(config: OkbConfig, bundle: Bundle, folder: string, now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<Pack> {
+  assertShareable(config);
   const root = clean(folder);
   const prefix = `${root}/`;
   const notes: PackNote[] = [];
@@ -88,6 +99,7 @@ export function comparePack(bundle: Bundle, pack: Pack, into: string): { added: 
  * Notes that differ are not overwritten: comparePack lists them for a person to read.
  */
 export async function mergePack(config: OkbConfig, pack: Pack, into: string, bundle?: Bundle): Promise<Proposal> {
+  assertShareable(config);
   assertPack(pack);
   const { loadBundleFor } = await import('../kb/bundle.js');
   const b = bundle ?? (await loadBundleFor(config));

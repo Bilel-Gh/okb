@@ -28,7 +28,8 @@ En haut de chaque écran :
 
 - **Chercher** (⌘K) ;
 - **Garde ça** (⌘J) : une ligne que tu écris est gardée tout de suite, dans le journal du projet choisi ou dans tes captures ; **Joindre un fichier** garde un document tel quel ;
-- **À valider**, avec le nombre de choses qui attendent ton oui : les **notes à écrire** que Claude propose (Accepter, Plus tard, Non merci), les **changements prêts** à relire, les **captures** à trier, l’**historique** (annuler le dernier).
+- **À valider**, avec le nombre de choses qui attendent ton oui. Il s’ouvre sur **Tout** : tu décoches ce que tu ne veux pas et tu dis **oui au reste en une fois** ([détails](demander-avant-ecrire.md)). Les autres onglets : les **notes à écrire** que Claude propose (Accepter, Plus tard, Non merci), les **changements prêts** à relire, les **captures** à trier, l’**historique** (annuler le dernier) ;
+- le **choix de l’espace**, en haut à gauche : **Mon bagage** ou **Travail**, puis le cerveau ([les espaces](espaces.md)).
 
 En bas de la barre, le menu **Plus** range ce qui n’est pas quotidien :
 

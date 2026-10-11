@@ -48,7 +48,7 @@ the right screen (`web-app/src/app/router.ts`).
 
 | Elsewhere | Holds |
 |---|---|
-| À valider (top bar) | Notes à écrire · Changements prêts · Captures · Historique |
+| À valider (top bar) | Tout: everything that waits, ticked, with one « Oui à ces N choses » button in a foot that stays in view (the evening screen) · Notes à écrire · Changements prêts · Captures · Historique |
 | Plus (menu) | Outils (add a source, skills, templates and style, categories, share) · Santé (health, backups, usage, diagnosis) · Modules · Aide |
 | Réglages | general · appearance · my brains · create a brain |
 

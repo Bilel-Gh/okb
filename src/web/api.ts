@@ -29,6 +29,8 @@ import type { Proposal } from '../proposal/model.js';
 import { readableLabel } from '../proposal/labels.js';
 import { loadProposal, saveProposal, updateProposalStatus } from '../proposal/store.js';
 import { readSettings, writeSetting } from '../settings/settings.js';
+import { sayYes } from '../evening/evening.js';
+import { spaceOf } from '../spaces/space.js';
 import { draftSkill, writeSkillDraft } from '../skillify/skillify.js';
 import { acquire, extractSource } from '../sources/registry.js';
 import { ensureState, statePaths } from '../state/paths.js';
@@ -137,8 +139,8 @@ function categoryOfText(path: string, text: string, cx: Awaited<ReturnType<typeo
 async function kbsWithKind(env: NodeJS.ProcessEnv) {
   const { kindOf } = await import('../work/kinds.js');
   return Promise.all((await listKbs(env)).map(async (k) => {
-    const brain = await loadConfig({ env, profileId: k.id }).then((r) => r.config.kb.brain?.preset ?? null, () => null);
-    return { ...k, kind: await kindOf(k.id, null, env).catch(() => 'topic'), brain };
+    const config = await loadConfig({ env, profileId: k.id }).then((r) => r.config, () => null);
+    return { ...k, kind: await kindOf(k.id, null, env).catch(() => 'topic'), brain: config?.kb.brain?.preset ?? null, space: config ? spaceOf(config) : 'work' };
   }));
 }
 
@@ -534,6 +536,15 @@ export const ROUTES: Record<string, Handler> = {
     if (b.apply === false) return { ok: true, presence, applied: false };
     const receipt = await applyProposal(config, proposal, { env: ctx.env, ...(accepted.length < proposal.changes.length ? { only: accepted } : {}) });
     return { ok: true, presence, applied: true, receipt: { id: receipt.id, results: receipt.results } };
+  },
+  /**
+   * « Oui à tout, sauf… » (F2.0-13): the changes of the lot are approved with one
+   * confirmation on the person's screen; without it, none is.
+   */
+  'POST /api/evening/yes': async (ctx, _q, b) => {
+    const config = await kbConfig(ctx, b.kb);
+    return sayYes(config, ctx.env, { changes: list(b.changes), cards: list(b.cards) }, (lot) =>
+      confirmPresence(t('web.presence.lot', { n: lot.changes, files: lot.files, kb: config.profile.displayName || config.profile.id, titles: lot.titles.slice(0, 4).join(' · ') }), { approve: t('web.presence.approve'), cancel: t('web.presence.cancel'), title: 'OKB' }));
   },
   'POST /api/proposal/apply': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);

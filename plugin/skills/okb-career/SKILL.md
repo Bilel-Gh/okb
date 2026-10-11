@@ -47,6 +47,17 @@ When a grid exists, compare its expected skills with `skills` from the stories:
 strengths (many proofs), gaps (none) → a development plan (`development-plan`
 template), each gap with an action and a learning objective (`okb learn goal add`).
 
+## « Garde ça dans mon bagage »
+
+A lesson learned at work that will serve elsewhere (a method, a trap, a good
+practice) goes to their baggage — their own space, for life — without anything
+of the workplace. `okb baggage draft "<note>" --json` gives the note without the
+names, references, addresses and amounts (`removed`). Rewrite it as a general
+lesson in a scratch file (what to do, when, why; no product, client or person),
+show it, and with their yes: `okb baggage keep "<note>" --file <file> --json`.
+OKB refuses a text that still names the workplace and lists what remains. It
+prepares a proposal in the baggage; they approve it there (`okb-review`).
+
 ## Taking it with you
 
 `okb career check [--words "a,b"] --json` lists what would leak: product, client

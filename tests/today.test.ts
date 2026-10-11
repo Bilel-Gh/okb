@@ -63,4 +63,18 @@ describe('today answers six questions (F2.0-04)', () => {
     }
     expect((await invoke('today.view', {}, ctx)).understand).toBeNull();
   });
+
+  it('counts what an assistant prepared and waits for a yes, for the evening', async () => {
+    const { config, env } = await demoBrain();
+    await ensureState(statePaths(config));
+    const ctx = { config, env, actor: 'person' as const };
+    expect((await invoke('today.view', {}, ctx)).toValidate).toBe(0);
+    await invoke('suggestions.add', { type: 'concept', title: 'Idempotence', why: 'the person asked what it is', signal: 'asked' }, ctx);
+    const { proposeFiles } = await import('../src/proposal/files.js');
+    const { saveProposal } = await import('../src/proposal/store.js');
+    const { loadBundleFor } = await import('../src/kb/bundle.js');
+    await saveProposal(config, proposeFiles(config, await loadBundleFor(config), new Map([['3 Boîte à outils/Méthodes/Mesurer.md', note('Mesurer', 'Une étape.', 'Procedure')]]), 'write Mesurer'));
+    expect((await invoke('today.view', {}, ctx)).toValidate).toBe(2);
+  });
 });
+

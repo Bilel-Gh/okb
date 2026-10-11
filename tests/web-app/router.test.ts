@@ -38,6 +38,10 @@ describe('the new app reads the same addresses as before', () => {
     expect(parseRoute('#/inbox?all=1')).toEqual({ name: 'inbox', tab: 'captures', all: true });
     expect(parseRoute('#/history')).toEqual({ name: 'inbox', tab: 'history' });
     expect(parseRoute('#/proposal/p-1')).toEqual({ name: 'inbox', tab: 'proposals', id: 'p-1' });
+    // « À valider » opens on everything that waits; the changes alone have their own address.
+    expect(parseRoute('#/changes')).toEqual({ name: 'inbox', tab: 'proposals' });
+    expect(hrefFor({ name: 'inbox', tab: 'proposals' })).toBe('#/changes');
+    expect(hrefFor({ name: 'inbox', tab: 'all' })).toBe('#/review');
     expect(parseRoute('#/career')).toEqual({ name: 'learn', tab: 'career' });
     expect(parseRoute('#/learn/progress')).toEqual({ name: 'learn', tab: 'progress' });
     expect(parseRoute('#/source')).toEqual({ name: 'tools', tab: 'source' });

@@ -56,6 +56,7 @@ montre les consignes exactes que suit Claude.
 
 | Réglage | |
 |---|---|
+| `kb.space` | l'espace de ce cerveau : `baggage` (**Mon bagage** : ce qui t'appartient et te suit) ou `work` (**Travail** : un employeur ou un client). Les deux ne se mélangent jamais ; voir [les espaces](espaces.md) |
 | `focus.file` · `focus.journal` | où sont ta note de focus et ton journal (hors de la KB) |
 | `focus.sessionStart` | donner le focus à Claude au début de chaque session |
 | `focus.staleDays` | après combien de jours OKB te propose de le mettre à jour |

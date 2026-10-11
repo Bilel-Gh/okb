@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArrowLeft, Check, ChevronRight, CircleAlert, CircleCheck, Eye, FileDiff, GitCompare, Inbox, Plus, Quote, RotateCcw, ScrollText, Sparkles, Trash2, TriangleAlert } from 'lucide-react';
+import { Archive, ArrowLeft, Check, CheckCheck, ChevronRight, CircleAlert, CircleCheck, Eye, FileDiff, GitCompare, Inbox, Plus, Quote, RotateCcw, ScrollText, Sparkles, Trash2, TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { currentSession, get, post } from '../app/api';
 import { tn, useT } from '../app/i18n';
@@ -12,6 +12,7 @@ import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { DiffView } from '../ui/DiffView';
 import { TypeMark } from '../ui/TypeMark';
 import { drawerOf } from './brain-tree';
+import { Evening } from './Evening';
 import { Waiting, type Suggestion } from './Today';
 
 type ProposalItem = { id: string; number: number | null; title: string; status: string; createdAt: string; files: number; created: number; updated: number; changes: number };
@@ -287,19 +288,21 @@ export default function InboxPage({ route, setTitle }: { route: Extract<Route, {
   const c = useQuery({ queryKey: ['inbox', false], queryFn: () => get<{ items: Capture[] }>('/api/inbox') });
   const cards = s.data?.suggestions.filter((x) => x.status === 'pending' || x.status === 'later').length ?? 0;
   const prepared = p.data?.proposals.filter((x) => x.status === 'prepared').length ?? 0;
+  const waiting = s.data?.suggestions.filter((x) => x.status === 'pending').length ?? 0;
   const captures = c.data?.items.filter((x) => x.status === 'open').length ?? 0;
-  // Without a tab: where something waits first.
-  const tab = route.tab ?? (route.id ? 'proposals' : prepared && !cards ? 'proposals' : 'suggestions');
+  // Without a tab: everything that waits, to say yes to at once.
+  const tab = route.tab ?? (route.id ? 'proposals' : 'all');
   if (route.id) return <div className="page"><ProposalView id={route.id} setTitle={setTitle} /></div>;
   return (
     <div className="page">
       <PageTabs label={t('app.nav.inbox')} tabs={[
+        { to: { name: 'inbox', tab: 'all' }, label: t('app.inbox.tab.all'), current: tab === 'all', count: waiting + prepared, icon: CheckCheck },
         { to: { name: 'inbox', tab: 'suggestions' }, label: t('app.inbox.tab.suggestions'), current: tab === 'suggestions', count: cards, icon: Sparkles },
         { to: { name: 'inbox', tab: 'proposals' }, label: t('app.inbox.tab.proposals'), current: tab === 'proposals', count: prepared, icon: FileDiff },
         { to: { name: 'inbox', tab: 'captures' }, label: t('app.inbox.tab.captures'), current: tab === 'captures', count: captures, icon: Inbox },
         { to: { name: 'inbox', tab: 'history' }, label: t('app.inbox.tab.history'), current: tab === 'history', icon: ScrollText },
       ]} />
-      {tab === 'suggestions' ? (
+      {tab === 'all' ? <Evening /> : tab === 'suggestions' ? (
         <>
           <p className="page-intro">{t('app.inbox.suggestionsWhy')}</p>
           <section className="panel"><div className="panel-body flush"><Waiting only="cards" /></div></section>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, BadgeCheck, CalendarCheck, Check, ChevronLeft, ChevronRight, Clock, FileDiff, GraduationCap, HeartPulse, Hourglass, Inbox, Layers, ListTodo, NotebookPen, Pencil, Play, Plus, Sparkles, Sun, Target, Trash2, X } from 'lucide-react';
+import { ArrowRight, BadgeCheck, CalendarCheck, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, FileDiff, GraduationCap, HeartPulse, Hourglass, Inbox, Layers, ListTodo, NotebookPen, Pencil, Play, Plus, Sparkles, Sun, Target, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { get, post } from '../app/api';
 import { tn, useT } from '../app/i18n';
@@ -150,6 +150,7 @@ type TodayData = {
   done: Entry[];
   learned: { path: string; title: string; at: string }[];
   review: { due: number };
+  toValidate: number;
   understand: { path: string; title: string; usedBy: number } | null;
 };
 
@@ -193,6 +194,8 @@ function TodayTab() {
   const nudges: { icon: ReactNode; text: string; to: Route; action: string }[] = [];
   const f = full.data;
   if (f?.inbox.open) nudges.push({ icon: <Inbox size={16} aria-hidden="true" />, text: tn(t, 'status.inboxOpen', f.inbox.open, { days: f.inbox.oldestDays ?? 0 }), to: { name: 'inbox', tab: 'captures' }, action: t('web.home.sortInbox') });
+  // What an assistant prepared: one place to say yes to all of it, except what the person unticks.
+  if (d?.toValidate) nudges.push({ icon: <CheckCheck size={16} aria-hidden="true" />, text: tn(t, 'app.today.evening', d.toValidate), to: { name: 'inbox', tab: 'all' }, action: t('app.today.eveningGo') });
   if (f && !f.focus.exists) nudges.push({ icon: <Target size={16} aria-hidden="true" />, text: t('web.home.noFocus'), to: { name: 'today', tab: 'focus' }, action: t('web.home.writeFocus') });
   else if (f?.focus.stale) nudges.push({ icon: <Target size={16} aria-hidden="true" />, text: t('status.focusStale', { age: f.focus.ageDays ?? 0 }), to: { name: 'today', tab: 'focus' }, action: t('web.home.updateFocus') });
   if (f?.toReview) nudges.push({ icon: <GraduationCap size={16} aria-hidden="true" />, text: tn(t, 'status.toReviewCount', f.toReview), to: { name: 'today', tab: 'week', step: 'reread' }, action: t('web.home.reread') });

@@ -45,6 +45,8 @@ const CASES: readonly { request: string; expect: SkillId; why: string }[] = [
   { request: 'Prépare mon entretien annuel avec mon manager', expect: 'okb-career', why: 'annual review' },
   { request: "Garde ça pour mon entretien : j'ai réduit les erreurs d'export de 30 %", expect: 'okb-career', why: 'an achievement to keep' },
   { request: 'Mets à jour mon CV avec mes réalisations de cette année', expect: 'okb-career', why: 'living CV' },
+  { request: 'Garde cette méthode dans mon bagage', expect: 'okb-career', why: 'a work lesson kept for life' },
+  { request: 'Keep this lesson in my baggage, without the client’s name', expect: 'okb-career', why: 'a work lesson kept for life' },
   { request: 'Prépare ma réunion de demain avec l’équipe produit', expect: 'okb-meeting', why: 'meeting preparation' },
   { request: 'Voilà mes notes de la réunion de ce matin, fais le tri', expect: 'okb-meeting', why: 'after a meeting' },
   { request: 'Fais-moi ma révision du jour', expect: 'okb-learn', why: 'daily spaced review' },

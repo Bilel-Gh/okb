@@ -1,11 +1,12 @@
 import * as Popover from '@radix-ui/react-popover';
 import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronDown, Copy, ExternalLink, History, Lock, MoreHorizontal, Pin, PinOff, Share2, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Backpack, Check, ChevronDown, Copy, ExternalLink, History, Lock, MoreHorizontal, Pin, PinOff, Share2, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { get, post } from '../app/api';
+import { currentKb, currentSession, get, post } from '../app/api';
 import { rememberNote, useCategories } from '../app/data';
 import { tn, useT } from '../app/i18n';
 import { isPinned, togglePin, usePins } from '../app/pins';
+import { KeepInBaggage } from './Baggage';
 import { go, hrefFor } from '../app/router';
 import { toast } from '../app/toast';
 import { Breadcrumb } from '../ui/Breadcrumb';
@@ -91,6 +92,9 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
   const [translated, setTranslated] = useState<{ html: string; lang: string } | null>(null);
   const [rated, setRated] = useState<'up' | 'down' | null>(null);
   const pins = usePins();
+  const [baggage, setBaggage] = useState(false);
+  // « Garder dans mon bagage » exists where there is something to take out: in a work space.
+  const inWork = currentSession()?.kbs.find((k) => k.id === currentKb())?.space === 'work';
 
   useEffect(() => { setTranslated(null); setRated(null); }, [path]);
   useEffect(() => {
@@ -167,6 +171,7 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
                   <a href={hrefFor({ name: 'brain', path: n.path, history: true })}><History size={15} aria-hidden="true" />{t('web.notes.versions')}</a>
                   <button type="button" onClick={() => { post('/api/open', { path: n.path }).catch((e: Error) => toast(e.message, 'err')); }}><ExternalLink size={15} aria-hidden="true" />{t('web.notes.openObsidian')}</button>
                   <button type="button" onClick={() => { void navigator.clipboard?.writeText(n.path).then(() => toast(t('app.note.copied'))); }}><Copy size={15} aria-hidden="true" />{t('app.note.copyPath')}</button>
+                  {inWork ? <button type="button" onClick={() => setBaggage(true)}><Backpack size={15} aria-hidden="true" />{t('app.baggage.action')}</button> : null}
                 </Popover.Content>
               </Popover.Portal>
             </Popover.Root>
@@ -190,6 +195,7 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
         </nav>
       ) : null}
       <ConceptBubbles key={`${n.path}|${translated?.lang ?? ''}`} root={article} terms={n.terms} />
+      {inWork ? <KeepInBaggage path={n.path} open={baggage} onOpenChange={setBaggage} /> : null}
     </div>
   );
 }

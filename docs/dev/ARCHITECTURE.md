@@ -74,6 +74,21 @@ Un fichier que la personne garde va tel quel dans `_Documents/<année>/` (D61,
 elle est réservée à la personne. Le chargeur de KB ignore ce dossier : un
 document n'est pas une note. La liste et le texte lu (FTS5) sont dans `okb.db`.
 
+## Les espaces
+
+Chaque cerveau est dans Mon bagage ou dans Travail (`src/spaces/space.ts`, D62).
+Le seul pont est `keepInBaggage` (`src/spaces/baggage.ts`) : il lit une note de
+travail, retire ce que `src/spaces/details.ts` reconnaît du lieu de travail,
+revérifie le texte final et prépare une proposition dans le bagage. Les packs
+refusent le bagage dans les deux sens.
+
+## Le oui
+
+Ce que la personne écrit (captures, journal, actions, documents) est direct.
+Ce qu'un assistant prépare attend : `eveningView` (`src/evening/evening.ts`)
+rassemble les cartes et les changements, `sayYes` approuve un lot après une seule
+confirmation de présence. `sayYes` n'est pas une opération du moteur.
+
 ## Les moments d'une conversation
 
 Le hook de fin de réponse passe à `okb suggest moment` le dernier échange, les

@@ -4,7 +4,7 @@
  */
 export type Session = {
   token: string; ui: 'fr' | 'en'; version: string; active: string | null; outdated: boolean;
-  kbs: { id: string; name: string; root: string; active: boolean; writingLanguage: string; exists: boolean; kind: string; brain: string | null }[];
+  kbs: { id: string; name: string; root: string; active: boolean; writingLanguage: string; exists: boolean; kind: string; brain: string | null; space?: 'baggage' | 'work' }[];
 };
 
 export class ApiError extends Error {

@@ -54,6 +54,31 @@ rien écrire :
 `okb suggest list` montre les cartes en attente ; l'application aussi
 (**À valider**).
 
+## Le oui proportionné
+
+- **Ce que tu écris toi-même passe tout de suite** : une capture, une ligne du
+  journal, une action, un document que tu déposes. C'est déjà ton geste.
+- **Ce qu'un assistant rédige, remplace ou propose attend ton oui.**
+
+## Oui à tout, sauf…
+
+**À valider** s'ouvre sur tout ce qui attend : les notes que Claude propose
+d'écrire, avec leur coût, et les changements prêts. Tout est coché.
+
+1. Décoche ce que tu ne veux pas. **Lire** ouvre un changement en détail.
+2. **Oui à ces N choses** : OKB te demande confirmation **une seule fois** pour
+   tous les changements (une fenêtre sur ton écran, ou le terminal). Si tu
+   annules, rien ne change.
+3. L'écran dit ce qui est fait, et ce qui ne l'est pas : un changement qui ne
+   s'applique plus tel quel, une note qui dépasserait le budget du jour.
+
+Ce que tu as décoché reste en attente. Une note acceptée n'est pas encore
+écrite : Claude l'écrit quand tu le lui demandes (« écris les suggestions
+acceptées »). Un changement qu'une règle d'OKB refuse ne part pas avec le lot :
+il est montré à part.
+
+Aujourd'hui te rappelle combien de choses attendent ; `okb today` aussi.
+
 ## Chaque note a une note
 
 | | Sur 100 | D'où elle vient |

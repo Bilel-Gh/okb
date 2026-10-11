@@ -2,10 +2,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { setSession } from '../../web-app/src/app/api.js';
 import { Shell } from '../../web-app/src/app/Shell.js';
 import type { Route } from '../../web-app/src/app/router.js';
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); setSession({ token: '', ui: 'fr', version: '', active: null, outdated: false, kbs: [] }, null); });
 
 function mount(route: Route, calls: { url: string; body?: unknown }[] = []) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -49,6 +50,20 @@ describe('the shell of the 2.0 (F2.0-01)', () => {
     await act(async () => { fireEvent.submit(field.closest('form')!); });
     await waitFor(() => expect(calls.some((c) => c.url.includes('/api/capture'))).toBe(true));
     expect(calls.find((c) => c.url.includes('/api/capture'))!.body).toMatchObject({ text: 'Le quota passe à 500 lundi' });
+  });
+
+  it('the person picks a space, then one of its brains: Mon bagage first, Travail after', async () => {
+    setSession({ token: 't', ui: 'fr', version: '2.0.0', active: 'travail', outdated: false, kbs: [
+      { id: 'travail', name: 'Acme', root: '/a', active: true, writingLanguage: 'fr', exists: true, kind: 'topic', brain: 'work', space: 'work' },
+      { id: 'bagage', name: 'Mes acquis', root: '/b', active: false, writingLanguage: 'fr', exists: true, kind: 'topic', brain: 'career', space: 'baggage' },
+    ] }, 'travail');
+    mount({ name: 'today' });
+    const button = screen.getByRole('button', { name: /app\.kb\.switch/ });
+    expect(button.textContent).toContain('Acme');
+    expect(button.textContent).toContain('app.space.work');
+    fireEvent.click(button);
+    const menu = await screen.findByRole('dialog');
+    expect([...menu.querySelectorAll('.menu-heading, [role=menuitemradio]')].map((e) => e.textContent)).toEqual(['app.space.baggage', 'Mes acquis', 'app.space.work', 'Acme']);
   });
 
   it('« Garde ça » also takes a file, kept as it is in the chosen project', async () => {

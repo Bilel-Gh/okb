@@ -34,14 +34,16 @@ OKB ne s'inscrit pas tout seul dans tes assistants : tu choisis où le brancher.
 | `actions_list`, `actions_add`, `actions_update`, `actions_detect` | tes actions et ce que tu attends ; ce qu'il ajoute est marqué « proposé par l'IA » |
 | `journal_list`, `journal_add` | le journal d'un projet ou d'un jour |
 | `documents_list` | chercher dans tes documents (les fichiers gardés tels quels) |
+| `baggage_draft`, `baggage_keep` | « Garder dans mon bagage » : une note de travail sans aucun détail du travail, préparée pour ton bagage ; tu l'approuves là-bas |
+| `evening_view` | ce qui attend ton oui : les notes proposées et les changements prêts |
 | `repos_list` | les repos documentés (module développeur) |
 
 ## Ce qu'il ne peut pas faire
 
 - **Voir une note 🔒.** Elle n'apparaît ni dans ses recherches ni dans ses
   lectures. Tu l'ouvres toi-même dans OKB.
-- **Décider à ta place.** Approuver, appliquer, accepter une carte : ces gestes
-  restent les tiens, dans l'application ou le terminal.
+- **Décider à ta place.** Approuver, appliquer, accepter une carte, dire « oui à
+  tout » : ces gestes restent les tiens, dans l'application ou le terminal.
 - **Garder ou modifier un document.** Il peut les chercher ; déposer un fichier,
   le renommer ou lever un cadenas restent tes gestes. Un document 🔒 lui est caché.
 - **Écrire une note.** Il peut tenir tes projets, tes actions et ton journal, qui

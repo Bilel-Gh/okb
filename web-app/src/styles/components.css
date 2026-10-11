@@ -130,6 +130,13 @@ main#main { flex: 1; min-width: 0; outline: none; }
 .search-field .input { padding-left: 36px; }
 .check-row { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-2); cursor: pointer; }
 .check-row input { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+.check { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; flex: none; cursor: pointer; }
+/* The evening: say yes to a lot. */
+.evening .panel-head + .rows > li:first-child { border-top: 0; }
+.evening .rows + .panel-head { border-top: 1px solid var(--hair); }
+.evening-foot { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; padding: 14px 20px; border-top: 1px solid var(--hair); position: sticky; bottom: 0; background: var(--surface); border-radius: 0 0 var(--r-lg) var(--r-lg); }
+.evening-foot .small { flex: 1 1 260px; min-width: 0; }
+.evening-foot .btn { margin-left: auto; }
 
 kbd { display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 6px; border: 1px solid var(--hair-strong); border-radius: 5px; background: var(--surface); color: var(--ink-3); }
 
@@ -360,6 +367,12 @@ a.stat:hover b { color: var(--accent-text); }
 .dialog { position: fixed; z-index: 71; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto; padding: var(--s6); border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--shadow-3); display: flex; flex-direction: column; gap: var(--s4); }
 .dialog h2 { font-size: 18px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: var(--s2); }
+.dialog.wide { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; }
+.dialog h2 > svg { vertical-align: -3px; margin-right: 8px; color: var(--accent-text); }
+.baggage-form { display: flex; flex-direction: column; gap: var(--s3); }
+.baggage-form .textarea { font-family: var(--mono, ui-monospace, monospace); font-size: 13px; line-height: 1.55; }
+.baggage-removed ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.baggage-removed p { margin: 0; }
 
 /* ================================================================ responsive shell */
 @media (max-width: 900px) {
@@ -528,3 +541,12 @@ textarea.input.project-line { height: auto; min-height: 60px; padding: 8px var(-
 .keep-spotted b { color: var(--ink); font-weight: 600; }
 .keep-project { display: flex; align-items: center; gap: var(--s2); }
 .keep-project .select { flex: 1; min-width: 0; }
+
+/* The evening on a narrow screen: the tick, the mark and the title stay on one line; the foot ends the list instead of hiding under the tabs. */
+@media (max-width: 600px) {
+  .evening .rows > li { flex-wrap: nowrap; align-items: center; }
+  .evening .rows .grow { flex: 1 1 0; }
+  .evening .rows .actions { width: auto; padding-left: 0; }
+  .evening-foot { position: static; padding: 14px var(--s4); }
+  .evening-foot .btn { margin-left: 0; width: 100%; justify-content: center; }
+}

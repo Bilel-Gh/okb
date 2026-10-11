@@ -1221,3 +1221,35 @@ La cible de la 2.0, une recherche répétée sous 200 ms au p95 à 5 000 notes, 
 - Relier un document à une note depuis l'application (le champ existe, l'écran non).
 - Lire le texte d'une image ou d'un enregistrement : pas sans IA, donc pas ici.
 - Le plafond de trois par session et les sept jours, après un mois d'usage réel.
+
+## D62 — 2.0, itération 7 : deux espaces étanches, et un oui proportionné (11 octobre 2026)
+
+**Problème.** Un cerveau de travail et un cerveau personnel étaient deux « KB » sans rien qui dise lequel t'appartient. Une leçon apprise au travail ne pouvait suivre la personne qu'en la recopiant, noms de clients compris. Et chaque chose préparée par un assistant demandait sa propre visite : la relecture du soir prenait plus de temps que la journée n'en avait fait gagner.
+
+**Décisions.**
+
+- **Deux espaces** (F2.0-12, `src/spaces/space.ts`). Chaque cerveau est dans **Mon bagage** (`baggage`) ou dans **Travail** (`work`), par le réglage `kb.space`. Sans réglage : un cerveau « carrière » est le bagage, tout autre est du travail. On se trompe du côté prudent : traiter un cerveau personnel comme du travail ne fait rien fuir, l'inverse si.
+- **Étanches par construction, et par trois refus.** Une recherche, le graphe et la journée ne lisent qu'un cerveau. S'y ajoutent : un partage (pack) est refusé depuis le bagage ; un pack reçu n'y entre pas ; un assistant ne peut pas emporter une note 🔒.
+- **« Garder dans mon bagage »** (`src/spaces/baggage.ts`) est le seul pont, du travail vers le bagage.
+  - OKB prépare sans IA une première version : les noms que le cerveau connaît (produits, clients, dépôts), les références de tickets, les adresses, les liens internes et les montants laissent place à des mots neutres ; un lien public reste. Ce qui a été retiré est listé.
+  - La personne relit ou réécrit. Le texte final est revérifié : s'il nomme encore le travail, il est refusé avec ce qui reste. C'est la détection de la copie portable de la carrière (1.5), sortie dans `src/spaces/details.ts` et partagée ; un nom contenu dans un autre (un produit dans son dépôt) ne compte qu'une fois, et les références publiques (UTF-8, ISO-8601, une CVE) ne sont plus prises pour des tickets.
+  - Le résultat est une **proposition dans le bagage**, que la personne approuve là-bas. La note ne garde ni chemin, ni identifiant, ni source du travail : seulement `x_okb.origin` (« vient du travail », et le jour).
+  - OKB ne réécrit pas lui-même en leçon générale : c'est le rôle de la personne, ou de Claude dans la conversation (skill carrière), toujours sous la même vérification.
+- **Le oui proportionné** (F2.0-13). Ce que la personne écrit passe directement : une capture, une ligne de journal, une action, un document (itérations 5 et 6). Ce qu'un assistant rédige, remplace ou propose attend son oui.
+- **L'écran du soir** (`src/evening/evening.ts`), vue par défaut de « À valider ». Les notes proposées (avec leur coût) et les changements prêts sont listés, tous cochés ; la personne décoche et dit oui au reste.
+  - **Une seule confirmation pour le lot** : la fenêtre du système (ou le terminal) nomme le nombre de changements et de fichiers. Un refus ne change rien. Sans moyen de demander, aucun changement n'est approuvé ; les cartes, elles, sont acceptées, puisqu'un clic de la personne suffit déjà pour une carte.
+  - Chaque changement est approuvé et appliqué séparément : un changement périmé n'arrête pas les autres, et la réponse dit lequel.
+  - Le budget du jour vaut pour le lot : une carte qui le dépasserait reste en attente, et l'écran le dit.
+  - Un changement qu'une règle refuse n'entre pas dans le lot : il est montré à part.
+  - Dire oui n'est pas une opération du moteur : aucun assistant ne peut le faire. Lire la liste (`evening.view`) en est une.
+
+**Conséquences.**
+- Le moteur compte trois opérations de plus : `baggage.draft`, `baggage.keep`, `evening.view`.
+- « À valider » s'ouvre sur tout ce qui attend ; les changements seuls ont leur adresse (`#/changes`).
+- Une carte acceptée n'est pas encore écrite : sans assistant dans l'application (2.3), c'est Claude qui l'écrit dans le terminal, quand la personne le demande. L'écran le dit.
+
+**Réexamen.**
+- Demander l'espace à la création d'un cerveau et à la migration des vraies KB (itération 8).
+- L'espace Partagé, avec les tiroirs (2.1).
+- « En arrivant sur un nouveau sujet, ce que ton bagage contient d'utile » : lire le bagage depuis le travail, dans ce sens-là seulement (3.1).
+- Écrire les notes acceptées depuis l'application, quand l'assistant y sera (2.3).

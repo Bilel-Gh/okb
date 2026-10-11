@@ -136,6 +136,7 @@ export async function cmdToday(ctx: Ctx): Promise<number> {
     ctx.out.heading(t('today.done'));
     for (const e of day.done.slice(0, 8)) ctx.out.line(paint.dim(`   ${e.day} · ${e.text}${e.project ? ` · ${e.project.title}` : ''}`));
   }
+  if (day.toValidate) ctx.out.line(`\n${t('today.toValidate', { n: String(day.toValidate) })}`);
   if (day.review.due) ctx.out.line(`\n${t('today.review', { n: String(day.review.due) })}`);
   if (day.understand) ctx.out.line(t('today.understand', { title: day.understand.title }));
   return 0;
@@ -167,5 +168,30 @@ export async function cmdDoc(ctx: Ctx): Promise<number> {
     }
     default:
       throw new OkbError('E_INVALID', `unknown doc command "${sub}"`, { hint: 'okb doc [list | add <fichier> | find <mots>]' });
+  }
+}
+
+/** `okb baggage` — « Garder dans mon bagage »: a work note without anything of the workplace, proposed to the person's baggage. */
+export async function cmdBaggage(ctx: Ctx): Promise<number> {
+  const c = await context(ctx);
+  const [sub = '', ...rest] = ctx.args.positionals;
+  const path = rest.join(' ');
+  switch (sub) {
+    case 'draft': {
+      const draft = await invoke('baggage.draft', { path }, c);
+      if (ctx.mode === 'json') { ctx.out.json({ ok: true, ...draft }); return 0; }
+      ctx.out.line(draft.text.trimEnd());
+      ctx.out.info(draft.removed.length ? t('baggage.removed', { list: [...new Set(draft.removed.map((d) => d.text))].join(', ') }) : t('baggage.nothingRemoved'));
+      return 0;
+    }
+    case 'keep': {
+      const file = flagString(ctx.args, 'file');
+      const text = file ? await (await import('node:fs/promises')).readFile(file, 'utf8') : undefined;
+      const kept = await invoke('baggage.keep', { path, ...(text !== undefined ? { text } : {}), ...opt(ctx, ['title']) }, c);
+      if (ctx.mode === 'json') ctx.out.json({ ok: true, ...kept }); else ctx.out.ok(t('baggage.kept', { title: kept.title, target: kept.target, kb: kept.kb, n: String(kept.removed) }));
+      return 0;
+    }
+    default:
+      throw new OkbError('E_INVALID', `unknown baggage command "${sub}"`, { hint: 'okb baggage draft <note> | okb baggage keep <note> [--file <version relue.md>] [--title "<titre>"]' });
   }
 }

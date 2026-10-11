@@ -183,18 +183,27 @@ function KbSwitcher({ folded }: { folded: boolean }) {
       <Popover.Trigger asChild>
         <button type="button" className="rail-kb" aria-label={`${t('app.kb.switch')} : ${name}`} title={folded ? name : undefined}>
           <span className="kb-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>
-          <span className="rail-kb-text"><span>{name}</span><small>{kb?.brain ? t(`brain.preset.${kb.brain}`) : t('app.kb.classic')}</small></span>
+          <span className="rail-kb-text"><span>{name}</span><small>{kb?.space ? t(`app.space.${kb.space}`) : kb?.brain ? t(`brain.preset.${kb.brain}`) : t('app.kb.classic')}</small></span>
           <ChevronsUpDown size={16} aria-hidden="true" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content className="menu" side={folded ? 'right' : 'bottom'} align="start" sideOffset={6}>
-          {(session?.kbs ?? []).map((k) => (
-            <button type="button" key={k.id} role="menuitemradio" aria-checked={k.id === kb?.id} onClick={() => pick(k.id)}>
-              {k.id === kb?.id ? <Check size={15} aria-hidden="true" /> : <span style={{ width: 15 }} />}
-              <span>{k.name}</span>
-            </button>
-          ))}
+          {(['baggage', 'work'] as const).map((space) => {
+            // Two spaces that never mix: the person's own baggage first, then work. A brain with no space said is work.
+            const kbs = (session?.kbs ?? []).filter((k) => (k.space ?? 'work') === space);
+            return kbs.length ? (
+              <div key={space} role="group" aria-label={t(`app.space.${space}`)}>
+                <p className="menu-heading">{t(`app.space.${space}`)}</p>
+                {kbs.map((k) => (
+                  <button type="button" key={k.id} role="menuitemradio" aria-checked={k.id === kb?.id} onClick={() => pick(k.id)}>
+                    {k.id === kb?.id ? <Check size={15} aria-hidden="true" /> : <span style={{ width: 15 }} />}
+                    <span>{k.name}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null;
+          })}
           <hr />
           <a href={hrefFor({ name: 'settings', tab: 'brains' })} onClick={() => setOpen(false)}><span style={{ width: 15 }} />{t('app.kb.manage')}</a>
         </Popover.Content>
