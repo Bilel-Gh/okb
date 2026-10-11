@@ -26,7 +26,9 @@ describe('simple words on screen (F2.0-02)', () => {
   it('no message of the app says « KB », « bundle » or « proposition »: these words stay in the code', () => {
     const fr = { ...FR, ...FR_V1 } as Record<string, string>;
     const en = { ...EN, ...EN_V1 } as Record<string, string>;
-    const keys = appKeys().flatMap((k) => [k, `${k}.one`, `${k}.other`]);
+    // The settings page builds its labels from each setting's key: every one of them is on screen too.
+    const settings = Object.keys(fr).filter((k) => /^settings\.(label|explain|opt|hint)\./.test(k));
+    const keys = [...appKeys().flatMap((k) => [k, `${k}.one`, `${k}.other`]), ...settings];
     expect(keys.length).toBeGreaterThan(500);
     const internal = { fr: /\bKB\b|\b[Bb]undles?\b|\b[Pp]ropositions?\b/, en: /\bKB\b|\b[Bb]undles?\b|\b[Pp]roposals?\b/ };
     // A parameter ({kb}) and a command to type (okb kb convert) are not words of the interface.

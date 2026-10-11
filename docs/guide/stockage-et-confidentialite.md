@@ -39,6 +39,15 @@ le dit en rouge si elle a échoué.
 
 OKB ne fait pas de Git dans tes KB : si tu veux Git, c'est toi qui le gères.
 
+## Où en sont tes notes
+
+![Santé : quatre indicateurs séparés, chacun avec ce dont il est fait et quoi faire](../images/web-health.png)
+
+**Plus › Santé** montre quatre indicateurs séparés : la couverture, la fraîcheur,
+la qualité et la compréhension. Chacun dit de quoi il est fait, et chaque manque
+mène à un geste. Quand il n'y a rien à mesurer, il n'y a pas de chiffre. Dans le
+terminal : `okb indicators`.
+
 ## Les notes confidentielles 🔒
 
 Une note marquée **secrète** (`okb secret set <note> secret`, par une proposition

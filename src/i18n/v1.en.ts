@@ -1619,4 +1619,7 @@ export const EN_V1 = {
   'metrics.upkeep': 'Upkeep',
   'metrics.tokens': 'Cost',
   'app.upkeep.healthTitle': 'Health of the notes',
+  'err.gitSlow.title': 'Git does not answer',
+  'err.gitSlow.why': 'Git did not answer in time for {path}. It does not mean the folder is not a repository.',
+  'err.gitSlow.fix': 'Try again in a moment, or check with: git -C "{path}" status.',
 } as const;

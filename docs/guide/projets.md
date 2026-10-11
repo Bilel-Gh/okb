@@ -6,6 +6,8 @@ OKB s'en sert pour te dire, chaque matin, par où reprendre.
 
 ## Un projet
 
+![Un projet : où on en est, la prochaine étape, « Où j’en étais », les actions, ce qu’on attend, le journal et les documents](../images/web-project.png)
+
 Dans l'application : **Projets › Nouveau projet**. Dans un terminal :
 
 ```bash

@@ -401,7 +401,7 @@ export const EN = {
   'settings.groupHint.advanced': 'for experts',
   'settings.label.ui.language': 'OKB language (menus and messages)',
   'settings.label.writing.language': 'Language the notes are written in',
-  'settings.label.profile.displayName': 'KB name',
+  'settings.label.profile.displayName': 'Name of this brain',
   'settings.label.writing.preset': 'Writing style',
   'settings.label.reader.level': 'Your level',
   'settings.label.kb.requireTemplate': 'Every note follows a template',
@@ -443,7 +443,7 @@ export const EN = {
   'settings.hint.agents.model.haiku': 'the cheapest, for simple sources',
   'settings.hint.agents.model.opus': 'the strongest',
   'settings.explain.agents.model': 'The subagents that read long sources and a repository’s code, and report cited facts. Writing the notes and the evidence reviewer always keep your session’s model. Set per computer: at work, keep “Same as the session” if your access does not offer every model.',
-  'settings.explain.routing.otherKnowledgeTools': 'Names of other knowledge bases or agents (a support agent’s KB, a wiki). OKB never touches them, and asks which one you mean when a message could concern them.',
+  'settings.explain.routing.otherKnowledgeTools': 'Names of other knowledge bases or agents (a support agent’s base, a wiki). OKB never touches them, and asks which one you mean when a message could concern them.',
   'settings.explain.focus.sessionStart': 'At the start of each Claude session, your focus note and the last “next time” are given to Claude.',
 
   // ---------- kb ----------
@@ -1340,8 +1340,8 @@ export const EN = {
   "repo.next.integrate": "In Claude: /okb-dev:onboard integrates the answers into the notes",
   "repo.next.refresh": "In Claude: /okb-dev:onboard refresh (updates the outdated notes)",
   "repo.next.ticket": "In Claude: /okb-dev:ticket (enriches the repository's KB from this work)",
-  "settings.label.kb.confidential": "Confidential KB (stays on this computer)",
-  "settings.explain.kb.confidential": "For company code and client work: no web reading, no GitHub repository from OKB, and okb doctor warns if the folder is synchronised by a cloud or the KB has a remote.",
+  "settings.label.kb.confidential": "Confidential brain (stays on this computer)",
+  "settings.explain.kb.confidential": "For company code and client work: no web reading, no GitHub repository from OKB, and okb doctor warns if the folder is synchronised by a cloud or its notes have a remote.",
   "doctor.check.kb-private": "Confidentiality",
   "doctor.private.ok": "local only: no cloud folder, no Git remote",
   "doctor.private.synced": "the folder is synchronised by {where}",

@@ -1613,4 +1613,7 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'metrics.upkeep': 'Entretien',
   'metrics.tokens': 'Coût',
   'app.upkeep.healthTitle': 'Santé des notes',
+  'err.gitSlow.title': 'Git ne répond pas',
+  'err.gitSlow.why': 'Git n’a pas répondu à temps pour {path}. Ce n’est pas forcément que le dossier n’est pas un dépôt.',
+  'err.gitSlow.fix': 'Réessaie dans un instant, ou vérifie avec : git -C "{path}" status.',
 };

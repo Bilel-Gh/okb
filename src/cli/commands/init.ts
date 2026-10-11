@@ -303,7 +303,7 @@ async function createForCode(ctx: Ctx, kind: 'repo' | 'workspace', input: { name
   void _kbName;
   if (kind === 'repo') {
     const { gitRoot } = await import('../../repo/git.js');
-    const root = await gitRoot(folder);
+    const root = await gitRoot(folder, { strict: true });
     if (!root) throw new OkbError('E_NOT_FOUND', `not a Git repository: ${folder}`, { key: 'repoNotGit', params: { path: folder } });
     const id = await createCodeKb(ctx, { name: input.name, dir: input.dir, kind: 'repo', repoRoot: root, inRepo: input.inRepo });
     const code = await cmdRepo({ ...ctx, args: { ...ctx.args, positionals: ['add', root], flags: { ...flags, kb: id } } });

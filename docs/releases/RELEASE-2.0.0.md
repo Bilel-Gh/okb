@@ -1,12 +1,56 @@
-# Version 2.0.0 — en préparation
+# Version 2.0.0
 
 > **« Je lui confie mon travail. »** La 2.0 pose le socle : un deuxième cerveau
-> fiable, simple, qui garde le fil du travail. Le détail est dans
-> `docs/dev/specs/2026-10-10-2.0-socle.md`.
+> fiable, simple, qui garde le fil du travail.
+> ✨ **Rien de ce qu'une IA rédige n'entre dans tes notes sans ton oui** — toujours.
 
-Ces notes grandissent à chaque itération.
+## En bref
 
-## Itération 1 — la confiance d'abord
+- **Cinq écrans** au lieu de treize destinations, et des mots simples.
+- **Garder le fil** : projets, actions, ce que tu attends, journal, « Où j'en
+  étais », « ce que j'ai fait mardi ».
+- **Capturer** : les documents gardés tels quels ; Claude ne t'interrompt plus.
+- **Deux espaces étanches** : Mon bagage et Travail.
+- **Un oui proportionné** : « oui à tout, sauf… » en une confirmation.
+- **Un seul moteur** pour l'application, le terminal et les assistants (MCP).
+- **Durer** : une sauvegarde qui ramène tout, une restauration réellement essayée.
+
+## Passer de la 1.5
+
+Tes notes ne sont jamais touchées. `okb migrate 2.0` montre ce qui va se
+passer, `--apply` le fait après une sauvegarde, `--rollback` revient en arrière.
+Il faut Node 22.13 ou plus récent.
+Voir [passer de la 1.5 à la 2.0](../guide/passer-a-la-2-0.md).
+
+Ce qui change sans que tu le demandes :
+
+- le réglage « Quand Claude propose de garder quelque chose » passe à « à la fin
+  de la session » (`okb settings set suggest.mode live` pour l'ancien réglage) ;
+- « À valider » s'ouvre sur tout ce qui attend ;
+- chaque cerveau est rangé dans l'espace Travail, sauf un cerveau « carrière »
+  qui va dans Mon bagage ;
+- l'ancienne interface (`/classic`) est retirée.
+
+## Ce qui n'est pas dans la 2.0
+
+- Le partage à plusieurs (2.1), les lectures « plus simple, plus technique »
+  (2.2), l'assistant dans l'application (2.3), le quotidien du développeur (2.4),
+  l'application installable (3.0).
+- Les tickets du module développeur restent dans leurs fichiers.
+
+## La porte de la 2.0
+
+La 2.0 est construite ; sa porte reste à passer, et elle ne se passe qu'à l'usage :
+
+- s'en servir chaque jour de travail pendant un mois, sans rien perdre ;
+- retrouver « ce que j'ai fait mardi » en dix secondes ;
+- moins de trois minutes d'entretien par jour.
+
+`okb metrics` mesure les deux derniers points sur ton propre cerveau.
+
+Le détail suit, thème par thème.
+
+## La confiance d'abord
 
 - **Une seule porte vers l'IA.** Traduire, « Demander » et l'examen d'un repo passent
   par le même contrôle :
@@ -33,7 +77,7 @@ Ces notes grandissent à chaque itération.
 
 Décision : D56. Vérification : `npm run release:check` (676 tests).
 
-## Itération 2 — la vitesse sur un gros cerveau
+## La vitesse sur un gros cerveau
 
 OKB ne relit plus toutes tes notes à chaque clic : il garde ce qu'il a lu et ne
 relit que les notes qui ont changé. Sur un cerveau fictif de 4 715 notes :
@@ -53,7 +97,7 @@ Pour mesurer toi-même : `npm run bench:speed` (sans IA, sans token).
 
 Décision : D57.
 
-## Itération 3 — un seul moteur
+## Un seul moteur
 
 - **Les mêmes réponses partout.** Une recherche donne les mêmes notes, dans le même
   ordre, que tu la fasses dans l'application ou le terminal. La recherche du
@@ -67,7 +111,7 @@ Décision : D57.
 - **Une demande mal formée** est refusée avec le nom du champ en cause.
 
 Décision : D58.
-## Itération 4 — le grand ménage
+## Le grand ménage
 
 L'application garde son apparence (le thème Atelier), mais elle est rangée autrement.
 
@@ -91,7 +135,7 @@ L'application garde son apparence (le thème Atelier), mais elle est rangée aut
 
 Décision : D59.
 
-## Itération 5 — garder le fil
+## Garder le fil
 
 - **Les projets.** Un projet, c'est ce sur quoi tu travailles. Il dit où il en est en
   une phrase et sa prochaine étape. Tu en crées un pour un sujet ; avec le module
@@ -115,7 +159,7 @@ Décision : D59.
 (`okb.db`), dans le dossier d'état de ton profil, pas dans tes notes.
 Voir [projets, actions et journal](../guide/projets.md).
 
-## Itération 6 — capturer et écrire
+## Capturer et écrire
 
 - **Les documents.** Un PDF, une présentation, un mail, une photo : OKB garde le
   fichier tel quel, sans jamais le modifier, et lit son texte pour que la
@@ -140,7 +184,7 @@ la fin de la session » par défaut. Pour retrouver la proposition immédiate :
 Voir [les documents](../guide/documents.md) et
 [rien n'est écrit sans ton oui](../guide/demander-avant-ecrire.md).
 
-## Itération 7 — les espaces et le oui
+## Les espaces et le oui
 
 - **Deux espaces qui ne se mélangent jamais.** **Mon bagage** : ce qui t'appartient
   et te suit toute ta vie. **Travail** : les notes d'un employeur ou d'un client.
@@ -160,7 +204,7 @@ Voir [les documents](../guide/documents.md) et
 qui va dans Mon bagage. Pour changer : Réglages › Espace de ce cerveau.
 Voir [deux espaces](../guide/espaces.md).
 
-## Itération 8 — durer
+## Durer
 
 - **Une sauvegarde qui ramène tout.** Chaque jour : tes notes, tes documents, tes
   projets, tes actions, ton journal, tes révisions et tes réglages. Aujourd'hui

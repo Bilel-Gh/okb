@@ -402,7 +402,7 @@ export const FR: Record<keyof typeof EN, string> = {
   'settings.groupHint.advanced': 'pour experts',
   'settings.label.ui.language': 'Langue d’OKB (menus et messages)',
   'settings.label.writing.language': 'Langue de rédaction des notes',
-  'settings.label.profile.displayName': 'Nom de la KB',
+  'settings.label.profile.displayName': 'Nom de ce cerveau',
   'settings.label.writing.preset': 'Style d’écriture',
   'settings.label.reader.level': 'Ton niveau',
   'settings.label.kb.requireTemplate': 'Chaque note suit un modèle',
@@ -444,7 +444,7 @@ export const FR: Record<keyof typeof EN, string> = {
   'settings.hint.agents.model.haiku': 'le moins cher, pour les sources simples',
   'settings.hint.agents.model.opus': 'le plus fort',
   'settings.explain.agents.model': 'Les sous-agents qui lisent les longues sources et le code d’un repo, et rapportent des faits cités. La rédaction des notes et le relecteur des preuves gardent toujours le modèle de ta session. Réglage propre à cet ordinateur : au travail, laisse « Comme la session » si ton accès ne propose pas tous les modèles.',
-  'settings.explain.routing.otherKnowledgeTools': 'Les noms d’autres bases de connaissances ou d’agents (la KB d’un agent support, un wiki). OKB n’y touche jamais, et demande laquelle tu veux dire quand un message pourrait les concerner.',
+  'settings.explain.routing.otherKnowledgeTools': 'Les noms d’autres bases de connaissances ou d’agents (la base d’un agent support, un wiki). OKB n’y touche jamais, et demande laquelle tu veux dire quand un message pourrait les concerner.',
   'settings.explain.focus.sessionStart': 'Au début de chaque session Claude, ta note de focus et la dernière « prochaine fois » sont données à Claude.',
 
   // ---------- kb ----------
@@ -1341,8 +1341,8 @@ export const FR: Record<keyof typeof EN, string> = {
   "repo.next.integrate": "Dans Claude : /okb-dev:onboard intègre les réponses dans les notes",
   "repo.next.refresh": "Dans Claude : /okb-dev:onboard refresh (met à jour les notes dépassées)",
   "repo.next.ticket": "Dans Claude : /okb-dev:ticket (enrichit la KB du repo avec ce travail)",
-  "settings.label.kb.confidential": "KB confidentielle (reste sur cet ordinateur)",
-  "settings.explain.kb.confidential": "Pour le code d’entreprise et le travail client : pas de lecture web, pas de dépôt GitHub créé par OKB, et okb doctor prévient si le dossier est synchronisé par un cloud ou si la KB a un remote.",
+  "settings.label.kb.confidential": "Cerveau confidentiel (reste sur cet ordinateur)",
+  "settings.explain.kb.confidential": "Pour le code d’entreprise et le travail client : pas de lecture web, pas de dépôt GitHub créé par OKB, et okb doctor prévient si le dossier est synchronisé par un cloud ou si ses notes ont un dépôt distant.",
   "doctor.check.kb-private": "Confidentialité",
   "doctor.private.ok": "en local seulement : pas de dossier cloud, pas de remote Git",
   "doctor.private.synced": "le dossier est synchronisé par {where}",

@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { OkbError } from '../util/errors.js';
 
 /**
  * Read-only Git access for code repositories OKB documents. Nothing here
@@ -21,10 +22,25 @@ async function attempt(root: string, args: readonly string[], options: { maxBuff
   try { return await git(root, args, options); } catch { return null; }
 }
 
-/** The top of the working tree containing `dir`, or null outside Git. */
-export async function gitRoot(dir: string): Promise<string | null> {
-  const out = await attempt(dir, ['rev-parse', '--show-toplevel'], { timeout: 5000 });
-  return out ? resolve(out.trim()) : null;
+const timedOut = (error: unknown) => (error as { killed?: boolean }).killed === true || (error as { code?: string }).code === 'ETIMEDOUT';
+
+/**
+ * The top of the working tree containing `dir`, or null outside Git. A Git that
+ * is slow to answer (a busy machine, a cold disk) is not « outside Git »: OKB
+ * waits a second time, longer. If Git still does not answer, `strict` says so
+ * (`gitSlow`) where a wrong « not a repository » would mislead; elsewhere the
+ * answer is only a hint, and no repository is assumed.
+ */
+export async function gitRoot(dir: string, options: { strict?: boolean; timeout?: number; patience?: number } = {}): Promise<string | null> {
+  for (const timeout of [options.timeout ?? 5000, options.patience ?? 20_000]) {
+    try {
+      return resolve((await git(dir, ['rev-parse', '--show-toplevel'], { timeout })).trim());
+    } catch (error) {
+      if (!timedOut(error)) return null;
+    }
+  }
+  if (options.strict) throw new OkbError('E_IO', `Git did not answer in time for ${dir}`, { key: 'gitSlow', params: { path: dir } });
+  return null;
 }
 
 /** Remote URL without credentials, query or fragment: `https://user:token@host/x.git` → `https://host/x.git`. */

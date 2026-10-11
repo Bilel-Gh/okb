@@ -1,4 +1,4 @@
-# OKB — Open Knowledge Brain · 1.5.0
+# OKB — Open Knowledge Brain · 2.0.0
 
 **A local second brain for Claude Code and Obsidian, where nothing enters your
 notes without your approval.**
@@ -12,6 +12,39 @@ of plain Markdown files on your computer, that you open in Obsidian or in the we
 **En français :** [démarrer](DEMARRER.md) · [guide d’utilisation](docs/guide/README.md).
 
 ![The OKB web app: home](docs/images/web-home.png)
+
+## Version 2.0: a second brain you can trust with your work
+
+- **Five screens** instead of thirteen destinations — Today, Projects, Memory,
+  Assistant, Progress — with search (⌘K), “Keep this” (⌘J) and “To decide” at the
+  top of each, and simple words everywhere.
+- **Keeping the thread**: projects that say where they stand, actions and what
+  you wait for (spotted in a line you type, no AI), a journal by day and by
+  project, “where I was” when you leave a project, and “what I did on Tuesday”
+  one keystroke away.
+- **Documents kept as they are** (a PDF, a slide deck, a mail, a photo), found by
+  a word of their text; a padlock hides one from assistants.
+- **Two spaces that never mix**, “My baggage” (yours for life) and “Work”; “Keep
+  in my baggage” carries a lesson across with no detail of the workplace.
+- ✨ **A proportional yes**: what you write passes at once; what an assistant
+  prepared waits in one place where you say “yes to all, except…”, with one
+  confirmation. Claude no longer interrupts: what it spots is offered at the end
+  of the session, three things at most.
+- **One engine** for the app, the terminal and assistants (`okb mcp` for Claude
+  Code, Codex, Copilot or Cursor): the same rules, the same answers.
+- **Built to last**: operational state in SQLite, a daily snapshot of everything
+  and a restore that is really tried (`okb backup drill`), a dry-run migration
+  from 1.5 with a way back (`okb migrate 2.0`), four honest indicators kept
+  apart, journeys run in a real browser.
+- **Fast on a big brain**: a repeated search on 4,700 notes went from 4 s to 0.08 s.
+
+Coming from 1.5: your notes are never touched. See
+[passer de la 1.5 à la 2.0](docs/guide/passer-a-la-2-0.md).
+Details: [release notes 2.0.0](docs/releases/RELEASE-2.0.0.md) · guides (FR):
+[l’application](docs/guide/application-web.md),
+[projets, actions et journal](docs/guide/projets.md),
+[les documents](docs/guide/documents.md), [les espaces](docs/guide/espaces.md),
+[brancher un assistant (MCP)](docs/guide/assistants-mcp.md).
 
 ## Version 1.5: the web app becomes the product
 

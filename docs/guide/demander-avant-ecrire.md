@@ -62,6 +62,8 @@ rien écrire :
 
 ## Oui à tout, sauf…
 
+![À valider : tout ce qui attend, coché, et un seul bouton pour dire oui au reste](../images/web-validate.png)
+
 **À valider** s'ouvre sur tout ce qui attend : les notes que Claude propose
 d'écrire, avec leur coût, et les changements prêts. Tout est coché.
 

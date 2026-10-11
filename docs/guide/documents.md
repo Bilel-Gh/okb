@@ -4,6 +4,8 @@ Un devis en PDF, une présentation, un mail, une photo de tableau : tu veux le
 retrouver, pas le recopier. OKB le garde **tel quel** et lit son texte pour que
 la recherche le retrouve.
 
+![Mémoire › Documents : les fichiers gardés tels quels, avec leur recherche](../images/web-documents.png)
+
 ## Garder un fichier
 
 | Où | Comment |
