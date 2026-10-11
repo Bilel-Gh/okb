@@ -140,3 +140,32 @@ export async function cmdToday(ctx: Ctx): Promise<number> {
   if (day.understand) ctx.out.line(t('today.understand', { title: day.understand.title }));
   return 0;
 }
+
+/** `okb doc` — the files kept as they are: `add <file>`, the list, `find <words>`. */
+export async function cmdDoc(ctx: Ctx): Promise<number> {
+  const c = await context(ctx);
+  const [sub = 'list', ...rest] = ctx.args.positionals;
+  const project = flagString(ctx.args, 'project') ? (await resolve(c, flagString(ctx.args, 'project'))).id : undefined;
+  switch (sub) {
+    case 'add': case 'keep': {
+      const { resolve: abs } = await import('node:path');
+      const kept = await invoke('documents.add', { file: abs(rest.join(' ')), ...opt(ctx, ['title']), ...(project ? { project } : {}) }, c);
+      if (ctx.mode === 'json') ctx.out.json({ ok: true, ...kept });
+      else ctx.out.ok(t(kept.created ? 'doc.kept' : 'doc.already', { title: kept.document.title, path: kept.document.path }));
+      if (ctx.mode !== 'json' && !kept.document.textRead) ctx.out.info(t('doc.noText'));
+      return 0;
+    }
+    case 'list': case 'ls': case 'find': {
+      const { documents } = await invoke('documents.list', { ...(project ? { project } : {}), ...(sub === 'find' && rest.length ? { query: rest.join(' ') } : {}) }, c);
+      if (ctx.mode === 'json') { ctx.out.json({ ok: true, documents }); return 0; }
+      if (!documents.length) { ctx.out.info(t('doc.none')); return 0; }
+      for (const d of documents) {
+        ctx.out.line(`📎 ${paint.bold(d.title)}  ${paint.dim(`${d.id} · ${d.path}`)}`);
+        if (d.snippet) ctx.out.line(paint.dim(`   ${d.snippet}`));
+      }
+      return 0;
+    }
+    default:
+      throw new OkbError('E_INVALID', `unknown doc command "${sub}"`, { hint: 'okb doc [list | add <fichier> | find <mots>]' });
+  }
+}

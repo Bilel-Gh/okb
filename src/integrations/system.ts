@@ -181,6 +181,25 @@ export function openExternal(target: string): Promise<boolean> {
   });
 }
 
+/**
+ * Open a file with the application the computer uses for it. The path goes to
+ * the system as one argument, never through a shell (a file name is the
+ * person's data). `OKB_NO_OPEN=1` starts nothing: a machine without a screen.
+ */
+export function openFile(path: string, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  if (env.OKB_NO_OPEN === '1') return Promise.resolve(false);
+  const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer.exe' : 'xdg-open';
+  return new Promise((done) => {
+    try {
+      const child = spawn(cmd, [path], { stdio: 'ignore', detached: true });
+      child.on('error', () => done(false));
+      child.on('spawn', () => { child.unref(); done(true); });
+    } catch {
+      done(false);
+    }
+  });
+}
+
 /** Is Obsidian installed on this machine? (Used to prefer obsidian:// links.) */
 export async function obsidianInstalled(): Promise<boolean> {
   if (process.platform === 'darwin') return access('/Applications/Obsidian.app').then(() => true, () => false);

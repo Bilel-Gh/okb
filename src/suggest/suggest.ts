@@ -56,6 +56,8 @@ export type Suggestion = {
   readonly decidedPerson?: string;
   readonly proposalIds?: readonly string[];
   readonly shownAt?: string;
+  /** « Pas maintenant »: not offered again in a conversation before this date (it waits in the app). */
+  readonly laterUntil?: string;
 };
 
 type Queue = { version: 1; items: Suggestion[] };
@@ -232,10 +234,26 @@ export async function setStatus(config: OkbConfig, id: string, status: Suggestio
     const who = by ? await person(env).catch(() => null) : null;
     const next: Suggestion = {
       ...found, status, decidedAt: new Date().toISOString(), ...(by ? { decidedBy: by } : {}), ...(who ? { decidedPerson: who.id } : {}),
+      ...(status === 'later' ? { laterUntil: new Date(Date.now() + LATER_DAYS * DAY).toISOString() } : {}),
       ...(proposalId ? { proposalIds: [...(found.proposalIds ?? []), proposalId] } : {}),
     };
     await saveQueue(config, queue.map((s) => (s === found ? next : s)));
     return next;
+  });
+}
+
+/** How long « pas maintenant » holds. */
+export const LATER_DAYS = 7;
+
+/** « Pas maintenant » for several cards at once (the grouped question at the end of a session). */
+export async function snooze(config: OkbConfig, ids: readonly string[], now = new Date(), env: NodeJS.ProcessEnv = process.env): Promise<void> {
+  if (!ids.length) return;
+  await withStateLock(file(config), async () => {
+    const who = await person(env).catch(() => null);
+    const until = new Date(now.getTime() + LATER_DAYS * DAY).toISOString();
+    const queue = await loadQueue(config, now);
+    await saveQueue(config, queue.map((s) => (ids.includes(s.id) && s.status === 'pending'
+      ? { ...s, status: 'later' as const, decidedAt: now.toISOString(), decidedBy: 'person' as const, laterUntil: until, ...(who ? { decidedPerson: who.id } : {}) } : s)));
   });
 }
 

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Command } from 'cmdk';
-import { ArrowRight, MessageCircleQuestion, Monitor, Moon, PanelLeft, Palette as PaletteIcon, Sun } from 'lucide-react';
+import { ArrowRight, MessageCircleQuestion, Monitor, Moon, PanelLeft, Palette as PaletteIcon, Paperclip, Sun } from 'lucide-react';
 import { useEffect, useState, type CSSProperties, type ReactElement } from 'react';
-import { get } from './api';
+import { get, post } from './api';
 import { useCategories, useNotes } from './data';
 import { useT } from './i18n';
 import { NAV, PLACES } from './nav';
@@ -13,7 +13,7 @@ import { CatIcon } from '../ui/CatMark';
 import { TypeMark } from '../ui/TypeMark';
 
 type FindHit = { path: string; title: string; type: string; crumbs: string[]; snippet: string; status: string };
-type Find = { hits: FindHit[]; best: FindHit | null };
+type Find = { hits: FindHit[]; best: FindHit | null; documents?: { id: string; title: string; snippet: string }[] };
 
 /** One debounce for the search box: the server search is fast, but not every keystroke needs it. */
 function useDebounced<T>(value: T, ms: number): T {
@@ -73,6 +73,17 @@ export function Palette({ open, onOpenChange, appearance, devOn }: { open: boole
             <Command.Item value={`all:${query}`} onSelect={() => pick({ name: 'brain', query: { q: query } })}>
               <ArrowRight size={16} aria-hidden="true" />{t('app.search.all', { q: query })}
             </Command.Item>
+          </Command.Group>
+        ) : null}
+        {query.length > 1 && find.data?.documents?.length ? (
+          <Command.Group heading={t('app.memory.documents')}>
+            {find.data.documents.map((d) => (
+              <Command.Item key={d.id} value={`doc:${d.id}`} onSelect={() => { onOpenChange(false); post('/api/document/open', { id: d.id }).catch(() => undefined); }}>
+                <Paperclip size={16} aria-hidden="true" />
+                <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</span>
+                <span className="hint">{d.snippet.slice(0, 48)}</span>
+              </Command.Item>
+            ))}
           </Command.Group>
         ) : null}
         {shownPages.length ? (

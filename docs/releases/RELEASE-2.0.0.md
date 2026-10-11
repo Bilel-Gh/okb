@@ -115,4 +115,29 @@ Décision : D59.
 (`okb.db`), dans le dossier d'état de ton profil, pas dans tes notes.
 Voir [projets, actions et journal](../guide/projets.md).
 
+## Itération 6 — capturer et écrire
+
+- **Les documents.** Un PDF, une présentation, un mail, une photo : OKB garde le
+  fichier tel quel, sans jamais le modifier, et lit son texte pour que la
+  recherche le retrouve. Tu le déposes dans **Mémoire › Documents**, dans un
+  projet, ou avec **Garde ça › Joindre un fichier**. Dans le terminal : `okb doc`.
+- **Un cadenas par document** : un document 🔒 est caché à Claude et aux assistants.
+  Eux peuvent chercher dans tes documents, pas en garder ni en modifier.
+- **Le style et la longueur**, en mots simples : technique, normal ou simplifié ;
+  courte, normale ou détaillée. Chaque type de note a sa longueur : un concept est
+  court, un guide détaillé, une décision courte avec son pourquoi, un compte rendu
+  normal. Tu changes ces défauts dans les réglages.
+- **Les moments repérés.** OKB repère six moments sans IA : une longue explication
+  demandée, la même question deux fois, un bug résolu après plusieurs essais, une
+  décision, une commande découverte, une erreur et sa cause.
+- **Claude n'interrompt plus.** Ce qui est repéré attend la fin de la session : une
+  seule question, **trois choses au plus**. « Pas maintenant » est retenu : les
+  cartes attendent dans l'application et Claude n'en reparle pas avant une semaine.
+
+À savoir : le réglage « Quand Claude propose de garder quelque chose » passe à « à
+la fin de la session » par défaut. Pour retrouver la proposition immédiate :
+`okb settings set suggest.mode live`.
+Voir [les documents](../guide/documents.md) et
+[rien n'est écrit sans ton oui](../guide/demander-avant-ecrire.md).
+
 Décision : D60.

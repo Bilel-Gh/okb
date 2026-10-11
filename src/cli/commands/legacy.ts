@@ -30,6 +30,7 @@ import { parseConceptAssist, runSetup, switchProfile, CONCEPT_ASSIST_HELP } from
 import { renderBrief } from '../../style/brief.js';
 import { PRESETS } from '../../style/presets.js';
 import { resolveStyle } from '../../style/resolve.js';
+import { lengthOf, styleOf, typeDefaults } from '../../style/simple.js';
 import { proposeRevision } from '../../revise/revise.js';
 import { getTemplate, loadTemplates, pick, renderSkeleton, renderTemplateGuide } from '../../templates/registry.js';
 import { statePaths } from '../../state/paths.js';
@@ -159,9 +160,14 @@ export async function cmdConfig(args: ParsedArgs, out: Output, mode: OutputMode)
  * reported back for the dossier and never written to the profile.
  */
 function styleRequest(args: ParsedArgs) {
+  // « --style simplifié --length courte » are the simple words for a preset and the detail knob.
+  const style = flagString(args, 'style');
+  const length = flagString(args, 'length');
+  const preset = flagString(args, 'preset') ?? (style ? styleOf(style) : undefined);
   return {
-    ...(flagString(args, 'preset') ? { preset: flagString(args, 'preset')! } : {}),
-    set: flagList(args, 'set'),
+    ...(preset ? { preset } : {}),
+    set: [...flagList(args, 'set'), ...(length ? [`detail=${lengthOf(length)}`] : [])],
+    ...(flagString(args, 'type') ? { type: flagString(args, 'type')! } : {}),
     notes: flagValues(args, 'note'),
     ...(flagString(args, 'domain') ? { domain: flagString(args, 'domain')! } : {}),
     ...(flagString(args, 'reader') ? { reader: flagString(args, 'reader')! } : {}),
@@ -181,7 +187,16 @@ export async function cmdStyle(args: ParsedArgs, out: Output, mode: OutputMode):
     }
     return 0;
   }
-  if (args.positionals.length > 0) throw new OkbError('E_INVALID', `unknown subcommand "${args.positionals[0]}"`, { hint: 'okb style [presets] [--preset p] [--set knob=value] [--note text] [--domain d]' });
+  if (args.positionals[0] === 'types') {
+    const types = typeDefaults((await effective(args)).config);
+    if (mode === 'json') {
+      out.json({ ok: true, types });
+      return 0;
+    }
+    out.grid(types.map((k) => [k.type, k.preset, k.detail, k.changed ? '*' : '']));
+    return 0;
+  }
+  if (args.positionals.length > 0) throw new OkbError('E_INVALID', `unknown subcommand "${args.positionals[0]}"`, { hint: 'okb style [presets | types] [--type <kind>] [--style technique|normal|simplifié] [--length courte|normale|détaillée] [--set knob=value] [--note text] [--domain d]' });
   const { config } = await effective(args);
   const resolved = resolveStyle(config, styleRequest(args));
   const brief = renderBrief(resolved);
@@ -189,7 +204,7 @@ export async function cmdStyle(args: ParsedArgs, out: Output, mode: OutputMode):
   const draftDir = resolve(config.stateHome, 'drafts');
   await ensureDir(draftDir);
   if (mode === 'json') {
-    out.json({ ok: true, style: resolved.style, reader: resolved.reader, conceptAssist: resolved.conceptAssist, adjustments: resolved.adjustments, persisted: false, draftDir, brief });
+    out.json({ ok: true, style: resolved.style, type: resolved.type, reader: resolved.reader, conceptAssist: resolved.conceptAssist, adjustments: resolved.adjustments, persisted: false, draftDir, brief });
     return 0;
   }
   out.line(brief.trimEnd());

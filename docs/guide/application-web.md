@@ -20,14 +20,14 @@ adresse, que tu peux garder en favori.
 |---|---|
 | **Aujourd’hui** | l’accueil : ce qui attend ton oui, reprendre une note, ce qui est utile maintenant, ta progression, réviser. Onglets **Focus et journal** (ta note de focus, finir une session, le journal) et **Revue de la semaine** (pas à pas) |
 | **Projets** | ce sur quoi tu travailles. Un projet dit **où il en est** en une phrase et sa **prochaine étape**. Tu crées un projet pour un sujet (un cours, une mission, un événement). Avec le module développeur, tes **tickets** et tes **repos** deviennent des projets tout seuls, et les onglets **Repos** (niveau de connaissance, fiche d’un repo) et **Architecture** (calculée depuis le code) apparaissent |
-| **Mémoire** | tes notes. Onglet **Notes** : l’explorateur en trois colonnes (détails plus bas). Onglet **Graphe** : toutes les notes et leurs liens, ou le cerveau **vu d’en haut** ([détails](graphe-et-categories.md)). Le graphe montre aussi les notes **à ranger** : celles qui sont hors des tiroirs, et celles que rien ne relie aux autres |
+| **Mémoire** | tes notes. Onglet **Notes** : l’explorateur en trois colonnes (détails plus bas). Onglet **Graphe** : toutes les notes et leurs liens, ou le cerveau **vu d’en haut** ([détails](graphe-et-categories.md)). Le graphe montre aussi les notes **à ranger** : celles qui sont hors des tiroirs, et celles que rien ne relie aux autres. Onglet **Documents** : les fichiers gardés tels quels, avec leur recherche ([détails](documents.md)) |
 | **Assistant** | onglet **Demander** : une question, les passages de tes notes qui répondent, et sur ton clic une réponse rédigée qui cite chaque passage. Onglet **Dans ton terminal** : brancher OKB sur Claude Code |
 | **Progresser** | **Réviser** les cartes (Révéler, puis 1 à 4), ta **Progression** (niveau et badges), ta **Carrière** |
 
 En haut de chaque écran :
 
 - **Chercher** (⌘K) ;
-- **Garde ça** (⌘J) : une ligne que tu écris est gardée tout de suite dans tes captures ;
+- **Garde ça** (⌘J) : une ligne que tu écris est gardée tout de suite, dans le journal du projet choisi ou dans tes captures ; **Joindre un fichier** garde un document tel quel ;
 - **À valider**, avec le nombre de choses qui attendent ton oui : les **notes à écrire** que Claude propose (Accepter, Plus tard, Non merci), les **changements prêts** à relire, les **captures** à trier, l’**historique** (annuler le dernier).
 
 En bas de la barre, le menu **Plus** range ce qui n’est pas quotidien :

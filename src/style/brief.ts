@@ -13,7 +13,7 @@ export function renderBrief(effective: EffectiveStyle): string {
   const s = effective.style;
   const lines: string[] = [];
 
-  const adjusted = effective.adjustments.map((a) => `${a.key}=${a.value}${a.from === 'request' ? ` (${t.oneOff})` : ''}`);
+  const adjusted = effective.adjustments.map((a) => `${a.key}=${a.value}${a.from === 'request' ? ` (${t.oneOff})` : a.from === 'type' ? ` (${t.forKind})` : ''}`);
   lines.push(`# ${t.title} — preset « ${s.preset} »${adjusted.length ? ` · ${adjusted.join(', ')}` : ''}`, '');
   const domain = effective.reader.domain ? ` (${t.domain} « ${effective.reader.domain} »)` : '';
   const c = t.colon;
@@ -24,6 +24,7 @@ export function renderBrief(effective: EffectiveStyle): string {
   lines.push(`- ${t.tone[s.tone]}`);
   lines.push(`- ${t.readerHint[effective.reader.level]}`);
   lines.push(`- ${t.detail[s.detail]}`);
+  if (effective.type) lines.push(`- ${t.kind.replace('{type}', effective.type)}${t.kindHints[effective.type] ? ` ${t.kindHints[effective.type]}` : ''}`);
   if (s.defineTerms === 'inline') lines.push(`- ${t.defineInline}`);
   if (effective.conceptAssist.knownTerms.length) lines.push(`- ${t.known} ${effective.conceptAssist.knownTerms.join(', ')}.`);
   lines.push(`- ${t.examples[s.examples]}`);
@@ -41,7 +42,7 @@ export function renderBrief(effective: EffectiveStyle): string {
 }
 
 type Words = {
-  colon: string; title: string; oneOff: string; domain: string; language: string; reader: string; conceptAssist: string; how: string;
+  colon: string; title: string; oneOff: string; forKind: string; kind: string; kindHints: Record<string, string>; domain: string; language: string; reader: string; conceptAssist: string; how: string;
   levels: Record<'beginner' | 'intermediate' | 'expert', string>;
   readerHint: Record<'beginner' | 'intermediate' | 'expert', string>;
   progression: Record<'usage-first' | 'reference', string>;
@@ -56,7 +57,8 @@ type Words = {
 };
 
 const FR: Words = {
-  colon: ' : ', title: 'Style de rédaction', oneOff: 'ponctuel', domain: 'domaine', language: 'Langue', reader: 'Lecteur', conceptAssist: 'Aide aux concepts', how: 'Comment écrire',
+  colon: ' : ', title: 'Style de rédaction', oneOff: 'ponctuel', forKind: 'ce type de note', kind: 'Tu écris une note de type « {type} » : la longueur ci-dessus est celle de ce type.',
+  kindHints: { decision: 'Même courte, une décision garde son pourquoi : le contexte, le choix et sa raison.' }, domain: 'domaine', language: 'Langue', reader: 'Lecteur', conceptAssist: 'Aide aux concepts', how: 'Comment écrire',
   levels: { beginner: 'débutant', intermediate: 'intermédiaire', expert: 'expert' },
   readerHint: {
     beginner: 'Ne suppose aucune connaissance du domaine : explique le « pourquoi » avant le « comment ».',
@@ -110,7 +112,8 @@ const FR: Words = {
 };
 
 const EN: Words = {
-  colon: ': ', title: 'Writing style', oneOff: 'one-off', domain: 'domain', language: 'Language', reader: 'Reader', conceptAssist: 'Concept assist', how: 'How to write',
+  colon: ': ', title: 'Writing style', oneOff: 'one-off', forKind: 'this kind of note', kind: 'You are writing a note of kind “{type}”: the length above is the one of this kind.',
+  kindHints: { decision: 'Even short, a decision keeps its why: the context, the choice and its reason.' }, domain: 'domain', language: 'Language', reader: 'Reader', conceptAssist: 'Concept assist', how: 'How to write',
   levels: { beginner: 'beginner', intermediate: 'intermediate', expert: 'expert' },
   readerHint: {
     beginner: 'Assume no domain knowledge: explain the "why" before the "how".',

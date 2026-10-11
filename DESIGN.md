@@ -42,7 +42,7 @@ the right screen (`web-app/src/app/router.ts`).
 |---|---|
 | Aujourd’hui | the day · Focus et journal (focus note, end a session, journal) · Revue de la semaine |
 | Projets | the projects (where each stands, its next step) · with the developer module: Repos (level of knowledge, a repository's page) · Architecture |
-| Mémoire | Notes: the explorer (folders or types as a foldable tree, the grouped list, the note or the folder's page) · Graphe: every note by theme, type or folder, the brain seen from above, the notes to tidy |
+| Mémoire | Notes: the explorer (folders or types as a foldable tree, the grouped list, the note or the folder's page) · Graphe: every note by theme, type or folder, the brain seen from above, the notes to tidy · Documents: the files kept as they are (a search field, rows with the file's icon, its project, size and date, the passage found; a padlock and « open » on each row) |
 | Assistant | Demander: the passages that answer, then an answer that cites them · Dans ton terminal: OKB in Claude Code |
 | Progresser | Réviser · Progression (level, badges) · Carrière |
 

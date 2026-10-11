@@ -33,8 +33,11 @@ tickets, commits, meetings): three short lists, **Hier** · **Aujourd'hui** ·
 1. From this conversation only: `summary` (one line), `did` (1–5 facts),
    `decided` (with reasons), `keep` (0–5 things worth a note), `next` (the next action).
 2. Write it at once: JSON in a temp file, `okb done --from-file <file>`.
-3. For each `keep` item, a suggestion card (`okb suggest add … --source session`);
-   then `okb suggest list` as one multi-select: the user picks what gets written.
+3. What OKB spotted in the session: `okb suggest session --json` (three things
+   at most). Add a card for a `keep` item it missed only while fewer than three
+   are offered (`okb suggest add … --source session`). Then ONE multi-select
+   with « Pas maintenant » last: the user picks what gets written; on « Pas
+   maintenant », `okb suggest later --session <id>` (`okb-capture` §3).
 4. Five lines at most: journal written, next time, suggestions accepted.
 
 ## Weekly review — about 20 minutes

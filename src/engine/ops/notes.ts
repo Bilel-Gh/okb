@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { listDocuments } from '../../documents/documents.js';
 import { findNotes, recordEmpty, type FindHit, type FindResult } from '../../find/find.js';
 import { loadBundleFor } from '../../kb/bundle.js';
 import { provenanceOf } from '../../kb/provenance.js';
@@ -26,7 +27,7 @@ export const notesFind = defineOperation({
     status: z.enum(['draft', 'stable', 'deprecated']).optional(),
     final: z.boolean().default(false).describe('The search is finished (not a keystroke): an empty one is remembered as a gap, the first hits count as read.'),
   }).strict(),
-  async run({ config, actor }, input): Promise<FindResult & { hits: (FindHit & { stars: number | null })[] }> {
+  async run({ config, env, actor }, input): Promise<FindResult & { hits: (FindHit & { stars: number | null })[]; documents: { id: string; title: string; path: string; snippet: string; projectId: string | null }[] }> {
     const bundle = await loadBundleFor(config);
     const scores = await scoresFor(config, bundle);
     const { query, limit, final, ...filters } = input;
@@ -41,7 +42,9 @@ export const notesFind = defineOperation({
       if (!result.hits.length) await recordEmpty(config, query);
       for (const h of result.hits.slice(0, 3)) await noteEvent(config, h.path, 'search');
     }
-    return { ...result, hits: result.hits.map((h) => ({ ...h, stars: scores.get(h.path)?.stars ?? null })) };
+    // The documents kept in the space answer too: files as they are, found by their text.
+    const documents = (await listDocuments(config, env, { query, limit: 5, includeSecret: actor === 'person' })).map((d) => ({ id: d.id, title: d.title, path: d.path, snippet: d.snippet, projectId: d.projectId }));
+    return { ...result, hits: result.hits.map((h) => ({ ...h, stars: scores.get(h.path)?.stars ?? null })), documents };
   },
 });
 

@@ -8,7 +8,7 @@ import { canAsk, effective, type Ctx } from './common.js';
 
 const GROUPS: readonly SettingGroup[] = ['language', 'writing', 'help', 'memory', 'history', 'assistant', 'advanced'];
 
-/** A value as a person reads it: "Français", "Oui", "Pédagogique". */
+/** A value as a person reads it: "Français", "Oui", "Simplifié". */
 export function displayValue(def: SettingDef, value: unknown): string {
   if (def.type === 'bool') return value ? t('ui.yes') : t('ui.no');
   if (def.type === 'list') return (value as string[]).length ? (value as string[]).join(', ') : t('settings.none');

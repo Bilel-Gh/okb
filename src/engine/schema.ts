@@ -7,7 +7,7 @@ export type JsonSchema = { readonly [key: string]: unknown };
  * It covers the zod types operations use; any other type is refused, so an
  * operation cannot ship an input the assistants cannot read (tests/engine.test.ts).
  */
-export function jsonSchemaOf(schema: z.ZodTypeAny): JsonSchema & { type?: string } {
+export function jsonSchemaOf(schema: z.ZodTypeAny): JsonSchema & { type?: string | (string | undefined)[] } {
   const def = schema._def as { typeName: string; description?: string };
   const described = (out: JsonSchema) => (schema.description ? { ...out, description: schema.description } : out);
   switch (def.typeName) {
@@ -41,6 +41,10 @@ export function jsonSchemaOf(schema: z.ZodTypeAny): JsonSchema & { type?: string
       return described({ type: 'string', enum: [...(schema as z.ZodEnum<[string, ...string[]]>).options] });
     case 'ZodArray':
       return described({ type: 'array', items: jsonSchemaOf((schema as z.ZodArray<z.ZodTypeAny>).element) });
+    case 'ZodNullable': {
+      const inner = jsonSchemaOf((schema as z.ZodNullable<z.ZodTypeAny>).unwrap());
+      return described({ ...inner, type: [inner.type, 'null'] });
+    }
     case 'ZodOptional':
       return described(jsonSchemaOf((schema as z.ZodOptional<z.ZodTypeAny>).unwrap()));
     case 'ZodDefault': {

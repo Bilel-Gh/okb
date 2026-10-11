@@ -28,6 +28,8 @@ export type Operation<I = unknown, O = unknown> = {
   readonly id: string;
   readonly module: ModuleId;
   readonly effect: Effect;
+  /** False for what only the person does (keeping a file): not offered to the assistants. */
+  readonly agents?: boolean;
   /** One sentence for the assistants (the MCP tool description). */
   readonly summary: string;
   readonly input: z.ZodType<I, z.ZodTypeDef, unknown>;

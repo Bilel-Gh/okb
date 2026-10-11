@@ -235,6 +235,7 @@ okb doctor     # check everything; --fix repairs what it can
 | **Second-brain rituals** | Private inbox, weekly review with spaced re-reading (J+1, 7, 30, 90), active recall, focus note and end-of-session journal |
 | **Natural language** | A prompt hook recognises OKB requests in plain French or English and offers the matching command; it stays silent for other tools' knowledge bases |
 | **Keeping the thread** | Projects (where each stands, its next step), actions and what you wait for (spotted in a line you type, with its date, no AI), a journal by day and by project, “where I was” prepared when you leave a project, and a Today screen that answers six questions |
+| **Documents and writing** | A file kept as it is (a PDF, a slide deck, a mail, a photo) and found by a word of its text; a style (technical, normal, simplified) and a length (short, normal, detailed) with a default per kind of note; six moments spotted without AI and offered at the end of the session, three at most |
 | **Terminal assistants (MCP)** | `okb mcp` lets Claude Code, Codex, Copilot or Cursor search and read your notes and suggest new ones, with the same engine as the app and the CLI; 🔒 notes stay hidden and approval stays yours |
 | **Web app** | Local only; five screens (Today, Projects, Memory, Assistant, Progress), “Keep this” and “To decide” on every screen; light and dark themes, keyboard palette, readable on a phone |
 | **Errors that help** | Every error says what happened, why, and what to do; `okb explain <code>` |

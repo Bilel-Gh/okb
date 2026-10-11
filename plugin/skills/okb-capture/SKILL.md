@@ -18,13 +18,18 @@ costs almost nothing; writing costs tokens. A note can also be wrong to have:
 
 | Moment | Type (`okb brain types`) |
 |---|---|
-| they asked « c'est quoi X » and you explained | `concept` (a one-minute card) |
+| a long explanation they asked for (« c'est quoi X ») | `concept` (a one-minute card) |
+| the same question asked twice | `concept`, or `recipe` for a « comment faire » |
+| a bug solved after several tries; an error and its cause | `known-error`, a dated section of `repo-debug` |
+| a command discovered | `recipe` |
+| a decision taken, with its reason | `decision` |
 | « je savais pas », a surprising rule of the product | `business-rule`, `concept` |
-| a bug solved, a working command, a trap | `known-error`, `recipe`, a dated section of `repo-debug` |
 | a method that will serve again | `method` |
-| a decision with its reason | `decision` |
 | a meeting summarised | `meeting` |
 | several important terms with no card | `concept`, one card each |
+
+OKB spots the first five itself, without AI, at the end of your answers, and
+keeps them for the end of the session: do not offer them along the way.
 
 The elevator: a fact goes to the lowest level that holds it (repo2's trap → repo2);
 a lesson rises to the highest level where it stays true (a method → toolbox).
@@ -41,12 +46,14 @@ recommendation (create · complete <note> · link only · nothing), pertinence /
 and estimated cost. Show it as is, then the buttons
 « Créer (recommandé) » · « Compléter l'existante » · « Plus tard » · « Non ».
 
-- **At once** only when pertinence ≥ 80, at most once every ten exchanges, never twice
-  for the same thing; otherwise the card waits in the queue for the end of the
-  ticket or the session (`okb suggest list`). Respect `suggest.mode`.
+- **When**: at the end of the session, grouped (§3): three offers per session at
+  most, never twice for the same thing. Along the way, add the card and say
+  nothing — unless the person asked for the note, or OKB's own context tells you
+  to offer one now (`suggest.mode: live`).
 - **On « Créer »/« Compléter »**: `okb suggest accept <id> --json` (refused when the
-  daily budget is spent: say so and ask). It gives the template, the place and
-  the context command. Then:
+  daily budget is spent: say so and ask). It gives the template, the place, the
+  context command and the style command (`styleCommand`: the length and the style
+  of this kind of note; run it and follow its brief). Then:
   1. `okb brain context "<folder or note>" --json`: write consistently with the parents;
   2. save the material in a file of your scratch folder: their question, your
      explanation, and the files, lines and docs it rests on (that is the source);
@@ -57,12 +64,20 @@ and estimated cost. Show it as is, then the buttons
      --heading "…"`), `--suggestion <id>` and `--quality <justness>`;
   5. hand over to `okb-review`. The note arrives with its quality score.
 - **« Plus tard »** `okb suggest later <id>`; **« Non »** `okb suggest decline <id>`.
+  « Plus tard » is remembered: the card waits in the app and is not offered
+  again in a conversation for a week.
 
 ## 3. End of a ticket or a session
 
-`okb suggest list --json`: one multi-select question with each card's title,
-place and cost, and the total. Accept only the selected ones, then write them one
-by one as above.
+When the person closes the session (« merci, à demain », « fin de session »),
+OKB hands you what it spotted — or ask for it: `okb suggest session --json`
+(`cards`, and `toName`: moments the words did not name; make a card for each
+only if it really happened). Three things at most. Ask ONE multi-select
+question with each card's title, place and cost, the total, and « Pas
+maintenant » as the last option. Accept only the selected ones, then write them
+one by one as above. On « Pas maintenant »: `okb suggest later --session <id>`,
+and offer nothing else in this session. At the end of a ticket, the same with
+`okb suggest list --json`.
 
 ## 4. Quick capture and the inbox (no AI)
 

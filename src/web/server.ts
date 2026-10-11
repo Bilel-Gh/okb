@@ -107,7 +107,8 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
           if (req.headers['x-okb-token'] !== ctx.token) { json({ error: 'Missing or wrong session token.' }, 403); return; }
           if (!String(req.headers['content-type'] ?? '').startsWith('application/json')) { json({ error: 'JSON only.' }, 415); return; }
           // A pack carries a whole subject's notes: a larger body than any other request.
-          body = await readBody(req, url.pathname.startsWith('/api/packs/') ? 30_000_000 : 1_000_000);
+          // A pack or a document to keep is a whole file: they get more room than a form.
+          body = await readBody(req, url.pathname.startsWith('/api/packs/') || url.pathname === '/api/documents' ? 30_000_000 : 1_000_000);
         }
         json(await handler(ctx, url.searchParams, body));
         return;

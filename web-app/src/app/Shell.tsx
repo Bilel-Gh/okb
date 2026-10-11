@@ -2,6 +2,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CheckCheck, ChevronRight, ChevronsUpDown, Ellipsis, Menu, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Palette as PaletteIcon, Plus, Search, Sun } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { KeepFileButton } from '../ui/KeepFile';
 import { LOGOS, LogoMark, type LogoId } from '../ui/Logo';
 import { currentKb, currentSession, get, post } from './api';
 import { useT } from './i18n';
@@ -157,7 +158,8 @@ function Keep({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean
                 </select>
               </label>
             ) : null}
-            <div className="keep-foot"><span className="small muted">{t('app.keep.hint')}</span><button type="submit" className="btn primary sm" disabled={!text.trim() || busy}>{t('app.keep.save')}</button></div>
+            <div className="keep-foot"><KeepFileButton small label={t('app.keep.file')} {...(project ? { project } : {})} /><span className="spacer" /><button type="submit" className="btn primary sm" disabled={!text.trim() || busy}>{t('app.keep.save')}</button></div>
+            <p className="small muted keep-hint">{t('app.keep.hint')}</p>
           </form>
         </Popover.Content>
       </Popover.Portal>

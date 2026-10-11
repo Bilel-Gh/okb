@@ -1,5 +1,8 @@
+import { resolve } from 'node:path';
 import type { OkbConfig } from '../config/schema.js';
+import { getDocument } from '../documents/documents.js';
 import { invoke } from '../engine/registry.js';
+import { openFile } from '../integrations/system.js';
 
 /**
  * The routes of the 2.0's objects (projects, then actions and the journal):
@@ -31,5 +34,16 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
     'POST /api/action/update': op('actions.update', (_q, b) => pick(b, ['id', 'status', 'text', 'who', 'due'])),
     'GET /api/entries': op('journal.list', (q) => ({ ...fromQuery(q, ['project', 'day']), ...(q.get('limit') ? { limit: Number(q.get('limit')) } : {}) })),
     'POST /api/entries': op('journal.add', (_q, b) => pick(b, ['text', 'kind', 'project'])),
+    'GET /api/documents': op('documents.list', (q) => ({ ...fromQuery(q, ['project', 'query']), ...(q.get('limit') ? { limit: Number(q.get('limit')) } : {}) })),
+    'POST /api/documents': op('documents.add', (_q, b) => pick(b, ['name', 'data', 'title', 'project', 'note'])),
+    'POST /api/document/update': op('documents.update', (_q, b) => ({ ...pick(b, ['id', 'title', 'note', 'secret']), ...(b.project !== undefined ? { project: b.project } : {}) })),
+    // Open the file itself, with the application the computer uses for it.
+    'POST /api/document/open': async (ctx, _q, b) => {
+      const config = await kbConfig(ctx, b.kb);
+      const doc = getDocument(config, String(b.id ?? ''));
+      const file = resolve(config.kb.root, doc.path);
+      // When nothing could open it, the page says where the file is.
+      return { ok: await openFile(file, ctx.env), file };
+    },
   };
 }

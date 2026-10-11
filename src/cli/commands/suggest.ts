@@ -5,7 +5,7 @@ import { t } from '../../i18n/index.js';
 import { loadBundleFor } from '../../kb/bundle.js';
 import { noteEvent, scoreBundle } from '../../scores/scores.js';
 import { hasConsent, idsFromQuestion, idsIn, isPlainYes, recordConsent } from '../../suggest/consent.js';
-import { addSuggestion, buildCard, contextFor, dailyBudget, findSuggestion, loadQueue, renderCard, setStatus, SIGNALS, spentToday, stars, type Signal, type SuggestInput } from '../../suggest/suggest.js';
+import { addSuggestion, buildCard, contextFor, dailyBudget, findSuggestion, renderCard, setStatus, SIGNALS, spentToday, stars, type Signal, type SuggestInput } from '../../suggest/suggest.js';
 import { invokedBy } from '../../usage/events.js';
 import { OkbError } from '../../util/errors.js';
 import { asBundlePath } from '../../util/paths.js';
@@ -71,9 +71,26 @@ export async function cmdSuggest(ctx: Ctx): Promise<number> {
       return 0;
     }
     case 'accept': return accept(ctx, config);
+    case 'session': {
+      // What the session may still offer, in one question (the end-of-session flow asks for it).
+      const { currentSession, sessionOffer } = await import('../../suggest/session.js');
+      const session = flagString(ctx.args, 'session') ?? (await currentSession(config));
+      const offer = session ? await sessionOffer(config, session) : { session: '', cards: [], toName: [] };
+      if (ctx.mode === 'json') { ctx.out.json({ ok: true, ...offer }); return 0; }
+      if (!offer.cards.length && !offer.toName.length) { ctx.out.info(t('suggest.none')); return 0; }
+      for (const c of offer.cards) ctx.out.line(`${c.id}  ${c.title}  ${paint.dim(c.breadcrumb)}`);
+      for (const m of offer.toName) ctx.out.line(`${m.kind}  ${paint.dim(m.hint)}`);
+      return 0;
+    }
     case 'decline':
     case 'later':
     case 'done': {
+      if (sub === 'later' && flagString(ctx.args, 'session')) {
+        const { notNow } = await import('../../suggest/session.js');
+        const out = await notNow(config, flagString(ctx.args, 'session')!);
+        if (ctx.mode === 'json') ctx.out.json({ ok: true, ...out }); else ctx.out.ok(t('suggest.notNow', { n: String(out.later.length) }));
+        return 0;
+      }
       const id = ctx.args.positionals[1] ?? '';
       const s = await setStatus(config, (await findSuggestion(config, id)).id, sub === 'decline' ? 'declined' : sub === 'later' ? 'later' : 'done', invokedBy() === 'person' ? 'terminal' : 'person', flagString(ctx.args, 'proposal'));
       if (ctx.mode === 'json') ctx.out.json({ ok: true, suggestion: s }); else ctx.out.ok(t(`suggest.${sub}`, { id: s.id }));
@@ -105,7 +122,8 @@ export async function suggestMode(config: OkbConfig): Promise<'live' | 'session'
   const { readRootConfig } = await import('../../kb/registry.js');
   const root = (await readRootConfig().catch(() => ({}))) as { suggest?: { mode?: unknown } };
   const m = v ?? root.suggest?.mode;
-  return m === 'session' || m === 'never' ? m : 'live';
+  // Grouped at the end of the session unless the person chose otherwise (F2.0-09).
+  return m === 'live' || m === 'never' ? m : 'session';
 }
 
 /**
@@ -129,7 +147,9 @@ async function accept(ctx: Ctx, config: OkbConfig): Promise<number> {
   const context = s.path ? `okb brain context "${s.recommendation === 'create' ? s.path.split('/').slice(0, -1).join('/') : s.target ?? s.path}"` : null;
   const result = {
     ok: true, suggestion: done, place: s.recommendation === 'create' ? s.path : s.target, mode: s.recommendation === 'create' ? 'create' : s.recommendation === 'complete' ? 'append' : s.recommendation,
-    template: (await import('../../brain/types.js')).noteType(s.type)?.template ?? null, contextCommand: context, budget: { daily: budget, spent: spent + s.cost.tokens },
+    template: (await import('../../brain/types.js')).noteType(s.type)?.template ?? null, contextCommand: context,
+    // The brief of this kind of note: its length and its style (F2.0-11).
+    styleCommand: `okb style --type ${s.type} --json`, budget: { daily: budget, spent: spent + s.cost.tokens },
   };
   if (ctx.mode === 'json') { ctx.out.json(result); return 0; }
   ctx.out.ok(t('suggest.accepted', { id: s.id, place: result.place ?? '' }));
@@ -137,40 +157,25 @@ async function accept(ctx: Ctx, config: OkbConfig): Promise<number> {
 }
 
 /**
- * A moment at the end of Claude's answer (Stop hook): the person asked what
- * something is, or said they did not know it. Without AI, OKB guesses the
- * term, queues a card (zero token) and, when it is worth it now, tells Claude
- * to offer it in one line. At most one such offer every 20 minutes, never twice
- * for the same thing, never when `suggest.mode` says otherwise.
+ * The end of one of Claude's answers (Stop hook). Without AI, OKB spots what
+ * may be worth a note (src/suggest/moments.ts), keeps it for the end of the
+ * session, and says what to offer under the rules of a session
+ * (src/suggest/session.ts): three things at most, in one question, at the end;
+ * `suggest.mode: live` also offers a strong card at once.
  */
-const ASKED = /(?:c['’]est quoi|qu['’]est[- ]ce (?:que|qu['’])|ça veut dire quoi|que (?:veut dire|signifie)|explique[- ]moi|what is|what are|what does|explain)\s+(?:un |une |le |la |les |l['’]|des |du |a |an |the )?([^?.!,\n]{2,60})/i;
-const UNKNOWN = /\b(je (?:ne )?savais pas|j['’]ignorais|je connaissais pas|didn['’]t know|never heard)\b/i;
-
 async function moment(ctx: Ctx, config: OkbConfig): Promise<number> {
   const raw = flagBool(ctx.args, 'stdin') ? await readStdin() : '{}';
-  let payload: { prompt?: string; answer?: string } = {};
+  let payload: { prompt?: unknown; answer?: unknown; session?: unknown; earlier?: unknown; toolErrors?: unknown } = {};
   try { payload = JSON.parse(raw || '{}'); } catch { /* nothing */ }
-  const prompt = String(payload.prompt ?? '');
-  const answer = String(payload.answer ?? '');
-  const mode = await suggestMode(config);
-  const silent = () => { if (ctx.mode === 'json') ctx.out.json({ ok: true }); return 0; };
-  if (mode === 'never' || !config.kb.brain || answer.length < 500) return silent();
-  const asked = ASKED.exec(prompt);
-  const unknown = UNKNOWN.test(prompt);
-  if (!asked && !unknown) return silent();
-  const term = (asked?.[1] ?? '').replace(/\s+(dans|in|pour|for|chez|sur|on)\s.*$/i, '').replace(/["«»“”`']/g, '').trim();
-  if (!term || term.split(/\s+/).length > 6) return silent();
-  const bundle = await loadBundleFor(config);
-  const { suggestion, created } = await addSuggestion(config, {
-    type: 'concept', title: term.charAt(0).toUpperCase() + term.slice(1), why: unknown ? 'the person did not know it' : 'the person asked what it is',
-    signal: unknown ? 'unknown' : 'asked', source: 'live',
-  }, await contextFor(config, bundle));
-  const queue = await loadQueue(config);
-  const recentLive = queue.some((x) => x.id !== suggestion.id && x.source === 'live' && x.shownAt && Date.now() - Date.parse(x.shownAt) < 20 * 60_000);
-  const worth = suggestion.recommendation !== 'nothing' && suggestion.recommendation !== 'link' && suggestion.pertinence.total >= (unknown || asked ? 60 : 80);
-  if (!created || mode !== 'live' || recentLive || !worth) return silent();
-  const context = `OKB: your explanation of « ${suggestion.title} » may deserve a one-minute concept card in the user's brain (card ${suggestion.id}, pertinence ${suggestion.pertinence.total}/100, ≈${suggestion.cost.tokens} tokens). Offer it in ONE short line at the end — « 💾 Je garde ça ? → ${suggestion.breadcrumb} » — with buttons « Créer (recommandé) » · « Plus tard » · « Non » (put ${suggestion.id} in the question). Write nothing unless they accept (okb-capture skill).`;
-  if (ctx.mode === 'json') ctx.out.json({ ok: true, context, suggestion }); else ctx.out.line(context);
+  const { spot } = await import('../../suggest/session.js');
+  const out = await spot(config, {
+    prompt: String(payload.prompt ?? ''), answer: String(payload.answer ?? ''),
+    ...(typeof payload.session === 'string' ? { session: payload.session } : {}),
+    earlier: Array.isArray(payload.earlier) ? payload.earlier.map(String).slice(-40) : [],
+    toolErrors: Number.isInteger(payload.toolErrors) ? Number(payload.toolErrors) : 0,
+  }, { mode: await suggestMode(config) });
+  if (ctx.mode === 'json') ctx.out.json({ ok: true, moments: out.moments.map((m) => m.kind), ...(out.context ? { context: out.context } : {}), ...(out.suggestion ? { suggestion: out.suggestion } : {}), ...(out.offer ? { offer: out.offer } : {}) });
+  else if (out.context) ctx.out.line(out.context);
   return 0;
 }
 

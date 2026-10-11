@@ -24,12 +24,29 @@ suit la langue de ton système. Pour une seule commande : `OKB_LANG=en okb statu
 
 ## Le style d’écriture
 
+Deux choix simples : le **style** et la **longueur**.
+
 | Réglage | Valeurs |
 |---|---|
-| `writing.preset` | `standard` ★, `pedagogique` (exemples, analogies, schémas), `expert` (dense, sans rappel des bases) |
+| `writing.preset` : le style | **normal** ★ (`standard`), **simplifié** (`pedagogique` : mots simples, exemples, schémas), **technique** (`expert` : dense, sans rappel des bases) |
+| `writing.detail` : la longueur | **courte** (`essential`), **normale** ★ (`standard`), **détaillée** (`thorough`) |
 | `reader.level` | `beginner`, `intermediate` ★, `expert` |
 | `kb.requireTemplate` | chaque nouvelle note suit un modèle (mêmes sections dans le même ordre) |
 | `conceptAssist.level` | fiches concepts : `off`, `targeted` ★ (les notions utiles au sujet), `pedagogical` (aussi les fondamentaux) |
+
+Chaque type de note a sa longueur, quel que soit ton réglage général :
+
+| Type | Longueur par défaut | Réglage |
+|---|---|---|
+| un concept, et toute fiche « une minute » (recette, erreur connue, antisèche) | courte | `writing.byType.concept.detail` |
+| un guide | détaillée | `writing.byType.guide.detail` |
+| une décision | courte, avec son pourquoi | `writing.byType.decision.detail` |
+| un compte rendu de réunion | normale | `writing.byType.meeting.detail` |
+| les autres types | ton réglage général | `writing.byType` dans `profile.yaml` |
+
+`okb style types` montre la longueur et le style de chaque type. `okb style
+--type concept` montre les consignes exactes que suit Claude pour un concept.
+Pour une seule demande : `--style simplifié`, `--length détaillée`.
 
 Changer de style ne réécrit jamais les notes existantes. Pour réécrire une note
 dans un autre style : `/okb:revise` dans Claude. La page **Modèles et style**

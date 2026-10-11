@@ -17,6 +17,7 @@ export type Route =
   | { name: 'brain'; path?: string; anchor?: string; query?: Record<string, string>; history?: boolean }
   | { name: 'graph'; focus?: string; brain?: boolean }
   | { name: 'projects'; id?: string }
+  | { name: 'documents' }
   | { name: 'repos'; id?: string; tab?: 'architecture'; view?: 'containers' | 'context' | 'flow'; from?: string; call?: string }
   | { name: 'inbox'; tab?: InboxTab; id?: string; all?: boolean; compose?: boolean }
   | { name: 'learn'; tab?: LearnTab }
@@ -59,6 +60,8 @@ export function parseRoute(hash: string): Route {
       return { name: 'brain', query: q };
     case 'projects':
       return { name: 'projects' };
+    case 'documents':
+      return { name: 'documents' };
     case 'project':
       return rest ? { name: 'projects', id: decodeURIComponent(rest) } : { name: 'projects' };
     case 'note': {
@@ -148,6 +151,7 @@ export function hrefFor(route: Route): string {
     }
     case 'graph': return withQuery('#/graph', { focus: route.focus, brain: route.brain ? '1' : undefined });
     case 'projects': return route.id ? `#/project/${encodeURIComponent(route.id)}` : '#/projects';
+    case 'documents': return '#/documents';
     case 'repos': {
       if (route.id) return `#/repo/${encodeURIComponent(route.id)}`;
       if (route.tab !== 'architecture') return '#/repos';

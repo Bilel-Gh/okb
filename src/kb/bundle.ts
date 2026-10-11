@@ -1,5 +1,6 @@
 import { stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { isDocumentPath } from '../documents/place.js';
 import { bodyFacts } from '../markdown/ast.js';
 import { parseOkf, type OkfDocument } from '../okf/document.js';
 import { getExtension, type OkbExtension } from '../okf/extensions.js';
@@ -108,7 +109,8 @@ export async function loadBundle(
   const absRoot = resolve(root);
   const exclude = options.exclude ?? [];
   const cache = cacheFor(absRoot);
-  const allFiles = (await walkFiles(absRoot)).filter(f => !matchesAny(f, exclude));
+  // The documents folder holds files kept as they are (src/documents): never notes.
+  const allFiles = (await walkFiles(absRoot)).filter(f => !isDocumentPath(f) && !matchesAny(f, exclude));
   const files = allFiles.filter(f => f.endsWith('.md'));
   // Each file's reading waits for the one already under way, then checks its
   // own stamp: requests that arrive together share one parse of each note.

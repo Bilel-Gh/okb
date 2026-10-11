@@ -50,11 +50,11 @@ export function mcpHandler(options: { env?: NodeJS.ProcessEnv; kb?: string } = {
       case 'ping':
         return ok({});
       case 'tools/list':
-        return ok({ tools: (await available(env)).map(tool) });
+        return ok({ tools: (await available(env)).filter((op) => op.agents !== false).map(tool) });
       case 'tools/call': {
         const name = String(message.params?.name ?? '');
         const op = operation(opOfTool(name));
-        if (!op || toolName(op.id) !== name) return fail(-32602, `Unknown tool: ${name}`);
+        if (!op || toolName(op.id) !== name || op.agents === false) return fail(-32602, `Unknown tool: ${name}`);
         try {
           const { config } = await loadConfig({ env, ...(options.kb ? { profileId: options.kb } : {}) });
           const out = await invoke(op.id, message.params?.arguments ?? {}, { config, env, actor: 'agent' });

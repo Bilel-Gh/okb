@@ -31,7 +31,7 @@ describe('the shell of the 2.0 (F2.0-01)', () => {
       ['app.screen.today', null], ['app.screen.projects', null], ['app.screen.memory', 'page'], ['app.screen.assistant', null], ['app.screen.progress', null],
     ]);
     const tabs = screen.getByRole('navigation', { name: 'app.screen.memory' });
-    expect([...tabs.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('aria-current')])).toEqual([['app.memory.notes', null], ['app.memory.graph', 'page']]);
+    expect([...tabs.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('aria-current')])).toEqual([['app.memory.notes', null], ['app.memory.graph', 'page'], ['app.memory.documents', null]]);
   });
 
   it('« À valider » is on every screen, with what waits', () => {
@@ -49,6 +49,19 @@ describe('the shell of the 2.0 (F2.0-01)', () => {
     await act(async () => { fireEvent.submit(field.closest('form')!); });
     await waitFor(() => expect(calls.some((c) => c.url.includes('/api/capture'))).toBe(true));
     expect(calls.find((c) => c.url.includes('/api/capture'))!.body).toMatchObject({ text: 'Le quota passe à 500 lundi' });
+  });
+
+  it('« Garde ça » also takes a file, kept as it is in the chosen project', async () => {
+    const calls: { url: string; body?: unknown }[] = [];
+    mount({ name: 'today' }, calls);
+    act(() => { fireEvent.keyDown(window, { key: 'j', metaKey: true }); });
+    await screen.findByPlaceholderText('app.keep.placeholder');
+    expect(screen.getByRole('button', { name: 'app.keep.file' })).toBeTruthy();
+    fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'P-1a2b3c' } });
+    const input = document.querySelector('.keep-pop input[type=file]') as HTMLInputElement;
+    await act(async () => { fireEvent.change(input, { target: { files: [new File(['480 euros'], 'devis.txt')] } }); });
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/documents')).toBe(true));
+    expect(calls.find((c) => c.url === '/api/documents')!.body).toMatchObject({ name: 'devis.txt', project: 'P-1a2b3c', data: Buffer.from('480 euros').toString('base64') });
   });
 
   it('« Garde ça » offers the action it spots, and puts the line in the chosen project’s journal', async () => {

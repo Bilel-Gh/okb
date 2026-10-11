@@ -336,6 +336,19 @@ describe('packaged CLI', () => {
     expect(bad.code).not.toBe(0);
   });
 
+  it('gives the brief of one kind of note, and takes the simple words for style and length', async () => {
+    const s = await makeSandbox({ profileId: 'writer', answerLanguage: 'fr' });
+    sandboxes.push(s);
+    type Brief = { style: { preset: string; detail: string }; type: string | null; brief: string };
+    const concept = json<Brief>(await okb(['style', '--type', 'concept', '--json'], s.env));
+    expect([concept.style.detail, concept.type]).toEqual(['essential', 'concept']);
+    const wished = json<Brief>(await okb(['style', '--type', 'concept', '--style', 'simplifié', '--length', 'détaillée', '--json'], s.env));
+    expect(wished.style).toMatchObject({ preset: 'pedagogique', detail: 'thorough' });
+    const kinds = json<{ types: { type: string; detail: string; productDetail: string | null }[] }>(await okb(['style', 'types', '--json'], s.env));
+    expect(kinds.types.find((k) => k.type === 'guide')).toMatchObject({ detail: 'thorough', productDetail: 'thorough' });
+    expect((await okb(['style', '--length', 'énorme', '--json'], s.env)).code).not.toBe(0);
+  });
+
   it('prepares a version 2 dossier template covering several sources', async () => {
     const s = await makeSandbox({ profileId: 'alpha' });
     sandboxes.push(s);

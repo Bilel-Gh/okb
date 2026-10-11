@@ -48,7 +48,13 @@ reader:
 ## Ordre de résolution
 
 Preset → couches de configuration (defaults → org → équipe → profil → KB-locale →
-environnement → options) → demande ponctuelle. Une KB peut déclarer un style
+environnement → options) → type de note → demande ponctuelle. Le type de note
+(`okb style --type concept`) apporte sa longueur : le défaut du produit
+(`src/style/simple.ts` : une fiche « une minute » est courte, un guide détaillé,
+une décision courte avec son pourquoi, un compte rendu normal), puis le choix de
+la personne (`writing.byType`). Les mots simples nomment l'existant : style
+technique, normal, simplifié = presets `expert`, `standard`, `pedagogique` ;
+longueur courte, normale, détaillée = `detail` `essential`, `standard`, `thorough` (D61). Une KB peut déclarer un style
 maison dans `.okb/kb.yaml` ; il l’emporte sur le profil pour les articles de cette
 KB. Le style n’est pas une politique : une organisation peut proposer un défaut,
 pas l’imposer techniquement.

@@ -80,6 +80,7 @@ const HANDLERS: Record<string, Handler> = {
   project: (c) => import('./commands/projects.js').then((m) => m.cmdProject(c)),
   action: (c) => import('./commands/projects.js').then((m) => m.cmdAction(c)),
   today: (c) => import('./commands/projects.js').then((m) => m.cmdToday(c)),
+  doc: (c) => import('./commands/projects.js').then((m) => m.cmdDoc(c)),
   // The engine's operations for the assistants of the terminal, over MCP (stdio).
   mcp: (c) => import('../engine/mcp.js').then((m) => m.serveMcp({ ...(flagString(c.args, 'kb') ? { kb: flagString(c.args, 'kb')! } : {}) })).then(() => 0),
   suggest: (c) => import('./commands/suggest.js').then((m) => m.cmdSuggest(c)),

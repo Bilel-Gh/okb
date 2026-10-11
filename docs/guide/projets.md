@@ -95,6 +95,12 @@ L'écran **Aujourd'hui** (ou `okb today`) répond à six questions :
 | Qu'est-ce que j'ai appris ? | les notes entrées dans ta mémoire cette semaine |
 | Que dois-je revoir ou comprendre ? | tes cartes à réviser, et une fiche concept que tes notes utilisent et que tu n'as jamais ouverte |
 
+## Les documents d'un projet
+
+La zone **Documents** d'un projet garde ses fichiers tels quels : un devis, un
+plan, un compte rendu. **Garder un fichier** le relie au projet, et une ligne du
+journal le note. Voir [les documents](documents.md).
+
 ## Garde ça
 
 **Garde ça** (⌘J), en haut de chaque écran : tape une ligne.

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, CircleHelp, Compass, Flag, FolderGit2, FolderKanban, Hourglass, ListTodo, LogOut, NotebookPen, Plus, Ticket, type LucideIcon } from 'lucide-react';
+import { ArrowRight, CircleHelp, Compass, Flag, FolderGit2, FolderKanban, Hourglass, ListTodo, LogOut, NotebookPen, Paperclip, Plus, Ticket, type LucideIcon } from 'lucide-react';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { get, post } from '../app/api';
 import { useT } from '../app/i18n';
@@ -7,6 +7,8 @@ import { go, hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { ActionList, JournalList, useRefreshDay, type Action, type Entry, type LeftOff } from './day-parts';
+import { KeepFileButton } from '../ui/KeepFile';
+import { DocumentRows, type Doc } from './Documents';
 
 export type Project = {
   id: string; module: string; kind: string; title: string; status: 'active' | 'waiting' | 'done';
@@ -138,6 +140,7 @@ function Detail({ id, setTitle }: { id: string; setTitle?: (s: string) => void }
   const q = useQuery({ queryKey: ['project', id], queryFn: () => get<{ project: Project }>('/api/project', { id }) });
   const actions = useQuery({ queryKey: ['actions', id], queryFn: () => get<{ actions: Action[] }>('/api/actions', { project: id }) });
   const entries = useQuery({ queryKey: ['entries', id], queryFn: () => get<{ entries: Entry[] }>('/api/entries', { project: id, limit: 80 }) });
+  const docs = useQuery({ queryKey: ['documents', 'project', id], queryFn: () => get<{ documents: Doc[] }>('/api/documents', { project: id }) });
   const p = q.data?.project;
   useEffect(() => { if (p) setTitle?.(p.title); }, [p, setTitle]);
   const update = useMutation({
@@ -190,6 +193,10 @@ function Detail({ id, setTitle }: { id: string; setTitle?: (s: string) => void }
           <section className="panel" aria-labelledby="p-waiting">
             <div className="panel-head"><h2 id="p-waiting"><Hourglass size={17} aria-hidden="true" />{t('app.actions.waiting')}</h2></div>
             <div className="panel-body flush"><ActionList kind="waiting" project={id} actions={open.filter((a) => a.kind === 'waiting')} placeholder={t('app.actions.waitingPlaceholder')} empty={t('app.actions.waitingEmpty')} /></div>
+          </section>
+          <section className="panel" aria-labelledby="p-docs">
+            <div className="panel-head"><h2 id="p-docs"><Paperclip size={17} aria-hidden="true" />{t('app.memory.documents')}</h2><span className="spacer" /><KeepFileButton project={id} small /></div>
+            <div className="panel-body flush">{docs.data?.documents.length ? <DocumentRows docs={docs.data.documents} showProject={false} /> : <p className="muted small action-empty" style={{ paddingBottom: 12 }}>{t('app.docs.projectEmpty')}</p>}</div>
           </section>
           <section className="panel" aria-labelledby="p-questions">
             <div className="panel-head"><h2 id="p-questions"><CircleHelp size={17} aria-hidden="true" />{t('app.actions.questions')}</h2></div>

@@ -8,6 +8,8 @@ belong outside this repository. Use fictitious fixtures for development.
 - Gate changes with `npm run release:check`.
 - Validate Claude metadata with `claude plugin validate ./plugin --strict`.
 - Every KB mutation, including maintenance, goes through a proposal and apply.
+  The one direct write is a document the person keeps (`_Documents/`, D61): their
+  own file, copied as it is, never by an agent.
 - Never approve on behalf of a user, read the approval key, bypass policy or edit
   the KB directly as a workaround for a rejected proposal.
 - Preserve unknown OKF fields, verbatim source quotations and user edits.

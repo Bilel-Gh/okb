@@ -25,7 +25,7 @@ Tu peux tout faire de trois façons, au choix :
 
 **Nouveau en 1.5 :** [modules, niveau de connaissance et examen d’un repo, phrase des concepts, traduction et partage](modules-et-niveau.md) · [l’application web](application-web.md).
 
-**Nouveau en 2.0 :** [projets, actions et journal : garder le fil](projets.md) · [brancher un assistant du terminal (MCP)](assistants-mcp.md).
+**Nouveau en 2.0 :** [projets, actions et journal : garder le fil](projets.md) · [les documents : garder un fichier tel quel](documents.md) · [brancher un assistant du terminal (MCP)](assistants-mcp.md).
 
 1. [Installer OKB](installer.md) — en 5 minutes, sans toucher à tes réglages Claude.
 2. [Au quotidien](au-quotidien.md) — capturer, importer une source, relire,

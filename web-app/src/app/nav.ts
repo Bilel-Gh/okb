@@ -1,4 +1,4 @@
-import { Archive, BadgeCheck, Blocks, Brain, Briefcase, CalendarCheck, CheckCheck, CircleHelp, FileStack, FolderGit2, FolderKanban, FolderPlus, HardDrive, HeartPulse, Inbox, Layers, Library, MessageCircle, MessageCircleQuestion, Network, Package, Palette, ScrollText, Settings, Share2, Sparkles, Sprout, Stethoscope, Sun, Tags, Target, Terminal, Upload, Wrench, type LucideIcon } from 'lucide-react';
+import { Archive, BadgeCheck, Blocks, Brain, Briefcase, CalendarCheck, CheckCheck, CircleHelp, FileStack, FolderGit2, FolderKanban, FolderPlus, HardDrive, HeartPulse, Inbox, Layers, Library, MessageCircle, MessageCircleQuestion, Network, Package, Palette, Paperclip, ScrollText, Settings, Share2, Sparkles, Sprout, Stethoscope, Sun, Tags, Target, Terminal, Upload, Wrench, type LucideIcon } from 'lucide-react';
 import type { Route } from './router';
 
 /**
@@ -35,7 +35,7 @@ export function screenOf(route: Route): ScreenId | null {
   switch (route.name) {
     case 'today': return 'today';
     case 'projects': case 'repos': return 'projects';
-    case 'brain': case 'graph': return 'memory';
+    case 'brain': case 'graph': case 'documents': return 'memory';
     case 'ask': case 'claude': return 'assistant';
     case 'learn': return 'progress';
     default: return null;
@@ -57,6 +57,7 @@ export function screenTabs(route: Route, devOn: boolean): ScreenTab[] {
       return [
         { to: { name: 'brain' }, label: 'app.memory.notes', current: route.name === 'brain', icon: Library },
         { to: { name: 'graph' }, label: 'app.memory.graph', current: route.name === 'graph', icon: Share2 },
+        { to: { name: 'documents' }, label: 'app.memory.documents', current: route.name === 'documents', icon: Paperclip },
       ];
     case 'assistant':
       return [
@@ -82,6 +83,7 @@ export const NAV: readonly NavEntry[] = [
   ...SCREENS,
   VALIDATE,
   { route: { name: 'graph' }, label: 'app.memory.graph', icon: Share2 },
+  { route: { name: 'documents' }, label: 'app.memory.documents', icon: Paperclip },
   { route: { name: 'repos' }, label: 'app.projects.repos', icon: FolderGit2, module: 'dev' },
   ...MORE,
   { route: { name: 'claude' }, label: 'app.assistant.terminal', icon: Terminal },

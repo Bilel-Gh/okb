@@ -67,6 +67,21 @@ Un module éteint masque ses opérations. `tests/module-boundary.test.ts` interd
 au cœur d'importer le code du module développeur (`repo/`, `work/`, `arch/`,
 `dev/`, `knowledge/`), sauf une dette listée qui ne peut que diminuer.
 
+## Les documents
+
+Un fichier que la personne garde va tel quel dans `_Documents/<année>/` (D61,
+`src/documents/`). C'est la seule écriture directe dans le dossier des notes, et
+elle est réservée à la personne. Le chargeur de KB ignore ce dossier : un
+document n'est pas une note. La liste et le texte lu (FTS5) sont dans `okb.db`.
+
+## Les moments d'une conversation
+
+Le hook de fin de réponse passe à `okb suggest moment` le dernier échange, les
+messages précédents de la personne et l'identifiant de session. Le repérage
+(`src/suggest/moments.ts`) est une fonction pure, sans IA. Les règles d'une
+session (`src/suggest/session.ts`) décident quoi proposer : rien en cours de
+route, trois choses au plus à la clôture, « pas maintenant » retenu (D61).
+
 ## Lire une KB par révision
 
 Toute requête commence par `loadBundle` (D57). Une KB inchangée ne coûte que la

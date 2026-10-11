@@ -84,6 +84,8 @@ describe('the new app reads the same addresses as before', () => {
 describe('the five screens of the 2.0 (F2.0-01)', () => {
   it('each screen has its address, and the projects have theirs', () => {
     expect(parseRoute('#/projects')).toEqual({ name: 'projects' });
+    expect(parseRoute('#/documents')).toEqual({ name: 'documents' });
+    expect(hrefFor({ name: 'documents' })).toBe('#/documents');
     expect(parseRoute('#/project/P-1a2b3c')).toEqual({ name: 'projects', id: 'P-1a2b3c' });
     expect(parseRoute('#/memory')).toEqual({ name: 'brain', query: {} });
     expect(parseRoute('#/assistant')).toEqual({ name: 'ask' });
@@ -97,6 +99,7 @@ describe('the five screens of the 2.0 (F2.0-01)', () => {
     expect(screen('#/')).toBe('today');
     expect(screen('#/weekly')).toBe('today');
     expect(screen('#/projects')).toBe('projects');
+    expect(screen('#/documents')).toBe('memory');
     expect(screen('#/repos')).toBe('projects');
     expect(screen('#/repo/orders-service')).toBe('projects');
     expect(screen('#/repos/architecture')).toBe('projects');
@@ -112,7 +115,7 @@ describe('the five screens of the 2.0 (F2.0-01)', () => {
 
   it('the screens with several pages show them as tabs; the developer pages only with the module', () => {
     const labels = (hash: string, dev: boolean) => screenTabs(parseRoute(hash), dev).map((t) => [t.label, t.current]);
-    expect(labels('#/graph', true)).toEqual([['app.memory.notes', false], ['app.memory.graph', true]]);
+    expect(labels('#/graph', true)).toEqual([['app.memory.notes', false], ['app.memory.graph', true], ['app.memory.documents', false]]);
     expect(labels('#/ask', true)).toEqual([['app.assistant.ask', true], ['app.assistant.terminal', false]]);
     expect(labels('#/repos/architecture', true)).toEqual([['app.projects.all', false], ['app.projects.repos', false], ['app.projects.arch', true]]);
     expect(labels('#/projects', false)).toEqual([]);

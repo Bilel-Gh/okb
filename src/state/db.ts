@@ -65,6 +65,23 @@ const MIGRATIONS: readonly string[] = [
    );
    CREATE INDEX journal_day ON journal(day);
    CREATE INDEX journal_project ON journal(project_id, at);`,
+  // 2: the documents, files kept as they are, with their text for the search.
+  `CREATE TABLE documents (
+     id TEXT PRIMARY KEY,
+     path TEXT NOT NULL UNIQUE,
+     title TEXT NOT NULL,
+     mime TEXT NOT NULL DEFAULT '',
+     size INTEGER NOT NULL,
+     sha256 TEXT NOT NULL,
+     project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+     note_path TEXT,
+     secret INTEGER NOT NULL DEFAULT 0,
+     text_read INTEGER NOT NULL DEFAULT 0,
+     limitations TEXT NOT NULL DEFAULT '',
+     added_at TEXT NOT NULL
+   );
+   CREATE INDEX documents_sha ON documents(sha256);
+   CREATE VIRTUAL TABLE documents_fts USING fts5(title, body, tokenize = 'unicode61 remove_diacritics 2');`,
 ];
 
 /** Node still calls its SQLite experimental; the warning has no place in a person's terminal. */

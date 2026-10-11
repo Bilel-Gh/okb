@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import YAML from 'yaml';
 import { loadConfig, okbHome } from '../config/load.js';
 import { readRootConfig, setUiLanguage, writeRootConfig } from '../kb/registry.js';
+import { productDetail } from '../style/simple.js';
 import { OkbError } from '../util/errors.js';
 import { withStateLock } from '../util/state-lock.js';
 import { readTextIfExists, writeTextAtomic } from '../util/fsx.js';
@@ -35,6 +36,10 @@ export const SETTINGS: readonly SettingDef[] = [
   // The reading profile (OKB 1.0): with reader.level, how visual, how long, how many examples.
   { key: 'writing.diagrams', group: 'writing', type: 'choice', scope: 'profile', path: ['writing', 'diagrams'], options: ['off', 'when-useful', 'prefer'], recommended: 'when-useful', fallback: 'when-useful' },
   { key: 'writing.detail', group: 'writing', type: 'choice', scope: 'profile', path: ['writing', 'detail'], options: ['essential', 'standard', 'thorough'], recommended: 'standard', fallback: 'standard' },
+  // The length of the four kinds people write most; any other kind: writing.byType in profile.yaml (okb style types).
+  ...(['concept', 'guide', 'decision', 'meeting'] as const).map((type): SettingDef => ({
+    key: `writing.byType.${type}.detail`, group: 'writing', type: 'choice', scope: 'profile', path: ['writing', 'byType', type, 'detail'], options: ['essential', 'standard', 'thorough'], recommended: productDetail(type)!, fallback: productDetail(type),
+  })),
   { key: 'writing.examples', group: 'writing', type: 'choice', scope: 'profile', path: ['writing', 'examples'], options: ['none', 'generic', 'project'], recommended: 'project', fallback: 'project' },
   { key: 'kb.requireTemplate', group: 'writing', type: 'bool', scope: 'profile', path: ['kb', 'requireTemplate'], recommended: true, fallback: false },
   { key: 'conceptAssist.level', group: 'help', type: 'choice', scope: 'profile', path: ['conceptAssist', 'level'], options: ['off', 'targeted', 'pedagogical'], recommended: 'targeted', fallback: 'targeted' },
@@ -49,7 +54,7 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: 'agents.model', group: 'assistant', type: 'choice', scope: 'global', path: ['agents', 'model'], options: ['inherit', 'sonnet', 'haiku', 'opus'], recommended: 'inherit', fallback: 'inherit' },
   { key: 'routing.otherKnowledgeTools', group: 'assistant', type: 'list', scope: 'profile', path: ['routing', 'otherKnowledgeTools'], fallback: [] },
   // Suggestions before writing (src/suggest): when cards are shown, and the daily writing budget in tokens.
-  { key: 'suggest.mode', group: 'assistant', type: 'choice', scope: 'global', path: ['suggest', 'mode'], options: ['live', 'session', 'never'], recommended: 'live', fallback: 'live' },
+  { key: 'suggest.mode', group: 'assistant', type: 'choice', scope: 'global', path: ['suggest', 'mode'], options: ['session', 'live', 'never'], recommended: 'session', fallback: 'session' },
   { key: 'dev.attribution', group: 'assistant', type: 'choice', scope: 'global', path: ['dev', 'attribution'], options: ['off', 'on'], recommended: 'off', fallback: 'off' },
   // How OKB itself asks a model (src/ai/provider.ts): Claude Code when installed, else ANTHROPIC_API_KEY.
   { key: 'ai.provider', group: 'assistant', type: 'choice', scope: 'global', path: ['ai', 'provider'], options: ['auto', 'claude-code', 'api', 'off'], recommended: 'auto', fallback: 'auto' },

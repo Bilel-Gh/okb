@@ -23,7 +23,7 @@ OKB ne s'inscrit pas tout seul dans tes assistants : tu choisis où le brancher.
 
 | Outil | Ce qu'il fait |
 |---|---|
-| `notes_find` | chercher dans tes notes (fautes de frappe, deux langues) |
+| `notes_find` | chercher dans tes notes (fautes de frappe, deux langues) ; les documents trouvés viennent avec |
 | `notes_read` | lire une note par son chemin |
 | `kb_status` | l'état de tes notes : combien, ce qui attend ton oui, leur santé |
 | `suggestions_list` | les cartes de suggestion qui attendent ta décision |
@@ -33,6 +33,7 @@ OKB ne s'inscrit pas tout seul dans tes assistants : tu choisis où le brancher.
 | `projects_create`, `projects_update`, `projects_leave` | créer un projet, dire où il en est, préparer « Où j'en étais » |
 | `actions_list`, `actions_add`, `actions_update`, `actions_detect` | tes actions et ce que tu attends ; ce qu'il ajoute est marqué « proposé par l'IA » |
 | `journal_list`, `journal_add` | le journal d'un projet ou d'un jour |
+| `documents_list` | chercher dans tes documents (les fichiers gardés tels quels) |
 | `repos_list` | les repos documentés (module développeur) |
 
 ## Ce qu'il ne peut pas faire
@@ -41,6 +42,8 @@ OKB ne s'inscrit pas tout seul dans tes assistants : tu choisis où le brancher.
   lectures. Tu l'ouvres toi-même dans OKB.
 - **Décider à ta place.** Approuver, appliquer, accepter une carte : ces gestes
   restent les tiens, dans l'application ou le terminal.
+- **Garder ou modifier un document.** Il peut les chercher ; déposer un fichier,
+  le renommer ou lever un cadenas restent tes gestes. Un document 🔒 lui est caché.
 - **Écrire une note.** Il peut tenir tes projets, tes actions et ton journal, qui
   sont l'état de ton travail. Une note, elle, passe toujours par une carte et ton oui.
 - **Utiliser un module que tu as éteint.** `okb modules off dev` retire aussi

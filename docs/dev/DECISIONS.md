@@ -1186,3 +1186,38 @@ La cible de la 2.0, une recherche répétée sous 200 ms au p95 à 5 000 notes, 
 - Faire passer les tickets eux-mêmes dans la base, avec la migration (itération 8).
 - Le prochain rendez-vous dans Aujourd'hui : il demande un agenda, pas encore décidé.
 - Les questions en attente de « Maintenant » (`okb now wait`) font doublon avec les attentes : à fusionner à la migration.
+
+## D61 — 2.0, itération 6 : garder un fichier tel quel, écrire à la bonne longueur, repérer sans interrompre (11 octobre 2026)
+
+**Problème.** OKB ne savait garder que des notes : un PDF ou une photo devait être recopié ou restait dehors. Le style d'écriture se réglait avec trois presets et huit curseurs, mais une fiche concept et un guide avaient la même longueur. Et Claude proposait une note au fil de la conversation, pour deux moments seulement, au risque d'interrompre.
+
+**Décisions.**
+
+- **Les documents** (F2.0-10, `src/documents/`).
+  - Un fichier est copié tel quel dans `_Documents/<année>/`, à côté des notes. Il n'est jamais modifié ni écrasé (écriture `wx`, noms `-2`, `-3`). Le même contenu (sha256) n'est gardé qu'une fois.
+  - Son texte est lu par les lecteurs de sources déjà là, et indexé dans la base d'état (SQLite FTS5, sans accents). La liste et l'index sont de l'état ; le fichier, lui, est du savoir et part avec les notes.
+  - Un document n'est pas une note : le chargeur de KB ignore `_Documents/` (pas d'orphelin, pas de score, pas de graphe).
+  - **C'est la seule écriture directe dans le dossier des notes.** La personne dépose son propre fichier : il n'y a rien à relire, donc pas de proposition. Garder, renommer, relier et mettre un cadenas sont réservés à la personne (`agents: false` : l'opération n'est pas listée par MCP et refuse un agent). Un assistant peut chercher, et ne voit jamais un document 🔒.
+  - Ouvrir un fichier le passe au système comme un seul argument, sans interpréteur de commandes (`openFile`) : un nom de fichier est une donnée. `OKB_NO_OPEN=1` ne lance rien ; l'app dit alors où est le fichier.
+- **Les réglages d'écriture** (F2.0-11, `src/style/simple.ts`).
+  - Deux choix simples, posés sur l'existant : le **style** (technique, normal, simplifié) nomme les trois presets (`expert`, `standard`, `pedagogique`) ; la **longueur** (courte, normale, détaillée) nomme le curseur `detail`. Pas de troisième système.
+  - **Un défaut par type de note** : un concept et toute fiche « une minute » sont courts, un guide est détaillé, une décision est courte et garde son pourquoi, un compte rendu est normal. Les autres types suivent le réglage général.
+  - Ordre : preset → réglages généraux → type de note (défaut du produit, puis choix de la personne dans `writing.byType`) → demande ponctuelle. Ce qui est dit pour un type est plus précis que le réglage général : il l'emporte.
+  - Le style propre à un type change le point de départ et garde les curseurs généraux de la personne (ses schémas, ses exemples). Un preset demandé pour une seule fois reste un nouveau départ, comme avant.
+  - `okb style --type <type>` donne le brief du type ; `okb suggest accept` renvoie cette commande (`styleCommand`).
+- **Les moments repérés** (F2.0-09, `src/suggest/moments.ts`, `src/suggest/session.ts`).
+  - Six moments, repérés sans IA à la fin d'une réponse : une longue explication demandée, la même question deux fois, un bug résolu après plusieurs essais, une décision, une commande découverte, une erreur et sa cause.
+  - Un moment que les mots nomment (« c'est quoi OData ? ») devient une carte tout de suite, sans rien montrer. Les autres attendent : c'est l'assistant, déjà dans la conversation, qui les nomme à la fin. OKB ne fabrique pas un titre.
+  - **Par défaut, rien n'est proposé en cours de route** (`suggest.mode: session`, à la place de `live`). Quand la personne clôt la session, une seule question regroupe **trois choses au plus**, les cartes d'abord.
+  - **« Pas maintenant » est retenu** : les cartes passent à « plus tard » avec une date (sept jours) et attendent dans l'application ; la session ne propose plus rien.
+  - La session est celle que donne le hook (`session_id`). Son identifiant entre dans une commande : seuls lettres, chiffres, `_` et `-` sont acceptés.
+
+**Conséquences.**
+- Le registre du moteur compte trois opérations de plus (`documents.add`, `documents.list`, `documents.update`), et `notes.find` renvoie aussi les documents trouvés.
+- Une sauvegarde doit emporter `_Documents/` avec les notes, et `okb.db` (itération 8).
+- Qui tenait à la proposition immédiate choisit `suggest.mode: live` ; elle reste limitée à trois par session.
+
+**Réexamen.**
+- Relier un document à une note depuis l'application (le champ existe, l'écran non).
+- Lire le texte d'une image ou d'un enregistrement : pas sans IA, donc pas ici.
+- Le plafond de trois par session et les sept jours, après un mois d'usage réel.

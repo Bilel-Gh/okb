@@ -108,8 +108,10 @@ describe('the yes comes from the person', () => {
 });
 
 describe('moments worth a note, spotted without AI', () => {
-  it('queues a card when the person asked what something is, and offers it once', async () => {
+  it('in live mode, queues a card when the person asked what something is, and offers it once', async () => {
     const { env, dir } = await brain();
+    const { writeSetting } = await import('../src/settings/settings.js');
+    await writeSetting('travail', 'suggest.mode', 'live', env);
     const answer = 'OData est un protocole… '.repeat(40);
     const first = await run(['suggest', 'moment', '--stdin', '--json'], env, dir).then(() => null);
     expect(first).toBeNull();

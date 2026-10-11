@@ -1,6 +1,7 @@
 import { enabledModules, moduleDef } from '../modules/catalog.js';
 import { reposList } from '../repo/operations.js';
 import { OkbError } from '../util/errors.js';
+import { documentsAdd, documentsList, documentsUpdate } from './ops/documents.js';
 import { kbStatus } from './ops/kb.js';
 import { notesFind, notesRead } from './ops/notes.js';
 import { actionsAdd, actionsDetect, actionsList, actionsUpdate, journalAdd, journalList } from './ops/actions.js';
@@ -31,6 +32,9 @@ const OPS = {
   'journal.add': journalAdd,
   'journal.list': journalList,
   'today.view': todayViewOp,
+  'documents.add': documentsAdd,
+  'documents.list': documentsList,
+  'documents.update': documentsUpdate,
   'repos.list': reposList,
 } as const;
 

@@ -208,6 +208,8 @@ const writingSchema = z
     emojis: knob(WRITING_KNOBS.emojis),
     progression: knob(WRITING_KNOBS.progression),
     defineTerms: knob(WRITING_KNOBS.defineTerms),
+    /** The person's own style and length for one kind of note (a note type id); the product has defaults (src/style/simple.ts). */
+    byType: z.record(z.string().regex(/^[a-z][a-z0-9-]*$/), z.object({ preset: z.enum(WRITING_PRESETS).optional(), detail: knob(WRITING_KNOBS.detail) }).strict()).default({}),
     /** A few free-text preferences; short on purpose, they travel with every brief. */
     instructions: z.array(z.string().min(1).max(240)).max(8).default([]),
   })

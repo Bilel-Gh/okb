@@ -10,6 +10,7 @@ import {
 } from '../config/schema.js';
 import { OkbError } from '../util/errors.js';
 import { PRESETS, type KnobValues, type WritingKnob } from './presets.js';
+import { typeStyle } from './simple.js';
 
 const KNOB_NAMES = Object.keys(WRITING_KNOBS) as WritingKnob[];
 
@@ -41,9 +42,11 @@ export type StyleRequest = {
   readonly domain?: string;
   /** One-off reader level ("explain it as to a beginner"). */
   readonly reader?: string;
+  /** The kind of note being written (a note type id): its own length and style apply. */
+  readonly type?: string;
 };
 
-export type Adjustment = { readonly key: string; readonly value: string; readonly from: 'configuration' | 'request' };
+export type Adjustment = { readonly key: string; readonly value: string; readonly from: 'configuration' | 'type' | 'request' };
 
 export type EffectiveStyle = {
   readonly style: WritingStyle;
@@ -51,18 +54,22 @@ export type EffectiveStyle = {
   readonly conceptAssist: { readonly level: ConceptAssistLevel; readonly knownTerms: readonly string[] };
   /** Every knob that differs from the preset, and who asked for it. */
   readonly adjustments: readonly Adjustment[];
+  /** The kind of note this style is for, when one was named. */
+  readonly type: string | null;
 };
 
 /**
  * Resolve the writing style for one piece of work.
  *
  * Order: preset → configuration layers (defaults → org → team → profile →
- * KB-local, already merged by loadConfig) → this request. Nothing here is
- * persisted: a one-off adjustment is recorded in the dossier that used it.
+ * KB-local, already merged by loadConfig) → the kind of note → this request.
+ * Nothing here is persisted: a one-off adjustment is recorded in the dossier
+ * that used it.
  */
 export function resolveStyle(config: OkbConfig, request: StyleRequest = {}): EffectiveStyle {
   const requestedPreset = request.preset === undefined ? undefined : parsePreset(request.preset);
-  const preset: WritingPreset = requestedPreset ?? config.writing.preset;
+  const forType = request.type ? typeStyle(config, request.type) : {};
+  const preset: WritingPreset = requestedPreset ?? forType.preset ?? config.writing.preset;
   const values: KnobValues = { ...PRESETS[preset].values };
   const adjustments: Adjustment[] = [];
 
@@ -76,6 +83,17 @@ export function resolveStyle(config: OkbConfig, request: StyleRequest = {}): Eff
         adjustments.push({ key, value: configured, from: 'configuration' });
       }
     }
+  }
+
+  // What is said for one kind of note is more precise than the general setting:
+  // a concept card stays short in a profile that likes detail. The style of a
+  // kind changes the starting point and keeps the person's general knobs.
+  if (forType.preset && requestedPreset === undefined && forType.preset !== config.writing.preset) adjustments.push({ key: 'preset', value: forType.preset, from: 'type' });
+  if (forType.detail && forType.detail !== values.detail) {
+    values.detail = forType.detail;
+    const general = adjustments.findIndex((a) => a.key === 'detail');
+    if (general >= 0) adjustments.splice(general, 1);
+    if (forType.detail !== PRESETS[preset].values.detail) adjustments.push({ key: 'detail', value: forType.detail, from: 'type' });
   }
 
   let language = config.writing.language ?? config.profile.answer.language;
@@ -119,6 +137,7 @@ export function resolveStyle(config: OkbConfig, request: StyleRequest = {}): Eff
       : { level: domainLevel ?? config.reader.level, domain, from: domainLevel ? 'domain' : 'default' },
     conceptAssist: { level: conceptLevel, knownTerms: config.conceptAssist.known.slice(0, 40) },
     adjustments,
+    type: request.type ?? null,
   };
 }
 
