@@ -28,6 +28,10 @@ npm ci
 npm run desktop:dir
 ```
 
+`./scripts/install.sh` et `okb update` ne téléchargent pas le programme Electron :
+la ligne de commande et l’application web n’en ont pas besoin. `npm run
+desktop:dev` le récupère au premier lancement ; `desktop:dir` télécharge le sien.
+
 Le résultat se trouve dans `desktop-build/`. Sur Mac, ouvrez OKB.app. Ce
 prototype est non signé et n’est pas un installateur public validé. La commande
 `desktop:build` prépare les formats de distribution configurés ;

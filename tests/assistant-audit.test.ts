@@ -59,7 +59,8 @@ describe('Assistant: cancellation, current confidentiality and consumed work', (
     const pending = completeLocalText(config, { ...box.env, PATH: bin }, { system: 'Translate.', prompt: 'Bonjour.', size: 'small', maxTokens: 50 }, 'claude-code');
     // Attach rejection immediately: shutdown intentionally rejects the pending call.
     const outcome = pending.then(() => null, (error: unknown) => error);
-    for (let n = 0; n < 100 && !await readFile(marker, 'utf8').catch(() => null); n++) await new Promise<void>((done) => setTimeout(done, 10));
+    // Two processes start before the marker (the version check, then the call): a loaded machine needs more than a second.
+    for (let n = 0; n < 1500 && !await readFile(marker, 'utf8').catch(() => null); n++) await new Promise<void>((done) => setTimeout(done, 20));
     expect(await readFile(marker, 'utf8')).toBe('ready');
     await shutdownAssistant();
     expect(await outcome).toMatchObject({ code: 'E_IO' });

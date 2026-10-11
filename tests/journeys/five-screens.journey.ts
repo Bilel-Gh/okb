@@ -87,10 +87,13 @@ describe('the five screens, as a person uses them (F2.0-20)', () => {
     await page.locator('canvas, svg.graph, .graph-stage').first().waitFor();
   });
 
-  it('Assistant: a question shows the passages of the notes that answer, without spending anything', async () => {
+  it('Assistant: the conversation with the person’s agent, and one link away a question answered by the notes’ passages, without spending anything', async () => {
     app = await openApp(browser);
     const { page } = app;
     await screen(/Assistant/).click();
+    // The screen is the conversation (2.3); nothing is sent by opening it.
+    await page.getByRole('button', { name: /Envoyer à mon agent/ }).waitFor();
+    await page.getByRole('link', { name: /Chercher dans mes notes sans IA/ }).first().click();
     await page.getByRole('searchbox').first().fill('Comment enquêter sur une lenteur ?');
     await page.keyboard.press('Enter');
     await page.getByText(/Enquêter sur une lenteur/).first().waitFor();
@@ -116,7 +119,8 @@ describe('the five screens, as a person uses them (F2.0-20)', () => {
     await page.getByRole('button', { name: 'Oui à 1 chose' }).click();
     await page.getByText(/1 note acceptée/).waitFor();
     await page.getByRole('checkbox', { name: 'Percentile' }).waitFor();
-    expect(await page.getByRole('checkbox', { name: 'Idempotence' }).count()).toBe(0);
+    // The list is read again after the yes: what was accepted leaves it, a moment later.
+    await expect.poll(() => page.getByRole('checkbox', { name: 'Idempotence' }).count()).toBe(0);
   });
 
   it('Les espaces: the person sees their two spaces, and a work note goes to their baggage without the workplace', async () => {

@@ -88,7 +88,14 @@ export function parseClaudeResult(raw: string): BridgeResult {
   const input = count(usage.input_tokens);
   const cached = (count(usage.cache_read_input_tokens) ?? 0) + (count(usage.cache_creation_input_tokens) ?? 0);
   const tokens: AgentUsage = { input: input === null ? null : input + cached, output: count(usage.output_tokens) };
-  if (value.is_error || value.type === 'error') throw new OkbError('E_IO', 'local agent failed; check its connection or usage limit', { detail: { usage: { ...tokens, tokens: tokens.input !== null && tokens.output !== null ? tokens.input + tokens.output : undefined, provider: 'claude-code' } } });
+  if (value.is_error || value.type === 'error') {
+    const detail = { usage: { ...tokens, tokens: tokens.input !== null && tokens.output !== null ? tokens.input + tokens.output : undefined, provider: 'claude-code' } };
+    // The agent's own words are not repeated. The one failure the person can fix alone is named: an expired sign-in.
+    if (typeof value.result === 'string' && /authenticat|not logged in|please (?:run )?\/?login|oauth|invalid api key/i.test(value.result)) {
+      throw new OkbError('E_CONFIG', 'the local agent is not signed in; run it in a terminal and sign in', { key: 'agentNotSignedIn', detail });
+    }
+    throw new OkbError('E_IO', 'local agent failed; check its connection or usage limit', { detail });
+  }
   let answer = value.structured_output;
   if (!answer && typeof value.result === 'string') { try { answer = JSON.parse(value.result); } catch { /* validated by the caller */ } }
   return { answer, usage: tokens, provider: 'claude-code' };

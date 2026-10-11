@@ -44,6 +44,9 @@ step "Node $(node --version)"
 # 2. Dependencies and build, inside this folder only.
 cd "$ROOT"
 export NPM_CONFIG_UPDATE_NOTIFIER=false
+# The command line and the web app never run Electron: its binary is a download of
+# its own, fetched only by the desktop scripts (npm run desktop:dev).
+export ELECTRON_SKIP_BINARY_DOWNLOAD="${ELECTRON_SKIP_BINARY_DOWNLOAD:-1}"
 npm ci --no-audit --no-fund --loglevel=error >/dev/null || fail "$(say 'Installing dependencies failed' 'L’installation des dépendances a échoué')" "$(say 'Check your network access to the npm registry, then run again.' 'Vérifie l’accès réseau au registre npm, puis relance.')"
 step "$(say 'Dependencies installed' 'Dépendances installées')"
 npm run --silent build >/dev/null || fail "$(say 'The build failed' 'La compilation a échoué')" "$(say 'Run npm run build to see the error.' 'Lance npm run build pour voir l’erreur.')"

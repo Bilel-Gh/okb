@@ -40,7 +40,7 @@
     "bench:speed": "npm run build && node scripts/perf.mjs",
     "dev:web": "vite --config web-app/vite.config.ts",
     "test:journeys": "npm run build && vitest run --config vitest.journeys.config.ts",
-    "desktop:dev": "npm run build && electron .",
+    "desktop:dev": "npm run build && node node_modules/electron/install.js && electron .",
     "desktop:dir": "npm run build && node scripts/desktop-build.mjs --dir",
     "desktop:build": "npm run build && node scripts/desktop-build.mjs",
     "desktop:release": "node scripts/desktop-release.mjs"

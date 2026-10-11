@@ -23,9 +23,19 @@ export async function which(cmd: string, env: NodeJS.ProcessEnv = process.env): 
   return null;
 }
 
+/**
+ * The environment of the commands OKB runs for itself. The command line and the
+ * web app never run Electron: installing dependencies does not fetch its binary
+ * (a download of its own, which a company network often refuses) unless the
+ * person decided otherwise. The desktop scripts fetch it when they need it.
+ */
+export function commandEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  return { ELECTRON_SKIP_BINARY_DOWNLOAD: '1', ...env, GIT_TERMINAL_PROMPT: '0' };
+}
+
 async function tryRun(cmd: string, args: string[], options: { cwd?: string; timeout?: number } = {}): Promise<{ ok: boolean; out: string; err: string }> {
   try {
-    const r = await run(cmd, args, { cwd: options.cwd, timeout: options.timeout ?? 60_000, maxBuffer: 4_000_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
+    const r = await run(cmd, args, { cwd: options.cwd, timeout: options.timeout ?? 60_000, maxBuffer: 4_000_000, env: commandEnv() });
     return { ok: true, out: r.stdout.trim(), err: r.stderr.trim() };
   } catch (e) {
     const x = e as { stdout?: string; stderr?: string; message?: string };

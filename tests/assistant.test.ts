@@ -5,6 +5,9 @@ import { closeDbs } from '../src/state/db.js';
 import { askAssistant, getConversation, listConversations, performAction, validateAnswer } from '../src/assistant/assistant.js';
 import { claudeArguments, parseClaudeResult, runProcess } from '../src/assistant/bridge.js';
 import { mcpHandler } from '../src/engine/mcp.js';
+import { EN_SHARE } from '../src/i18n/share.en.js';
+import { FR_SHARE } from '../src/i18n/share.fr.js';
+import { OkbError } from '../src/util/errors.js';
 
 const boxes: Sandbox[] = [];
 afterEach(async () => { closeDbs(); await Promise.all(boxes.splice(0).map((b) => b.cleanup())); });
@@ -58,6 +61,15 @@ describe('Assistant local (F2.3)', () => {
     const parsed = parseClaudeResult(JSON.stringify({ structured_output: { statements: [{ text: 'Inconnu', kind: 'unknown', evidence: [] }], actions: [] } }));
     expect(parsed.usage).toEqual({ input: null, output: null });
     expect(() => parseClaudeResult(JSON.stringify({ is_error: true, result: 'limit reached' }))).toThrow();
+    // An expired sign-in is told as such: the person can fix it, and nothing else of the agent's words is repeated.
+    const signedOut = (() => { try { parseClaudeResult(JSON.stringify({ is_error: true, result: 'Failed to authenticate: OAuth session expired and could not be refreshed', usage: { input_tokens: 0, output_tokens: 0 } })); return null; } catch (e) { return e as OkbError; } })();
+    expect(signedOut).toMatchObject({ code: 'E_CONFIG', key: 'agentNotSignedIn' });
+    expect(signedOut!.message).not.toMatch(/OAuth/);
+    expect((signedOut!.detail.usage as { provider: string }).provider).toBe('claude-code');
+    const limit = (() => { try { parseClaudeResult(JSON.stringify({ is_error: true, result: 'limit reached' })); return null; } catch (e) { return e as OkbError; } })();
+    expect(limit).toMatchObject({ code: 'E_IO' });
+    expect(limit!.key).not.toBe('agentNotSignedIn');
+    for (const words of [FR_SHARE, EN_SHARE] as Record<string, string>[]) for (const part of ['title', 'why', 'fix']) expect(words[`err.agentNotSignedIn.${part}`]).toBeTruthy();
   });
   it('bounds subprocess output and stops a hanging process without invoking a shell', async () => {
     await expect(runProcess(process.execPath, ['-e', 'process.stdout.write("x".repeat(1000))'], { input: '', cwd: process.cwd(), env: process.env, maxBytes: 100 })).rejects.toMatchObject({ code: 'E_UNSUPPORTED' });

@@ -46,11 +46,15 @@ n'est pas une garantie sur toute machine ou tout corpus. Reproduction :
 ## Validations encore ouvertes
 
 - **Claude Code réel** : l'installation 2.1.289 est détectée et les contrats
-  sont testés, mais l'essai de génération a renvoyé `E_IO`. Sa cause n'est pas
-  établie. Quota, authentification ou compatibilité ne sont pas déduits de cet
-  échec ; une réponse réelle reste à obtenir.
-- **Interface et accessibilité** : contrôle visuel clair/sombre/étroit,
-  parcours navigateur, lancement de la fenêtre packagée, lecteur d'écran et
+  sont testés. L'essai de génération renvoyait `E_IO` ; la cause est établie :
+  sur la machine d'essai, la session du `claude` en ligne de commande avait
+  expiré (tout appel `claude -p` échouait de la même façon, sans consommer de
+  tokens). OKB le dit désormais (`agentNotSignedIn` : ouvrir un terminal, lancer
+  `claude`, se connecter). Une réponse réelle reste à obtenir une fois connecté.
+- **Interface et accessibilité** : les neuf parcours navigateur
+  (`npm run test:journeys`) passent, et les écrans Assistant, Partager, Tickets
+  et Comprendre ont été ouverts en largeur étroite sans erreur de console.
+  Contrôle clair/sombre complet, lancement de la fenêtre packagée, lecteur d'écran et
   contraste réel non vérifiés dans cette reprise. Les noms, titres, focus et
   clavier testés ne constituent pas une certification WCAG.
 - **Distribution** : signature, notarisation, installation Windows, mises à
