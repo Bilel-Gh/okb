@@ -1153,3 +1153,36 @@ La cible de la 2.0, une recherche répétée sous 200 ms au p95 à 5 000 notes, 
 **Réexamen.**
 - Le choix de l'espace à la place du choix du cerveau, à l'itération 7.
 - La place de « Dans ton terminal » quand l'Assistant deviendra une conversation (2.3).
+
+## D60 — 2.0, itération 5 : le projet au centre, les actions, le journal, l'état dans SQLite (11 octobre 2026)
+
+**Problème.** OKB rangeait des notes, mais ne tenait pas le fil du travail : pas d'objet pour « ce sur quoi je travaille », pas d'actions ni d'attentes, un journal reconstitué après coup, rien pour dire où on en était en quittant un sujet. Ce qui se coche vivait dans des fichiers JSON, et le cœur importait le code des tickets.
+
+**Décisions.**
+
+- **L'état opérationnel dans SQLite** (F2.0-18, `src/state/db.ts`).
+  - Une base par profil, `okb.db`, dans le dossier d'état : hors des notes et hors de tout dossier synchronisé. Le savoir reste en Markdown.
+  - C'est le SQLite de Node (`node:sqlite`) : aucune dépendance à installer ni à compiler. D'où Node 22.13 au minimum. L'avertissement « experimental » de Node est filtré à l'ouverture.
+  - Mode WAL et attente de 5 s sur verrou : le terminal et l'app écrivent en même temps sans rien perdre. Les migrations sont numérotées (`user_version`) et ne se réécrivent jamais.
+  - Y vont : les projets, les actions, le journal. Les révisions, la progression et les tickets restent dans leurs fichiers pour l'instant ; ils y passeront avec la migration des vraies KB (itération 8).
+- **Le Projet** (F2.0-03, `src/projects/`). Un sujet que la personne crée, ou ce qu'un module apporte. Il dit où il en est en une phrase, sa prochaine étape, et garde « Où j'en étais ».
+- **Ce qu'un module apporte au cœur** (F2.0-25, `src/projects/sources.ts`). Un module déclare une source : ses projets (`seeds`), ce qui s'y est passé (`events`), le travail qu'il suit (`work`) et les noms propres au lieu de travail (`privateNames`). `src/modules/wire.ts` est le seul fichier qui connaît tous les modules ; il est chargé au premier besoin. Le module développeur y déclare ses tickets et ses repos.
+  - Le cœur n'importe plus les tickets : « Maintenant », le journal de la semaine, les cartes de suggestion et la carrière passent par ces sources. La dette passe de 18 à 12 liens ; ce qui reste concerne la découverte des repos à l'installation et le rangement produit › repo.
+  - Éteindre le module cache ses projets, leurs actions et leurs lignes de journal, sans rien supprimer.
+- **Les actions et les attentes** (F2.0-06). Quatre sortes : à faire, attendu de quelqu'un, demandé, question ouverte ; avec un jour quand il y en a un. Cocher une action écrit une ligne « fait » dans le journal de son projet. Ce qu'un agent ajoute est marqué `ai`.
+- **Repérer une action sans IA** (`src/projects/detect.ts`). Des déclencheurs (« il faut », « ne pas oublier de », « j'attends », un infinitif en tête de ligne) et des dates dites simplement (demain, lundi, le 15 mai, 3/11), en français et en anglais. OKB propose, la personne confirme. Un simple fait n'est jamais pris pour une action.
+- **Le journal par jour et par projet** (F2.0-05). Les lignes de la personne et celles qu'OKB note pour elle sont dans la base ; un module y ajoute ce qu'il sait de ses projets (les décisions et les commits d'un ticket).
+- **Le jour est celui de la personne** (`src/util/day.ts`) : un jour se compte dans son fuseau horaire. Une ligne écrite à une heure du matin à Paris appartient à ce jour-là.
+- **« Où j'en étais »** (F2.0-07, `src/projects/leave.ts`). En quittant un projet, OKB prépare quatre lignes (fait, essayé, en attente, par où reprendre) à partir du journal et des actions depuis la dernière fois, sans IA. Une correction garde le reste et marque la reprise comme corrigée.
+- **Aujourd'hui répond à six questions** (F2.0-04, `src/projects/today.ts`) : reprendre, à faire, en attente, ce qui s'est passé, ce qui est entré dans la mémoire cette semaine, à revoir et à comprendre. « À comprendre » est, en 2.0, une fiche concept que les notes utilisent et que la personne n'a jamais ouverte ; la dette de compréhension complète vient en 2.2.
+- **Garde ça** écrit dans le journal du projet choisi, sinon dans les captures, et propose l'action qu'il repère.
+- **Partout pareil** : dix opérations de plus dans le moteur (`projects.*`, `actions.*`, `journal.*`, `today.view`), servies à l'app, à `okb project`, `okb action`, `okb today`, `okb journal add` et à MCP.
+
+**Conséquences.**
+- Un assistant peut tenir les projets, les actions et le journal : c'est l'état du travail, pas du savoir. Une note passe toujours par une carte et le oui de la personne.
+- Une sauvegarde doit maintenant emporter `okb.db` (itération 8).
+
+**Réexamen.**
+- Faire passer les tickets eux-mêmes dans la base, avec la migration (itération 8).
+- Le prochain rendez-vous dans Aujourd'hui : il demande un agenda, pas encore décidé.
+- Les questions en attente de « Maintenant » (`okb now wait`) font doublon avec les attentes : à fusionner à la migration.

@@ -14,7 +14,9 @@ function mount(route: Route, calls: { url: string; body?: unknown }[] = []) {
   qc.setQueryData(['modules'], { modules: [{ id: 'dev', enabled: true }] });
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : undefined });
-    const body = String(url).includes('/api/suggestions') ? { suggestions: [] } : String(url).includes('/api/status') ? { name: 'Démo', notes: 12, concepts: 2 } : { ok: true };
+    const u = String(url);
+    const body = u.includes('/api/suggestions') ? { suggestions: [] } : u.includes('/api/status') ? { name: 'Démo', notes: 12, concepts: 2 }
+      : u.includes('/api/actions/detect') ? { action: u.includes('avant') ? { kind: 'todo', text: 'Réserver le car', due: '2027-05-15' } : null } : u.includes('/api/projects') ? { projects: [{ id: 'P-1a2b3c', title: 'Sortie de juin' }] } : { ok: true };
     return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
   }));
   return render(<QueryClientProvider client={qc}><Shell route={route} title="Titre"><p>Page</p></Shell></QueryClientProvider>);
@@ -47,5 +49,21 @@ describe('the shell of the 2.0 (F2.0-01)', () => {
     await act(async () => { fireEvent.submit(field.closest('form')!); });
     await waitFor(() => expect(calls.some((c) => c.url.includes('/api/capture'))).toBe(true));
     expect(calls.find((c) => c.url.includes('/api/capture'))!.body).toMatchObject({ text: 'Le quota passe à 500 lundi' });
+  });
+
+  it('« Garde ça » offers the action it spots, and puts the line in the chosen project’s journal', async () => {
+    const calls: { url: string; body?: unknown }[] = [];
+    mount({ name: 'today' }, calls);
+    act(() => { fireEvent.keyDown(window, { key: 'j', metaKey: true }); });
+    const field = await screen.findByPlaceholderText('app.keep.placeholder');
+    fireEvent.change(field, { target: { value: 'réserver le car avant le 15 mai' } });
+    await screen.findByText('Réserver le car');
+    const select = await screen.findByRole('combobox');
+    fireEvent.change(select, { target: { value: 'P-1a2b3c' } });
+    await act(async () => { fireEvent.submit(field.closest('form')!); });
+    await waitFor(() => expect(calls.some((c) => c.url.includes('/api/actions') && c.body)).toBe(true));
+    expect(calls.find((c) => c.url.endsWith('/api/entries'))!.body).toMatchObject({ text: 'réserver le car avant le 15 mai', project: 'P-1a2b3c' });
+    expect(calls.find((c) => c.url.endsWith('/api/actions'))!.body).toMatchObject({ text: 'Réserver le car', kind: 'todo', due: '2027-05-15', project: 'P-1a2b3c' });
+    expect(calls.some((c) => c.url.includes('/api/capture'))).toBe(false);
   });
 });

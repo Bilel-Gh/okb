@@ -6,7 +6,7 @@ import type { Bundle } from '../kb/bundle.js';
 import { loadQueue } from '../suggest/suggest.js';
 import { readLines } from '../util/fsx.js';
 import { readReceipts } from '../weekly/weekly.js';
-import { listTickets } from '../work/tickets.js';
+import { moduleRawEvents, moduleWork } from '../projects/sources.js';
 
 /**
  * What happened, day by day, from what OKB already records: notes created or
@@ -64,14 +64,15 @@ export async function journal(config: OkbConfig, bundle: Bundle, options: { days
       else if (res.action === 'updated' && !d.created.has(res.path)) d.updated.set(res.path, ref(res.path));
     }
   }
-  for (const tk of await listTickets(config).catch(() => [])) {
-    if (inRange(tk.startedAt)) at(tk.startedAt).ticketsStarted.push({ ref: tk.ref, title: tk.title });
-    if (tk.doneAt && inRange(tk.doneAt)) at(tk.doneAt).ticketsDone.push({ ref: tk.ref, title: tk.title });
-    for (const j of tk.journal) {
-      if (!inRange(j.at)) continue;
-      if (j.kind === 'commit') at(j.at).commits.push({ ref: tk.ref, repo: j.repo ?? null, text: j.text });
-      if (j.kind === 'decision') at(j.at).decisions.push({ ref: tk.ref, text: j.text });
-    }
+  // What the modules in use know of the work (with the developer module: the tickets, their commits and decisions).
+  for (const w of (await moduleWork(config).catch(() => [])).filter((x) => x.kind === 'ticket')) {
+    if (inRange(w.startedAt)) at(w.startedAt).ticketsStarted.push({ ref: w.ref, title: w.title });
+    if (w.doneAt && inRange(w.doneAt)) at(w.doneAt).ticketsDone.push({ ref: w.ref, title: w.title });
+  }
+  for (const e of (await moduleRawEvents(config).catch(() => [])).filter((x) => x.kind === 'ticket')) {
+    if (!inRange(e.at)) continue;
+    if (e.entry === 'commit') at(e.at).commits.push({ ref: e.ref, repo: e.area ?? null, text: e.text });
+    if (e.entry === 'decision') at(e.at).decisions.push({ ref: e.ref, text: e.text });
   }
   for (const s of await sessionsSince(config, new Date(`${fromDay}T00:00:00Z`)).catch(() => [])) {
     if (inRange(s.at)) at(s.at).sessions.push({ summary: s.summary, next: s.next });

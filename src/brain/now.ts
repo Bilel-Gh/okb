@@ -8,7 +8,7 @@ import { assertNoSecrets } from '../security/guard.js';
 import { statePaths } from '../state/paths.js';
 import { OkbError } from '../util/errors.js';
 import { readJsonIfExists, writeJsonAtomic } from '../util/fsx.js';
-import { listTickets } from '../work/tickets.js';
+import { moduleWork } from '../projects/sources.js';
 
 /**
  * « Maintenant » — what the person is on, computed without AI from what OKB
@@ -90,11 +90,11 @@ export function deadlinesIn(bundle: Bundle, now = new Date(), horizonDays = 45):
 
 export async function nowView(config: OkbConfig, bundle: Bundle, extra: Record<string, number> = {}, now = new Date()): Promise<NowView> {
   const [state, tickets, last, proposals] = await Promise.all([
-    load(config), listTickets(config).catch(() => []), readLastSession(config).catch(() => null), listProposals(config).catch(() => []),
+    load(config), moduleWork(config).catch(() => []), readLastSession(config).catch(() => null), listProposals(config).catch(() => []),
   ]);
   return {
     objective: state.objective,
-    tickets: tickets.filter((t) => t.status === 'active').slice(0, 8).map((t) => ({ ref: t.ref, title: t.title, repos: t.repos.map((r) => r.id), updatedAt: t.updatedAt })),
+    tickets: tickets.filter((t) => t.kind === 'ticket' && t.status === 'active').sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 8).map((t) => ({ ref: t.ref, title: t.title, repos: [...t.areas], updatedAt: t.updatedAt })),
     deadlines: deadlinesIn(bundle, now),
     lastSession: last ? { at: last.at, summary: last.summary, next: last.next } : null,
     waiting: state.waiting.map((w) => ({ ...w, days: Math.floor((now.getTime() - Date.parse(w.since)) / DAY) })),

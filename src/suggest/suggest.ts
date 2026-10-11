@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { person } from '../identity/person.js';
 import { addressFor, breadcrumb, type AddressInput } from '../brain/address.js';
 import { layoutOf } from '../brain/layout.js';
-import { listTickets } from '../work/tickets.js';
+import { moduleWork } from '../projects/sources.js';
 import { COST_TOKENS, noteType } from '../brain/types.js';
 import type { OkbConfig } from '../config/schema.js';
 import type { Bundle } from '../kb/bundle.js';
@@ -144,11 +144,12 @@ export async function contextFor(config: OkbConfig, bundle: Bundle): Promise<Sug
   const { readFocus } = await import('../focus/focus.js');
   const focus = await readFocus(config).catch(() => null);
   const text = focus && 'body' in focus ? String((focus as { body?: string }).body ?? '') : '';
-  const tickets = await listTickets(config).catch(() => []);
+  // What the person works on now, as the modules know it (the repositories of the tickets in progress).
+  const work = await moduleWork(config).catch(() => []);
   return {
     bundle,
     focusWords: key(text).split(' ').filter((w) => w.length > 4).slice(0, 80),
-    activeRepos: tickets.filter((t) => t.status === 'active').flatMap((t) => t.repos.map((r) => r.id)),
+    activeRepos: work.filter((x) => x.status === 'active').flatMap((x) => [...x.areas]),
   };
 }
 

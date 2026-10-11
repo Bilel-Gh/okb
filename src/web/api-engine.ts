@@ -23,5 +23,13 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
     'GET /api/project': op('projects.get', (q) => fromQuery(q, ['id'])),
     'POST /api/projects': op('projects.create', (_q, b) => pick(b, ['title', 'where', 'next', 'folder'])),
     'POST /api/project/update': op('projects.update', (_q, b) => pick(b, ['id', 'title', 'status', 'where', 'next'])),
+    'POST /api/project/leave': op('projects.leave', (_q, b) => pick(b, ['id', 'done', 'tried', 'waiting', 'resume'])),
+    'GET /api/today': op('today.view', () => ({})),
+    'GET /api/actions': op('actions.list', (q) => fromQuery(q, ['project', 'status', 'kind'])),
+    'GET /api/actions/detect': op('actions.detect', (q) => ({ text: q.get('text') ?? '' })),
+    'POST /api/actions': op('actions.add', (_q, b) => pick(b, ['text', 'kind', 'project', 'who', 'due'])),
+    'POST /api/action/update': op('actions.update', (_q, b) => pick(b, ['id', 'status', 'text', 'who', 'due'])),
+    'GET /api/entries': op('journal.list', (q) => ({ ...fromQuery(q, ['project', 'day']), ...(q.get('limit') ? { limit: Number(q.get('limit')) } : {}) })),
+    'POST /api/entries': op('journal.add', (_q, b) => pick(b, ['text', 'kind', 'project'])),
   };
 }

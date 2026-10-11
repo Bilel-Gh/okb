@@ -111,7 +111,10 @@ drawers and the products; data stays in plain colours.
 
 `reader/Provenance.tsx` is the « Sources et validité » zone under a note (a native
 `details`: sources, author, approval, validity, and the on-request freshness check).
-`pages/Projects.tsx` holds `KindMark` (a project's kind in a tinted square).
+`pages/Projects.tsx` holds `KindMark` (a project's kind in a tinted square) and the
+project page; `pages/day-parts.tsx` holds `ActionList` (actions to tick, with a
+field that reads the line) and `JournalList` (lines by day, each kind with its
+icon in a tinted square).
 
 `ui/`: `CatMark`/`TypeMark` (type icon in a tinted square), `PageTabs` (a
 destination's pages, each with its address), `Breadcrumb`, `LevelBar`, `Ring` (a

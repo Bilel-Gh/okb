@@ -8,23 +8,19 @@ const SRC = resolve(TEST_ROOT, '..', 'src');
 /** The developer module's code (src/modules/catalog.ts): repositories, tickets, architecture, code review, repository level. */
 const DEV = ['repo', 'work', 'arch', 'dev', 'knowledge'];
 /** Where the modules meet: the adapters and the engine's registry may import every module. */
-const MEETING = [/^cli\//, /^web\//, /^engine\/registry\.ts$/, /^engine\/mcp\.ts$/];
+const MEETING = [/^cli\//, /^web\//, /^engine\/registry\.ts$/, /^engine\/mcp\.ts$/, /^modules\/wire\.ts$/];
 
 /**
  * Known debt (F2.0-25): core files that still import the developer module.
- * This list can only shrink. Most of these links are about tickets; they go
- * when the Project (ticket, repository, subject) joins the core (2.0, iteration 5).
+ * This list can only shrink. The links about tickets went when the Project
+ * joined the core (2.0, iteration 5). What stays is about discovering
+ * repositories at set-up and the product › repository layout of a work brain.
  */
 const KNOWN = [
   'brain/migrate.ts -> repo/registry',
-  'brain/now.ts -> work/tickets',
   'brain/products.ts -> repo/pack',
   'brain/products.ts -> repo/registry',
   'brain/session.ts -> repo/registry',
-  'career/career.ts -> dev/dev',
-  'career/career.ts -> repo/registry',
-  'career/career.ts -> work/tickets',
-  'journal/journal.ts -> work/tickets',
   'kb/convert.ts -> repo/registry',
   'pipeline/ask.ts -> work/rank',
   'setup/discover.ts -> repo/confidential',
@@ -33,7 +29,6 @@ const KNOWN = [
   'setup/discover.ts -> work/kinds',
   'setup/discover.ts -> work/workspaces',
   'setup/wizard.ts -> work/kinds',
-  'suggest/suggest.ts -> work/tickets',
 ];
 
 async function files(dir: string): Promise<string[]> {

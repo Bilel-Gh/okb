@@ -76,6 +76,10 @@ const HANDLERS: Record<string, Handler> = {
   progress: (c) => import('./commands/progress.js').then((m) => m.cmdProgress(c)),
   translate: (c) => import('./commands/translate.js').then((m) => m.cmdTranslate(c)),
   modules: (c) => import('./commands/modules.js').then((m) => m.cmdModules(c)),
+  // The person's day, through the engine: projects, actions, today.
+  project: (c) => import('./commands/projects.js').then((m) => m.cmdProject(c)),
+  action: (c) => import('./commands/projects.js').then((m) => m.cmdAction(c)),
+  today: (c) => import('./commands/projects.js').then((m) => m.cmdToday(c)),
   // The engine's operations for the assistants of the terminal, over MCP (stdio).
   mcp: (c) => import('../engine/mcp.js').then((m) => m.serveMcp({ ...(flagString(c.args, 'kb') ? { kb: flagString(c.args, 'kb')! } : {}) })).then(() => 0),
   suggest: (c) => import('./commands/suggest.js').then((m) => m.cmdSuggest(c)),

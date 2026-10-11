@@ -1,19 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, BadgeCheck, CalendarCheck, Check, ChevronLeft, ChevronRight, Clock, FileDiff, GraduationCap, HeartPulse, Inbox, Layers, NotebookPen, Pencil, Plus, Sparkles, Sun, Target, Ticket, Trash2, X } from 'lucide-react';
+import { ArrowRight, BadgeCheck, CalendarCheck, Check, ChevronLeft, ChevronRight, Clock, FileDiff, GraduationCap, HeartPulse, Hourglass, Inbox, Layers, ListTodo, NotebookPen, Pencil, Play, Plus, Sparkles, Sun, Target, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { get, post } from '../app/api';
-import { DRAWER_COLOR, recentNotes, useCategories } from '../app/data';
 import { tn, useT } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
 import { useStatus } from '../app/Shell';
 import { toast } from '../app/toast';
 import { Prose } from '../reader/Prose';
-import { CatIcon } from '../ui/CatMark';
 import { PageTabs } from '../ui/PageTabs';
 import { useProgress, type ProgressData } from '../ui/Progress';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { TypeMark } from '../ui/TypeMark';
-import { drawerOf } from './brain-tree';
+import { ActionList, JournalList, type Action, type Entry } from './day-parts';
+import { KindMark, type Project } from './Projects';
 
 export type Suggestion = {
   id: string; type: string; title: string; why: string; breadcrumb: string; status: string; recommendation: 'create' | 'complete' | 'link' | 'nothing';
@@ -26,7 +25,6 @@ type Brain = {
   shape: { drawers: { drawer: string; folder: string; label: string; notes: number; subjects: { name: string; notes: number }[] }[] } | null;
   now: { objective: { text: string } | null; tickets: { ref: string; title: string }[]; waiting: { text: string; who: string; days: number }[]; lastSession: { summary: string; next: string | null } | null };
 };
-type Learn = { counts: { due: number; newLeft: number; cards: number } };
 type FullStatus = { focus: { exists: boolean; ageDays: number | null; stale: boolean }; inbox: { open: number; oldestDays: number | null }; toReview: number };
 
 const fmtDate = (iso: string, lang: string) => new Date(iso).toLocaleDateString(lang, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -104,7 +102,7 @@ function Panel({ title, icon, link, children, flush = false }: { title: string; 
 
 /* ================================================================ today */
 
-function Hello({ waiting, due }: { waiting: number; due: number | null }) {
+function Hello({ todo, waiting, due }: { todo: number | null; waiting: number | null; due: number | null }) {
   const t = useT();
   const status = useStatus();
   const hour = new Date().getHours();
@@ -114,12 +112,12 @@ function Hello({ waiting, due }: { waiting: number; due: number | null }) {
       <div className="hello-text">
         <p className="muted">{hour >= 5 && hour < 18 ? t('app.today.morning') : t('app.today.evening')}</p>
         <h2 id="hello-h">{s?.name ?? '…'}</h2>
-        <p className="muted">{s ? t('app.today.notesLine', { notes: s.notes, concepts: s.concepts }) : <span className="skeleton" style={{ width: 200, display: 'inline-block' }} />}</p>
+        <p className="muted">{new Date().toLocaleDateString(t.lang, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </div>
       <div className="stats">
-        <a className="stat" href={hrefFor({ name: 'inbox' })}><b className="num">{waiting}</b><span><Inbox size={14} aria-hidden="true" />{t('app.today.stat.waiting')}</span></a>
+        <a className="stat" href="#todo"><b className="num">{todo ?? '–'}</b><span><ListTodo size={14} aria-hidden="true" />{t('app.today.stat.todo')}</span></a>
+        <a className="stat" href="#waiting"><b className="num">{waiting ?? '–'}</b><span><Hourglass size={14} aria-hidden="true" />{t('app.today.stat.waitingFor')}</span></a>
         <a className="stat" href={hrefFor({ name: 'learn' })}><b className="num">{due ?? '–'}</b><span><Layers size={14} aria-hidden="true" />{t('app.today.stat.cards')}</span></a>
-        <a className="stat" href={hrefFor({ name: 'upkeep', tab: 'health' })}><b className="num">{s?.health?.score ?? '–'}</b><span><HeartPulse size={14} aria-hidden="true" />{t('app.today.stat.health')}</span></a>
       </div>
     </section>
   );
@@ -144,57 +142,38 @@ function Level({ data }: { data: Extract<ProgressData, { show: true }> }) {
   );
 }
 
-function QuickCapture() {
-  const t = useT();
-  const qc = useQueryClient();
-  const [text, setText] = useState('');
-  const save = async () => {
-    if (!text.trim()) return;
-    try { await post('/api/capture', { text }); setText(''); toast(t('web.inbox.captured')); void qc.invalidateQueries({ queryKey: ['status'] }); } catch (e) { toast((e as Error).message, 'err'); }
-  };
-  return (
-    <div className="stack" style={{ gap: 8 }}>
-      <div className="row">
-        <input className="input" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void save(); }} placeholder={t('web.home.quickCapture')} aria-label={t('web.home.captureTitle')} />
-        <button type="button" className="btn" onClick={() => void save()} disabled={!text.trim()}><Plus size={15} aria-hidden="true" />{t('web.home.capture')}</button>
-      </div>
-      <p className="xs muted">{t('app.today.captureWhere')}</p>
-    </div>
-  );
-}
+type TodayData = {
+  day: string;
+  resume: Project[];
+  todo: Action[];
+  waiting: Action[];
+  done: Entry[];
+  learned: { path: string; title: string; at: string }[];
+  review: { due: number };
+  understand: { path: string; title: string; usedBy: number } | null;
+};
 
-function BrainShape({ brain }: { brain: Brain | undefined }) {
+/** The projects to pick up, each with where the person was. */
+function Resume({ projects }: { projects: Project[] }) {
   const t = useT();
-  const cats = useCategories();
-  const status = useStatus();
-  const list = (status.data?.categories ?? []).filter((c) => c.count > 0);
-  const total = list.reduce((n, c) => n + c.count, 0);
+  if (!projects.length) return <Empty title={t('app.today.resumeNone')} action={<a className="btn sm" href={hrefFor({ name: 'projects' })}>{t('app.today.openProjects')}<ArrowRight size={14} aria-hidden="true" /></a>}>{t('app.today.resumeNoneText')}</Empty>;
+  const [first, ...rest] = projects;
   return (
-    <div className="stack" style={{ gap: 18 }}>
-      {total ? (
-        <>
-          <div className="typebar" role="img" aria-label={list.map((c) => `${c.label} ${c.count}`).join(', ')}>
-            {list.map((c) => <span key={c.id} style={{ flex: c.count / total, '--c': cats.color(c.id) } as CSSProperties} />)}
-          </div>
-          <ul className="type-legend">
-            {list.map((c) => (
-              <li key={c.id} style={{ '--c': cats.color(c.id) } as CSSProperties}>
-                <a href={hrefFor({ name: 'brain', query: { cat: c.id } })}><span className="cat xs"><CatIcon id={c.id} emoji={c.emoji} size={11} /></span>{c.label} <b className="num">{c.count}</b></a>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-      {brain?.shape ? (
-        <ul className="drawer-cards" aria-label={t('app.today.map')}>
-          {brain.shape.drawers.map((d) => (
-            <li key={d.drawer} style={{ '--c': DRAWER_COLOR[d.drawer] ?? 'var(--ink-3)' } as CSSProperties}>
-              <a href={hrefFor({ name: 'brain', query: { in: d.folder } })}>
-                <span className="drawer-n" aria-hidden="true">{drawerOf(d.folder).n ?? '·'}</span>
-                <b>{d.label}</b>
-                <small className="muted num">{tn(t, 'app.brain.count', d.notes)}</small>
-              </a>
-            </li>
+    <div className="resume">
+      <a className="resume-main" href={hrefFor({ name: 'projects', id: first!.id })}>
+        <KindMark kind={first!.kind} />
+        <span className="grow"><span className="title">{first!.title}</span><span className="meta">{first!.where || t('app.projects.noWhere')}</span></span>
+        <span className="btn primary sm"><Play size={14} aria-hidden="true" />{t('app.today.resumeGo')}</span>
+      </a>
+      {first!.leftOff ? (
+        <dl className="resume-left">
+          {(['done', 'tried', 'waiting', 'resume'] as const).filter((f) => first!.leftOff![f]).map((f) => <div key={f}><dt>{t(`app.leftOff.${f}`)}</dt><dd>{first!.leftOff![f]}</dd></div>)}
+        </dl>
+      ) : first!.next ? <p className="resume-next"><ArrowRight size={15} aria-hidden="true" /><span>{first!.next}</span></p> : null}
+      {rest.length ? (
+        <ul className="rows tight">
+          {rest.map((p) => (
+            <li key={p.id} className="link-row"><a href={hrefFor({ name: 'projects', id: p.id })}><KindMark kind={p.kind} size="sm" /><span className="grow"><span className="title">{p.title}</span><span className="meta">{p.leftOff?.resume || p.next || p.where || t('app.projects.noWhere')}</span></span></a></li>
           ))}
         </ul>
       ) : null}
@@ -205,16 +184,12 @@ function BrainShape({ brain }: { brain: Brain | undefined }) {
 function TodayTab() {
   const t = useT();
   const brain = useQuery({ queryKey: ['brain'], queryFn: () => get<Brain>('/api/brain') });
-  const learn = useQuery({ queryKey: ['learn'], queryFn: () => get<Learn>('/api/learn') });
+  const day = useQuery({ queryKey: ['today'], queryFn: () => get<TodayData>('/api/today') });
   const full = useQuery({ queryKey: ['status-full'], queryFn: () => get<FullStatus>('/api/status') });
   const progress = useProgress();
-  const recent = recentNotes();
   const now = brain.data?.now;
-  const due = learn.data ? learn.data.counts.due + Math.min(10, learn.data.counts.newLeft) : 0;
-  const suggestions = useQuery({ queryKey: ['suggestions'], queryFn: () => get<Suggestions>('/api/suggestions') });
-  const proposals = useQuery({ queryKey: ['proposals'], queryFn: () => get<{ proposals: Proposal[] }>('/api/proposals') });
-  const waiting = (suggestions.data?.suggestions.filter((x) => x.status === 'pending').length ?? 0) + (proposals.data?.proposals.filter((x) => x.status === 'prepared').length ?? 0);
-  // What is useful now, beyond the cards: captures to sort, a stale focus, the weekly review.
+  const d = day.data;
+  // What is useful now, beyond the day itself: captures to sort, a stale focus, the weekly review.
   const nudges: { icon: ReactNode; text: string; to: Route; action: string }[] = [];
   const f = full.data;
   if (f?.inbox.open) nudges.push({ icon: <Inbox size={16} aria-hidden="true" />, text: tn(t, 'status.inboxOpen', f.inbox.open, { days: f.inbox.oldestDays ?? 0 }), to: { name: 'inbox', tab: 'captures' }, action: t('web.home.sortInbox') });
@@ -225,31 +200,53 @@ function TodayTab() {
 
   return (
     <>
-      <Hello waiting={waiting} due={learn.data ? due : null} />
+      <Hello todo={d ? d.todo.length : null} waiting={d ? d.waiting.length : null} due={d ? d.review.due : null} />
+      {day.error ? <ErrorState error={day.error} retry={() => void day.refetch()} /> : null}
       <div className="grid-2">
         <div className="stack lg">
-          <Panel title={t('app.waiting.title')} link={{ href: hrefFor({ name: 'inbox' }), label: t('app.waiting.all') }} flush><Waiting limit={5} /></Panel>
-          <Panel title={t('app.today.resume')} flush>
-            {recent.length ? (
-              <ul className="rows tight">
-                {recent.slice(0, 6).map((r) => (
-                  <li key={r.path} className="link-row">
-                    <a href={hrefFor({ name: 'brain', path: r.path })}>
-                      <TypeMark id={r.category} size="sm" />
-                      <span className="grow"><span className="title">{r.title}</span><span className="meta">{r.path.split('/').slice(0, -1).map((p) => drawerOf(p).label).join(' › ')} · {ago(r.at, t.lang)}</span></span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            ) : <Empty title={t('app.today.resumeEmptyTitle')} action={<a className="btn sm" href={hrefFor({ name: 'brain' })}>{t('app.today.openBrain')}<ArrowRight size={14} aria-hidden="true" /></a>}>{t('app.today.resumeEmpty')}</Empty>}
+          <Panel title={t('app.today.resume')} link={{ href: hrefFor({ name: 'projects' }), label: t('app.today.allProjects') }} flush>
+            {d ? <Resume projects={d.resume} /> : <div style={{ padding: '0 20px 12px' }}><SkeletonRows rows={3} /></div>}
           </Panel>
+          <section className="panel" id="todo" aria-labelledby="todo-h">
+            <div className="panel-head"><h2 id="todo-h">{t('app.actions.todo')}</h2></div>
+            <div className="panel-body flush"><ActionList kind="todo" showProject actions={d?.todo ?? []} placeholder={t('app.actions.todoPlaceholder')} empty={t('app.actions.todoEmpty')} /></div>
+          </section>
+          <section className="panel" id="waiting" aria-labelledby="waiting-h">
+            <div className="panel-head"><h2 id="waiting-h">{t('app.actions.waiting')}</h2></div>
+            <div className="panel-body flush"><ActionList kind="waiting" showProject actions={d?.waiting ?? []} placeholder={t('app.actions.waitingPlaceholder')} empty={t('app.actions.waitingEmpty')} /></div>
+          </section>
+          <Panel title={t('app.waiting.title')} link={{ href: hrefFor({ name: 'inbox' }), label: t('app.waiting.all') }} flush><Waiting limit={3} /></Panel>
         </div>
         <div className="stack lg">
+          {d?.understand ? (
+            <Panel title={t('app.today.understand')}>
+              <div className="stack" style={{ gap: 10 }}>
+                <p className="understand-title">{d.understand.title}</p>
+                <p className="muted small">{tn(t, 'app.today.understandWhy', d.understand.usedBy)}</p>
+                <a className="btn sm primary" href={hrefFor({ name: 'brain', path: d.understand.path })}>{t('app.today.understandGo')}<ArrowRight size={14} aria-hidden="true" /></a>
+              </div>
+            </Panel>
+          ) : null}
+          <Panel title={t('app.today.review')}>
+            <div className="row" style={{ gap: 12 }}>
+              <p className="grow">{d ? (d.review.due ? tn(t, 'app.today.cards', d.review.due) : t('app.today.noCards')) : <span className="skeleton" style={{ width: 160, display: 'inline-block' }} />}</p>
+              {d?.review.due ? <a className="btn sm" href={hrefFor({ name: 'learn' })}><Layers size={14} aria-hidden="true" />{t('app.today.review')}</a> : null}
+            </div>
+          </Panel>
+          <Panel title={t('app.today.done')}>
+            <JournalList entries={d?.done ?? []} showProject empty={t('app.today.doneEmpty')} />
+          </Panel>
+          {d?.learned.length ? (
+            <Panel title={t('app.today.learned')} flush>
+              <ul className="rows tight">
+                {d.learned.map((n) => <li key={n.path} className="link-row"><a href={hrefFor({ name: 'brain', path: n.path })}><NotebookPen size={15} aria-hidden="true" className="muted" /><span className="grow"><span className="title">{n.title}</span><span className="meta">{ago(n.at, t.lang)}</span></span></a></li>)}
+              </ul>
+            </Panel>
+          ) : null}
           <Panel title={t('app.today.now')} link={{ href: hrefFor({ name: 'today', tab: 'focus' }), label: t('app.today.tab.focus') }}>
             <div className="stack" style={{ gap: 12 }}>
               {brain.error ? <ErrorState error={brain.error} retry={() => void brain.refetch()} /> : null}
               <p className="objective"><Target size={17} aria-hidden="true" /><span>{now?.objective?.text ?? <span className="muted">{t('app.today.noObjective')}</span>}</span></p>
-              {now?.tickets.length ? <p className="objective"><Ticket size={17} aria-hidden="true" /><span>{now.tickets.slice(0, 3).map((x) => x.ref).join(', ')}{now.waiting.length ? ` · ${tn(t, 'app.today.waitingFor', now.waiting.length)}` : ''}</span></p> : null}
               {now?.lastSession?.next ? <p className="objective"><ArrowRight size={17} aria-hidden="true" /><span><span className="muted">{t('app.today.next')} </span>{now.lastSession.next}</span></p> : null}
               {nudges.length ? (
                 <ul className="nudges">
@@ -264,16 +261,8 @@ function TodayTab() {
           {progress.data?.show ? (
             <Panel title={t('app.progress.title')} link={{ href: hrefFor({ name: 'learn', tab: 'progress' }), label: t('app.progress.badges') }}><Level data={progress.data} /></Panel>
           ) : null}
-          <Panel title={t('app.today.review')}>
-            <div className="row" style={{ gap: 12 }}>
-              <p className="grow">{learn.data ? (due ? tn(t, 'app.today.cards', due) : t('app.today.noCards')) : <span className="skeleton" style={{ width: 160, display: 'inline-block' }} />}</p>
-              {due ? <a className="btn sm" href={hrefFor({ name: 'learn' })}><Layers size={14} aria-hidden="true" />{t('app.today.review')}</a> : null}
-            </div>
-          </Panel>
-          <Panel title={t('web.home.captureTitle')}><QuickCapture /></Panel>
         </div>
       </div>
-      <Panel title={t('app.today.brain')} link={{ href: hrefFor({ name: 'graph' }), label: t('app.today.seeGraph') }}><BrainShape brain={brain.data} /></Panel>
     </>
   );
 }

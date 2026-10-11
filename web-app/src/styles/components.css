@@ -462,3 +462,53 @@ textarea.input.project-line { height: auto; min-height: 60px; padding: 8px var(-
   .keep-btn .hide-narrow, .validate-btn .hide-narrow { display: none; }
   .keep-btn, .validate-btn { padding: 0 9px; }
 }
+
+/* ---------------------------------------------------------------- the day: actions, journal, « où j'en étais » */
+.action-rows > li { gap: 12px; }
+.tick { flex: none; width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--hair-strong); background: var(--surface); cursor: pointer; padding: 0; transition: border-color var(--fast) var(--ease), background-color var(--fast) var(--ease); }
+.tick:hover { border-color: var(--accent); background: var(--accent-soft); }
+.who { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--sunk); color: var(--ink-2); font-size: 11.5px; font-weight: 650; text-transform: uppercase; }
+.due { flex: none; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.due.late { color: var(--err); font-weight: 600; }
+.actions-end { display: flex; align-items: center; gap: 2px; flex: none; }
+.action-rows .title { white-space: normal; }
+.action-empty { padding: 4px 20px 0; }
+.action-add, .journal-add { display: flex; gap: var(--s2); padding: var(--s3) 20px var(--s2); }
+.journal-add { padding: 0 0 var(--s4); }
+.action-add .input, .journal-add .input { flex: 1; min-width: 0; }
+.journal-add .select { flex: none; width: auto; }
+.journal-day { font-size: 12px; font-weight: 600; color: var(--ink-3); margin: var(--s4) 0 var(--s2); text-transform: capitalize; }
+.journal section:first-of-type .journal-day { margin-top: 0; }
+.journal-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.journal-rows li { display: flex; align-items: flex-start; gap: var(--s3); font-size: 13.5px; color: var(--ink); }
+.journal-rows time { flex: none; width: 42px; padding-top: 3px; color: var(--ink-3); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.journal-kind { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--sunk); color: var(--ink-3); }
+.journal-kind.decision { background: var(--info-soft); color: var(--info); }
+.journal-kind.done, .journal-kind.commit { background: var(--ok-soft); color: var(--ok); }
+.journal-kind.tried, .journal-kind.trap { background: var(--warn-soft); color: var(--warn); }
+.journal-kind.resume { background: var(--accent-soft); color: var(--accent-text); }
+.journal-rows .grow { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; padding-top: 2px; overflow-wrap: anywhere; }
+.journal-rows .meta { color: var(--ink-3); font-size: 12.5px; text-decoration: none; }
+.journal-rows a.meta:hover { text-decoration: underline; }
+.left-off { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4) var(--s5); padding: var(--s2) var(--s5) var(--s5); }
+.resume-main { display: flex; align-items: center; gap: 12px; padding: 6px 20px 12px; text-decoration: none; color: inherit; }
+.resume-main .grow { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.resume-main .title { font-weight: 650; font-size: 15px; }
+.resume-main .meta { color: var(--ink-3); font-size: 13px; }
+.resume-main:hover .title { text-decoration: underline; }
+.resume-left { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3) var(--s5); margin: 0; padding: 0 20px var(--s4); }
+.resume-left dt { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 2px; }
+.resume-left dd { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+.resume-next { display: flex; gap: var(--s2); padding: 0 20px var(--s4); color: var(--ink-2); font-size: 13.5px; }
+.resume-next svg { color: var(--accent-text); flex: none; margin-top: 2px; }
+.resume .rows { border-top: 1px solid var(--hair); }
+.understand-title { font-size: 15px; font-weight: 600; }
+@media (max-width: 900px) {
+  .left-off, .resume-left { grid-template-columns: minmax(0, 1fr); }
+  .journal-add, .action-add { flex-wrap: wrap; }
+}
+.keep-spotted { display: flex; align-items: flex-start; gap: var(--s2); padding: var(--s2) var(--s3); border-radius: var(--r); background: var(--accent-soft); color: var(--ink-2); font-size: 13.5px; cursor: pointer; }
+.keep-spotted input { margin-top: 3px; accent-color: var(--accent); }
+.keep-spotted b { color: var(--ink); font-weight: 600; }
+.keep-project { display: flex; align-items: center; gap: var(--s2); }
+.keep-project .select { flex: 1; min-width: 0; }

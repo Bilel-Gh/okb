@@ -100,24 +100,36 @@ function MoreMenu({ folded, current }: { folded: boolean; current: boolean }) {
  * « Garde ça » (⌘J), on every screen: a line the person writes is kept at
  * once, in their captures; it never waits for a yes, since they wrote it.
  */
+type Spotted = { kind: 'todo' | 'waiting'; text: string; due?: string; who?: string };
+
 function Keep({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const t = useT();
   const qc = useQueryClient();
   const [text, setText] = useState('');
+  const [project, setProject] = useState('');
+  const [withAction, setWithAction] = useState(true);
   const [busy, setBusy] = useState(false);
   const field = useRef<HTMLTextAreaElement>(null);
+  const [probe, setProbe] = useState('');
+  useEffect(() => { const id = setTimeout(() => setProbe(text.trim()), 300); return () => clearTimeout(id); }, [text]);
+  const projects = useQuery({ queryKey: ['projects', 'open'], queryFn: () => get<{ projects: { id: string; title: string }[] }>('/api/projects'), enabled: open, staleTime: 30_000 });
+  // An action spotted in the line (a thing to do with its date, something expected from someone): offered, never created unasked.
+  const spotted = useQuery({ queryKey: ['detect', probe], queryFn: () => get<{ action: Spotted | null }>('/api/actions/detect', { text: probe }), enabled: open && probe.length > 3, staleTime: 60_000 }).data?.action ?? null;
   const save = async () => {
     if (!text.trim() || busy) return;
     setBusy(true);
     try {
-      await post('/api/capture', { text });
-      toast(t('app.keep.kept'));
+      // In a project, the line goes to its journal; otherwise to the captures, to sort later.
+      if (project) await post('/api/entries', { text: text.trim(), project });
+      else await post('/api/capture', { text });
+      if (spotted && withAction) await post('/api/actions', { text: spotted.text, kind: spotted.kind, ...(spotted.due ? { due: spotted.due } : {}), ...(spotted.who ? { who: spotted.who } : {}), ...(project ? { project } : {}) });
+      toast(t(spotted && withAction ? 'app.keep.keptAction' : project ? 'app.keep.keptProject' : 'app.keep.kept'));
       setText('');
       onOpenChange(false);
-      void qc.invalidateQueries({ queryKey: ['inbox'] });
-      void qc.invalidateQueries({ queryKey: ['status-full'] });
+      for (const key of ['inbox', 'status-full', 'today', 'actions', 'entries']) void qc.invalidateQueries({ queryKey: [key] });
     } catch (e) { toast((e as Error).message, 'err'); } finally { setBusy(false); }
   };
+  const due = spotted?.due ? new Date(`${spotted.due}T12:00:00`).toLocaleDateString(t.lang, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
   return (
     <Popover.Root open={open} onOpenChange={onOpenChange}>
       <Popover.Trigger asChild>
@@ -130,6 +142,21 @@ function Keep({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean
           <form onSubmit={(e) => { e.preventDefault(); void save(); }}>
             <textarea ref={field} value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder={t('app.keep.placeholder')} aria-label={t('app.keep.placeholder')}
               onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void save(); } }} />
+            {spotted ? (
+              <label className="keep-spotted">
+                <input type="checkbox" checked={withAction} onChange={(e) => setWithAction(e.target.checked)} />
+                <span>{t(spotted.kind === 'waiting' ? 'app.keep.spottedWaiting' : 'app.keep.spottedTodo')} <b>{spotted.text}</b>{due ? ` · ${due}` : ''}{spotted.who ? ` · ${spotted.who}` : ''}</span>
+              </label>
+            ) : null}
+            {projects.data?.projects.length ? (
+              <label className="keep-project">
+                <span className="small muted">{t('app.keep.project')}</span>
+                <select className="select sm" value={project} onChange={(e) => setProject(e.target.value)}>
+                  <option value="">{t('app.keep.noProject')}</option>
+                  {projects.data.projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+              </label>
+            ) : null}
             <div className="keep-foot"><span className="small muted">{t('app.keep.hint')}</span><button type="submit" className="btn primary sm" disabled={!text.trim() || busy}>{t('app.keep.save')}</button></div>
           </form>
         </Popover.Content>

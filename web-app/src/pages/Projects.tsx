@@ -1,15 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Compass, FolderGit2, FolderKanban, Plus, Ticket, type LucideIcon } from 'lucide-react';
+import { ArrowRight, CircleHelp, Compass, Flag, FolderGit2, FolderKanban, Hourglass, ListTodo, LogOut, NotebookPen, Plus, Ticket, type LucideIcon } from 'lucide-react';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { get, post } from '../app/api';
 import { useT } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
+import { ActionList, JournalList, useRefreshDay, type Action, type Entry, type LeftOff } from './day-parts';
 
 export type Project = {
   id: string; module: string; kind: string; title: string; status: 'active' | 'waiting' | 'done';
-  where: string; next: string; ref: string | null; folder: string | null; createdAt: string; updatedAt: string;
+  where: string; next: string; ref: string | null; folder: string | null; leftOff: LeftOff | null; createdAt: string; updatedAt: string;
 };
 type Status = Project['status'];
 
@@ -104,20 +105,55 @@ function EditLine({ value, placeholder, label, onSave, multiline = false }: { va
     : <input {...common} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />;
 }
 
+/** « Où j'en étais »: prepared when the person leaves the project, corrected by them, found again when they come back. */
+function LeftOffCard({ project }: { project: Project }) {
+  const t = useT();
+  const refresh = useRefreshDay();
+  const leave = useMutation({
+    mutationFn: (edit: Partial<Pick<LeftOff, 'done' | 'tried' | 'waiting' | 'resume'>>) => post<Project>('/api/project/leave', { id: project.id, ...edit }),
+    onSuccess: refresh, onError: (e) => toast((e as Error).message, 'err'),
+  });
+  const left = project.leftOff;
+  if (!left) return null;
+  const when = new Date(left.at).toLocaleString(t.lang, { weekday: 'long', hour: '2-digit', minute: '2-digit' });
+  const fields = ['done', 'tried', 'waiting', 'resume'] as const;
+  return (
+    <section className="panel" aria-labelledby="left-off">
+      <div className="panel-head"><h2 id="left-off"><Flag size={17} aria-hidden="true" />{t('app.leftOff.title')}</h2><span className="muted small">{t(left.edited ? 'app.leftOff.whenEdited' : 'app.leftOff.when', { when })}</span></div>
+      <div className="left-off">
+        {fields.map((f) => (
+          <div className="field" key={f}><span className="label">{t(`app.leftOff.${f}`)}</span>
+            <EditLine multiline value={left[f]} label={t(`app.leftOff.${f}`)} placeholder={t('app.leftOff.nothing')} onSave={(v) => leave.mutate({ [f]: v })} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Detail({ id, setTitle }: { id: string; setTitle?: (s: string) => void }) {
   const t = useT();
   const qc = useQueryClient();
+  const refresh = useRefreshDay();
   const q = useQuery({ queryKey: ['project', id], queryFn: () => get<{ project: Project }>('/api/project', { id }) });
+  const actions = useQuery({ queryKey: ['actions', id], queryFn: () => get<{ actions: Action[] }>('/api/actions', { project: id }) });
+  const entries = useQuery({ queryKey: ['entries', id], queryFn: () => get<{ entries: Entry[] }>('/api/entries', { project: id, limit: 80 }) });
   const p = q.data?.project;
   useEffect(() => { if (p) setTitle?.(p.title); }, [p, setTitle]);
   const update = useMutation({
     mutationFn: (patch: Partial<Pick<Project, 'title' | 'status' | 'where' | 'next'>>) => post<Project>('/api/project/update', { id, ...patch }),
-    onSuccess: (next) => { qc.setQueryData(['project', id], { project: next }); void qc.invalidateQueries({ queryKey: ['projects'] }); },
+    onSuccess: (next) => { qc.setQueryData(['project', id], { project: next }); void qc.invalidateQueries({ queryKey: ['projects'] }); void qc.invalidateQueries({ queryKey: ['today'] }); },
+    onError: (e) => toast((e as Error).message, 'err'),
+  });
+  const leave = useMutation({
+    mutationFn: () => post<Project>('/api/project/leave', { id }),
+    onSuccess: () => { refresh(); toast(t('app.leftOff.prepared')); },
     onError: (e) => toast((e as Error).message, 'err'),
   });
   if (q.isLoading) return <div className="page"><SkeletonRows rows={5} /></div>;
   if (q.error || !p) return <div className="page"><ErrorState error={q.error} retry={() => void q.refetch()} /></div>;
   const statuses: Status[] = ['active', 'waiting', 'done'];
+  const open = actions.data?.actions ?? [];
   return (
     <div className="page">
       <section className="panel">
@@ -130,6 +166,7 @@ function Detail({ id, setTitle }: { id: string; setTitle?: (s: string) => void }
           <div className="segmented" role="group" aria-label={t('app.projects.status')}>
             {statuses.map((s) => <button type="button" key={s} aria-pressed={p.status === s} onClick={() => { if (p.status !== s) update.mutate({ status: s }); }}>{t(`app.projects.status.${s}`)}</button>)}
           </div>
+          <button type="button" className="btn" onClick={() => leave.mutate()} disabled={leave.isPending} title={t('app.leftOff.leaveWhy')}><LogOut size={15} aria-hidden="true" />{t('app.leftOff.leave')}</button>
         </div>
         <div className="project-lines">
           <div className="field"><span className="label">{t('app.projects.where')}</span><EditLine multiline value={p.where} label={t('app.projects.where')} placeholder={t('app.projects.wherePlaceholder')} onSave={(where) => update.mutate({ where })} /></div>
@@ -137,6 +174,29 @@ function Detail({ id, setTitle }: { id: string; setTitle?: (s: string) => void }
         </div>
         {p.kind === 'repo' && p.ref ? <div className="panel-foot"><a className="btn sm" href={hrefFor({ name: 'repos', id: p.ref })}><FolderGit2 size={15} aria-hidden="true" />{t('app.projects.openRepo')}</a></div> : null}
       </section>
+      <LeftOffCard project={p} />
+      <div className="grid-2">
+        <div className="stack lg">
+          <section className="panel" aria-labelledby="p-todo">
+            <div className="panel-head"><h2 id="p-todo"><ListTodo size={17} aria-hidden="true" />{t('app.actions.todo')}</h2></div>
+            <div className="panel-body flush"><ActionList kind="todo" project={id} actions={open.filter((a) => a.kind === 'todo' || a.kind === 'asked')} placeholder={t('app.actions.todoPlaceholder')} empty={t('app.actions.todoEmpty')} /></div>
+          </section>
+          <section className="panel" aria-labelledby="p-journal">
+            <div className="panel-head"><h2 id="p-journal"><NotebookPen size={17} aria-hidden="true" />{t('app.journal.title')}</h2></div>
+            <div className="panel-body"><JournalList project={id} entries={entries.data?.entries ?? []} empty={t('app.journal.empty')} /></div>
+          </section>
+        </div>
+        <div className="stack lg">
+          <section className="panel" aria-labelledby="p-waiting">
+            <div className="panel-head"><h2 id="p-waiting"><Hourglass size={17} aria-hidden="true" />{t('app.actions.waiting')}</h2></div>
+            <div className="panel-body flush"><ActionList kind="waiting" project={id} actions={open.filter((a) => a.kind === 'waiting')} placeholder={t('app.actions.waitingPlaceholder')} empty={t('app.actions.waitingEmpty')} /></div>
+          </section>
+          <section className="panel" aria-labelledby="p-questions">
+            <div className="panel-head"><h2 id="p-questions"><CircleHelp size={17} aria-hidden="true" />{t('app.actions.questions')}</h2></div>
+            <div className="panel-body flush"><ActionList kind="question" project={id} actions={open.filter((a) => a.kind === 'question')} placeholder={t('app.actions.questionPlaceholder')} empty={t('app.actions.questionsEmpty')} /></div>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

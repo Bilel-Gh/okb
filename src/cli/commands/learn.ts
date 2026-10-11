@@ -141,6 +141,29 @@ export async function cmdCareer(ctx: Ctx): Promise<number> {
  */
 export async function cmdJournal(ctx: Ctx): Promise<number> {
   const { config } = await effective(ctx.args);
+  // `okb journal add "<line>" [--project P] [--kind decision]` and `okb journal --project P`: the lines of the day and of a project.
+  const projectFlag = flagString(ctx.args, 'project');
+  if (ctx.args.positionals[0] === 'add' || projectFlag) {
+    const { invoke } = await import('../../engine/registry.js');
+    const { actorOf } = await import('./common.js');
+    const c = { config, env: process.env, actor: actorOf() };
+    let project: string | undefined;
+    if (projectFlag) {
+      const { projects } = await invoke('projects.list', { status: 'all' }, c);
+      const low = projectFlag.toLowerCase();
+      project = (projects.find((p) => p.id.toLowerCase() === low) ?? projects.find((p) => p.ref?.toLowerCase() === low) ?? projects.find((p) => p.title.toLowerCase() === low))?.id;
+      if (!project) throw new OkbError('E_NOT_FOUND', `no project "${projectFlag}"`, { key: 'projectUnknown', params: { id: projectFlag }, hint: 'okb project' });
+    }
+    if (ctx.args.positionals[0] === 'add') {
+      const entry = await invoke('journal.add', { text: ctx.args.positionals.slice(1).join(' '), ...(flagString(ctx.args, 'kind') ? { kind: flagString(ctx.args, 'kind') } : {}), ...(project ? { project } : {}) }, c);
+      if (ctx.mode === 'json') ctx.out.json({ ok: true, entry }); else ctx.out.ok(entry.text);
+      return 0;
+    }
+    const { entries } = await invoke('journal.list', { project: project! }, c);
+    if (ctx.mode === 'json') { ctx.out.json({ ok: true, entries }); return 0; }
+    for (const e of entries) ctx.out.line(`${paint.dim(`${e.day} · ${e.kind}`)}  ${e.text}`);
+    return 0;
+  }
   const { journal } = await import('../../journal/journal.js');
   const j = await journal(config, await loadBundleFor(config), { days: flagNumber(ctx.args, 'days') ?? 7 });
   if (ctx.mode === 'json') { ctx.out.json({ ok: true, ...j }); return 0; }

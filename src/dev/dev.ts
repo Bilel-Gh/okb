@@ -4,7 +4,9 @@ import { productFolderIn } from '../brain/address.js';
 import { layoutOf, type BrainLayout } from '../brain/layout.js';
 import { repoPlace } from '../brain/products.js';
 import { positionOf } from '../brain/tree.js';
-import { NOTE_TYPES, type NoteType } from '../brain/types.js';
+import { noteKind, NOTE_TYPES, type NoteType } from '../brain/types.js';
+
+export { noteKind };
 import type { OkbConfig } from '../config/schema.js';
 import { notesAboutFile } from '../find/find.js';
 import type { Bundle } from '../kb/bundle.js';
@@ -23,15 +25,6 @@ import type { TicketRecord } from '../work/tickets.js';
 
 type Entry = Bundle['entries'][number];
 export type NoteRef = { readonly path: string; readonly title: string; readonly type: string | null };
-
-/** The kind of a note: its brain type, else the type its template belongs to. */
-export function noteKind(e: Pick<Entry, 'ext'>): string | null {
-  const brain = (e.ext as { brain?: { type?: string } }).brain?.type;
-  if (brain) return brain;
-  const tpl = (e.ext as { template?: string }).template;
-  if (!tpl) return null;
-  return NOTE_TYPES.find((t) => t.id === tpl)?.id ?? NOTE_TYPES.find((t) => t.template === tpl)?.id ?? null;
-}
 
 const ref = (e: Entry): NoteRef => ({ path: e.path, title: e.title, type: noteKind(e) });
 

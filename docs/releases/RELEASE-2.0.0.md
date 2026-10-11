@@ -90,3 +90,29 @@ L'application garde son apparence (le thème Atelier), mais elle est rangée aut
 À savoir : OKB demande maintenant Node 22.13 ou plus récent.
 
 Décision : D59.
+
+## Itération 5 — garder le fil
+
+- **Les projets.** Un projet, c'est ce sur quoi tu travailles. Il dit où il en est en
+  une phrase et sa prochaine étape. Tu en crées un pour un sujet ; avec le module
+  développeur, tes tickets et tes repos en sont déjà.
+- **Les actions et ce que tu attends.** Une chose à faire, avec sa date ; ce que tu
+  attends de quelqu'un ; une question ouverte. Tape « réserver le car avant le 15
+  mai » : OKB crée l'action « Réserver le car » pour le 15 mai, sans IA.
+- **Le journal**, par jour et par projet : une note, une décision, une chose faite,
+  un essai raté, une réunion.
+- **« Où j'en étais ».** Quand tu quittes un projet, OKB prépare quatre lignes : fait,
+  essayé, en attente, par où reprendre. Tu corriges, et tu les retrouves au retour.
+- **Aujourd'hui** répond à six questions : je reprends quoi, j'ai quoi à faire,
+  j'attends quoi, que s'est-il passé, qu'ai-je appris, que dois-je revoir ou comprendre.
+- **Garde ça** range ta ligne dans le journal du projet que tu choisis, et te
+  propose l'action qu'il y repère.
+- **Dans le terminal** : `okb today`, `okb project`, `okb action`, `okb journal add`.
+- **Pour les assistants** : les mêmes gestes par MCP. Ce qu'un assistant ajoute est
+  marqué « proposé par l'IA ».
+
+À savoir : les projets, les actions et le journal sont rangés dans une petite base
+(`okb.db`), dans le dossier d'état de ton profil, pas dans tes notes.
+Voir [projets, actions et journal](../guide/projets.md).
+
+Décision : D60.

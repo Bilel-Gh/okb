@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { leaveProject } from '../../projects/leave.js';
 import { createProject, getProject, listProjects, updateProject } from '../../projects/projects.js';
 import { syncProjects } from '../../projects/sources.js';
 import { defineOperation } from '../operation.js';
@@ -63,5 +64,17 @@ export const projectsUpdate = defineOperation({
   async run({ config }, input) {
     const { id: projectId, ...patch } = input;
     return updateProject(config, projectId, patch);
+  },
+});
+
+export const projectsLeave = defineOperation({
+  id: 'projects.leave',
+  module: 'core',
+  effect: 'state',
+  summary: 'Leave a project: prepare « where I was » (done, tried, waiting, where to pick up) from its journal and actions since the last time; pass a line to correct it.',
+  input: z.object({ id, done: line(600).optional(), tried: line(600).optional(), waiting: line(600).optional(), resume: line(400).optional() }).strict(),
+  async run({ config, env }, input) {
+    const { id: projectId, ...edit } = input;
+    return leaveProject(config, env, projectId, edit);
   },
 });

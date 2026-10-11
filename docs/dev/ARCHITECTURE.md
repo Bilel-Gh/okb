@@ -44,6 +44,9 @@ ne transforme une affirmation en fait techniquement vérifié.
 | `kb/graph.ts` | le graphe de la KB : nœuds, liens exacts (Markdown analysé), prérequis, rétroliens, comptes par catégorie |
 | `revise/` | révision du style d’une note : éléments protégés, frontmatter, proposition de remplacement |
 | `engine/` | les opérations écrites une fois (entrée validée, module, effet), `invoke`, et `okb mcp` pour les assistants |
+| `projects/` | le Projet, les actions, le journal, « Où j'en étais », Aujourd'hui ; les sources que les modules déclarent (`sources.ts`) |
+| `state/db.ts` | l'état opérationnel dans SQLite (`okb.db`, par profil, hors des notes) |
+| `modules/wire.ts` | le seul fichier qui connaît tous les modules : chacun y déclare ce qu'il apporte au cœur |
 | `web/` | lecteur local sans mutations : notes, recherche, propositions exactes, style et audit |
 | `security/` | détection des secrets (clés, jetons, identifiants) dans propositions, captures, focus et notes |
 | `inbox/`, `weekly/` | inbox privée hors KB, revue hebdomadaire en lecture seule avec relectures espacées |

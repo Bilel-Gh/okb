@@ -195,3 +195,12 @@ export function typesFor(preset: BrainPreset): NoteType[] {
 
 /** Approximate tokens a type costs to write, for the suggestion cards (src/suggest). */
 export const COST_TOKENS: Readonly<Record<Cost, number>> = { small: 2_000, medium: 6_000, large: 20_000 };
+
+/** The kind of a note: its brain type, else the type its template belongs to. */
+export function noteKind(e: { readonly ext: unknown }): string | null {
+  const brain = (e.ext as { brain?: { type?: string } }).brain?.type;
+  if (brain) return brain;
+  const tpl = (e.ext as { template?: string }).template;
+  if (!tpl) return null;
+  return NOTE_TYPES.find((t) => t.id === tpl)?.id ?? NOTE_TYPES.find((t) => t.template === tpl)?.id ?? null;
+}

@@ -1,11 +1,10 @@
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { dirname, posix, resolve } from 'node:path';
 import type { OkbConfig } from '../config/schema.js';
-import { noteKind } from '../dev/dev.js';
+import { noteKind } from '../brain/types.js';
 import type { Bundle } from '../kb/bundle.js';
-import { listRepos } from '../repo/registry.js';
 import { OkbError } from '../util/errors.js';
-import { listTickets } from '../work/tickets.js';
+import { modulePrivateNames, moduleRawEvents, moduleWork } from '../projects/sources.js';
 
 /**
  * The career side of a brain: achievements told as STAR stories, feedback
@@ -104,8 +103,10 @@ export function careerStatus(bundle: Bundle, now = new Date()): CareerStatus {
 export async function careerPrep(config: OkbConfig, bundle: Bundle, since: string, now = new Date()) {
   const status = careerStatus(bundle, now);
   const after = (d: string | null) => d !== null && d >= since;
-  const tickets = (await listTickets(config)).filter((t) => t.status === 'done' && after(t.doneAt?.slice(0, 10) ?? null))
-    .map((t) => ({ ref: t.ref, title: t.title, doneAt: t.doneAt, decisions: t.journal.filter((j) => j.kind === 'decision').map((j) => j.text).slice(-5) }));
+  // The work finished since then, as the modules know it (the developer module's tickets), with the decisions taken.
+  const events = await moduleRawEvents(config).catch(() => []);
+  const tickets = (await moduleWork(config).catch(() => [])).filter((t) => t.kind === 'ticket' && t.status === 'done' && after(t.doneAt?.slice(0, 10) ?? null))
+    .map((t) => ({ ref: t.ref, title: t.title, doneAt: t.doneAt, decisions: events.filter((e) => e.kind === 'ticket' && e.ref === t.ref && e.entry === 'decision').map((e) => e.text).slice(-5) }));
   const feedback = bundle.entries.filter((e) => noteKind(e) === 'feedback' && after(dateOf(e))).map((e) => ({ path: e.path, title: e.title, date: dateOf(e) }));
   const reviews = bundle.entries.filter((e) => (noteKind(e) === 'one-on-one' || noteKind(e) === 'annual-review')).map((e) => ({ path: e.path, title: e.title, date: dateOf(e), type: noteKind(e) }))
     .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
@@ -136,7 +137,7 @@ export async function careerLeaks(config: OkbConfig, bundle: Bundle, extraWords:
   const word = (w: string) => new RegExp(`(^|[^\\p{L}\\p{N}])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}\\p{N}]|$)`, 'iu');
   const { listProducts } = await import('../brain/products.js');
   for (const p of await listProducts(config).catch(() => [])) if (p.name.length > 2) names.push({ re: word(p.name), kind: 'product' });
-  for (const r of await listRepos().catch(() => [])) if (r.name.length > 2) names.push({ re: word(r.name), kind: 'repository' });
+  for (const r of await modulePrivateNames().catch(() => [])) if (r.name.length > 2 && r.kind === 'repository') names.push({ re: word(r.name), kind: 'repository' });
   for (const e of bundle.entries) if (noteKind(e) === 'client' && e.title.length > 2) names.push({ re: word(e.title), kind: 'client' });
   for (const w of extraWords) if (w.trim().length > 1) names.push({ re: word(w.trim()), kind: 'custom' });
   const out: Leak[] = [];
