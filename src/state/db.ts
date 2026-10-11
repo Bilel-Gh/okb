@@ -87,6 +87,30 @@ const MIGRATIONS: readonly string[] = [
    CREATE TABLE review_log (seq INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, card_id TEXT NOT NULL, rating INTEGER NOT NULL, was TEXT NOT NULL, next TEXT NOT NULL);
    CREATE INDEX review_log_at ON review_log(at);
    CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);`,
+  // 4: what the person marked to share (a note, or a folder with everything under it).
+  `CREATE TABLE shares (path TEXT PRIMARY KEY, added_at TEXT NOT NULL);`,
+  // 5: local assistant conversations; never shared, never a source of authority for the KB.
+  `CREATE TABLE assistant_conversations (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+   CREATE TABLE assistant_messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES assistant_conversations(id) ON DELETE CASCADE, role TEXT NOT NULL, text TEXT NOT NULL, payload TEXT, at TEXT NOT NULL);
+   CREATE INDEX assistant_messages_conversation ON assistant_messages(conversation_id, at);
+   CREATE TABLE assistant_actions (message_id TEXT NOT NULL REFERENCES assistant_messages(id) ON DELETE CASCADE, action_index INTEGER NOT NULL, result TEXT NOT NULL, PRIMARY KEY(message_id, action_index));`,
+  // 6: reading variants and observable understanding, separate from the original notes.
+  `CREATE TABLE understanding_events (id TEXT PRIMARY KEY, path TEXT NOT NULL, subject TEXT NOT NULL, kind TEXT NOT NULL, point TEXT NOT NULL DEFAULT '', project_id TEXT REFERENCES projects(id) ON DELETE SET NULL, at TEXT NOT NULL);
+   CREATE INDEX understanding_events_subject ON understanding_events(subject, at);
+   CREATE INDEX understanding_events_path ON understanding_events(path, at);
+   CREATE TABLE understanding_views (id TEXT PRIMARY KEY, path TEXT NOT NULL, source_hash TEXT NOT NULL, mode TEXT NOT NULL, context_hash TEXT NOT NULL, level TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL);
+   CREATE INDEX understanding_views_path ON understanding_views(path, created_at);`,
+  // 7: developer tickets, their independent states and the memory of attempts/reuse.
+  // The 1.5 JSON files remain an archive; work/tickets imports them once before use.
+  `CREATE TABLE tickets (ref TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL);
+   CREATE TABLE ticket_details (ref TEXT PRIMARY KEY REFERENCES tickets(ref) ON DELETE CASCADE, goal TEXT NOT NULL DEFAULT '', last_action TEXT NOT NULL DEFAULT '', next_step TEXT NOT NULL DEFAULT '', external TEXT);
+   CREATE TABLE ticket_states (ref TEXT NOT NULL REFERENCES tickets(ref) ON DELETE CASCADE, dimension TEXT NOT NULL, environment TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, source TEXT NOT NULL, at TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '', url TEXT, PRIMARY KEY(ref, dimension, environment));
+   CREATE TABLE ticket_criteria (id TEXT PRIMARY KEY, ref TEXT NOT NULL REFERENCES tickets(ref) ON DELETE CASCADE, kind TEXT NOT NULL, text TEXT NOT NULL, required INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'unknown', at TEXT NOT NULL);
+   CREATE INDEX ticket_criteria_ref ON ticket_criteria(ref, at);
+   CREATE TABLE ticket_attempts (id TEXT PRIMARY KEY, ref TEXT NOT NULL REFERENCES tickets(ref) ON DELETE CASCADE, approach TEXT NOT NULL, conditions TEXT NOT NULL, result TEXT NOT NULL, next_step TEXT NOT NULL DEFAULT '', at TEXT NOT NULL);
+   CREATE INDEX ticket_attempts_ref ON ticket_attempts(ref, at);
+   CREATE TABLE ticket_reuses (id TEXT PRIMARY KEY, ref TEXT NOT NULL REFERENCES tickets(ref) ON DELETE CASCADE, path TEXT NOT NULL, title TEXT NOT NULL, sha256 TEXT NOT NULL, why TEXT NOT NULL DEFAULT '', at TEXT NOT NULL);
+   CREATE INDEX ticket_reuses_ref ON ticket_reuses(ref, at);`,
 ];
 
 /** Node still calls its SQLite experimental; the warning has no place in a person's terminal. */

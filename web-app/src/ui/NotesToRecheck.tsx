@@ -1,0 +1,10 @@
+import { FileDiff } from 'lucide-react';
+import { hrefFor } from '../app/router';
+import { useShareWords } from '../app/sharing';
+
+export type NoteToRecheck = { path: string; title: string; scope: string; verdict: 'changed' | 'stale'; files: string[]; at: string; next: string };
+export function NotesToRecheck({ notes = [], unavailable = [] }: { notes?: NoteToRecheck[]; unavailable?: string[] }) {
+  const w = useShareWords();
+  if (!notes.length && !unavailable.length) return null;
+  return <section className="panel"><div className="panel-head"><h2><FileDiff size={17} aria-hidden="true" />{w('Notes à revérifier', 'Notes to recheck')}</h2><a className="link" href={hrefFor({ name: 'repos' })}>{w('Voir les dépôts', 'View repositories')}</a></div><div className="panel-body stack"><p className="muted small">{w('Du code cité a changé. Relisez la note avec ses sources avant de la réutiliser ; son texte peut encore être juste.', 'Cited code has changed. Review the note and its sources before reuse; its text may still be correct.')}</p>{notes.length ? <ul className="rows tight">{notes.map((n) => <li key={`${n.scope}:${n.path}`}><div className="grow"><a className="title" href={hrefFor({ name: 'brain', path: n.path })}>{n.title}</a><span className="meta">{n.scope} · {n.verdict === 'changed' ? w('Code cité modifié', 'Cited code changed') : w('Source à revérifier', 'Source to recheck')}</span><details><summary>{w('Voir ce qui a changé', 'See what changed')}</summary>{n.files.length ? <ul>{n.files.map((file) => <li key={file}><code>{file}</code></li>)}</ul> : null}<p className="small muted">{w('Ouvrez Dépôts pour mettre à jour l’analyse, puis relisez la proposition avant de l’appliquer.', 'Open Repositories to update the analysis, then review the proposal before applying it.')}</p></details></div></li>)}</ul> : null}{unavailable.length ? <p className="notice warn small" role="status">{w('Vérification indisponible pour : ', 'Recheck unavailable for: ')}{unavailable.join(', ')}. {w('La fraîcheur de ces notes reste inconnue.', 'The freshness of these notes remains unknown.')}</p> : null}</div></section>;
+}

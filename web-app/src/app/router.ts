@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
  */
 export type TodayTab = 'focus' | 'week';
 export type InboxTab = 'all' | 'suggestions' | 'proposals' | 'captures' | 'history';
-export type LearnTab = 'progress' | 'career';
+export type LearnTab = 'understanding' | 'progress' | 'career';
 export type ToolsTab = 'source' | 'skills' | 'templates' | 'categories' | 'share';
 export type UpkeepTab = 'health' | 'doctor' | 'usage' | 'backup';
 export type SettingsTab = 'appearance' | 'brains' | 'new';
@@ -17,12 +17,15 @@ export type Route =
   | { name: 'brain'; path?: string; anchor?: string; query?: Record<string, string>; history?: boolean }
   | { name: 'graph'; focus?: string; brain?: boolean }
   | { name: 'projects'; id?: string }
-  | { name: 'documents' }
+  | { name: 'tickets'; ref?: string }
+  | { name: 'documents'; q?: string }
+  | { name: 'sharing'; tab?: 'map' | 'glossary' | 'packs'; path?: string; drawer?: string; note?: string }
   | { name: 'day'; day: string }
   | { name: 'repos'; id?: string; tab?: 'architecture'; view?: 'containers' | 'context' | 'flow'; from?: string; call?: string }
   | { name: 'inbox'; tab?: InboxTab; id?: string; all?: boolean; compose?: boolean }
   | { name: 'learn'; tab?: LearnTab }
   | { name: 'ask'; q?: string }
+  | { name: 'assistant'; id?: string }
   | { name: 'tools'; tab?: ToolsTab }
   | { name: 'upkeep'; tab?: UpkeepTab }
   | { name: 'modules' }
@@ -61,8 +64,16 @@ export function parseRoute(hash: string): Route {
       return { name: 'brain', query: q };
     case 'projects':
       return { name: 'projects' };
+    case 'tickets':
+      return { name: 'tickets' };
+    case 'ticket':
+      return rest ? { name: 'tickets', ref: decodeURIComponent(rest) } : { name: 'tickets' };
     case 'documents':
-      return { name: 'documents' };
+      return { name: 'documents', ...(q.q ? { q: q.q } : {}) };
+    case 'sharing':
+      return { name: 'sharing', ...(rest === 'map' || rest === 'glossary' || rest === 'packs' ? { tab: rest } : {}), ...(q.path ? { path: q.path } : {}) };
+    case 'shared':
+      return parts[1] && parts[2] ? { name: 'sharing', drawer: decodeURIComponent(parts[1]), note: decodeURIComponent(parts.slice(2).join('/')) } : { name: 'sharing' };
     case 'day':
       return /^\d{4}-\d{2}-\d{2}$/.test(rest) ? { name: 'day', day: rest } : { name: 'today' };
     case 'project':
@@ -95,14 +106,15 @@ export function parseRoute(hash: string): Route {
     case 'history':
       return { name: 'inbox', tab: 'history' };
     case 'learn':
-      return rest === 'progress' ? { name: 'learn', tab: 'progress' } : { name: 'learn' };
+      return rest === 'progress' || rest === 'understanding' ? { name: 'learn', tab: rest } : { name: 'learn' };
     case 'progress':
       return { name: 'learn' };
     case 'career':
       return { name: 'learn', tab: 'career' };
     case 'ask':
-    case 'assistant':
       return q.q ? { name: 'ask', q: q.q } : { name: 'ask' };
+    case 'assistant':
+      return q.q ? { name: 'ask', q: q.q } : { name: 'assistant', ...(q.id ? { id: q.id } : {}) };
     case 'tools':
       return { name: 'tools' };
     case 'source':
@@ -156,7 +168,11 @@ export function hrefFor(route: Route): string {
     }
     case 'graph': return withQuery('#/graph', { focus: route.focus, brain: route.brain ? '1' : undefined });
     case 'projects': return route.id ? `#/project/${encodeURIComponent(route.id)}` : '#/projects';
-    case 'documents': return '#/documents';
+    case 'tickets': return route.ref ? `#/ticket/${encodeURIComponent(route.ref)}` : '#/tickets';
+    case 'documents': return withQuery('#/documents', { q: route.q });
+    case 'sharing':
+      if (route.drawer && route.note) return `#/shared/${encodeURIComponent(route.drawer)}/${encodeURIComponent(route.note)}`;
+      return withQuery(`#/sharing${route.tab ? `/${route.tab}` : ''}`, { path: route.path });
     case 'day': return `#/day/${route.day}`;
     case 'repos': {
       if (route.id) return `#/repo/${encodeURIComponent(route.id)}`;
@@ -170,8 +186,9 @@ export function hrefFor(route: Route): string {
       if (route.tab === 'captures') return withQuery('#/inbox', { new: route.compose ? '1' : undefined, all: route.all ? '1' : undefined });
       if (route.tab === 'history') return '#/history';
       return '#/review';
-    case 'learn': return route.tab === 'career' ? '#/career' : route.tab === 'progress' ? '#/learn/progress' : '#/learn';
+    case 'learn': return route.tab === 'career' ? '#/career' : route.tab ? `#/learn/${route.tab}` : '#/learn';
     case 'ask': return route.q ? `#/ask?${new URLSearchParams({ q: route.q })}` : '#/ask';
+    case 'assistant': return withQuery('#/assistant', { id: route.id });
     case 'tools': return route.tab ? `#/${route.tab}` : '#/tools';
     case 'upkeep': return route.tab ? `#/${route.tab}` : '#/upkeep';
     case 'modules': return '#/modules';

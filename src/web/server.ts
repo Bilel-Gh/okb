@@ -1,11 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { statSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
-import { createServer, type IncomingMessage, type Server } from 'node:http';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { createRequire } from 'node:module';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { OkbConfig } from '../config/schema.js';
+import { loadConfig } from '../config/load.js';
+import { listKbs } from '../kb/registry.js';
 import { has, t } from '../i18n/index.js';
 import { OkbError } from '../util/errors.js';
 import { MUTATING, routeFor, type ApiContext } from './api.js';
@@ -69,7 +71,7 @@ async function readBody(req: IncomingMessage, max = 1_000_000): Promise<Record<s
   }
 }
 
-export async function serve(config: OkbConfig | null, options: { port?: number; env?: NodeJS.ProcessEnv } = {}): Promise<{ server: Server; url: string }> {
+export async function serve(config: OkbConfig | null, options: { port?: number; env?: NodeJS.ProcessEnv } = {}): Promise<{ server: Server; url: string; shutdown: () => Promise<void> }> {
   const port = options.port ?? 4317;
   if (!Number.isSafeInteger(port) || port < 0 || port > 65535) throw new OkbError('E_INVALID', 'port must be between 0 and 65535');
   const boot = buildStamp();
@@ -78,14 +80,51 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   const assets = await snapshotWeb();
   const mermaid = mermaidPath();
   let origin = '';
+  let stopping = false;
+  const jobs = new Set<Promise<void>>();
+  const readingBodies = new Set<IncomingMessage>();
+  let soon: ReturnType<typeof setTimeout> | undefined;
+  let hourly: ReturnType<typeof setInterval> | undefined;
+  let backupRunning = false;
+  const track = (work: Promise<void>) => {
+    const tracked = work.catch(() => undefined).finally(() => jobs.delete(tracked));
+    jobs.add(tracked);
+  };
+  const snapshot = () => {
+    if (stopping || backupRunning) return;
+    backupRunning = true;
+    track((async () => {
+      // Keep an explicitly served space covered, and follow the active space after onboarding/switching.
+      const kbs = await listKbs(ctx.env);
+      const active = (kbs.find((kb) => kb.active) ?? kbs[0])?.id;
+      for (const profileId of new Set([config?.profile.id, active])) {
+        if (!profileId || !kbs.some((kb) => kb.id === profileId && kb.exists)) continue;
+        try {
+          const current = (await loadConfig({ env: ctx.env, profileId })).config;
+          if (await backupDue(current, ctx.env)) await runBackup(current, { env: ctx.env });
+        } catch { /* A broken space must not prevent the other space's snapshot. Its status stays due. */ }
+      }
+    })().finally(() => { backupRunning = false; }));
+  };
+  const scheduleSoon = () => {
+    if (stopping) return;
+    clearTimeout(soon);
+    soon = setTimeout(snapshot, 30_000); soon.unref();
+  };
+  const clearTimers = () => { clearTimeout(soon); clearInterval(hourly); };
 
-  const server = createServer(async (req, res) => {
+  const server = createServer((req, res) => {
+    if (stopping) { res.writeHead(503, { Connection: 'close' }); res.end(); return; }
+    track(handle(req, res).catch(() => { res.destroy(); }));
+  });
+  async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
     const json = (value: unknown, status = 200) => {
+      if (res.destroyed || res.writableEnded) return;
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(value));
     };
@@ -109,9 +148,15 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
           if (!String(req.headers['content-type'] ?? '').startsWith('application/json')) { json({ error: 'JSON only.' }, 415); return; }
           // A pack carries a whole subject's notes: a larger body than any other request.
           // A pack or a document to keep is a whole file: they get more room than a form.
-          body = await readBody(req, url.pathname.startsWith('/api/packs/') || url.pathname === '/api/documents' ? 30_000_000 : 1_000_000);
+          readingBodies.add(req);
+          try { body = await readBody(req, url.pathname.startsWith('/api/packs/') || url.pathname === '/api/documents' ? 30_000_000 : 1_000_000); }
+          finally { readingBodies.delete(req); }
         }
-        json(await handler(ctx, url.searchParams, body));
+        // A body read interrupted by shutdown never starts an operation.
+        if (stopping) { json({ error: 'The app is stopping.' }, 503); return; }
+        const result = await handler(ctx, url.searchParams, body);
+        if (req.method === 'POST' && url.pathname === '/api/onboarding') scheduleSoon();
+        json(result);
         return;
       }
       if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); json({ error: 'GET only.' }, 405); return; }
@@ -147,7 +192,7 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
         detail: err && !key ? err.message.replace(/(?:\/[^\s/:'"]+)+\/?/g, (m) => (m.includes('/') && m.split('/').length > 3 ? '…/' + m.split('/').slice(-2).join('/') : m)) : undefined,
       }, status);
     }
-  });
+  }
   server.requestTimeout = 180_000;
   server.headersTimeout = 10_000;
   await new Promise<void>((done, reject) => {
@@ -159,14 +204,21 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   const address = server.address();
   if (!address || typeof address === 'string') throw new OkbError('E_IO', 'cannot determine local reader address');
   origin = `http://127.0.0.1:${address.port}`;
-  stopServer = () => { server.closeAllConnections(); server.close(); };
+  let shuttingDown: Promise<void> | undefined;
+  const shutdown = (): Promise<void> => shuttingDown ??= (async () => {
+    stopping = true;
+    clearTimers();
+    const closed = new Promise<void>((done, reject) => server.close((error?: NodeJS.ErrnoException) => error && error.code !== 'ERR_SERVER_NOT_RUNNING' ? reject(error) : done()));
+    // Incomplete JSON has not started any state operation. Do not wait three minutes for a stalled sender.
+    for (const req of readingBodies) req.destroy();
+    while (jobs.size) await Promise.all([...jobs]);
+    server.closeAllConnections();
+    await closed;
+  })();
+  stopServer = () => { void shutdown().catch(() => undefined); };
   // The app alone must be enough: it takes the day's snapshot too (F2.0-14), a little after it opens, then checks every hour.
-  if (config) {
-    const snapshot = () => { void backupDue(config, ctx.env).then((due) => (due ? runBackup(config, { env: ctx.env }) : null)).catch(() => undefined); };
-    const soon = setTimeout(snapshot, 30_000);
-    const hourly = setInterval(snapshot, 3_600_000);
-    soon.unref(); hourly.unref();
-    server.once('close', () => { clearTimeout(soon); clearInterval(hourly); });
-  }
-  return { server, url: origin };
+  scheduleSoon();
+  hourly = setInterval(snapshot, 3_600_000); hourly.unref();
+  server.once('close', () => { stopping = true; clearTimers(); });
+  return { server, url: origin, shutdown };
 }

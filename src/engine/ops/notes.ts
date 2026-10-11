@@ -9,6 +9,7 @@ import { isSecret } from '../../security/confidential.js';
 import { OkbError } from '../../util/errors.js';
 import { asBundlePath, type BundlePath } from '../../util/paths.js';
 import { defineOperation } from '../operation.js';
+import { findShared, sharingIssue, type SharedHit, type SharingIssue } from '../../share/read.js';
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 
@@ -27,7 +28,7 @@ export const notesFind = defineOperation({
     status: z.enum(['draft', 'stable', 'deprecated']).optional(),
     final: z.boolean().default(false).describe('The search is finished (not a keystroke): an empty one is remembered as a gap, the first hits count as read.'),
   }).strict(),
-  async run({ config, env, actor }, input): Promise<FindResult & { hits: (FindHit & { stars: number | null })[]; documents: { id: string; title: string; path: string; snippet: string; projectId: string | null }[] }> {
+  async run({ config, env, actor }, input): Promise<FindResult & { hits: (FindHit & { stars: number | null })[]; documents: { id: string; title: string; path: string; snippet: string; projectId: string | null }[]; shared: SharedHit[]; sharedIssue?: SharingIssue }> {
     const bundle = await loadBundleFor(config);
     const scores = await scoresFor(config, bundle);
     const { query, limit, final, ...filters } = input;
@@ -38,13 +39,17 @@ export const notesFind = defineOperation({
       // A 🔒 note is the person's alone: an agent's search does not show it.
       hideSecret: actor === 'agent',
     });
-    if (final) {
-      if (!result.hits.length) await recordEmpty(config, query);
-      for (const h of result.hits.slice(0, 3)) await noteEvent(config, h.path, 'search');
-    }
     // The documents kept in the space answer too: files as they are, found by their text.
     const documents = (await listDocuments(config, env, { query, limit: 5, includeSecret: actor === 'person' })).map((d) => ({ id: d.id, title: d.title, path: d.path, snippet: d.snippet, projectId: d.projectId }));
-    return { ...result, hits: result.hits.map((h) => ({ ...h, stars: scores.get(h.path)?.stars ?? null })), documents };
+    // And the notes colleagues shared, each marked with who shared it (2.1): only the ones that hold every word.
+    let shared: SharedHit[] = [];
+    let issue: SharingIssue | undefined;
+    try { if (query.trim()) shared = await findShared(config, env, query, 5); } catch (error) { issue = sharingIssue(error); }
+    if (final) {
+      if (!result.hits.length && !documents.length && !shared.length && !issue) await recordEmpty(config, query);
+      for (const h of result.hits.slice(0, 3)) await noteEvent(config, h.path, 'search');
+    }
+    return { ...result, hits: result.hits.map((h) => ({ ...h, stars: scores.get(h.path)?.stars ?? null })), documents, shared, ...(issue ? { sharedIssue: issue } : {}) };
   },
 });
 

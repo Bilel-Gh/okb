@@ -10,7 +10,7 @@ import { appendLine } from '../util/fsx.js';
  */
 const file = (config: OkbConfig) => resolve(statePaths(config).root, 'ai', 'usage.jsonl');
 
-export async function recordAiUsage(config: OkbConfig, entry: { tokens: number; purpose: string; provider: string }, now = new Date()): Promise<void> {
+export async function recordAiUsage(config: OkbConfig, entry: { tokens: number; purpose: string; provider: string; estimated?: boolean }, now = new Date()): Promise<void> {
   await appendLine(file(config), JSON.stringify({ at: now.toISOString(), ...entry }));
 }
 

@@ -1,8 +1,9 @@
 import * as Popover from '@radix-ui/react-popover';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CheckCheck, ChevronRight, ChevronsUpDown, Ellipsis, Menu, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Palette as PaletteIcon, Plus, Search, Sun } from 'lucide-react';
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { KeepFileButton } from '../ui/KeepFile';
+import { AssistantPanel } from '../ui/AssistantPanel';
 import { LOGOS, LogoMark, type LogoId } from '../ui/Logo';
 import { currentKb, currentSession, get, post } from './api';
 import { useT } from './i18n';
@@ -300,6 +301,27 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
   const [keep, setKeep] = useState(false);
   const toasts = useToasts();
   const folded = appearance.rail === 'collapsed';
+  const main = useRef<HTMLElement>(null);
+  const [contentTitle, setContentTitle] = useState(false);
+  // Asynchronous pages supply their own title once loaded; the top bar stays a visual label then.
+  useLayoutEffect(() => {
+    const el = main.current;
+    if (!el) return;
+    const update = () => setContentTitle([...el.querySelectorAll('h1')].some((heading) => {
+      for (let node: HTMLElement | null = heading; node; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (node.hidden || node.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden') return false;
+        if (node === el) break;
+      }
+      return true;
+    }));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'aria-hidden'] });
+    window.addEventListener('resize', update);
+    return () => { observer.disconnect(); window.removeEventListener('resize', update); };
+  }, []);
+  const TopbarTitle = contentTitle ? 'p' : 'h1';
 
   useEffect(() => { setRailOpen(false); }, [route]);
   useEffect(() => { document.title = `${title} · OKB`; }, [title]);
@@ -344,14 +366,15 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
       <div className="main">
         <header className="topbar">
           <button type="button" className="btn ghost icon menu-btn" aria-label={t('app.nav.open')} aria-expanded={railOpen} onClick={() => setRailOpen(true)}><Menu size={20} aria-hidden="true" /></button>
-          <h1 className="topbar-title">
+          <TopbarTitle className="topbar-title">
             {crumb && crumb.label !== title ? <>{crumb.to ? <a className="topbar-crumb" href={hrefFor(crumb.to)}>{crumb.label}</a> : <span className="topbar-crumb">{crumb.label}</span>}<ChevronRight size={15} aria-hidden="true" /></> : null}
             <span>{title}</span>
-          </h1>
+          </TopbarTitle>
           <button type="button" className="search-btn" onClick={() => setPalette(true)} aria-keyshortcuts="Meta+K" aria-label={t('app.search.open')}>
             <Search size={16} aria-hidden="true" /><span className="hide-narrow">{t('app.search.placeholder')}</span><kbd aria-hidden="true">⌘K</kbd>
           </button>
           <Keep open={keep} onOpenChange={setKeep} />
+          <AssistantPanel context={title} />
           <a className="btn validate-btn" href={hrefFor({ name: 'inbox' })} aria-current={route.name === 'inbox' ? 'page' : undefined} aria-label={waiting ? `${t('app.nav.inbox')}, ${waiting}` : t('app.nav.inbox')}>
             <CheckCheck size={16} aria-hidden="true" /><span className="hide-narrow">{t('app.nav.inbox')}</span>{waiting ? <span className="count" aria-hidden="true">{waiting}</span> : null}
           </a>
@@ -367,7 +390,7 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
             </div>
           </nav>
         ) : null}
-        <main id="main" tabIndex={-1}><AppearanceContext.Provider value={appearance}>{children}</AppearanceContext.Provider></main>
+        <main ref={main} id="main" tabIndex={-1}><AppearanceContext.Provider value={appearance}>{children}</AppearanceContext.Provider></main>
         <StatusBar waiting={waiting} />
       </div>
       <nav className="tabbar" aria-label={t('app.nav.main')}>

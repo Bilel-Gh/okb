@@ -109,6 +109,24 @@ drawers and the products; data stays in plain colours.
 
 ## Components
 
+The 2.1–3.0 additions use these same tokens and five destinations. Sharing lives
+under Projects/More; shared results say who wrote them. Understanding lives
+beside the source in the reader and under Progress. Assistant has a main page
+and a Radix dialog opened from the top bar, with keyboard focus returned on
+close. The original source, exact quotations, general explanations and unknown
+answers have distinct labels. Suggested effects require a named button.
+
+Developer tickets show independent work, review, CI, waiting and delivery
+states; colour never supplies the only status label. First launch asks for an
+activity profile, a space and a first project, then offers continuing without
+AI. The native wrapper adds folder choice, zoom and explicit update controls.
+Its icon reuses the existing linked-note Atelier SVG. Previous design proposals
+remain in their archive. No new theme or logo selection is imposed.
+
+Component tests cover these actions and focus semantics. Visual checks at
+multiple widths, contrast measurement and a real screen-reader pass remain
+release checks; passing a component test does not certify WCAG 2.2 AA.
+
 `reader/Provenance.tsx` is the « Sources et validité » zone under a note (a native
 `details`: sources, author, approval, validity, and the on-request freshness check).
 `pages/Projects.tsx` holds `KindMark` (a project's kind in a tinted square) and the

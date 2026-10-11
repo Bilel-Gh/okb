@@ -139,6 +139,11 @@ export async function cmdToday(ctx: Ctx): Promise<number> {
   if (day.toValidate) ctx.out.line(`\n${t('today.toValidate', { n: String(day.toValidate) })}`);
   if (day.review.due) ctx.out.line(`\n${t('today.review', { n: String(day.review.due) })}`);
   if (day.understand) ctx.out.line(t('today.understand', { title: day.understand.title }));
+  if (day.notesToRecheck.length) {
+    ctx.out.heading(t('today.recheck'));
+    for (const n of day.notesToRecheck) ctx.out.line(`   ${n.title} · ${n.scope} · ${n.next}`);
+  }
+  if (day.recheckUnavailable.length) ctx.out.warn(t('today.recheckUnavailable'));
   return 0;
 }
 
@@ -209,4 +214,72 @@ export async function cmdIndicators(ctx: Ctx): Promise<number> {
     }
   }
   return 0;
+}
+
+/**
+ * `okb share` — sharing with colleagues through drawers: a shared folder, one
+ * drawer per person, and OKB writes only in the person's own. What leaves is
+ * shown first; pushing is always asked for.
+ */
+export async function cmdShare(ctx: Ctx): Promise<number> {
+  const c = await context(ctx);
+  const [sub = 'status', ...rest] = ctx.args.positionals;
+  const out = (value: Record<string, unknown>, text: () => void) => { if (ctx.mode === 'json') ctx.out.json({ ok: true, ...value }); else text(); return 0; };
+  switch (sub) {
+    case 'status': {
+      const st = await invoke('share.status', {}, c);
+      return out(st, () => {
+        if (!st.ready) { ctx.out.info(t('share.notSetUp')); ctx.out.next(['okb share setup --folder <dossier commun> --drawer <ton nom> --allowed']); return; }
+        ctx.out.line(`${paint.bold(st.drawer)}  ${paint.dim(st.folder)}${st.remote ? paint.dim(` → ${st.remote}`) : ''}`);
+        ctx.out.line(t('share.summary', { leaving: String(st.leaving), held: String(st.held.length), marked: String(st.marked.length) }));
+        for (const d of st.drawers) ctx.out.line(`   ${d.mine ? '•' : '◦'} ${d.name} ${paint.dim(`(${d.drawer}, ${d.notes} notes)`)}`);
+      });
+    }
+    case 'setup': {
+      const done = await invoke('share.setup', { folder: flagString(ctx.args, 'folder') ?? '', drawer: flagString(ctx.args, 'drawer') ?? '', allowed: flagBool(ctx.args, 'allowed') }, c);
+      return out(done, () => { ctx.out.ok(t('share.setUp', { drawer: done.drawer, folder: done.folder })); if (done.remote) ctx.out.info(t('share.goesTo', { remote: done.remote })); ctx.out.next(['okb share add "<note ou dossier>"', 'okb share preview']); });
+    }
+    case 'add': case 'remove': {
+      const { marked } = await invoke(sub === 'add' ? 'share.mark' : 'share.unmark', { paths: rest.length ? [rest.join(' ')] : [] }, c);
+      return out({ marked }, () => { ctx.out.ok(t(sub === 'add' ? 'share.marked' : 'share.unmarked', { n: String(marked.length) })); ctx.out.next(['okb share preview', 'okb share send']); });
+    }
+    case 'preview': {
+      const p = await invoke('share.preview', {}, c);
+      return out(p, () => {
+        ctx.out.heading(t('share.leaving', { n: String(p.leaving.length) }));
+        for (const n of p.leaving.slice(0, 40)) ctx.out.line(`   ${n.title}  ${paint.dim(n.path)}`);
+        if (p.held.length) { ctx.out.heading(t('share.heldBack', { n: String(p.held.length) })); for (const n of p.held.slice(0, 40)) ctx.out.line(`   ${n.title}  ${paint.dim(t(`share.reason.${n.reason}`))}`); }
+      });
+    }
+    case 'send': {
+      const sent = await invoke('share.send', { push: flagBool(ctx.args, 'push'), ...(flagString(ctx.args, 'preview-hash') ? { previewHash: flagString(ctx.args, 'preview-hash') } : {}) }, c);
+      return out(sent, () => { ctx.out.ok(t(sent.pushed ? 'share.sentPushed' : 'share.sent', { written: String(sent.written), removed: String(sent.removed), held: String(sent.held) })); if (!sent.pushed) ctx.out.info(t('share.pushHint')); });
+    }
+    case 'receive': {
+      const got = await invoke('share.receive', {}, c);
+      return out(got, () => ctx.out.ok(t(got.changed ? 'share.received' : 'share.nothingNew')));
+    }
+    case 'find': {
+      const { hits } = await invoke('shared.find', { query: rest.join(' ') }, c);
+      return out({ hits }, () => { if (!hits.length) ctx.out.info(t('share.noHit')); for (const h of hits) { ctx.out.line(`${paint.bold(h.title)}  ${paint.dim(t('share.by', { name: h.by }))}`); ctx.out.line(paint.dim(`   ${h.snippet}`)); ctx.out.line(paint.dim(`   okb share read ${h.drawer} "${h.path}"`)); } });
+    }
+    case 'read': {
+      const note = await invoke('shared.read', { drawer: rest[0] ?? '', path: rest.slice(1).join(' ') }, c);
+      return out(note, () => { ctx.out.line(paint.dim(t('share.by', { name: note.by }))); ctx.out.line(note.markdown.trimEnd()); });
+    }
+    case 'keep': {
+      const kept = await invoke('shared.keep', { drawer: rest[0] ?? '', path: rest.slice(1).join(' ') }, c);
+      return out(kept, () => { ctx.out.ok(t('share.kept', { title: kept.title, by: kept.by })); ctx.out.next([`okb review ${kept.proposal}`]); });
+    }
+    case 'map': {
+      const { maps } = await invoke('shared.map', {}, c);
+      return out({ maps }, () => { if (!maps.length) ctx.out.info(t('share.nobody')); for (const m of maps) { ctx.out.heading(m.by); ctx.out.line(t('share.mapLine', { both: String(m.both.length), mine: String(m.mine.length), theirs: String(m.theirs.length), holes: String(m.holes.length), fromThem: String(m.fromThem.length) })); for (const n of m.theirs.slice(0, 10)) ctx.out.line(paint.dim(`   + ${n.title}`)); } });
+    }
+    case 'glossary': {
+      const { terms } = await invoke('shared.glossary', {}, c);
+      return out({ terms }, () => { for (const g of terms) ctx.out.line(`${paint.bold(g.term)}  ${paint.dim(g.definitions.map((d) => d.by ?? t('share.me')).join(' · '))}`); });
+    }
+    default:
+      throw new OkbError('E_INVALID', `unknown share command "${sub}"`, { hint: 'okb share [status | setup | add <note|dossier> | remove | preview | send [--push] | receive | find <mots> | read <tiroir> <note> | keep <tiroir> <note> | map | glossary]' });
+  }
 }

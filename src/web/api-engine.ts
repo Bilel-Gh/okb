@@ -3,6 +3,7 @@ import type { OkbConfig } from '../config/schema.js';
 import { getDocument } from '../documents/documents.js';
 import { invoke } from '../engine/registry.js';
 import { openFile } from '../integrations/system.js';
+import { renderMarkdown } from './render.js';
 
 /**
  * The routes of the 2.0's objects (projects, then actions and the journal):
@@ -22,6 +23,40 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
   const op = (id: string, input: (q: URLSearchParams, b: Body) => unknown): Handler => async (ctx, q, b) =>
     invoke(id, input(q, b), { config: await kbConfig(ctx, q.get('kb') ?? b.kb), env: ctx.env, actor: 'person' });
   return {
+    'GET /api/tickets': op('tickets.list', () => ({})),
+    'GET /api/ticket': op('tickets.get', (q) => fromQuery(q, ['ref'])),
+    'POST /api/tickets/start': op('tickets.start', (_q, b) => pick(b, ['ref', 'repo', 'title', 'text'])),
+    'POST /api/ticket/brief': op('tickets.brief', (_q, b) => pick(b, ['ref', 'goal', 'lastAction', 'next'])),
+    'POST /api/ticket/state': op('tickets.state', (_q, b) => ({ ref: b.ref, state: pick(b, ['dimension', 'environment', 'status', 'detail', 'url']) })),
+    'POST /api/ticket/criterion': op('tickets.criterion', (_q, b) => pick(b, ['ref', 'id', 'kind', 'text', 'required', 'status'])),
+    'POST /api/ticket/attempt': op('tickets.attempt', (_q, b) => pick(b, ['ref', 'approach', 'conditions', 'result', 'next'])),
+    'POST /api/ticket/reuse': op('tickets.reuse', (_q, b) => pick(b, ['ref', 'path', 'why'])),
+    'POST /api/ticket/close': op('tickets.close', (_q, b) => pick(b, ['ref'])),
+    'POST /api/ticket/github/config': op('tickets.github.configure', (_q, b) => pick(b, ['enabled', 'host', 'repositories', 'allowed'])),
+    'GET /api/ticket/github/config': op('tickets.github.status', () => ({})),
+    'POST /api/ticket/github': op('tickets.github', (_q, b) => pick(b, ['ref', 'repository', 'number'])),
+    'POST /api/ticket/jira': op('tickets.jira', (_q, b) => pick(b, ['ref', 'issue', 'status', 'url', 'observedAt'])),
+    'POST /api/space/export': op('space.export', (_q, b) => pick(b, ['folder'])),
+    'GET /api/understanding/overview': op('understanding.overview', () => ({})),
+    'GET /api/understanding/learning': op('understanding.learning', (q) => fromQuery(q, ['subject', 'path'])),
+    'POST /api/understanding/read': op('understanding.read', (_q, b) => pick(b, ['path', 'mode', 'projectId'])),
+    'POST /api/understanding/keep': op('understanding.keep', (_q, b) => pick(b, ['readingId'])),
+    'POST /api/understanding/record': op('understanding.record', (_q, b) => pick(b, ['path', 'kind', 'point', 'projectId', 'eventId'])),
+    'POST /api/understanding/readiness': op('understanding.readiness', (_q, b) => pick(b, ['path', 'answer'])),
+    'POST /api/understanding/meeting': op('understanding.meeting', (_q, b) => pick(b, ['query', 'projectId'])),
+    'POST /api/understanding/progress': op('understanding.progress', (_q, b) => pick(b, ['enabled'])),
+    'POST /api/understanding/objective/add': op('understanding.objective.add', (_q, b) => pick(b, ['text', 'subject', 'by'])),
+    'POST /api/understanding/objective/done': op('understanding.objective.done', (_q, b) => pick(b, ['id'])),
+    'POST /api/understanding/review': op('understanding.review', (_q, b) => pick(b, ['id', 'rating'])),
+    'GET /api/assistant/status': op('assistant.status', () => ({})),
+    'POST /api/assistant/config': op('assistant.configure', (_q, b) => pick(b, ['agent'])),
+    'GET /api/assistant/conversations': op('assistant.conversations', () => ({})),
+    'POST /api/assistant/start': op('assistant.start', () => ({})),
+    'GET /api/assistant/conversation': op('assistant.conversation', (q) => fromQuery(q, ['id'])),
+    'POST /api/assistant/ask': op('assistant.ask', (_q, b) => pick(b, ['question', 'conversation', 'mode'])),
+    'POST /api/assistant/cancel': op('assistant.cancel', (_q, b) => pick(b, ['conversation'])),
+    'POST /api/assistant/end': op('assistant.end', (_q, b) => pick(b, ['conversation', 'later'])),
+    'POST /api/assistant/action': op('assistant.action', (_q, b) => pick(b, ['conversation', 'message', 'index'])),
     'GET /api/projects': op('projects.list', (q) => fromQuery(q, ['status', 'kind'])),
     'GET /api/project': op('projects.get', (q) => fromQuery(q, ['id'])),
     'POST /api/projects': op('projects.create', (_q, b) => pick(b, ['title', 'where', 'next', 'folder'])),
@@ -41,6 +76,23 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
     'GET /api/backup/status': op('backup.status', () => ({})),
     'GET /api/indicators': op('indicators.view', () => ({})),
     'GET /api/day': op('day.view', (q) => ({ day: q.get('day') ?? '' })),
+    'GET /api/share': op('share.status', () => ({})),
+    'GET /api/share/preview': op('share.preview', () => ({})),
+    'POST /api/share/setup': op('share.setup', (_q, b) => pick(b, ['folder', 'drawer', 'allowed'])),
+    'POST /api/share/mark': op('share.mark', (_q, b) => pick(b, ['paths'])),
+    'POST /api/share/unmark': op('share.unmark', (_q, b) => pick(b, ['paths'])),
+    'POST /api/share/send': op('share.send', (_q, b) => pick(b, ['push', 'previewHash'])),
+    'POST /api/share/receive': op('share.receive', () => ({})),
+    'GET /api/shared/find': op('shared.find', (q) => ({ query: q.get('q') ?? '' })),
+    'GET /api/shared/map': op('shared.map', () => ({})),
+    'GET /api/shared/glossary': op('shared.glossary', () => ({})),
+    'POST /api/shared/keep': op('shared.keep', (_q, b) => pick(b, ['drawer', 'path'])),
+    // A colleague's note, rendered like one of the person's own: it is text to read, nothing in it runs.
+    'GET /api/shared/note': async (ctx, q) => {
+      const config = await kbConfig(ctx, q.get('kb'));
+      const note = await invoke('shared.read', { drawer: q.get('drawer') ?? '', path: q.get('path') ?? '' }, { config, env: ctx.env, actor: 'person' });
+      return { ...note, html: await renderMarkdown(note.markdown, note.path) };
+    },
     'GET /api/baggage/draft': op('baggage.draft', (q) => ({ path: q.get('path') ?? '' })),
     'POST /api/baggage/keep': op('baggage.keep', (_q, b) => pick(b, ['path', 'text', 'title'])),
     // Open the file itself, with the application the computer uses for it.

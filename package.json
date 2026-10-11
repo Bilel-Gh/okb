@@ -1,9 +1,10 @@
 {
   "name": "okb",
   "version": "2.0.0",
-  "description": "Open Knowledge Brain — a local, profile-driven second brain that ingests sources and proposes reviewed, traceable changes to an OKF knowledge bundle.",
+  "description": "Open Knowledge Brain \u2014 a local, profile-driven second brain that ingests sources and proposes reviewed, traceable changes to an OKF knowledge bundle.",
   "license": "MIT",
   "type": "module",
+  "main": "dist/desktop/main.js",
   "engines": {
     "node": ">=22.13.0"
   },
@@ -26,7 +27,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && vite build --config web-app/vite.config.ts --logLevel warn",
-    "clean": "rm -rf dist web/app",
+    "clean": "node scripts/clean.mjs",
     "test": "npm run build && vitest run",
     "test:unit": "vitest run",
     "test:watch": "vitest",
@@ -38,11 +39,16 @@
     "release:check": "npm run check && npm run validate:plugin && npm run smoke:package",
     "bench:speed": "npm run build && node scripts/perf.mjs",
     "dev:web": "vite --config web-app/vite.config.ts",
-    "test:journeys": "npm run build && vitest run --config vitest.journeys.config.ts"
+    "test:journeys": "npm run build && vitest run --config vitest.journeys.config.ts",
+    "desktop:dev": "npm run build && electron .",
+    "desktop:dir": "npm run build && node scripts/desktop-build.mjs --dir",
+    "desktop:build": "npm run build && node scripts/desktop-build.mjs",
+    "desktop:release": "node scripts/desktop-release.mjs"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
     "d3-force": "^3.0.0",
+    "electron-updater": "6.8.9",
     "mammoth": "^1.8.0",
     "mermaid": "^12.1.0",
     "minisearch": "^7.2.0",
@@ -74,6 +80,8 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "cmdk": "^1.1.1",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
     "happy-dom": "^20.14.5",
     "lucide-react": "^1.52.0",
     "playwright-core": "^1.64.0",

@@ -120,6 +120,7 @@ describe('shareable package', () => {
     expect(Object.keys(pkg.dependencies).sort()).toEqual([
       '@clack/prompts',
       'd3-force',
+      'electron-updater',
       'mammoth',
       'mermaid',
       'minisearch',

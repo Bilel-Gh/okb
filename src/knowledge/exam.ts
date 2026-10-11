@@ -49,7 +49,7 @@ export type ExamResult = {
   readonly score: number | null;
   readonly counts: Readonly<Record<ExamGrade, number>>;
   readonly items: readonly ExamItem[];
-  readonly tokens: number; readonly provider: string;
+  readonly tokens: number; readonly estimated: boolean; readonly provider: string;
 };
 export type ExamHistory = ExamResult & { readonly history: readonly { readonly at: string; readonly score: number | null }[] };
 export type Ask = (req: AiRequest) => Promise<AiResult>;
@@ -110,7 +110,7 @@ export async function removeExamQuestion(config: OkbConfig, repo: ExamRepo, id: 
 /** The last result, with the scores before it (newest first); null before a first exam. */
 export async function lastExam(config: OkbConfig, repo: ExamRepo): Promise<ExamHistory | null> {
   const { results } = await load(config, repo);
-  return results[0] ? { ...results[0], history: results.map((r) => ({ at: r.at, score: r.score })) } : null;
+  return results[0] ? { ...results[0], estimated: results[0].estimated ?? results[0].tokens > 0, history: results.map((r) => ({ at: r.at, score: r.score })) } : null;
 }
 
 export async function examQuestionsOf(config: OkbConfig, repo: ExamRepo): Promise<readonly CustomQuestion[]> {
@@ -274,10 +274,12 @@ async function examNow(config: OkbConfig, repo: ExamRepo, options: { env?: NodeJ
     if (spent + cost > budget) throw new OkbError('E_INVALID', `daily budget reached (${spent} + ${cost} > ${budget} tokens)`, { key: 'budgetExceeded', params: { spent, cost, budget } });
   }
   let tokens = 0;
+  let estimated = false;
   let provider = 'none';
   const call = async (req: AiRequest, key: string) => {
     const r = await ask(req);
     tokens += r.tokens.input + r.tokens.output;
+    estimated ||= r.estimated === true || r.usage?.input === null || r.usage?.output === null;
     provider = r.provider;
     const parsed = strings(jsonBlock(r.text), key, key === 'answers' ? 'answer' : 'grade');
     if (!parsed.size) throw new OkbError('E_IO', `the AI gave no readable ${key}`, { key: 'aiFailed', params: { error: r.text.slice(0, 160) } });
@@ -288,7 +290,7 @@ async function examNow(config: OkbConfig, repo: ExamRepo, options: { env?: NodeJ
     .map((q) => ({ q, answer: (answers.get(q.id)?.answer ?? '').trim() }))
     .filter(({ q, answer }) => q.reference !== 'none' && answer && !answer.includes(NOT_IN_NOTES));
   const grades = toGrade.length ? await call(gradeRequest(lang, toGrade), 'grades') : new Map<string, Record<string, string>>();
-  if (tokens && !viaGate) await recordAiUsage(config, { tokens, purpose: 'exam', provider }, now);
+  if (tokens && !viaGate) await recordAiUsage(config, { tokens, purpose: 'exam', provider, ...(estimated ? { estimated: true } : {}) }, now);
 
   const items: ExamItem[] = prepared.map((q) => {
     const base = { id: q.id, question: q.text, custom: q.custom, found: q.found, notes: [...new Set(q.passages.map((p) => String(p.path)))], reference: q.reference };
@@ -304,7 +306,7 @@ async function examNow(config: OkbConfig, repo: ExamRepo, options: { env?: NodeJ
   });
   const counts = { right: 0, partial: 0, wrong: 0, ungraded: 0 } as Record<ExamGrade, number>;
   for (const i of items) counts[i.grade]++;
-  const result: ExamResult = { repo: repo.id, name: repo.name, at: now.toISOString(), score: examScore(items), counts, items, tokens, provider };
+  const result: ExamResult = { repo: repo.id, name: repo.name, at: now.toISOString(), score: examScore(items), counts, items, tokens, estimated, provider };
   const data = await load(config, repo);
   data.results = [result, ...data.results].slice(0, KEEP);
   await writeJsonAtomic(fileOf(config, repo), data);

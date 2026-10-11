@@ -1,5 +1,6 @@
 import { readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { z } from 'zod';
 import type { OkbConfig } from '../config/schema.js';
 import type { Bundle } from '../kb/bundle.js';
 import { branchBase, commitsBetween, currentBranch, gitIdentity, isAncestor, revParse } from '../repo/git.js';
@@ -7,9 +8,11 @@ import type { RepoEntry } from '../repo/registry.js';
 import { isBrainPlace, type RepoPlace } from '../repo/pack.js';
 import { assertNoSecrets } from '../security/guard.js';
 import { statePaths } from '../state/paths.js';
+import { openDb, type Db } from '../state/db.js';
 import { OkbError } from '../util/errors.js';
 import { withStateLock } from '../util/state-lock.js';
-import { ensureDir, readJsonIfExists, readTextIfExists, writeJsonAtomic, writeTextAtomic } from '../util/fsx.js';
+import { ensureDir, readJsonIfExists, readTextIfExists, writeTextAtomic } from '../util/fsx.js';
+import { assertInsideRoot } from '../util/paths.js';
 
 /**
  * A ticket followed by OKB, without AI: where it started in each repository
@@ -65,6 +68,7 @@ export function ticketsDir(config: OkbConfig): string {
 /** `abc-123` → `ABC-123`; a free title → `T-<slug>`. */
 export function ticketId(refOrTitle: string): string {
   const raw = refOrTitle.trim();
+  if (/^T-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(raw)) return raw;
   if (/^[A-Za-z][A-Za-z0-9]{0,15}[-_]\d{1,7}$/.test(raw)) return raw.toUpperCase().replace('_', '-');
   const slug = raw.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
   if (!slug) throw new OkbError('E_INVALID', 'a ticket needs a reference or a title', { key: 'ticketNoRef' });
@@ -76,27 +80,49 @@ function fileOf(config: OkbConfig, ref: string): string {
   return resolve(ticketsDir(config), `${ref}.json`);
 }
 
-export async function loadTicket(config: OkbConfig, ref: string): Promise<TicketRecord | null> {
-  return readJsonIfExists<TicketRecord>(fileOf(config, ticketId(ref)));
+const recordSchema = z.object({
+  version: z.literal(1), ref: z.string().regex(/^[A-Z0-9][A-Za-z0-9_-]{0,60}$/), title: z.string(),
+  repos: z.array(z.object({ id: z.string(), branch: z.string().nullable(), base: z.string().nullable(), baseRef: z.string().nullable() }).passthrough()),
+  status: z.enum(['active', 'done']), startedAt: z.string(), updatedAt: z.string(), doneAt: z.string().nullable(), auto: z.boolean(), textFile: z.string().nullable(),
+  journal: z.array(z.object({ at: z.string(), kind: z.enum(['start', 'note', 'decision', 'trap', 'question', 'commit', 'repo', 'done', 'reopen']), text: z.string(), repo: z.string().optional(), sha: z.string().optional() }).passthrough()),
+}).passthrough();
+
+/** Import all valid legacy records in one transaction; never edit or remove the originals. */
+export async function migrateTickets(config: OkbConfig): Promise<void> {
+  const db = openDb(config);
+  if (db.get('SELECT value FROM meta WHERE key = ?', 'tickets.json.v1')) return;
+  const names = await readdir(ticketsDir(config)).catch((e: NodeJS.ErrnoException) => { if (e.code === 'ENOENT') return []; throw e; });
+  const records: TicketRecord[] = [];
+  for (const name of names.filter((n) => n.endsWith('.json')).sort()) {
+    const file = await assertInsideRoot(ticketsDir(config), name);
+    const parsed = recordSchema.safeParse(await readJsonIfExists(file));
+    if (!parsed.success || parsed.data.ref + '.json' !== name || (parsed.data.textFile !== null && parsed.data.textFile !== resolve(ticketsDir(config), parsed.data.ref + '.md'))) {
+      throw new OkbError('E_INVALID', `invalid archived ticket ${name}; no ticket archive was changed`, { key: 'ticketArchiveInvalid' });
+    }
+    records.push(parsed.data);
+  }
+  db.tx(() => {
+    for (const r of records) db.run('INSERT OR IGNORE INTO tickets (ref, payload, updated_at) VALUES (?, ?, ?)', r.ref, JSON.stringify(r), r.updatedAt);
+    db.run('INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)', 'tickets.json.v1', new Date().toISOString());
+  });
 }
 
-async function saveTicket(config: OkbConfig, record: TicketRecord): Promise<TicketRecord> {
-  await ensureDir(ticketsDir(config));
+export async function loadTicket(config: OkbConfig, ref: string): Promise<TicketRecord | null> {
+  await migrateTickets(config);
+  const row = openDb(config).get<{ payload: string }>('SELECT payload FROM tickets WHERE ref = ?', ticketId(ref));
+  return row ? recordSchema.parse(JSON.parse(row.payload)) : null;
+}
+
+function saveTicket(config: OkbConfig, record: TicketRecord): TicketRecord {
   const journal = record.journal.length > MAX_JOURNAL ? [record.journal[0]!, ...record.journal.slice(-(MAX_JOURNAL - 1))] : record.journal;
   const saved = { ...record, journal, updatedAt: new Date().toISOString() };
-  await writeJsonAtomic(fileOf(config, record.ref), saved);
+  openDb(config).run('INSERT INTO tickets (ref, payload, updated_at) VALUES (?, ?, ?) ON CONFLICT(ref) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at', saved.ref, JSON.stringify(saved), saved.updatedAt);
   return saved;
 }
 
 export async function listTickets(config: OkbConfig): Promise<TicketRecord[]> {
-  const dir = ticketsDir(config);
-  const names = (await readdir(dir).catch(() => [] as string[])).filter((n) => n.endsWith('.json'));
-  const out: TicketRecord[] = [];
-  for (const n of names) {
-    const r = await readJsonIfExists<TicketRecord>(resolve(dir, n)).catch(() => null);
-    if (r && typeof r.ref === 'string' && Array.isArray(r.repos)) out.push(r);
-  }
-  return out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  await migrateTickets(config);
+  return openDb(config).all<{ payload: string }>('SELECT payload FROM tickets ORDER BY updated_at DESC, ref').map((r) => recordSchema.parse(JSON.parse(r.payload)));
 }
 
 function isMainLine(branch: string | null, defaultBranch: string | null): boolean {
@@ -143,7 +169,7 @@ export async function startTicket(config: OkbConfig, input: StartInput): Promise
 
 async function startTicketNow(config: OkbConfig, input: StartInput, ref: string, title: string | undefined): Promise<{ record: TicketRecord; created: boolean; attached: boolean }> {
   const now = new Date().toISOString();
-  const existing = await readJsonIfExists<TicketRecord>(fileOf(config, ref));
+  const existing = await loadTicket(config, ref);
   let textFile = existing?.textFile ?? null;
   if (input.text?.trim()) {
     textFile = resolve(ticketsDir(config), `${ref}.md`);
@@ -161,6 +187,7 @@ async function startTicketNow(config: OkbConfig, input: StartInput, ref: string,
       ...(title && (existing.auto || existing.title === existing.ref) ? { title } : {}),
       repos, status: 'active', doneAt: null, auto: existing.auto && Boolean(input.auto), textFile, journal,
     });
+    if (existing.status === 'done') openDb(config).run('DELETE FROM ticket_states WHERE ref = ? AND dimension = ?', ref, 'work');
     return { record, created: false, attached: !has };
   }
   const start = await repoStart(input.repo, input.base);
@@ -194,8 +221,28 @@ async function finishTicketNow(config: OkbConfig, ref: string): Promise<TicketRe
   const record = await loadTicket(config, ref);
   if (!record) throw new OkbError('E_NOT_FOUND', `no ticket ${ref}`, { key: 'ticketUnknown', params: { ref } });
   if (record.status === 'done') return record;
-  const now = new Date().toISOString();
-  return saveTicket(config, { ...record, status: 'done', doneAt: now, journal: [...record.journal, { at: now, kind: 'done', text: '' }] });
+  const db = openDb(config);
+  return db.tx(() => {
+    assertTicketCriteria(db, record.ref);
+    const now = new Date().toISOString();
+    db.run('DELETE FROM ticket_states WHERE ref = ? AND dimension = ?', record.ref, 'work');
+    return saveTicket(config, { ...record, status: 'done', doneAt: now, journal: [...record.journal, { at: now, kind: 'done', text: '' }] });
+  });
+}
+
+export function assertTicketCriteria(db: Db, ref: string): void {
+  const missing = db.all<{ text: string }>("SELECT text FROM ticket_criteria WHERE ref = ? AND required = 1 AND status NOT IN ('met', 'waived')", ref).map((r) => r.text);
+  if (missing.length) throw new OkbError('E_CONFLICT', 'required exit criteria are not satisfied', { key: 'ticketCriteriaMissing', detail: { missing } });
+}
+
+/** Keep a work-state declaration and its record status together, under the same journal lock. */
+export async function mutateTicket(config: OkbConfig, ref: string, change: (record: TicketRecord, db: Db) => TicketRecord): Promise<void> {
+  await withStateLock(fileOf(config, ticketId(ref)), async () => {
+    const r = await loadTicket(config, ref);
+    if (!r) throw new OkbError('E_NOT_FOUND', `no ticket ${ref}`, { key: 'ticketUnknown', params: { ref } });
+    const db = openDb(config);
+    db.tx(() => saveTicket(config, change(r, db)));
+  });
 }
 
 export async function ticketText(record: TicketRecord): Promise<string | null> {

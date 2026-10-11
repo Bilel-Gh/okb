@@ -10,6 +10,7 @@ import { PageTabs } from '../ui/PageTabs';
 import { ErrorState, SkeletonRows } from '../ui/States';
 import { Ring } from '../ui/Ring';
 import { Indicators } from './Indicators';
+import { DesktopUpdates, ExportSpace } from '../ui/DesktopControls';
 
 type HealthGroup = { code: string; title: string; why?: string; fix?: string; items: { level: 'error' | 'warning' | 'info'; where: string; message: string }[] };
 type Health = { scanned: number; okf: boolean; health: { score: number; errors: number; warnings: number; infos: number }; groups: HealthGroup[] };
@@ -143,6 +144,7 @@ export function BackupTab() {
           {tr.data?.items.length ? <p className="small row"><Trash2 size={14} className="muted" aria-hidden="true" />{t('web.storage.trash', { n: tr.data.items.length })} <code>okb trash</code></p> : null}
         </div>
       </section>
+      <ExportSpace />
     </>
   );
 }
@@ -178,10 +180,10 @@ function DoctorTab() {
           ))}
         </ul>
       </section>
-      <section className="panel">
+      {window.okbDesktop ? <DesktopUpdates /> : <section className="panel">
         <div className="panel-head"><h2>{t('web.doctor.update')}</h2><span className="pill sm num" style={{ marginLeft: 'auto' }}>v{r.data.version}</span></div>
         <div className="panel-body row wrap"><p className="muted grow">{t('update.q')}</p><button type="button" className="btn" onClick={() => setAsking(true)}><RefreshCw size={14} aria-hidden="true" />{t('web.doctor.updateGo')}</button></div>
-      </section>
+      </section>}
       <ConfirmDialog open={asking} onOpenChange={setAsking} title={t('update.q')} confirm={t('web.doctor.updateGo')} onConfirm={update} />
     </>
   );

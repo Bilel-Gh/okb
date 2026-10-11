@@ -4,10 +4,11 @@
 notes without your approval.**
 
 Claude reads your sources (meeting transcripts, documents, web pages, code) and
-writes the synthesis. A TypeScript core checks every sentence against an exact
-quotation of its source, prepares a reviewable diff, and applies it only after
+writes the synthesis. A TypeScript core checks source references and exact
+quotations, prepares a reviewable diff, and applies it only after
 you approve, with a receipt you can roll back. The knowledge base stays a folder
 of plain Markdown files on your computer, that you open in Obsidian or in the web app.
+General explanations and unknowns are distinguished; quotation checks do not certify truth.
 
 **En français :** [démarrer](DEMARRER.md) · [guide d’utilisation](docs/guide/README.md).
 
@@ -45,6 +46,33 @@ Details: [release notes 2.0.0](docs/releases/RELEASE-2.0.0.md) · guides (FR):
 [projets, actions et journal](docs/guide/projets.md),
 [les documents](docs/guide/documents.md), [les espaces](docs/guide/espaces.md),
 [brancher un assistant (MCP)](docs/guide/assistants-mcp.md).
+
+## Development preview: 2.1 through 3.0
+
+The next steps keep the same engine, local Markdown knowledge and SQLite state.
+The Atelier interface and the five screens remain the foundation.
+
+- **2.1, working together:** a separate shared Git checkout with one drawer per
+  person, exact publication preview, attributed search, a common glossary and
+  proposals for keeping a colleague's note. [Guide](docs/guide/partager-a-deux.md).
+- **2.2, understanding:** source-backed reading modes, explicit unclear points,
+  meeting preparation and chosen learning goals. Consultation does not certify
+  expertise; private XP is optional. [Guide](docs/guide/comprendre.md).
+- **2.3, the assistant:** conversations with the person's installed local agent,
+  checked citations, cancellation and explicit buttons for suggested actions.
+  No managed AI subscription is introduced. [Specification](docs/dev/specs/2026-10-11-2.3-assistant.md).
+- **2.4, developer work:** a resume brief, independent work/review/CI/delivery
+  states, exit criteria, failed approaches and actual note reuse.
+- **3.0, desktop:** an Electron wrapper around this same application, short
+  first launch, native folder choice, diagnostics and full export.
+  [Desktop guide](docs/guide/application-desktop.md).
+
+These are local development changes, not published releases. Signed installers,
+updates on both operating systems, real-agent checks and the roadmap's usage
+gates have their own validation. The npm package version stays at the last
+development baseline until a release is explicitly prepared.
+The [dated validation report](docs/dev/VALIDATION-2.1-3.0.md) records successful
+checks, measured search performance and the remaining release gates.
 
 ## Version 1.5: the web app becomes the product
 
@@ -101,6 +129,7 @@ Details: [release notes 1.0.0](docs/releases/RELEASE-1.0.0.md) · guide (FR):
 |---|---|
 | **In Claude Code** | Just say it: “ok, end of session”, “read this transcript”, “what does my KB say about…”. OKB recognises the request and offers to take over, with a button to confirm. `/okb` opens its panel. |
 | **In the browser** | `okb serve` opens a local web app that does everything the terminal does: read, search, review and approve, undo, capture, focus, weekly review, settings, several KBs. |
+| **On the desktop (preview)** | The same application with its own bundled runtime. Build locally with `npm run desktop:dir`; public signed distribution is a separate release step. |
 | **In the terminal** | `okb` alone opens a menu; every command asks what it needs, one question at a time, with a recommended answer. |
 
 <p>
@@ -283,9 +312,10 @@ A source follows: bounded extraction → analysis dossier written by Claude →
 search of the existing KB → proposal → independent evidence review (a subagent)
 → human approval → transactional apply.
 
-- **The core never calls a language model.** It validates what Claude produced:
+- **The dossier-to-proposal and application paths are deterministic.** They validate what Claude produced:
   every evidence quote must exist in the normalised source, every aid must rest on
   claims, every link must resolve, every note must follow its template.
+  Optional reading, translation and assistant operations use the common AI gate.
 - **Proposals are content-addressed.** The approval signs the exact selection and
   hash; apply recomputes both, checks file baselines, writes backups and the
   expected output first, then the notes.

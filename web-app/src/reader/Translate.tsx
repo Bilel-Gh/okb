@@ -7,10 +7,12 @@ import { tn, useT } from '../app/i18n';
 import { hrefFor } from '../app/router';
 import { toast } from '../app/toast';
 import { ErrorState } from '../ui/States';
+import { TokenUsage } from '../ui/TokenUsage';
+import { useShareWords } from '../app/sharing';
 
 const LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt'] as const;
 type Estimate = { tokens: number; cached: number; toTranslate: number; budget?: { spent: number; daily: number }; hash?: string };
-type Result = { ok: true; title: string; html: string; translated: number; failed: number; cached: number; tokens: number };
+type Result = { ok: true; title: string; html: string; translated: number; failed: number; cached: number; tokens: number; estimated?: boolean };
 
 /**
  * Translate, on request only: the cost first (nothing is translated in advance),
@@ -18,6 +20,7 @@ type Result = { ok: true; title: string; html: string; translated: number; faile
  */
 export function Translate({ path, source: noteLang, onShow, shown }: { path: string; source?: string; onShow: (v: { html: string; lang: string } | null) => void; shown: string | null }) {
   const t = useT();
+  const w = useShareWords();
   const source = (noteLang ?? currentSession()?.kbs.find((k) => k.id === currentKb())?.writingLanguage ?? 'fr').slice(0, 2);
   const choices = LANGS.filter((l) => l !== source);
   const [lang, setLang] = useState<string>(choices.includes(t.lang as (typeof LANGS)[number]) ? t.lang : choices[0]!);
@@ -76,6 +79,7 @@ export function Translate({ path, source: noteLang, onShow, shown }: { path: str
               </p>
             )}
             {run.error ? <ErrorState error={run.error} /> : null}
+            {run.data ? <p className="small muted">{w('Dernière traduction : ', 'Last translation: ')}<TokenUsage tokens={run.data.tokens} estimated={run.data.estimated} /></p> : null}
             <div className="row">
               <button type="button" className="btn primary sm" disabled={!estimate.data || run.isPending} aria-busy={run.isPending} onClick={() => run.mutate()}>{run.isPending ? t('app.translate.running') : t('app.translate.go')}</button>
               {shown === lang && scope === 'full' && doneScope === 'full' ? <button type="button" className="btn sm" disabled={save.isPending} onClick={() => save.mutate()}><Save size={14} aria-hidden="true" />{t('app.translate.save')}</button> : null}

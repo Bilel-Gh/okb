@@ -186,7 +186,9 @@ function snippet(body: string, terms: readonly string[]): string {
   return `${start > 0 ? '…' : ''}${body.slice(start, start + 180)}${start + 180 < body.length ? '…' : ''}`;
 }
 
-export type FindOptions = FindFilter & { readonly hideSecret?: boolean; readonly limit?: number; readonly boostRepo?: string; readonly boostProduct?: string; readonly scores?: ReadonlyMap<string, number>; readonly now?: Date };
+export type FindOptions = FindFilter & { readonly hideSecret?: boolean; readonly limit?: number; readonly boostRepo?: string; readonly boostProduct?: string; readonly scores?: ReadonlyMap<string, number>; readonly now?: Date;
+  /** Only notes that hold every word: no fallback to « any word », no search by meaning. For results shown beside the person's own (the notes of colleagues), where a loose match is noise. */
+  readonly allWords?: boolean };
 
 export function findNotes(config: OkbConfig, bundle: Bundle, query: string, options: FindOptions = {}): FindResult {
   const t0 = Date.now();
@@ -194,10 +196,11 @@ export function findNotes(config: OkbConfig, bundle: Bundle, query: string, opti
   const built = build(layout, bundle);
   const q = query.trim();
   const expanded = bilingual(q);
-  let words = q ? built.index.search(expanded, { combineWith: 'AND' }) : [];
-  if (!words.length && q) words = built.index.search(expanded, { combineWith: 'OR' });
+  // Every word of the person's own query: the translations widen a search, they are not words to require.
+  let words = q ? built.index.search(options.allWords ? q : expanded, { combineWith: 'AND' }) : [];
+  if (!words.length && q && !options.allWords) words = built.index.search(expanded, { combineWith: 'OR' });
   // Words and meaning, merged: the words lead (an exact term stays on top); the meaning lifts or finds what they miss.
-  const sense = q ? built.meaning.search(meaningQuery(q).join(' '), { combineWith: 'OR' }) : [];
+  const sense = q && !options.allWords ? built.meaning.search(meaningQuery(q).join(' '), { combineWith: 'OR' }) : [];
   const topWords = words[0]?.score ?? 0;
   const topSense = sense[0]?.score ?? 0;
   const merged = new Map<string, { id: string; score: number; terms: string[] }>();

@@ -65,9 +65,36 @@ export function dropCrumbLine(article: HTMLElement): void {
   if (first?.tagName === 'P' && (first.textContent ?? '').trim().startsWith('🧭')) first.remove();
 }
 
+/** A note's page owns h1. Keep source heading anchors and appearance while nesting its Markdown below it. */
+export function normalizeNoteHeadings(article: HTMLElement, dropTitle = false): void {
+  if (dropTitle && article.firstElementChild?.tagName === 'H1') {
+    const title = article.firstElementChild;
+    if (title.id) {
+      const anchor = article.ownerDocument.createElement('span');
+      anchor.id = title.id;
+      anchor.dataset.noteTitleAnchor = '';
+      anchor.setAttribute('aria-hidden', 'true');
+      title.replaceWith(anchor);
+    } else title.remove();
+  }
+  for (const heading of article.querySelectorAll('h1')) {
+    const nested = article.ownerDocument.createElement('h2');
+    for (const attribute of heading.attributes) nested.setAttribute(attribute.name, attribute.value);
+    nested.dataset.noteHeading = '1';
+    nested.append(...heading.childNodes);
+    heading.replaceWith(nested);
+  }
+}
+
 export function outline(article: HTMLElement): OutlineItem[] {
+  const used = new Set([...article.querySelectorAll('[id]')].map((el) => el.id));
   return [...article.querySelectorAll('h2, h3')].map((h, i) => {
-    h.id = `s-${i}`;
+    if (!h.id) {
+      let id = `s-${i}`;
+      while (used.has(id)) id += '-section';
+      h.id = id;
+      used.add(id);
+    }
     return { id: h.id, text: h.textContent ?? '', level: h.tagName === 'H3' ? 3 : 2 };
   });
 }

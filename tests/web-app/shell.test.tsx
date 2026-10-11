@@ -16,7 +16,7 @@ function mount(route: Route, calls: { url: string; body?: unknown }[] = []) {
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : undefined });
     const u = String(url);
-    const body = u.includes('/api/suggestions') ? { suggestions: [] } : u.includes('/api/status') ? { name: 'Démo', notes: 12, concepts: 2 }
+    const body = u.includes('/api/assistant/status') ? { agents: [], selected: 'claude-code', privacy: 'local-agent', terms: [] } : u.includes('/api/assistant/conversations') ? { conversations: [] } : u.includes('/api/suggestions') ? { suggestions: [] } : u.includes('/api/status') ? { name: 'Démo', notes: 12, concepts: 2 }
       : u.includes('/api/actions/detect') ? { action: u.includes('avant') ? { kind: 'todo', text: 'Réserver le car', due: '2027-05-15' } : null } : u.includes('/api/projects') ? { projects: [{ id: 'P-1a2b3c', title: 'Sortie de juin' }] } : { ok: true };
     return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
   }));
@@ -32,13 +32,26 @@ describe('the shell of the 2.0 (F2.0-01)', () => {
       ['app.screen.today', null], ['app.screen.projects', null], ['app.screen.memory', 'page'], ['app.screen.assistant', null], ['app.screen.progress', null],
     ]);
     const tabs = screen.getByRole('navigation', { name: 'app.screen.memory' });
-    expect([...tabs.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('aria-current')])).toEqual([['app.memory.notes', null], ['app.memory.graph', 'page'], ['app.memory.documents', null]]);
+    expect([...tabs.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('aria-current')])).toEqual([['app.memory.notes', null], ['app.memory.graph', 'page'], ['app.memory.documents', null], ['app.tools.tab.share', null]]);
   });
 
   it('« À valider » is on every screen, with what waits', () => {
     mount({ name: 'today' });
     const validate = screen.getByRole('link', { name: 'app.nav.inbox, 3' });
     expect(validate.getAttribute('href')).toBe('#/review');
+  });
+
+  it('opens the Assistant panel on any screen without sending a question, then returns focus when closed', async () => {
+    const calls: { url: string; body?: unknown }[] = [];
+    mount({ name: 'today' }, calls);
+    const trigger = screen.getByRole('button', { name: 'Ouvrir le panneau Assistant' });
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(dialog.querySelector('textarea')).toBeTruthy());
+    expect(calls.some((c) => c.url.includes('/api/assistant/ask'))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Fermer le panneau Assistant' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 
   it('« Garde ça » opens with ⌘J and keeps what the person wrote at once', async () => {

@@ -64,11 +64,12 @@ export function DocumentRows({ docs, projects, showProject = true }: { docs: rea
   );
 }
 
-export default function Documents() {
+export default function Documents({ initialQuery = '' }: { initialQuery?: string } = {}) {
   const t = useT();
-  const [q, setQ] = useState('');
-  const [query, setQuery] = useState('');
+  const [q, setQ] = useState(initialQuery);
+  const [query, setQuery] = useState(initialQuery);
   const [over, setOver] = useState(false);
+  useEffect(() => { setQ(initialQuery); }, [initialQuery]);
   useEffect(() => { const id = setTimeout(() => setQuery(q.trim()), 200); return () => clearTimeout(id); }, [q]);
   const docs = useQuery({ queryKey: ['documents', query], queryFn: () => get<{ documents: Doc[] }>('/api/documents', query ? { query } : {}) });
   const projects = useQuery({ queryKey: ['projects', 'open'], queryFn: () => get<{ projects: ProjectRef[] }>('/api/projects'), staleTime: 30_000 });

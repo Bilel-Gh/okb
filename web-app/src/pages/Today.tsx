@@ -8,9 +8,10 @@ import { useStatus } from '../app/Shell';
 import { toast } from '../app/toast';
 import { Prose } from '../reader/Prose';
 import { PageTabs } from '../ui/PageTabs';
-import { useProgress, type ProgressData } from '../ui/Progress';
+import { UnderstandingToday } from './Understanding';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { TypeMark } from '../ui/TypeMark';
+import { NotesToRecheck, type NoteToRecheck } from '../ui/NotesToRecheck';
 import { ActionList, JournalList, type Action, type Entry } from './day-parts';
 import { KindMark, type Project } from './Projects';
 
@@ -128,25 +129,6 @@ function Hello({ todo, waiting, due, backup }: { todo: number | null; waiting: n
   );
 }
 
-function Level({ data }: { data: Extract<ProgressData, { show: true }> }) {
-  const t = useT();
-  const { level, from, to } = data.level;
-  const k = Math.max(0, Math.min(1, (data.xp - from) / Math.max(1, to - from)));
-  const label = t('app.progress.xp', { xp: data.xp, left: to - data.xp, next: level + 1 });
-  return (
-    <div className="stack" style={{ gap: 10 }}>
-      <div className="level-line" role="meter" aria-valuemin={from} aria-valuemax={to} aria-valuenow={data.xp} aria-label={label}>
-        <span className="level-badge num" aria-hidden="true">{level}</span>
-        <div className="grow">
-          <span className="bar" aria-hidden="true"><span style={{ width: `${Math.round(k * 100)}%` }} /></span>
-          <small className="muted num">{label}</small>
-        </div>
-      </div>
-      <p className="small muted">{t('app.progress.today', { xp: Math.round(data.today) })} · {tn(t, 'app.progress.streak', data.streak.current)}</p>
-    </div>
-  );
-}
-
 type TodayData = {
   day: string;
   resume: Project[];
@@ -158,6 +140,8 @@ type TodayData = {
   toValidate: number;
   backup: { state: 'ok' | 'late' | 'never' | 'off'; date: string | null };
   understand: { path: string; title: string; usedBy: number } | null;
+  notesToRecheck?: NoteToRecheck[];
+  recheckUnavailable?: string[];
 };
 
 /** The projects to pick up, each with where the person was. */
@@ -193,7 +177,6 @@ function TodayTab() {
   const brain = useQuery({ queryKey: ['brain'], queryFn: () => get<Brain>('/api/brain') });
   const day = useQuery({ queryKey: ['today'], queryFn: () => get<TodayData>('/api/today') });
   const full = useQuery({ queryKey: ['status-full'], queryFn: () => get<FullStatus>('/api/status') });
-  const progress = useProgress();
   const now = brain.data?.now;
   const d = day.data;
   // What is useful now, beyond the day itself: captures to sort, a stale focus, the weekly review.
@@ -227,15 +210,8 @@ function TodayTab() {
           <Panel title={t('app.waiting.title')} link={{ href: hrefFor({ name: 'inbox' }), label: t('app.waiting.all') }} flush><Waiting limit={3} /></Panel>
         </div>
         <div className="stack lg">
-          {d?.understand ? (
-            <Panel title={t('app.today.understand')}>
-              <div className="stack" style={{ gap: 10 }}>
-                <p className="understand-title">{d.understand.title}</p>
-                <p className="muted small">{tn(t, 'app.today.understandWhy', d.understand.usedBy)}</p>
-                <a className="btn sm primary" href={hrefFor({ name: 'brain', path: d.understand.path })}>{t('app.today.understandGo')}<ArrowRight size={14} aria-hidden="true" /></a>
-              </div>
-            </Panel>
-          ) : null}
+          <UnderstandingToday />
+          <NotesToRecheck notes={d?.notesToRecheck} unavailable={d?.recheckUnavailable} />
           <Panel title={t('app.today.review')}>
             <div className="row" style={{ gap: 12 }}>
               <p className="grow">{d ? (d.review.due ? tn(t, 'app.today.cards', d.review.due) : t('app.today.noCards')) : <span className="skeleton" style={{ width: 160, display: 'inline-block' }} />}</p>
@@ -267,9 +243,7 @@ function TodayTab() {
               </div>
             </div>
           </Panel>
-          {progress.data?.show ? (
-            <Panel title={t('app.progress.title')} link={{ href: hrefFor({ name: 'learn', tab: 'progress' }), label: t('app.progress.badges') }}><Level data={progress.data} /></Panel>
-          ) : null}
+
         </div>
       </div>
     </>

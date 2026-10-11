@@ -8,7 +8,8 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const temp=await mkdtemp(join(tmpdir(),'okb-package-'));
 const env={...process.env,OKB_HOME:join(temp,'home'),OKB_PROFILE:'smoke'};
 for(const key of ['OKB_KB_ROOT','OKB_ORG_CONFIG','OKB_TEAM_CONFIG','OKB_STATE_HOME','OKB_APPLY_MODE','OKB_CONCEPT_ASSIST']) delete env[key];
-const npm=process.platform==='win32'?'npm.cmd':'npm';
+const npmCli=process.env.npm_execpath;
+if(!npmCli) throw new Error('Run this check with npm run smoke:package.');
 function run(bin,args,extra={}) { return execFileSync(bin,args,{cwd:temp,env,encoding:'utf8',stdio:['ignore','pipe','pipe'],...extra}); }
 async function smokeReader(bin, proposalId) {
   const child = spawn(process.execPath, [bin, 'serve', '--port', '0', '--json'], { cwd: temp, env, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -46,11 +47,11 @@ async function smokeReader(bin, proposalId) {
   }
 }
 try {
-  const packed=JSON.parse(run(npm,['pack','--json','--pack-destination',temp],{cwd:root}))[0];
+  const packed=JSON.parse(run(process.execPath,[npmCli,'pack','--json','--pack-destination',temp],{cwd:root}))[0];
   assert(!packed.files.some(f=>/^(?:\.dev|tests|src|node_modules)\//.test(f.path)));
   // Sync tools (iCloud, Dropbox) leave "name 2.js" copies beside files they saw change.
   assert(!packed.files.some(f=>/ \d+(?:\.[^/]*)?(?:\/|$)/.test(f.path)), 'conflict copies (" 2") in the package');
-  run(npm,['install','--ignore-scripts','--no-audit','--no-fund','--omit=dev','--prefix',join(temp,'install'),join(temp,packed.filename)]);
+  run(process.execPath,[npmCli,'install','--ignore-scripts','--no-audit','--no-fund','--omit=dev','--prefix',join(temp,'install'),join(temp,packed.filename)]);
   const bin=join(temp,'install/node_modules/okb/dist/cli/index.js');
   const cli=(args)=>JSON.parse(run(process.execPath,[bin,...args,'--json']));
   const vault=join(temp,'vault'); await cp(join(root,'tests/fixtures/vault-acme'),vault,{recursive:true});

@@ -18,6 +18,7 @@ import { workspaceRepos, type Scope } from './scope.js';
 import type { Workspace } from './workspaces.js';
 import { listTickets, syncTicket, ticketNoteIn, type JournalEntry, type RepoProgress, type TicketRecord } from './tickets.js';
 import { noteRepo, tiedNotes } from './rank.js';
+import { ticketDetail, type TicketState, type Attempt } from './ticket-state.js';
 
 /**
  * The brief: what Claude needs to work in a scope, small enough to read at
@@ -37,6 +38,9 @@ export type TicketBrief = {
   readonly journal: readonly JournalEntry[];
   readonly textFile: string | null;
   readonly note: string | null;
+  readonly resume?: { readonly goal: string; readonly lastAction: string; readonly next: string; readonly failed: readonly Attempt[] };
+  readonly states?: readonly TicketState[];
+  readonly missingCriteria?: readonly string[];
 };
 
 export type Brief = {
@@ -145,12 +149,16 @@ export async function buildBrief(scope: Scope, options: { sync?: boolean; bundle
   if (scope.ticket) {
     const synced = options.sync ? await syncTicket(config, scope.ticket, allRepos).catch(() => null) : null;
     const record = synced?.record ?? scope.ticket;
+    const detail = await ticketDetail(config, record.ref);
     ticket = {
       ref: record.ref, title: record.title, status: record.status, auto: record.auto,
       repos: synced?.progress ?? record.repos.map((r) => ({ id: r.id, branch: r.branch, commits: record.journal.filter((j) => j.kind === 'commit' && j.repo === r.id).length, merged: false, gone: false })),
       journal: record.journal.filter((j) => ['note', 'decision', 'trap', 'question'].includes(j.kind)).slice(-6),
       textFile: record.textFile,
       note: ticketNoteIn(bundle, record, (id) => places.get(id) ?? false),
+      resume: detail.brief,
+      states: detail.detail.states,
+      missingCriteria: detail.detail.close.missing,
     };
   }
 
@@ -225,6 +233,12 @@ export function renderBrief(brief: Brief, options: { mentionedRef?: string | nul
     const progress = t.repos.map((p) => `${p.id}${p.branch ? ` on ${p.branch}` : ''}: ${p.commits} commit(s)${p.merged ? ', merged' : p.gone ? ', branch gone' : ''}`).join('; ');
     lines.push(`Ticket ${t.ref} "${t.title}"${t.status === 'done' ? ' (finished)' : ''} — ${progress}.${t.textFile ? ` Its text: ${t.textFile}` : ''}`);
     if (t.journal.length) lines.push(`Ticket journal: ${t.journal.map(journalLine).join(' | ')}`);
+    if (t.resume) {
+      lines.push(`Resume: goal=${t.resume.goal}; last action=${t.resume.lastAction || 'unknown'}; next=${t.resume.next || 'unknown'}.`);
+      for (const a of t.resume.failed) lines.push(`Failed approach: ${a.approach}; conditions: ${a.conditions}; result: ${a.result}${a.next ? `; next: ${a.next}` : ''}.`);
+    }
+    if (t.states?.length) lines.push(`Independent observations: ${t.states.map((s) => `${s.dimension}${s.environment ? `/${s.environment}` : ''}=${s.status}${s.at ? ` (${s.source}, ${s.at.slice(0, 10)})` : ''}`).join('; ')}. Work finished or merged never means delivered.`);
+    if (t.missingCriteria?.length) lines.push(`Before closing the work: ${t.missingCriteria.join('; ')}.`);
     if (t.note) lines.push(`Its note: ${root}/${t.note}`);
     else if (t.status === 'done' || t.repos.some((p) => p.merged)) lines.push(`This ticket looks finished and has no note yet: offer /okb-dev:ticket to write it (ask first).`);
   }

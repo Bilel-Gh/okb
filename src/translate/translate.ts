@@ -101,6 +101,8 @@ export type Cache = {
   v: 1; path: string; lang: string; lastRead: string; updatedAt: string;
   meta?: { hash: string; title: string; description: string };
   sections: Record<string, string[]>;
+  /** Conservative provenance: at least one retained translation used uncertain token counts. */
+  estimated?: boolean;
 };
 
 /**
@@ -112,7 +114,7 @@ export function mergeCache(onDisk: Cache, mine: Cache, live: ReadonlySet<string>
   const sections = { ...onDisk.sections, ...mine.sections };
   if (live) for (const k of Object.keys(sections)) if (!live.has(k)) delete sections[k];
   const meta = mine.meta ?? onDisk.meta;
-  return { ...onDisk, ...mine, ...(meta ? { meta } : {}), sections };
+  return { ...onDisk, ...mine, ...(meta ? { meta } : {}), sections, estimated: Boolean(onDisk.estimated || mine.estimated) };
 }
 
 const cacheDir = (config: OkbConfig) => resolve(statePaths(config).root, 'translations');
@@ -121,9 +123,9 @@ const cacheFile = (config: OkbConfig, path: string, lang: string) => resolve(cac
 async function loadCache(config: OkbConfig, path: string, lang: string): Promise<Cache> {
   try {
     const c = JSON.parse(await readFile(cacheFile(config, path, lang), 'utf8')) as Cache;
-    if (c.v === 1 && c.path === path) return c;
+    if (c.v === 1 && c.path === path) return { ...c, estimated: c.estimated ?? Boolean(c.meta || Object.keys(c.sections).length) };
   } catch { /* none yet */ }
-  return { v: 1, path, lang, lastRead: new Date().toISOString(), updatedAt: new Date().toISOString(), sections: {} };
+  return { v: 1, path, lang, lastRead: new Date().toISOString(), updatedAt: new Date().toISOString(), sections: {}, estimated: false };
 }
 
 /** Drop translations nobody read for 30 days. Returns how many were dropped. */
@@ -261,21 +263,21 @@ function parseBlocks(text: string, count: number): (string | null)[] {
 
 /* ---------------------------------------------------------------- public */
 
-export async function estimateTranslation(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: SecretYes; now?: Date } = {}): Promise<{ tokens: number; cached: number; toTranslate: number; budget: { spent: number; daily: number }; hash: string }> {
+export async function estimateTranslation(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: SecretYes; now?: Date } = {}): Promise<{ tokens: number; estimated: boolean; cached: number; toTranslate: number; budget: { spent: number; daily: number }; hash: string }> {
   const p = await plan(config, path, lang, scope, options);
   // The same request as the translation itself, the brain's terms included.
   const r = requestFor(p, lang, sendableTerms(p.bundle, config));
   const tokens = r.blocks.length ? estimateTokens(r.system + r.prompt) * 2 : 0;
   const [spent, daily] = await Promise.all([spentToday(config, options.now ?? new Date()), dailyBudget(env)]);
   // `hash`: the content this estimate describes; a yes to send a 🔒 note is given for it.
-  return { tokens, cached: p.sections.length - r.sections.length, toTranslate: r.sections.length, budget: { spent, daily }, hash: p.note.hash };
+  return { tokens, estimated: tokens > 0, cached: p.sections.length - r.sections.length, toTranslate: r.sections.length, budget: { spent, daily }, hash: p.note.hash };
 }
 
-export function translateNote(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: SecretYes; now?: Date } = {}): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
+export function translateNote(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv = process.env, options: { confirmSecret?: SecretYes; now?: Date } = {}): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number; estimated: boolean }> {
   return oneAtATime(() => translateNow(config, path, lang, scope, env, options));
 }
 
-async function translateNow(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv, options: { confirmSecret?: SecretYes; now?: Date }): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number }> {
+async function translateNow(config: OkbConfig, path: BundlePath, lang: string, scope: Scope, env: NodeJS.ProcessEnv, options: { confirmSecret?: SecretYes; now?: Date }): Promise<{ title: string; description: string; markdown: string; cached: number; translated: number; failed: number; tokens: number; estimated: boolean }> {
   const now = options.now ?? new Date();
   const p = await plan(config, path, lang, scope, options);
   const r = requestFor(p, lang, sendableTerms(p.bundle, config));
@@ -291,6 +293,7 @@ async function translateNow(config: OkbConfig, path: BundlePath, lang: string, s
       notes: [{ path, secret: p.note.secret, hash: p.note.hash }], consent: yes,
     }, env, now);
     tokens = answer.tokens.input + answer.tokens.output;
+    cache.estimated = Boolean(cache.estimated || answer.estimated || answer.usage?.input === null || answer.usage?.output === null);
     const parsed = parseBlocks(answer.text, r.blocks.length);
     // Only what came back whole is kept: a block missing, cut, or that lost a link target is asked again next time.
     const results = r.blocks.map((b, i) => {
@@ -319,6 +322,7 @@ async function translateNow(config: OkbConfig, path: BundlePath, lang: string, s
     return merged;
   });
   cache.sections = saved.sections;
+  cache.estimated = saved.estimated;
   if (saved.meta) cache.meta = saved.meta;
   void purgeTranslations(config, now).catch(() => 0);
   // The translated view: the sections in scope, text replaced, everything else as it was.
@@ -336,7 +340,7 @@ async function translateNow(config: OkbConfig, path: BundlePath, lang: string, s
     title, description: cache.meta?.description ?? p.meta.description,
     // The brief view is titled once: the note's own H1, when it opened the brief, is left out.
     markdown: scope === 'brief' ? `# ${title}\n\n${body.replace(/^# .*\n*/, '')}\n` : `${body}\n`,
-    cached: p.sections.length - r.sections.length, translated: done, failed, tokens,
+    cached: p.sections.length - r.sections.length, translated: done, failed, tokens, estimated: Boolean(cache.estimated),
   };
 }
 

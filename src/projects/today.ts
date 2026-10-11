@@ -12,6 +12,7 @@ import { listEntries, type Entry } from './journal.js';
 import { listProjects, type Project } from './projects.js';
 import { backupStatus } from '../brain/backup.js';
 import { eveningView } from '../evening/evening.js';
+import { moduleNotesToRecheck, type NoteToRecheck } from './sources.js';
 
 /**
  * Today (F2.0-04) answers six questions: what do I pick up, what did I do,
@@ -35,6 +36,9 @@ export type TodayView = {
   readonly backup: { readonly state: 'ok' | 'late' | 'never' | 'off'; readonly date: string | null };
   /** What an assistant prepared and waits for the person's yes: notes to write, changes ready (the evening screen). */
   readonly toValidate: number;
+  /** Cited code changed; notes need rechecking, not an automatic rewrite. */
+  readonly notesToRecheck: readonly NoteToRecheck[];
+  readonly recheckUnavailable: readonly string[];
   /** One thing to understand: a concept the notes use and the person never opened. */
   readonly understand: { readonly path: string; readonly title: string; readonly usedBy: number } | null;
 };
@@ -80,6 +84,7 @@ export async function todayView(config: OkbConfig, env: NodeJS.ProcessEnv, bundl
     }
   }
   const scores = await scoresFor(config, bundle);
+  const recheck = await moduleNotesToRecheck(config, env, bundle);
   return {
     day,
     resume,
@@ -91,5 +96,7 @@ export async function todayView(config: OkbConfig, env: NodeJS.ProcessEnv, bundl
     backup: await backupStatus(config, env, now).then((b) => ({ state: b.state, date: b.last?.date ?? null }), () => ({ state: 'never' as const, date: null })),
     toValidate: await eveningView(config, env, now).then((e) => e.cards.length + e.changes.length + e.apart.length, () => 0),
     understand: unreadConcept(bundle, (path) => scores.get(path)?.parts.value.used ?? 0),
+    notesToRecheck: recheck.notes,
+    recheckUnavailable: recheck.unavailable,
   };
 }

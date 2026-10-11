@@ -1292,3 +1292,53 @@ La cible de la 2.0, une recherche répétée sous 200 ms au p95 à 5 000 notes, 
 - La page d'une note porte deux titres de niveau 1 (la barre du haut et la note) : à corriger avec l'accessibilité de la 3.0.
 - Faire entrer les parcours dans la vérification d'avant version, quand un navigateur est garanti sur la machine qui publie.
 - La porte de la 2.0 demande un mois d'usage réel : les mesures sont là pour le dire, pas pour le remplacer.
+
+## D64 — 2.1 : deux tiroirs, une copie de travail séparée et un envoi explicite (11 octobre 2026)
+
+Le partage réutilise Git dans un dossier commun distinct des KB personnelles. Chaque auteur écrit dans son tiroir. L'aperçu contient les octets prévus et leur empreinte ; un changement depuis l'aperçu impose de le revoir. 🔒, bagage et carrière sont exclus. Les manifestes, chemins et liens symboliques sont contrôlés avant lecture et écriture.
+
+Préparer reste local ; envoyer et recevoir sont des gestes explicites. L'envoi ne stage que les fichiers gérés, conserve les autres changements et refuse les commits locaux déjà en attente : pousser la branche les publierait aussi. Aucun force-push ni stash automatique. Une réception avance seulement sans divergence. Une panne de push demande une nouvelle relecture, sans répétition invisible.
+
+Recherche, lecture d'assistant, carte et glossaire conservent auteur et origine. Garder une note d'un collègue prépare une proposition ; les packs existants restent utilisables. Un partage indisponible ne rend pas la recherche personnelle inutilisable. Le contrôle d'accès au dépôt et son historique restent ceux de Git : supprimer une note n'efface pas ses anciens commits.
+
+Le travail commencé par Claude a été poursuivi. La validation technique sur dépôts fictifs ne prouve ni l'autorisation d'entreprise ni le mois de réutilisation demandé par la porte 2.1. Voir [la spec](specs/2026-10-11-2.1-partage.md).
+
+## D65 — 2.2 : comprendre par les lectures et les gestes, sans certificat de maîtrise (11 octobre 2026)
+
+Les lectures réutilisent le moteur et la porte IA. Elles sont calculées à la demande, gardées dans la base opérationnelle et liées aux empreintes du contenu et du contexte. Garder prépare une révision normale. Les cinq niveaux décrivent des consultations observées ou des gestes déclarés ; un quiz ne les augmente jamais automatiquement.
+
+Les dettes regroupent points flous et rencontres répétées. La carte reprend les liens existants. Réunions et parcours s'appuient sur notes, actions, objectifs et cartes disponibles, en conservant FSRS. La progression privée est facultative et désactivée par défaut, sans classement. La migration 6 ajoute deux tables ; le savoir demeure en Markdown. Aucun framework d'agents supplémentaire.
+
+Les tests couvrent invalidation, confidentialité, citations, proposition sans écriture, gestes idempotents et calendrier. Une citation exacte ne vérifie pas la vérité ni la qualité pédagogique du modèle. La porte d'usage reste à mesurer. Voir [la spec](specs/2026-10-11-2.2-comprendre.md).
+
+## D66 — 2.3 : un agent local choisi, un transport borné et des réponses traçables (11 octobre 2026)
+
+L'application appelle l'agent installé, avec sa connexion et sa configuration autorisées. Pas de clé extraite, pas de fournisseur ajouté, pas de fallback API après le choix explicite d'un agent local. La disponibilité de l'exécutable est distincte de la connexion et du quota. Le processus est lancé sans shell, dans un dossier vide, avec durée et volume bornés ; annuler ou fermer termine les appels contrôlés. Les réglages et hooks propres à l'agent restent dans son périmètre de confiance.
+
+Chaque conversation appartient à l'espace actif. Le modèle lit via MCP ; 🔒 et secrets détectés sont refusés dans le texte et les résultats structurés. Le contenu et le cadenas sont revérifiés avant envoi et conservation. Les réponses distinguent citation de note, explication générale et inconnu. Les citations exigent une source connue et un extrait exact, sans prétendre certifier le sens. Les gestes proposés attendent la personne ; aucune approbation n'est exposée à l'agent.
+
+Les conversations, actions et compteurs vivent dans SQLite (migration 5). Une consommation inconnue reste inconnue ; estimation et consommation déclarée ne se confondent pas. Échecs et annulations comptent aussi. L'estimation avant appel n'est pas un plafond du contexte ajouté par un CLI.
+
+Claude Code a son adaptateur et ses tests simulés ; l'essai réel de génération a échoué dans cet environnement, sans cause suffisamment établie. Codex est expérimental, désactivé par défaut et limité à la version réellement essayée. Un test réel a réussi `notes_find` puis `notes_read` sur un cerveau fictif. Il ne valide pas toutes les conversations, les coûts ni les conditions commerciales. L'invocation remplace seulement sa carte MCP, sans modifier la configuration ni les accès de la personne. Voir [la spec et les mesures](specs/2026-10-11-2.3-assistant.md).
+
+## D67 — 2.4 : tickets opérationnels et observations indépendantes (11 octobre 2026)
+
+Les tickets, détails, états, critères, essais et réutilisations vivent dans SQLite, hors des notes et du partage. La migration 7 importe une fois les JSON privés validés ; les fichiers et textes restent intacts comme archives. Les commandes de suivi existantes restent compatibles. Fusionner des espaces transfère cet état dans une transaction, remappe les références de notes et refuse une collision différente ; la source reste intacte et une relance ne duplique rien.
+
+Travail, PR/revue, vérifications, attente et livraison par environnement restent indépendants. L'absence d'information vaut inconnu ; fusionner une PR ne prouve jamais une livraison. Le brief conserve objectif, dernière action, essais échoués avec conditions et prochaine étape. La clôture contrôle les critères que la personne a rendus obligatoires ; les repères initiaux restent facultatifs pour les tickets anciens.
+
+Les opérations résident dans `src/work/operations.ts`, raccordées au registre commun. Aujourd'hui reçoit les notes à revérifier par un hook `ProjectSource` ; aucun nouvel import du module dev dans le cœur. Un code cité modifié signale une fraîcheur à contrôler, pas une note automatiquement fausse.
+
+GitHub se lit explicitement via la session `gh`, après opt-in serveur/dépôts et politique ; ni login, ni jeton extrait, ni écriture distante. Jira reste un instantané déclaré par la personne, avec provenance et date. Le lecteur externe, la reprise en moins d'une minute et le mois sans oubli demandent leurs essais propres. Voir [la spec](specs/2026-10-11-2.4-quotidien-dev.md).
+
+## D68 — 3.0 : emballer le même produit, sans multiplier les moteurs (11 octobre 2026)
+
+Electron embarque le runtime et ouvre la même application React sur le même serveur loopback et moteur. Port attribué automatiquement, instance desktop unique, Atelier et cinq destinations conservés. L'accueil crée un espace et un premier projet ; l'activité adapte les exemples, sans inventer un module métier. Le premier résultat est possible sans IA. Ajouter un espace non-dev ne retire pas le module dev d'un autre espace.
+
+Les sauvegardes et leurs lecteurs partagent un verrou par profil, y compris pendant un export. Un nouvel instantané est vérifié avant publication ; le précédent reste récupérable si le processus s'interrompt. Un dossier de notes illisible ou un fichier recensé qui ne peut être lu fait échouer le snapshot : aucune réussite avec des données omises. Les destinations physiquement sous les notes ou l'état sont refusées. Le serveur suit aussi un espace créé après son ouverture et un changement d'espace actif. Quitter le desktop ou le serveur CLI arrête les entrées, annule les corps incomplets et les agents, puis attend les écritures et sauvegardes engagées avant fermeture de l'état.
+
+Renderer sandboxé, Node désactivé, contexte isolé, navigation limitée à l'origine exacte, fenêtres et webviews refusées. Le preload expose seulement un sélecteur de dossier et quatre gestes de mise à jour, vérifiés depuis la frame principale. L'export emporte notes, documents, état SQLite cohérent, réglages et manifeste, sans clé d'approbation. Le dossier destination doit être neuf, séparé et physiquement hors du cerveau et de son état.
+
+La distribution signée exige deux feeds HTTPS fixes et une identité d'éditeur. Le prototype laisse les mises à jour désactivées. Canaux runtime et build utilisent les mêmes manifestes explicites, `latest` ou `beta`. L'identité installée est contrôlée par codesign sur Mac, par Authenticode et les métadonnées d'éditeur sur Windows ; le téléchargement est aussi vérifié par l'updater. Aucun téléchargement automatique, installation seulement après le geste de la personne. La commande de release exige signature et parcours navigateur, sans publication implicite.
+
+Le chargement du panneau Assistant est différé jusqu'à son ouverture. Un seul titre principal accessible reste présent ; les titres Markdown et leurs ancres sont conservés. Les tests de composants ne valent ni contrôle visuel ni conformité WCAG. Un prototype Mac non signé et le runtime embarqué peuvent être vérifiés localement ; Windows réel, certificats, notarisation, mise à jour et les deux semaines chez les proches restent à valider. Voir [la spec](specs/2026-10-11-3.0-desktop.md).

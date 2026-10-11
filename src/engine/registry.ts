@@ -7,19 +7,58 @@ import { dayViewOp } from './ops/day.js';
 import { documentsAdd, documentsList, documentsUpdate } from './ops/documents.js';
 import { eveningViewOp } from './ops/evening.js';
 import { indicatorsView } from './ops/indicators.js';
+import { sharedFind, sharedGlossary, sharedKeep, sharedMap, sharedRead, shareMark, sharePreviewOp, shareReceive, shareSend, shareSetup, shareStatus, shareUnmark } from './ops/share.js';
 import { kbStatus } from './ops/kb.js';
 import { notesFind, notesRead } from './ops/notes.js';
 import { actionsAdd, actionsDetect, actionsList, actionsUpdate, journalAdd, journalList } from './ops/actions.js';
 import { projectsCreate, projectsGet, projectsLeave, projectsList, projectsUpdate } from './ops/projects.js';
 import { suggestionsAdd, suggestionsList } from './ops/suggestions.js';
 import { todayViewOp } from './ops/today.js';
+import { assistantAction, assistantAsk, assistantCancel, assistantConfigure, assistantConversation, assistantConversations, assistantEnd, assistantStart, assistantStatus } from './ops/assistant.js';
+import { exportSpace } from './ops/export.js';
+import { understandingReadOp, understandingKeepOp, understandingRecordOp, understandingOverviewOp, understandingMeetingOp, understandingReadinessOp, understandingLearningOp, understandingProgressOp, understandingObjectiveAddOp, understandingObjectiveDoneOp, understandingReviewOp } from './ops/understanding.js';
 import type { Operation, OpContext } from './operation.js';
+import { ticketsList, ticketsGet, ticketsStart, ticketsBrief, ticketsState, ticketsCriterion, ticketsAttempt, ticketsReuse, ticketsClose, ticketsGithubConfig, ticketsGithubStatus, ticketsGithub, ticketsJira } from '../work/operations.js';
 
 export { jsonSchemaOf } from './schema.js';
 export type { Actor, Effect, OpContext, Operation } from './operation.js';
 
 /** Every operation of the engine, the core's then each module's. */
 const OPS = {
+  'tickets.list': ticketsList,
+  'tickets.get': ticketsGet,
+  'tickets.start': ticketsStart,
+  'tickets.brief': ticketsBrief,
+  'tickets.state': ticketsState,
+  'tickets.criterion': ticketsCriterion,
+  'tickets.attempt': ticketsAttempt,
+  'tickets.reuse': ticketsReuse,
+  'tickets.close': ticketsClose,
+  'tickets.github.configure': ticketsGithubConfig,
+  'tickets.github.status': ticketsGithubStatus,
+  'tickets.github': ticketsGithub,
+  'tickets.jira': ticketsJira,
+  'space.export': exportSpace,
+  'understanding.read': understandingReadOp,
+  'understanding.keep': understandingKeepOp,
+  'understanding.record': understandingRecordOp,
+  'understanding.overview': understandingOverviewOp,
+  'understanding.meeting': understandingMeetingOp,
+  'understanding.readiness': understandingReadinessOp,
+  'understanding.learning': understandingLearningOp,
+  'understanding.progress': understandingProgressOp,
+  'understanding.objective.add': understandingObjectiveAddOp,
+  'understanding.objective.done': understandingObjectiveDoneOp,
+  'understanding.review': understandingReviewOp,
+  'assistant.status': assistantStatus,
+  'assistant.configure': assistantConfigure,
+  'assistant.conversations': assistantConversations,
+  'assistant.start': assistantStart,
+  'assistant.conversation': assistantConversation,
+  'assistant.ask': assistantAsk,
+  'assistant.cancel': assistantCancel,
+  'assistant.end': assistantEnd,
+  'assistant.action': assistantAction,
   'notes.find': notesFind,
   'notes.read': notesRead,
   'kb.status': kbStatus,
@@ -46,6 +85,18 @@ const OPS = {
   'backup.status': backupStatusOp,
   'indicators.view': indicatorsView,
   'day.view': dayViewOp,
+  'share.status': shareStatus,
+  'share.setup': shareSetup,
+  'share.mark': shareMark,
+  'share.unmark': shareUnmark,
+  'share.preview': sharePreviewOp,
+  'share.send': shareSend,
+  'share.receive': shareReceive,
+  'shared.find': sharedFind,
+  'shared.read': sharedRead,
+  'shared.keep': sharedKeep,
+  'shared.map': sharedMap,
+  'shared.glossary': sharedGlossary,
   'repos.list': reposList,
 } as const;
 
@@ -77,6 +128,7 @@ export async function invoke(id: string, input: unknown, ctx: OpContext): Promis
 export async function invoke(id: string, input: unknown, ctx: OpContext): Promise<unknown> {
   const op = operation(id);
   if (!op) throw new OkbError('E_NOT_FOUND', `no operation "${id}"`, { key: 'operationUnknown', params: { id } });
+  if (ctx.actor === 'agent' && op.agents === false) throw new OkbError('E_NOT_APPROVED', 'this operation is the person’s own act', { ...(op.id.startsWith('documents.') ? { key: 'documentPersonOnly' } : {}) });
   if (!(await enabledModules(ctx.env)).has(op.module)) {
     const name = moduleDef(op.module)?.id ?? op.module;
     throw new OkbError('E_CONFIG', `module ${name} is turned off`, { key: 'moduleOff', params: { id: name }, hint: `okb modules on ${name}` });

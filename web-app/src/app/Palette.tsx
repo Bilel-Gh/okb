@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Command } from 'cmdk';
-import { ArrowRight, CalendarDays, MessageCircleQuestion, Monitor, Moon, PanelLeft, Palette as PaletteIcon, Paperclip, Sun } from 'lucide-react';
+import { ArrowRight, CalendarDays, MessageCircleQuestion, Monitor, Moon, PanelLeft, Palette as PaletteIcon, Paperclip, Sun, Users } from 'lucide-react';
 import { useEffect, useState, type CSSProperties, type ReactElement } from 'react';
 import { get, post } from './api';
 import { useCategories, useNotes } from './data';
@@ -12,9 +12,10 @@ import { LOGOS, LogoMark } from '../ui/Logo';
 import { CatIcon } from '../ui/CatMark';
 import { TypeMark } from '../ui/TypeMark';
 import { dayTitle, looksLikeDay } from '../pages/Day';
+import { useShareWords, type SharedHit, type SharedIssue } from './sharing';
 
 type FindHit = { path: string; title: string; type: string; crumbs: string[]; snippet: string; status: string };
-type Find = { hits: FindHit[]; best: FindHit | null; documents?: { id: string; title: string; snippet: string }[] };
+type Find = { hits: FindHit[]; best: FindHit | null; documents?: { id: string; title: string; snippet: string }[]; shared?: SharedHit[]; sharedIssue?: SharedIssue };
 
 /** One debounce for the search box: the server search is fast, but not every keystroke needs it. */
 function useDebounced<T>(value: T, ms: number): T {
@@ -26,6 +27,7 @@ function useDebounced<T>(value: T, ms: number): T {
 /** ⌘K: find a note by a few words (typos and accents forgiven), or go anywhere. */
 export function Palette({ open, onOpenChange, appearance, devOn }: { open: boolean; onOpenChange: (v: boolean) => void; appearance: Appearance; devOn: boolean }) {
   const t = useT();
+  const w = useShareWords();
   const cats = useCategories();
   const [q, setQ] = useState('');
   const query = useDebounced(q.trim(), 120);
@@ -60,7 +62,7 @@ export function Palette({ open, onOpenChange, appearance, devOn }: { open: boole
       <Command.Input value={q} onValueChange={setQ} placeholder={t('app.search.placeholder')} />
       <Command.List>
         {query.length > 1 && find.isFetching && !find.data ? <Command.Loading>{t('app.loading')}</Command.Loading> : null}
-        {query.length > 1 && find.data && !find.data.hits.length ? <Command.Empty>{t('app.search.none', { q: query })}</Command.Empty> : null}
+        {query.length > 1 && find.data && !find.data.hits.length && !find.data.shared?.length && !find.data.documents?.length ? <Command.Empty>{t('app.search.none', { q: query })}</Command.Empty> : null}
         {query.length > 1 && find.data?.hits.length ? (
           <Command.Group heading={t('app.search.notes')}>
             {find.data.hits.map((h) => (
@@ -78,6 +80,12 @@ export function Palette({ open, onOpenChange, appearance, devOn }: { open: boole
             </Command.Item>
           </Command.Group>
         ) : null}
+        {query.length > 1 && find.data?.sharedIssue ? <Command.Group heading={w('Notes partagées indisponibles', 'Shared notes unavailable')}><Command.Item value="shared-issue" onSelect={() => pick({ name: 'sharing' })}><Users size={16} aria-hidden="true" /><span className="grow">{w('Vérifier le dépôt commun', 'Check the shared repository')}</span><span className="hint">{find.data.sharedIssue.message}</span></Command.Item></Command.Group> : null}
+        {query.length > 1 && find.data?.shared?.length ? <Command.Group heading={w('Notes de mes collègues', 'My colleagues’ notes')}>
+          {find.data.shared.map((h) => <Command.Item key={`${h.drawer}:${h.path}`} value={`shared:${h.drawer}:${h.path}`} onSelect={() => pick({ name: 'sharing', drawer: h.drawer, note: h.path })}>
+            <Users size={16} aria-hidden="true" /><span className="grow">{h.title}</span><span className="hint">{w('Partagée par', 'Shared by')} {h.by}</span>
+          </Command.Item>)}
+        </Command.Group> : null}
         {dayOf.data && looksLikeDay(query) ? (
           <Command.Group heading={t('app.day.title')}>
             <Command.Item value={`day:${dayOf.data.day}`} onSelect={() => pick({ name: 'day', day: dayOf.data!.day })}>

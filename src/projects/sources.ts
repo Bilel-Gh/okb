@@ -1,4 +1,5 @@
 import type { OkbConfig } from '../config/schema.js';
+import type { Bundle } from '../kb/bundle.js';
 import { enabledModules, type ModuleId } from '../modules/catalog.js';
 import { openDb } from '../state/db.js';
 import type { EntryKind } from './journal.js';
@@ -14,10 +15,13 @@ export type ProjectSeed = { readonly kind: string; readonly ref: string; readonl
 export type ModuleEvent = { readonly kind: string; readonly ref: string; readonly at: string; readonly entry: EntryKind; readonly text: string; /** What it touched (a repository). */ readonly area?: string | null };
 /** A piece of work a module follows (with the developer module: a ticket), and what it touches (its repositories). */
 export type ModuleWork = { readonly kind: string; readonly ref: string; readonly title: string; readonly status: 'active' | 'done'; readonly areas: readonly string[]; readonly startedAt: string; readonly updatedAt: string; readonly doneAt: string | null };
+/** A module's dated reason to recheck a note; « doubtful » is not a claim that it is false. */
+export type NoteToRecheck = { readonly path: string; readonly title: string; readonly scope: string; readonly verdict: 'changed' | 'stale'; readonly files: readonly string[]; readonly at: string; readonly next: string };
 export type ProjectSource = {
   readonly seeds: (config: OkbConfig, env: NodeJS.ProcessEnv) => Promise<readonly ProjectSeed[]>;
   readonly events?: (config: OkbConfig, env: NodeJS.ProcessEnv) => Promise<readonly ModuleEvent[]>;
   readonly work?: (config: OkbConfig, env: NodeJS.ProcessEnv) => Promise<readonly ModuleWork[]>;
+  readonly notesToRecheck?: (config: OkbConfig, env: NodeJS.ProcessEnv, bundle: Bundle) => Promise<readonly NoteToRecheck[]>;
   /** Names that belong to the workplace (repositories…): kept out of what the person takes with them. */
   readonly privateNames?: (env: NodeJS.ProcessEnv) => Promise<readonly { name: string; kind: string }[]>;
 };
@@ -45,6 +49,17 @@ export async function moduleWork(config: OkbConfig, env: NodeJS.ProcessEnv = pro
   const out: ModuleWork[] = [];
   for (const [, source] of await sources(env)) if (source.work) out.push(...(await source.work(config, env).catch(() => [])));
   return out;
+}
+
+/** The core asks enabled modules; an unavailable source is explicit rather than a false empty result. */
+export async function moduleNotesToRecheck(config: OkbConfig, env: NodeJS.ProcessEnv, bundle: Bundle): Promise<{ notes: NoteToRecheck[]; unavailable: ModuleId[] }> {
+  const notes: NoteToRecheck[] = [];
+  const unavailable: ModuleId[] = [];
+  for (const [module, source] of await sources(env)) {
+    if (!source.notesToRecheck) continue;
+    try { notes.push(...await source.notesToRecheck(config, env, bundle)); } catch { unavailable.push(module); }
+  }
+  return { notes: notes.slice(0, 20), unavailable };
 }
 
 /** What happened on the work the modules follow, not tied to a project of the person. */

@@ -1,4 +1,4 @@
-import { Archive, BadgeCheck, Blocks, Brain, Briefcase, CalendarCheck, CheckCheck, CircleHelp, FileStack, FolderGit2, FolderKanban, FolderPlus, HardDrive, HeartPulse, Inbox, Layers, Library, MessageCircle, MessageCircleQuestion, Network, Package, Palette, Paperclip, ScrollText, Settings, Share2, Sparkles, Sprout, Stethoscope, Sun, Tags, Target, Terminal, Upload, Wrench, type LucideIcon } from 'lucide-react';
+import { Archive, BadgeCheck, BookOpen, Blocks, Brain, Briefcase, CalendarCheck, CheckCheck, CircleHelp, FileStack, FolderGit2, FolderKanban, FolderPlus, HardDrive, HeartPulse, Inbox, Layers, Library, MessageCircle, MessageCircleQuestion, Network, Package, Palette, Paperclip, ScrollText, Settings, Share2, Sparkles, Sprout, Stethoscope, Sun, Tags, Target, Terminal, Upload, Wrench, type LucideIcon } from 'lucide-react';
 import type { Route } from './router';
 
 /**
@@ -14,7 +14,7 @@ export const SCREENS: readonly (NavEntry & { id: ScreenId })[] = [
   { id: 'today', route: { name: 'today' }, label: 'app.screen.today', icon: Sun },
   { id: 'projects', route: { name: 'projects' }, label: 'app.screen.projects', icon: FolderKanban },
   { id: 'memory', route: { name: 'brain' }, label: 'app.screen.memory', icon: Library },
-  { id: 'assistant', route: { name: 'ask' }, label: 'app.screen.assistant', icon: MessageCircle },
+  { id: 'assistant', route: { name: 'assistant' }, label: 'app.screen.assistant', icon: MessageCircle },
   { id: 'progress', route: { name: 'learn' }, label: 'app.screen.progress', icon: Sprout },
 ];
 
@@ -34,9 +34,9 @@ export const SETTINGS: NavEntry = { route: { name: 'settings' }, label: 'app.nav
 export function screenOf(route: Route): ScreenId | null {
   switch (route.name) {
     case 'today': case 'day': return 'today';
-    case 'projects': case 'repos': return 'projects';
-    case 'brain': case 'graph': case 'documents': return 'memory';
-    case 'ask': case 'claude': return 'assistant';
+    case 'projects': case 'repos': case 'tickets': return 'projects';
+    case 'brain': case 'graph': case 'documents': case 'sharing': return 'memory';
+    case 'assistant': case 'ask': case 'claude': return 'assistant';
     case 'learn': return 'progress';
     default: return null;
   }
@@ -58,10 +58,12 @@ export function screenTabs(route: Route, devOn: boolean): ScreenTab[] {
         { to: { name: 'brain' }, label: 'app.memory.notes', current: route.name === 'brain', icon: Library },
         { to: { name: 'graph' }, label: 'app.memory.graph', current: route.name === 'graph', icon: Share2 },
         { to: { name: 'documents' }, label: 'app.memory.documents', current: route.name === 'documents', icon: Paperclip },
+        { to: { name: 'sharing' }, label: 'app.tools.tab.share', current: route.name === 'sharing', icon: Package },
       ];
     case 'assistant':
       return [
-        { to: { name: 'ask' }, label: 'app.assistant.ask', current: route.name === 'ask', icon: MessageCircleQuestion },
+        { to: { name: 'assistant' }, label: 'app.screen.assistant', current: route.name === 'assistant', icon: MessageCircle },
+        { to: { name: 'ask' }, label: 'app.memory.notes', current: route.name === 'ask', icon: MessageCircleQuestion },
         { to: { name: 'claude' }, label: 'app.assistant.terminal', current: route.name === 'claude', icon: Terminal },
       ];
     case 'projects': {
@@ -71,6 +73,7 @@ export function screenTabs(route: Route, devOn: boolean): ScreenTab[] {
         { to: { name: 'projects' }, label: 'app.projects.all', current: route.name === 'projects', icon: FolderKanban },
         { to: { name: 'repos' }, label: 'app.projects.repos', current: route.name === 'repos' && !arch, icon: FolderGit2 },
         { to: { name: 'repos', tab: 'architecture' }, label: 'app.projects.arch', current: arch, icon: Network },
+        { to: { name: 'tickets' }, label: 'web.repos.tickets', current: route.name === 'tickets', icon: CheckCheck },
       ];
     }
     default:
@@ -84,7 +87,9 @@ export const NAV: readonly NavEntry[] = [
   VALIDATE,
   { route: { name: 'graph' }, label: 'app.memory.graph', icon: Share2 },
   { route: { name: 'documents' }, label: 'app.memory.documents', icon: Paperclip },
+  { route: { name: 'sharing' }, label: 'app.tools.tab.share', icon: Package },
   { route: { name: 'repos' }, label: 'app.projects.repos', icon: FolderGit2, module: 'dev' },
+  { route: { name: 'tickets' }, label: 'web.repos.tickets', icon: CheckCheck, module: 'dev' },
   ...MORE,
   { route: { name: 'claude' }, label: 'app.assistant.terminal', icon: Terminal },
   SETTINGS,
@@ -100,6 +105,7 @@ export const PLACES: readonly NavEntry[] = [
   { route: { name: 'inbox', tab: 'captures', compose: true }, label: 'app.inbox.capture', icon: Inbox },
   { route: { name: 'inbox', tab: 'history' }, label: 'app.inbox.tab.history', icon: ScrollText },
   { route: { name: 'repos', tab: 'architecture' }, label: 'app.repos.tab.arch', icon: Network, module: 'dev' },
+  { route: { name: 'learn', tab: 'understanding' }, label: 'app.today.understandGo', icon: BookOpen },
   { route: { name: 'learn', tab: 'progress' }, label: 'app.learn.tab.progress', icon: Layers },
   { route: { name: 'learn', tab: 'career' }, label: 'app.learn.tab.career', icon: Briefcase },
   { route: { name: 'tools', tab: 'source' }, label: 'app.tools.tab.source', icon: Upload },

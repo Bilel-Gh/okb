@@ -1,9 +1,10 @@
 # Guide d’utilisation d’OKB
 
 OKB est un second cerveau local : Claude lit tes sources et rédige, OKB vérifie
-chaque phrase contre une citation exacte, te montre les changements, et n’écrit
+les références et citations des affirmations attribuées aux sources, te montre les changements, et n’écrit
 dans tes notes qu’après ton accord. Tes notes restent des fichiers Markdown que
 tu lis dans Obsidian.
+Les explications générales et les inconnus sont distingués ; une citation présente ne garantit pas la vérité du texte.
 
 Tu peux tout faire de trois façons, au choix :
 
@@ -26,6 +27,13 @@ Tu peux tout faire de trois façons, au choix :
 **Nouveau en 1.5 :** [modules, niveau de connaissance et examen d’un repo, phrase des concepts, traduction et partage](modules-et-niveau.md) · [l’application web](application-web.md).
 
 **Nouveau en 2.0 :** [projets, actions et journal : garder le fil](projets.md) · [les documents : garder un fichier tel quel](documents.md) · [deux espaces : Mon bagage et Travail](espaces.md) · [passer de la 1.5 à la 2.0](passer-a-la-2-0.md) · [brancher un assistant du terminal (MCP)](assistants-mcp.md).
+
+**Préparation des étapes suivantes :** [partager à deux](partager-a-deux.md) ·
+[comprendre et apprendre](comprendre.md) · [l’application desktop](application-desktop.md) ·
+[l’assistant local](assistant-local.md) · [export complet et restauration](export-et-restauration.md).
+[Le suivi d’un ticket](reprendre-un-ticket.md) détaille la préparation 2.4.
+Ces guides décrivent le code de développement ; la publication et les essais
+d’usage réel suivent les portes de la feuille de route.
 
 1. [Installer OKB](installer.md) — en 5 minutes, sans toucher à tes réglages Claude.
 2. [Au quotidien](au-quotidien.md) — capturer, importer une source, relire,

@@ -129,9 +129,10 @@ okb translate "Livrer une version" --to en --save      # en faire une note (prop
 - « Enregistrer comme note » n'apparaît qu'une fois la note entière traduite.
 - La langue de départ est celle de la note (déclarée par `lang`, sinon devinée à
   ses mots), pas forcément celle du profil.
-- L'IA utilisée : Claude Code s'il est installé, sinon ta clé
+- Avant un choix explicite dans l'écran Assistant, l'IA utilisée par les anciens profils est Claude Code s'il est installé, sinon ta clé
   `ANTHROPIC_API_KEY` (réglage `ai.provider` : `auto`, `claude-code`, `api`, `off`).
   En `auto`, si Claude Code échoue (session expirée), la clé prend le relais.
+  Après le choix d'un agent local dans Assistant (préparation 2.3), ces fonctions utilisent cet agent, sans repli API : [guide de l'assistant](assistant-local.md).
 - Les appels d'OKB à l'IA passent un par un : deux clics en même temps ne
   dépassent pas le budget du jour.
 

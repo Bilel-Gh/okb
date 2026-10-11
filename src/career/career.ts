@@ -16,7 +16,7 @@ import { detailsIn, workplaceNames, type Detail } from '../spaces/details.js';
  * in the KB here.
  */
 
-const CAREER_KINDS = ['achievements', 'story', 'goals', 'feedback', 'one-on-one', 'annual-review', 'development-plan', 'career-grid', 'cv', 'career-hub'] as const;
+export const CAREER_KINDS = ['achievements', 'story', 'goals', 'feedback', 'one-on-one', 'annual-review', 'development-plan', 'career-grid', 'cv', 'career-hub'] as const;
 type Entry = Bundle['entries'][number];
 
 export type Achievement = {

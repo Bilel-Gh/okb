@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { currentKb, currentSession, get, post } from '../app/api';
 import { rememberNote, useCategories } from '../app/data';
 import { tn, useT } from '../app/i18n';
+import { useShareWords } from '../app/sharing';
 import { isPinned, togglePin, usePins } from '../app/pins';
 import { KeepInBaggage } from './Baggage';
 import { go, hrefFor } from '../app/router';
@@ -13,10 +14,11 @@ import { Breadcrumb } from '../ui/Breadcrumb';
 import { CatIcon } from '../ui/CatMark';
 import { ErrorState, SkeletonRows } from '../ui/States';
 import { ConceptBubbles } from './Bubble';
-import { dropCrumbLine, drawDiagrams, markTerms, outline, wireLinks, type OutlineItem, type Term } from './enhance';
+import { dropCrumbLine, drawDiagrams, markTerms, normalizeNoteHeadings, outline, wireLinks, type OutlineItem, type Term } from './enhance';
 import { LocalGraph } from './LocalGraph';
 import { Provenance, type ProvenanceData } from './Provenance';
 import { Translate } from './Translate';
+import { Understanding } from './Understanding';
 
 export type NoteView = {
   path: string; title: string; type: string; status: string; description: string; category: string; confidentiality: string; sources: number; lang?: string;
@@ -83,8 +85,9 @@ function TypeMenu({ path, category }: { path: string; category: string }) {
   );
 }
 
-export function Reader({ path, anchor, setTitle }: { path: string; anchor?: string; setTitle: (s: string) => void }) {
+export function Reader({ path, anchor, understand = false, setTitle }: { path: string; anchor?: string; understand?: boolean; setTitle: (s: string) => void }) {
   const t = useT();
+  const w = useShareWords();
   const note = useQuery({ queryKey: ['note', path], queryFn: () => get<NoteView>('/api/note', { path }) });
   const article = useRef<HTMLDivElement>(null);
   const [toc, setToc] = useState<OutlineItem[]>([]);
@@ -109,7 +112,7 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
     if (!el || !note.data) return;
     el.innerHTML = translated?.html ?? note.data.html;
     dropCrumbLine(el);
-    if (el.firstElementChild?.tagName === 'H1') el.firstElementChild.remove();
+    normalizeNoteHeadings(el, true);
     wireLinks(el);
     markTerms(el, note.data.terms);
     setToc(outline(el));
@@ -172,12 +175,14 @@ export function Reader({ path, anchor, setTitle }: { path: string; anchor?: stri
                   <button type="button" onClick={() => { post('/api/open', { path: n.path }).catch((e: Error) => toast(e.message, 'err')); }}><ExternalLink size={15} aria-hidden="true" />{t('web.notes.openObsidian')}</button>
                   <button type="button" onClick={() => { void navigator.clipboard?.writeText(n.path).then(() => toast(t('app.note.copied'))); }}><Copy size={15} aria-hidden="true" />{t('app.note.copyPath')}</button>
                   {inWork ? <button type="button" onClick={() => setBaggage(true)}><Backpack size={15} aria-hidden="true" />{t('app.baggage.action')}</button> : null}
+                  {inWork && n.confidentiality !== 'secret' && n.confidentiality !== 'private' ? <a href={hrefFor({ name: 'sharing', path: n.path })}><Share2 size={15} aria-hidden="true" />{w('Partager avec mes collègues', 'Share with my colleagues')}</a> : null}
                 </Popover.Content>
               </Popover.Portal>
             </Popover.Root>
           </span>
         </div>
         {translated ? <p className="notice info small" role="status">{t('app.translate.showing', { lang: translated.lang.toUpperCase() })} <button type="button" className="btn sm ghost" onClick={() => setTranslated(null)}>{t('app.translate.original')}</button></p> : null}
+        {n.confidentiality !== 'secret' && n.confidentiality !== 'private' ? <Understanding key={n.path} path={n.path} initiallyOpen={understand} /> : null}
         <div ref={article} className="prose" lang={translated?.lang} />
         {n.provenance ? <Provenance path={n.path} data={n.provenance} /> : null}
         {n.backlinks.length || n.outlinks.length ? (

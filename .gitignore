@@ -10,3 +10,6 @@ coverage/
 plugin/evals/results/
 evals/results/
 web/app/
+
+# Local desktop artifacts
+desktop-build/

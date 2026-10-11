@@ -122,7 +122,7 @@ function Tickets({ tickets, showRepos }: { tickets: TicketItem[]; showRepos: boo
             <li key={tk.ref} style={{ alignItems: 'flex-start' }}>
               <GitBranch size={16} className="muted" aria-hidden="true" style={{ marginTop: 3 }} />
               <div className="grow">
-                <span className="title">{tk.ref}{tk.title && tk.title !== tk.ref ? ` · ${tk.title}` : ''}</span>
+                <a className="title" href={hrefFor({ name: 'tickets', ref: tk.ref })}>{tk.ref}{tk.title && tk.title !== tk.ref ? ` · ${tk.title}` : ''}</a>
                 <span className="meta">{[showRepos ? tk.repos.map((r) => (r.branch ? `${r.id} (${r.branch})` : r.id)).join(', ') : tk.branch ?? t('scope.noBranch'), tn(t, 'scope.commits', tk.commits), rel(tk.updatedAt, t.lang)].join(' · ')}</span>
                 {tk.journal.map((j, i) => <span key={i} className="small"><span className="muted">{t(`ticket.kind.${j.kind}`)} · </span>{j.text}</span>)}
               </div>

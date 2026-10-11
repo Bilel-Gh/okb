@@ -1,6 +1,6 @@
-import { copyFile, link, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, link, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import YAML from 'yaml';
 import type { OkbConfig } from '../config/schema.js';
 import { okbHome } from '../config/load.js';
@@ -10,6 +10,8 @@ import { statePaths } from '../state/paths.js';
 import { OkbError } from '../util/errors.js';
 import { readJsonIfExists, walkFiles, writeJsonAtomic } from '../util/fsx.js';
 import { sha256 } from '../util/hash.js';
+import { asBundlePath } from '../util/paths.js';
+import { withStateLock } from '../util/state-lock.js';
 
 /**
  * Daily snapshots of a KB and of its private state, in a folder the person
@@ -59,25 +61,84 @@ function profileDir(base: string, config: OkbConfig): string {
   return resolve(base, config.profile.id);
 }
 
+/** Resolve the nearest existing ancestor too: a not-yet-created child of a symlink is a physical path. */
+export async function physicalBackupTarget(path: string): Promise<string> {
+  let ancestor = resolve(path);
+  while (!(await lstat(ancestor).catch((e: NodeJS.ErrnoException) => { if (e.code === 'ENOENT') return null; throw e; }))) {
+    const parent = dirname(ancestor); if (parent === ancestor) break; ancestor = parent;
+  }
+  return resolve(await realpath(ancestor), relative(ancestor, resolve(path)));
+}
+
+export function insideBackupPath(root: string, target: string): boolean {
+  const rel = relative(root, target);
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+async function manifestAt(path: string): Promise<Manifest> {
+  const m = await readJsonIfExists<Manifest>(resolve(path, 'manifest.json'));
+  if (!m || m.version !== 1 || !m.files || typeof m.files !== 'object' || Array.isArray(m.files)) throw new OkbError('E_INVALID', 'invalid backup manifest');
+  for (const [key, file] of Object.entries(m.files)) {
+    if (asBundlePath(key) !== key || !/^(kb|state|profile)\//.test(key) || key.endsWith('/approval.key') || !file || !/^[a-f0-9]{64}$/.test(file.sha256) || !Number.isSafeInteger(file.size) || file.size < 0) throw new OkbError('E_FORBIDDEN_PATH', 'invalid path or fingerprint in backup manifest');
+  }
+  return m;
+}
+
+/** Readers share the writer lock, including across CLI/web processes. A crash during publication retains the old day. */
+async function withBackupLock<T>(config: OkbConfig, env: NodeJS.ProcessEnv, use: () => Promise<T>): Promise<T> {
+  const dir = profileDir(await backupRoot(env), config);
+  const destination = await physicalBackupTarget(dir);
+  for (const root of [config.kb.root, statePaths(config).root]) {
+    const physical = await physicalBackupTarget(root);
+    if (insideBackupPath(physical, destination) || insideBackupPath(destination, physical)) throw new OkbError('E_FORBIDDEN_PATH', 'the backup folder must be outside the notes and their private state');
+  }
+  return withStateLock(resolve(dir, 'snapshot'), async () => {
+    // No live creator can own these while the common lock is held. Recognise only the legacy name
+    // and mkdtemp's six-character suffix; unrelated files, directories and symlinks stay untouched.
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      if (entry.isDirectory() && /^\d{4}-\d{2}-\d{2}\.partial(?:-[a-zA-Z0-9]{6})?$/.test(entry.name)) await rm(resolve(dir, entry.name), { recursive: true, force: true });
+    }
+    for (const name of (await readdir(dir)).filter((n) => /^\d{4}-\d{2}-\d{2}\.previous$/.test(n))) {
+      const previous = resolve(dir, name), target = resolve(dir, name.slice(0, -'.previous'.length));
+      if (!(await lstat(target).catch((e: NodeJS.ErrnoException) => { if (e.code === 'ENOENT') return null; throw e; }))) await rename(previous, target);
+      else await rm(previous, { recursive: true, force: true });
+    }
+    return use();
+  }, { waitMs: 180_000 });
+}
+
 export async function listBackups(config: OkbConfig, env: NodeJS.ProcessEnv = process.env): Promise<BackupInfo[]> {
   const dir = profileDir(await backupRoot(env), config);
   const out: BackupInfo[] = [];
-  for (const name of (await readdir(dir).catch(() => [] as string[])).filter((n) => /^\d{4}-\d{2}-\d{2}$/.test(n))) {
+  const names = await readdir(dir).catch(() => [] as string[]);
+  // The old snapshot remains discoverable if the process died between the two publication renames.
+  for (const name of names.filter((n) => /^\d{4}-\d{2}-\d{2}$/.test(n) || (/^\d{4}-\d{2}-\d{2}\.previous$/.test(n) && !names.includes(n.slice(0, -'.previous'.length))))) {
     const m = await readJsonIfExists<Manifest>(resolve(dir, name, 'manifest.json')).catch(() => null);
     if (!m) continue;
     const files = Object.values(m.files);
-    out.push({ date: name, path: resolve(dir, name), files: files.length, bytes: files.reduce((s, f) => s + f.size, 0), createdAt: m.createdAt });
+    out.push({ date: name.slice(0, 10), path: resolve(dir, name), files: files.length, bytes: files.reduce((s, f) => s + f.size, 0), createdAt: m.createdAt });
   }
   return out.sort((a, b) => b.date.localeCompare(a.date));
 }
 
-async function filesOf(root: string, skipTop: ReadonlySet<string> = new Set()): Promise<string[]> {
-  const all = await walkFiles(root, { skipDirs: new Set(['.git', 'node_modules']) }).catch(() => [] as string[]);
+async function filesOf(root: string, skipTop: ReadonlySet<string> = new Set(), optional = false): Promise<string[]> {
+  const info = await stat(root).catch((cause: NodeJS.ErrnoException) => {
+    if (optional && cause.code === 'ENOENT') return null;
+    throw new OkbError('E_IO', 'cannot read the source folder while creating a backup', { cause });
+  });
+  if (!info) return [];
+  if (!info.isDirectory()) throw new OkbError('E_IO', 'a backup source is not a folder');
+  const all = await walkFiles(root, { skipDirs: new Set(['.git', 'node_modules']) });
   return all.filter((f) => !skipTop.has(f.split('/')[0]!) && !NEVER.has(f.split('/').pop()!));
 }
 
 /** Take today's snapshot (once a day unless `force`). */
 export async function runBackup(config: OkbConfig, options: { force?: boolean; now?: Date; env?: NodeJS.ProcessEnv } = {}): Promise<{ created: boolean; info: BackupInfo; linked: number; copied: number; removed: string[] }> {
+  const env = options.env ?? process.env;
+  return withBackupLock(config, env, () => runBackupUnlocked(config, options));
+}
+
+async function runBackupUnlocked(config: OkbConfig, options: { force?: boolean; now?: Date; env?: NodeJS.ProcessEnv } = {}) {
   const env = options.env ?? process.env;
   const now = options.now ?? new Date();
   const base = await backupRoot(env);
@@ -90,60 +151,75 @@ export async function runBackup(config: OkbConfig, options: { force?: boolean; n
   }
   const previous = existing.find((b) => b.date !== date);
   const prevManifest = previous ? await readJsonIfExists<Manifest>(resolve(previous.path, 'manifest.json')) : null;
-  const tmp = `${target}.partial`;
-  await rm(tmp, { recursive: true, force: true });
-  const files: Record<string, { sha256: string; size: number }> = {};
-  let linked = 0;
-  let copied = 0;
-  const sources: { prefix: string; root: string; skip?: ReadonlySet<string> }[] = [
-    { prefix: 'kb', root: config.kb.root },
-    { prefix: 'state', root: statePaths(config).root, skip: SKIP_STATE },
-  ];
-  for (const s of sources) {
-    for (const rel of await filesOf(s.root, s.skip)) {
-      const from = resolve(s.root, rel);
-      const key = `${s.prefix}/${rel}`;
-      const data = await readFile(from).catch(() => null);
-      if (data === null) continue;
-      const hash = sha256(data);
-      const to = resolve(tmp, key);
-      await mkdir(dirname(to), { recursive: true });
-      const prev = prevManifest?.files[key];
-      let done = false;
-      if (prev && prev.sha256 === hash && previous) {
-        try { await link(resolve(previous.path, key), to); linked++; done = true; } catch { /* other disk, or gone: copy */ }
+  const tmp = await mkdtemp(`${target}.partial-`);
+  try {
+    const files: Record<string, { sha256: string; size: number }> = {};
+    let linked = 0;
+    let copied = 0;
+    const sources: { prefix: string; root: string; skip?: ReadonlySet<string>; optional?: boolean }[] = [
+      { prefix: 'kb', root: config.kb.root },
+      { prefix: 'state', root: statePaths(config).root, skip: SKIP_STATE, optional: true },
+    ];
+    for (const s of sources) {
+      for (const rel of await filesOf(s.root, s.skip, s.optional)) {
+        const from = resolve(s.root, rel);
+        const key = `${s.prefix}/${rel}`;
+        // It was enumerated: even ENOENT now means an incomplete capture, so retain the old snapshot.
+        const data = await readFile(from).catch((cause) => { throw new OkbError('E_IO', 'cannot read a source file while creating a backup', { cause }); });
+        const hash = sha256(data);
+        const to = resolve(tmp, key);
+        await mkdir(dirname(to), { recursive: true });
+        const prev = prevManifest?.files[key];
+        let done = false;
+        if (prev && prev.sha256 === hash && previous) {
+          try { await link(resolve(previous.path, key), to); linked++; done = true; } catch { /* other disk, or gone: copy */ }
+        }
+        if (!done) { await writeFile(to, data); copied++; }
+        files[key] = { sha256: hash, size: data.length };
       }
-      if (!done) { await copyFile(from, to); copied++; }
-      files[key] = { sha256: hash, size: data.length };
     }
-  }
-  // The brain's settings, so a restore on another computer is the same brain.
-  const settings = await readFile(resolve(okbHome(env), 'profiles', config.profile.id, 'profile.yaml')).catch(() => null);
-  if (settings) {
-    await mkdir(resolve(tmp, 'profile'), { recursive: true });
-    await writeFile(resolve(tmp, PROFILE_KEY), settings);
-    files[PROFILE_KEY] = { sha256: sha256(settings), size: settings.length };
-    copied++;
-  }
-  // The state database, whole: projects, actions, the journal, the documents' index.
-  let inside = { documents: 0, projects: 0, actions: 0, entries: 0, reviews: 0 };
-  const dbCopy = resolve(tmp, DB_KEY);
-  await mkdir(dirname(dbCopy), { recursive: true });
-  if (copyDb(config, dbCopy)) {
-    const data = await readFile(dbCopy);
-    const { sound: _sound, ...counted } = inspectDb(dbCopy);
-    inside = counted;
-    files[DB_KEY] = { sha256: sha256(data), size: data.length };
-    copied++;
-  }
-  const manifest: Manifest = { version: 1, profile: config.profile.id, kbRoot: config.kb.root, createdAt: now.toISOString(), files, counts: { notes: notesIn(Object.keys(files)), ...inside } };
-  await writeJsonAtomic(resolve(tmp, 'manifest.json'), manifest);
-  await rm(target, { recursive: true, force: true });
-  const { rename } = await import('node:fs/promises');
-  await rename(tmp, target);
-  const removed = await rotate(config, env, now);
-  const info = (await listBackups(config, env)).find((b) => b.date === date)!;
-  return { created: true, info, linked, copied, removed };
+    // The brain's settings, so a restore on another computer is the same brain.
+    const settings = await readFile(resolve(okbHome(env), 'profiles', config.profile.id, 'profile.yaml')).catch((cause: NodeJS.ErrnoException) => {
+      if (cause.code === 'ENOENT') return null;
+      throw new OkbError('E_IO', 'cannot read the space settings while creating a backup', { cause });
+    });
+    if (settings) {
+      await mkdir(resolve(tmp, 'profile'), { recursive: true });
+      await writeFile(resolve(tmp, PROFILE_KEY), settings);
+      files[PROFILE_KEY] = { sha256: sha256(settings), size: settings.length };
+      copied++;
+    }
+    // The state database, whole: projects, actions, the journal, the documents' index.
+    let inside = { documents: 0, projects: 0, actions: 0, entries: 0, reviews: 0 };
+    const dbCopy = resolve(tmp, DB_KEY);
+    await mkdir(dirname(dbCopy), { recursive: true });
+    if (copyDb(config, dbCopy)) {
+      const data = await readFile(dbCopy);
+      const { sound, ...counted } = inspectDb(dbCopy);
+      if (!sound) throw new OkbError('E_IO', 'the backup database did not pass its integrity check');
+      inside = counted;
+      files[DB_KEY] = { sha256: sha256(data), size: data.length };
+      copied++;
+    }
+    const manifest: Manifest = { version: 1, profile: config.profile.id, kbRoot: config.kb.root, createdAt: now.toISOString(), files, counts: { notes: notesIn(Object.keys(files)), ...inside } };
+    await writeJsonAtomic(resolve(tmp, 'manifest.json'), manifest);
+    for (const [key, expected] of Object.entries(files)) {
+      if (sha256(await readFile(resolve(tmp, key))) !== expected.sha256) throw new OkbError('E_IO', 'the new snapshot did not verify; the previous snapshot was kept');
+    }
+    const previousTarget = `${target}.previous`;
+    let moved = false;
+    try {
+      if (await lstat(target).catch((e: NodeJS.ErrnoException) => { if (e.code === 'ENOENT') return null; throw e; })) { await rename(target, previousTarget); moved = true; }
+      await rename(tmp, target);
+    } catch (error) {
+      if (moved) await rename(previousTarget, target).catch(() => undefined);
+      throw error;
+    }
+    if (moved) await rm(previousTarget, { recursive: true, force: true }).catch(() => undefined);
+    const removed = await rotate(config, env, now);
+    const info = (await listBackups(config, env)).find((b) => b.date === date)!;
+    return { created: true, info, linked, copied, removed };
+  } finally { await rm(tmp, { recursive: true, force: true }); }
 }
 
 /** Which snapshots to keep: the last 7 days, one per week for 4 weeks, one per month for 12 months. */
@@ -179,10 +255,14 @@ export type VerifyReport = { readonly date: string; readonly files: number; read
 
 /** Read every file of a snapshot back and compare it with its fingerprint. */
 export async function verifyBackup(config: OkbConfig, date?: string, env: NodeJS.ProcessEnv = process.env): Promise<VerifyReport> {
+  return withBackupLock(config, env, () => verifyBackupUnlocked(config, date, env));
+}
+
+async function verifyBackupUnlocked(config: OkbConfig, date: string | undefined, env: NodeJS.ProcessEnv): Promise<VerifyReport> {
   const all = await listBackups(config, env);
   const b = date ? all.find((x) => x.date === date) : all[0];
   if (!b) throw new OkbError('E_NOT_FOUND', 'no backup yet', { key: 'backupNone', hint: 'okb backup run' });
-  const m = (await readJsonIfExists<Manifest>(resolve(b.path, 'manifest.json')))!;
+  const m = await manifestAt(b.path);
   const bad: string[] = [];
   const missing: string[] = [];
   let ok = 0;
@@ -197,6 +277,16 @@ export async function verifyBackup(config: OkbConfig, date?: string, env: NodeJS
   return report;
 }
 
+/** The export pins the fresh snapshot through verification and its last byte copied. No writer can rotate/replace it meanwhile. */
+export async function withFreshVerifiedBackup<T>(config: OkbConfig, env: NodeJS.ProcessEnv, use: (info: BackupInfo, manifest: Manifest) => Promise<T>): Promise<T> {
+  return withBackupLock(config, env, async () => {
+    const backup = await runBackupUnlocked(config, { force: true, env });
+    const report = await verifyBackupUnlocked(config, backup.info.date, env);
+    if (report.bad.length || report.missing.length) throw new OkbError('E_IO', 'the snapshot did not verify; nothing was exported');
+    return use(backup.info, await manifestAt(backup.info.path));
+  });
+}
+
 export async function lastVerified(config: OkbConfig, env: NodeJS.ProcessEnv = process.env): Promise<{ at: string; bad: number; missing: number } | null> {
   const v = await readJsonIfExists<{ at: string; bad: string[]; missing: string[] }>(resolve(profileDir(await backupRoot(env), config), 'verified.json')).catch(() => null);
   return v ? { at: v.at, bad: v.bad.length, missing: v.missing.length } : null;
@@ -209,12 +299,19 @@ export async function lastVerified(config: OkbConfig, env: NodeJS.ProcessEnv = p
  * restore never lands on a brain that exists.
  */
 export async function restoreBackup(config: OkbConfig, date: string, to: string, env: NodeJS.ProcessEnv = process.env, options: { readonly as?: string } = {}): Promise<{ to: string; files: number; profile?: string }> {
+  return withBackupLock(config, env, () => restoreBackupUnlocked(config, date, to, env, options));
+}
+
+async function restoreBackupUnlocked(config: OkbConfig, date: string, to: string, env: NodeJS.ProcessEnv, options: { readonly as?: string }): Promise<{ to: string; files: number; profile?: string }> {
   const b = (await listBackups(config, env)).find((x) => x.date === date);
   if (!b) throw new OkbError('E_NOT_FOUND', `no backup of ${date}`, { key: 'backupUnknown', params: { date } });
-  const target = resolve(to);
-  if (target === resolve(config.kb.root) || target.startsWith(`${resolve(config.kb.root)}/`)) throw new OkbError('E_FORBIDDEN_PATH', 'a restore never goes into the KB itself', { key: 'backupIntoKb' });
-  const exists = await stat(target).then((s) => s.isDirectory(), () => false);
-  if (exists && (await readdir(target)).length) throw new OkbError('E_CONFLICT', `${target} is not empty`, { key: 'backupTargetNotEmpty', params: { path: target } });
+  const target = await physicalBackupTarget(to);
+  for (const root of [config.kb.root, statePaths(config).root]) {
+    const physical = await physicalBackupTarget(root);
+    if (insideBackupPath(physical, target) || insideBackupPath(target, physical)) throw new OkbError('E_FORBIDDEN_PATH', 'a restore never goes into the KB or its private state', { key: 'backupIntoKb' });
+  }
+  const existingTarget = await lstat(target).catch((e: NodeJS.ErrnoException) => { if (e.code === 'ENOENT') return null; throw e; });
+  if (existingTarget && (!existingTarget.isDirectory() || (await readdir(target)).length)) throw new OkbError('E_CONFLICT', `${target} is not an empty folder`, { key: 'backupTargetNotEmpty', params: { path: target } });
   const as = options.as?.trim();
   const home = resolve(okbHome(env), 'profiles', as ?? '');
   if (as !== undefined) {
@@ -222,7 +319,9 @@ export async function restoreBackup(config: OkbConfig, date: string, to: string,
     const known = ((await readRootConfig(env).catch(() => ({ profiles: [] }))).profiles ?? []).map(String);
     if (known.includes(as) || (await stat(home).then(() => true, () => false))) throw new OkbError('E_CONFLICT', `a brain "${as}" already exists`, { key: 'backupProfileExists', params: { id: as } });
   }
-  const m = (await readJsonIfExists<Manifest>(resolve(b.path, 'manifest.json')))!;
+  const m = await manifestAt(b.path);
+  const verification = await verifyBackupUnlocked(config, date, env);
+  if (verification.bad.length || verification.missing.length) throw new OkbError('E_IO', 'the snapshot did not verify; nothing was restored');
   let n = 0;
   for (const key of Object.keys(m.files).filter((k) => k.startsWith('kb/'))) {
     const dest = resolve(target, key.slice(3));
@@ -258,9 +357,13 @@ export type DrillReport = Counts & { readonly ok: boolean; readonly date: string
  * it held. The folder is removed. Nothing of the brain is touched.
  */
 export async function drillRestore(config: OkbConfig, env: NodeJS.ProcessEnv = process.env, now = new Date()): Promise<DrillReport> {
+  return withBackupLock(config, env, () => drillRestoreUnlocked(config, env, now));
+}
+
+async function drillRestoreUnlocked(config: OkbConfig, env: NodeJS.ProcessEnv, now: Date): Promise<DrillReport> {
   const b = (await listBackups(config, env))[0];
   if (!b) throw new OkbError('E_NOT_FOUND', 'no backup yet', { key: 'backupNone', hint: 'okb backup run' });
-  const m = (await readJsonIfExists<Manifest>(resolve(b.path, 'manifest.json')))!;
+  const m = await manifestAt(b.path);
   const tmp = await mkdtemp(resolve(tmpdir(), 'okb-drill-'));
   const problems: string[] = [];
   let found = { documents: 0, projects: 0, actions: 0, entries: 0, reviews: 0 };

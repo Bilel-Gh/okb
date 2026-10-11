@@ -44,6 +44,7 @@ describe('the new app reads the same addresses as before', () => {
     expect(hrefFor({ name: 'inbox', tab: 'all' })).toBe('#/review');
     expect(parseRoute('#/career')).toEqual({ name: 'learn', tab: 'career' });
     expect(parseRoute('#/learn/progress')).toEqual({ name: 'learn', tab: 'progress' });
+    expect(parseRoute('#/learn/understanding')).toEqual({ name: 'learn', tab: 'understanding' });
     expect(parseRoute('#/source')).toEqual({ name: 'tools', tab: 'source' });
     expect(parseRoute('#/skills')).toEqual({ name: 'tools', tab: 'skills' });
     expect(parseRoute('#/templates')).toEqual({ name: 'tools', tab: 'templates' });
@@ -88,11 +89,16 @@ describe('the new app reads the same addresses as before', () => {
 describe('the five screens of the 2.0 (F2.0-01)', () => {
   it('each screen has its address, and the projects have theirs', () => {
     expect(parseRoute('#/projects')).toEqual({ name: 'projects' });
+    expect(parseRoute('#/ticket/ABC-42')).toEqual({ name: 'tickets', ref: 'ABC-42' });
+    expect(parseRoute(hrefFor({ name: 'tickets', ref: 'T-essai' }))).toEqual({ name: 'tickets', ref: 'T-essai' });
+    expect(screenOf({ name: 'tickets' })).toBe('projects');
     expect(parseRoute('#/documents')).toEqual({ name: 'documents' });
     expect(hrefFor({ name: 'documents' })).toBe('#/documents');
     expect(parseRoute('#/project/P-1a2b3c')).toEqual({ name: 'projects', id: 'P-1a2b3c' });
     expect(parseRoute('#/memory')).toEqual({ name: 'brain', query: {} });
-    expect(parseRoute('#/assistant')).toEqual({ name: 'ask' });
+    expect(parseRoute('#/assistant')).toEqual({ name: 'assistant' });
+    expect(parseRoute('#/assistant?id=conversation-1')).toEqual({ name: 'assistant', id: 'conversation-1' });
+    expect(parseRoute('#/documents?q=Contrat')).toEqual({ name: 'documents', q: 'Contrat' });
     expect(parseRoute('#/progress')).toEqual({ name: 'learn' });
     expect(hrefFor({ name: 'projects' })).toBe('#/projects');
     expect(hrefFor({ name: 'projects', id: 'P-1a2b3c' })).toBe('#/project/P-1a2b3c');
@@ -119,10 +125,20 @@ describe('the five screens of the 2.0 (F2.0-01)', () => {
 
   it('the screens with several pages show them as tabs; the developer pages only with the module', () => {
     const labels = (hash: string, dev: boolean) => screenTabs(parseRoute(hash), dev).map((t) => [t.label, t.current]);
-    expect(labels('#/graph', true)).toEqual([['app.memory.notes', false], ['app.memory.graph', true], ['app.memory.documents', false]]);
-    expect(labels('#/ask', true)).toEqual([['app.assistant.ask', true], ['app.assistant.terminal', false]]);
-    expect(labels('#/repos/architecture', true)).toEqual([['app.projects.all', false], ['app.projects.repos', false], ['app.projects.arch', true]]);
+    expect(labels('#/graph', true)).toEqual([['app.memory.notes', false], ['app.memory.graph', true], ['app.memory.documents', false], ['app.tools.tab.share', false]]);
+    expect(labels('#/ask', true)).toEqual([['app.screen.assistant', false], ['app.memory.notes', true], ['app.assistant.terminal', false]]);
+    expect(labels('#/repos/architecture', true)).toEqual([['app.projects.all', false], ['app.projects.repos', false], ['app.projects.arch', true], ['web.repos.tickets', false]]);
     expect(labels('#/projects', false)).toEqual([]);
     expect(labels('#/', true)).toEqual([]);
+  });
+});
+
+describe('colleagues’ notes keep their own address (F2.1-04)', () => {
+  it('keeps drawer identity and nested accented paths separate from personal notes', () => {
+    const note = { name: 'sharing', drawer: 'sam', note: '2 Produits/Été/API.md' } as const;
+    expect(parseRoute(hrefFor(note))).toEqual(note);
+    expect(hrefFor(note)).not.toBe(hrefFor({ name: 'brain', path: note.note }));
+    expect(screenOf(note)).toBe('memory');
+    expect(screenTabs(note, false).find((t) => t.current)?.to).toEqual({ name: 'sharing' });
   });
 });

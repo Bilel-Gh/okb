@@ -83,6 +83,7 @@ const HANDLERS: Record<string, Handler> = {
   doc: (c) => import('./commands/projects.js').then((m) => m.cmdDoc(c)),
   baggage: (c) => import('./commands/projects.js').then((m) => m.cmdBaggage(c)),
   indicators: (c) => import('./commands/projects.js').then((m) => m.cmdIndicators(c)),
+  share: (c) => import('./commands/projects.js').then((m) => m.cmdShare(c)),
   // The engine's operations for the assistants of the terminal, over MCP (stdio).
   mcp: (c) => import('../engine/mcp.js').then((m) => m.serveMcp({ ...(flagString(c.args, 'kb') ? { kb: flagString(c.args, 'kb')! } : {}) })).then(() => 0),
   suggest: (c) => import('./commands/suggest.js').then((m) => m.cmdSuggest(c)),
@@ -188,7 +189,7 @@ async function cmdServe(ctx: Ctx): Promise<number> {
       else skipped ??= port;
     }
   }
-  const { server, url } = started;
+  const { server, url, shutdown } = started;
   if (ctx.mode === 'text') {
     if (replaced !== null) ctx.out.info(t('serve.replaced', { port: replaced }));
     if (stale !== null) ctx.out.warn(t('serve.staleOther', { port: stale, next: new URL(url).port }));
@@ -200,11 +201,12 @@ async function cmdServe(ctx: Ctx): Promise<number> {
     ctx.out.line(paint.dim(`  ${t('serve.stop')}`));
   }
   if (open) await openExternal(url);
-  await new Promise<void>((done) => {
-    const stop = () => { server.closeAllConnections(); server.close(() => done()); };
+  const { shutdownAssistant } = await import('../assistant/assistant.js');
+  await new Promise<void>((done, reject) => {
+    const stop = () => { void Promise.all([shutdown(), shutdownAssistant()]).then(() => done(), reject); };
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
-    server.once('close', () => { process.off('SIGINT', stop); process.off('SIGTERM', stop); done(); });
+    server.once('close', () => { process.off('SIGINT', stop); process.off('SIGTERM', stop); stop(); });
   });
   return 0;
 }

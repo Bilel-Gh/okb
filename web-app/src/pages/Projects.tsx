@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, CircleHelp, Compass, Flag, FolderGit2, FolderKanban, Hourglass, ListTodo, LogOut, NotebookPen, Paperclip, Plus, Ticket, type LucideIcon } from 'lucide-react';
+import { ArrowRight, CircleHelp, Compass, Flag, FolderGit2, FolderKanban, Hourglass, ListTodo, LogOut, NotebookPen, Paperclip, Plus, Share2, Ticket, type LucideIcon } from 'lucide-react';
 import { useEffect, useState, type CSSProperties } from 'react';
-import { get, post } from '../app/api';
+import { currentKb, currentSession, get, post } from '../app/api';
 import { useT } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
+import { useShareWords } from '../app/sharing';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { ActionList, JournalList, useRefreshDay, type Action, type Entry, type LeftOff } from './day-parts';
 import { KeepFileButton } from '../ui/KeepFile';
@@ -135,6 +136,7 @@ function LeftOffCard({ project }: { project: Project }) {
 
 function Detail({ id, setTitle }: { id: string; setTitle?: (s: string) => void }) {
   const t = useT();
+  const w = useShareWords();
   const qc = useQueryClient();
   const refresh = useRefreshDay();
   const q = useQuery({ queryKey: ['project', id], queryFn: () => get<{ project: Project }>('/api/project', { id }) });
@@ -170,12 +172,14 @@ function Detail({ id, setTitle }: { id: string; setTitle?: (s: string) => void }
             {statuses.map((s) => <button type="button" key={s} aria-pressed={p.status === s} onClick={() => { if (p.status !== s) update.mutate({ status: s }); }}>{t(`app.projects.status.${s}`)}</button>)}
           </div>
           <button type="button" className="btn" onClick={() => leave.mutate()} disabled={leave.isPending} title={t('app.leftOff.leaveWhy')}><LogOut size={15} aria-hidden="true" />{t('app.leftOff.leave')}</button>
+          {p.folder && currentSession()?.kbs.find((k) => k.id === currentKb())?.space === 'work' ? <a className="btn sm" href={hrefFor({ name: 'sharing', path: p.folder })}><Share2 size={15} aria-hidden="true" />{w('Partager les notes', 'Share the notes')}</a> : null}
         </div>
         <div className="project-lines">
           <div className="field"><span className="label">{t('app.projects.where')}</span><EditLine multiline value={p.where} label={t('app.projects.where')} placeholder={t('app.projects.wherePlaceholder')} onSave={(where) => update.mutate({ where })} /></div>
           <div className="field"><span className="label">{t('app.projects.next')}</span><EditLine value={p.next} label={t('app.projects.next')} placeholder={t('app.projects.nextPlaceholder')} onSave={(next) => update.mutate({ next })} /></div>
         </div>
         {p.kind === 'repo' && p.ref ? <div className="panel-foot"><a className="btn sm" href={hrefFor({ name: 'repos', id: p.ref })}><FolderGit2 size={15} aria-hidden="true" />{t('app.projects.openRepo')}</a></div> : null}
+        {p.kind === 'ticket' && p.ref ? <div className="panel-foot"><a className="btn sm" href={hrefFor({ name: 'tickets', ref: p.ref })}>{w('Reprendre et suivre le ticket', 'Resume and follow the ticket')}</a></div> : null}
       </section>
       <LeftOffCard project={p} />
       <div className="grid-2">

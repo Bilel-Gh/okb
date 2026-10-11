@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import type { SharedHit, SharedIssue } from '../app/sharing';
+import { SharedResults, SharedUnavailable } from '../ui/SharedResults';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowLeft, Bookmark, Brain, ChevronRight, FolderTree, Layers, Lock, PanelLeftClose, PanelLeftOpen, Search, X, FolderClosed } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -283,7 +285,7 @@ export default function BrainPage({ route, setTitle }: { route: Extract<Route, {
   // The tree and the folder page show one type at a time; the filters can hold several.
   const cat = filters.cats.length === 1 ? filters.cats[0]! : '';
   const dq = useDebounced(q.trim(), 140);
-  const server = useQuery({ queryKey: ['find', dq, 'explorer'], queryFn: () => get<{ hits: Hit[] }>('/api/find', { q: dq, limit: 80 }), enabled: dq.length > 1 });
+  const server = useQuery({ queryKey: ['find', dq, 'explorer'], queryFn: () => get<{ hits: Hit[]; shared?: SharedHit[]; sharedIssue?: SharedIssue }>('/api/find', { q: dq, limit: 80 }), enabled: dq.length > 1 });
   const brainName = (useQuery({ queryKey: ['status'], queryFn: () => get<{ name: string }>('/api/status') }).data?.name) ?? t('app.brain.everything');
 
   const setFilter = (patch: Record<string, string>) => {
@@ -425,6 +427,8 @@ export default function BrainPage({ route, setTitle }: { route: Extract<Route, {
       </nav>
 
       <section className="ex-list" aria-label={t('app.brain.list')}>
+        {dq.length > 1 && server.data?.sharedIssue ? <SharedUnavailable issue={server.data.sharedIssue} /> : null}
+        {dq.length > 1 && server.data?.shared?.length ? <SharedResults hits={server.data.shared} /> : null}
         <div className="ex-list-head">
           <div className="row">
             <button type="button" className="btn ghost icon tree-toggle" aria-label={t('app.brain.drawers')} onClick={() => setTreeOpen(true)}><FolderTree size={18} aria-hidden="true" /></button>
@@ -495,7 +499,7 @@ export default function BrainPage({ route, setTitle }: { route: Extract<Route, {
         {route.path ? (
           <>
             <a className="btn ghost sm back-to-list" href={hrefFor({ name: 'brain', query })} onClick={(e) => { e.preventDefault(); go({ name: 'brain', query }); }}><ArrowLeft size={16} aria-hidden="true" />{t('app.brain.back')}</a>
-            {route.history ? <NoteHistory path={route.path} setTitle={setTitle} /> : <Reader path={route.path} anchor={route.anchor} setTitle={setTitle} />}
+            {route.history ? <NoteHistory path={route.path} setTitle={setTitle} /> : <Reader path={route.path} anchor={route.anchor} understand={route.query?.understand === '1'} setTitle={setTitle} />}
           </>
         ) : notes.isLoading ? <SkeletonRows rows={8} /> : (
           <FolderOverview folder={folder} cat={cat} notes={all} tree={tree} select={select} pickCat={pickCat} brainName={brainName} />

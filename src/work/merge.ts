@@ -10,9 +10,9 @@ import { repoPlace } from '../brain/products.js';
 import { addRepo, listRepos, type RepoEntry } from '../repo/registry.js';
 import { repoPaths } from '../repo/state.js';
 import { OkbError } from '../util/errors.js';
-import { ensureDir, readJsonIfExists } from '../util/fsx.js';
+import { ensureDir } from '../util/fsx.js';
 import { kindOf } from './kinds.js';
-import { ticketsDir, type TicketRecord } from './tickets.js';
+import { transferTickets } from './ticket-transfer.js';
 import { listWorkspaces, updateWorkspace } from './workspaces.js';
 
 /**
@@ -102,19 +102,9 @@ export async function finishMerge(source: OkbConfig, target: OkbConfig, repo: Re
     await ensureDir(to);
     await cp(from, to, { recursive: true, force: false, errorOnExist: false });
   }
-  let tickets = 0;
-  const srcTickets = ticketsDir(source);
-  for (const name of (await readdir(srcTickets).catch(() => [] as string[])).filter((n) => n.endsWith('.json'))) {
-    const record = await readJsonIfExists<TicketRecord>(resolve(srcTickets, name)).catch(() => null);
-    if (!record || !record.repos.some((r) => r.id === repo.id)) continue;
-    await ensureDir(ticketsDir(target));
-    const dest = resolve(ticketsDir(target), name);
-    if (await stat(dest).then(() => true, () => false)) continue;
-    await cp(resolve(srcTickets, name), dest);
-    const textFile = resolve(srcTickets, name.replace(/\.json$/, '.md'));
-    if (await stat(textFile).then(() => true, () => false)) await cp(textFile, resolve(ticketsDir(target), name.replace(/\.json$/, '.md')));
-    tickets++;
-  }
+  const place = await repoPlace(target, repo);
+  const base = isBrainPlace(place) ? place.folder : `${REPOS_FOLDER}/${repo.id}`;
+  const tickets = await transferTickets(source, target, repo.id, base);
   await addRepo({ path: repo.path, kb: target.profile.id, id: repo.id, name: repo.name });
   for (const ws of (await listWorkspaces()).filter((w) => w.attached.includes(repo.id))) await updateWorkspace(ws.id, { detach: repo.id });
   return { state: hasState, tickets };

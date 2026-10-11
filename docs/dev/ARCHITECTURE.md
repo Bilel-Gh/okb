@@ -46,8 +46,13 @@ ne transforme une affirmation en fait techniquement vérifié.
 | `engine/` | les opérations écrites une fois (entrée validée, module, effet), `invoke`, et `okb mcp` pour les assistants |
 | `projects/` | le Projet, les actions, le journal, « Où j'en étais », Aujourd'hui ; les sources que les modules déclarent (`sources.ts`) |
 | `state/db.ts` | l'état opérationnel dans SQLite (`okb.db`, par profil, hors des notes) |
+| `share/` | copie Git commune distincte, manifeste des tiroirs, aperçu exact, recherche attribuée et conservation par proposition |
+| `understanding/` | lectures dérivées en cache, gestes déclarés, dette, préparation de réunion et progression privée |
+| `assistant/` | processus CLI local borné, conversations privées, validation des citations, journal d’usage et actions explicites |
+| `work/ticket-state.ts`, `work/ticket-external.ts` | états indépendants et critères des tickets, lectures GitHub opt-in et observations Jira déclarées |
+| `desktop/` | coque Electron, serveur loopback partagé, preload limité, cycle de vie et mises à jour signées |
 | `modules/wire.ts` | le seul fichier qui connaît tous les modules : chacun y déclare ce qu'il apporte au cœur |
-| `web/` | lecteur local sans mutations : notes, recherche, propositions exactes, style et audit |
+| `web/` | serveur local et API vers le moteur ; session, contrôles d’origine et approbation réservée à la personne |
 | `security/` | détection des secrets (clés, jetons, identifiants) dans propositions, captures, focus et notes |
 | `inbox/`, `weekly/` | inbox privée hors KB, revue hebdomadaire en lecture seule avec relectures espacées |
 | `focus/` | note de focus et journal des sessions, hors KB ; contexte donné au démarrage d’une session |
@@ -66,6 +71,28 @@ Approuver, appliquer et décider d'une carte ne sont pas des opérations.
 Un module éteint masque ses opérations. `tests/module-boundary.test.ts` interdit
 au cœur d'importer le code du module développeur (`repo/`, `work/`, `arch/`,
 `dev/`, `knowledge/`), sauf une dette listée qui ne peut que diminuer.
+
+## L’assistant et l’application native
+
+Le transport de l’assistant appelle une CLI installée par la personne. Il
+conserve ses réglages et son authentification, dans un dossier de travail OKB
+vide. La porte `ai/gate.ts` contrôle le message final, la confidentialité et le
+budget. Après connexion explicite, les demandes de traduction, lecture et
+examen utilisent ce même agent ; les anciens profils restent compatibles.
+
+Les conversations ont leurs tables dans `okb.db` (migration 5), les lectures et
+gestes de compréhension les leurs (migration 6), les tickets passent des JSON
+existants à SQLite (migration 7). Une empreinte et une citation prouvent quels
+octets ont été utilisés, pas la vérité de l’affirmation. Un appel interrompu ou
+mal formé reste compté lorsque la CLI fournit son usage ; sinon la mesure est
+indisponible et le budget porte une estimation explicite.
+
+Electron sert les mêmes fichiers web avec le même moteur et sa propre version
+de Node. La fenêtre n’a pas d’accès Node ; seul le preload expose choix de
+dossier et mises à jour. Le serveur écoute sur loopback avec un port libre.
+Fermer l’application ou installer une mise à jour arrête ses agents avant de
+fermer SQLite. Les builds de prototype restent sans mises à jour ; la
+distribution signée fixe deux canaux HTTPS et une identité d’éditeur.
 
 ## Les documents
 

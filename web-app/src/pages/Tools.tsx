@@ -11,7 +11,7 @@ import { Choice } from '../ui/Choice';
 import { PageTabs } from '../ui/PageTabs';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 
-const Share = lazy(() => import('./Share'));
+const Share = lazy(() => import('./Sharing'));
 import { TypeMark } from '../ui/TypeMark';
 
 type Setting = { key: string; value: unknown };

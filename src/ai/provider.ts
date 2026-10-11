@@ -15,9 +15,9 @@ import { estimateTokens } from '../util/context-meter.js';
  * Setting `ai.provider`: auto (Claude Code when installed, else the key) ·
  * claude-code · api · off. `OKB_AI=fake` answers without any model, for tests.
  */
-export type ProviderId = 'claude-code' | 'api' | 'fake';
+export type ProviderId = 'claude-code' | 'codex' | 'api' | 'fake';
 export type AiRequest = { readonly system: string; readonly prompt: string; readonly size: 'small' | 'medium'; readonly maxTokens: number };
-export type AiResult = { readonly text: string; readonly tokens: { readonly input: number; readonly output: number }; readonly provider: ProviderId };
+export type AiResult = { readonly text: string; readonly tokens: { readonly input: number; readonly output: number }; readonly provider: ProviderId; readonly estimated?: boolean; readonly usage?: { input: number | null; output: number | null } };
 
 const CLAUDE_MODELS = { small: 'haiku', medium: 'sonnet' } as const;
 const API_MODELS = { small: 'claude-haiku-5-5', medium: 'claude-sonnet-5-5' } as const;
@@ -44,15 +44,20 @@ export function claudeArgs(size: AiRequest['size'], system: string): string[] {
 }
 
 /** Claude Code's `--output-format json` answer: the text and the tokens it used. */
-export function parseClaudeJson(stdout: string): { text: string; tokens: { input: number; output: number } } {
+export function parseClaudeJson(stdout: string): Pick<AiResult, 'text' | 'tokens' | 'estimated' | 'usage'> {
   let data: { is_error?: boolean; result?: unknown; usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number; output_tokens?: number } };
   try { data = JSON.parse(stdout.trim().split('\n').filter(Boolean).pop() ?? '{}'); } catch { throw new OkbError('E_IO', `Claude Code gave an unreadable answer: ${stdout.slice(0, 200)}`, { key: 'aiFailed', params: { error: stdout.slice(0, 200) } }); }
   const u = data.usage ?? {};
-  const used = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.output_tokens ?? 0);
+  const count = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
+  const rawInput = count(u.input_tokens); const rawOutput = count(u.output_tokens);
+  const input = rawInput === null ? null : rawInput + (count(u.cache_read_input_tokens) ?? 0) + (count(u.cache_creation_input_tokens) ?? 0);
+  const used = input === null || rawOutput === null ? null : input + rawOutput;
   if (data.is_error || typeof data.result !== 'string' || !data.result.trim()) {
-    throw new OkbError('E_IO', `Claude Code: ${String(data.result || 'no answer')}`, { key: 'aiFailed', params: { error: String(data.result || 'no answer').slice(0, 200) }, ...(used ? { detail: { usage: { tokens: used, provider: 'claude-code' } } } : {}) });
+    throw new OkbError('E_IO', `Claude Code: ${String(data.result || 'no answer')}`, { key: 'aiFailed', params: { error: String(data.result || 'no answer').slice(0, 200) }, detail: { usage: { tokens: used ?? undefined, input, output: rawOutput, provider: 'claude-code' } } });
   }
-  return { text: data.result, tokens: { input: (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0), output: u.output_tokens ?? 0 } };
+  if (used !== null) return { text: data.result, tokens: { input: input!, output: rawOutput! } };
+  // This parser has no request. runClaude replaces its input estimate with the actual prompt.
+  return { text: data.result, tokens: { input: input ?? estimateTokens(data.result), output: rawOutput ?? estimateTokens(data.result) }, estimated: true, usage: { input, output: rawOutput } };
 }
 
 function runClaude(cli: string, req: AiRequest, env: NodeJS.ProcessEnv): Promise<AiResult> {
@@ -69,7 +74,7 @@ function runClaude(cli: string, req: AiRequest, env: NodeJS.ProcessEnv): Promise
       clearTimeout(timer);
       try {
         const r = parseClaudeJson(out);
-        done({ ...r, provider: 'claude-code' });
+        done({ ...r, ...(r.estimated ? { tokens: { input: r.usage?.input ?? estimateTokens(req.system + req.prompt), output: r.usage?.output ?? estimateTokens(r.text) } } : {}), provider: 'claude-code' });
       } catch (e) {
         // A JSON answer explains itself (« Not logged in »…); otherwise stderr does.
         const answered = (() => { try { JSON.parse(out.trim().split('\n').filter(Boolean).pop() ?? ''); return true; } catch { return false; } })();

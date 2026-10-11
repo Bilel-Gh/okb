@@ -23,7 +23,9 @@ import { addWorkspace, findWorkspace, learnPrefixes, listWorkspaces, looksLikeNo
 import { flagBool, flagList, flagString, flagValues } from '../args.js';
 import { choose, input, spin } from '../ui/prompt.js';
 import { paint, sym, tilde } from '../ui/term.js';
-import { canAsk, type Ctx } from './common.js';
+import { actorOf, canAsk, effective, type Ctx } from './common.js';
+import { invoke } from '../../engine/registry.js';
+import { ticketDetail } from '../../work/ticket-state.js';
 import { chooseKb } from './repo.js';
 
 /**
@@ -374,6 +376,7 @@ export async function cmdTicket(ctx: Ctx): Promise<number> {
     case 'done': case 'finish': case 'end': return ticketDone(ctx);
     case 'list': case 'ls': return ticketList(ctx);
     case 'commit': return ticketCommit(ctx);
+    case 'brief': case 'resume': case 'state': case 'criterion': case 'attempt': case 'reuse': case 'close': case 'github': case 'jira': return ticketOperational(ctx, sub);
     default: {
       if (/^[A-Za-z][A-Za-z0-9]{0,15}-\d{1,7}$/.test(sub)) return ticketShow({ ...ctx, args: { ...ctx.args, positionals: ['status', sub] } });
       throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { key: 'unknownSub', params: { sub, usage: 'okb ticket [start|note|done|list]' } });
@@ -383,8 +386,15 @@ export async function cmdTicket(ctx: Ctx): Promise<number> {
 
 /** The ticket a command is about: named (`ABC-123` or `--ticket`), else the scope's. */
 async function pickTicket(ctx: Ctx, named?: string): Promise<{ scope: Scope; config: OkbConfig; record: TicketRecord }> {
-  const scope = await resolveScope(cwdOf(ctx), { autoStart: true });
+  const explicit = flagString(ctx.args, 'kb') ?? flagString(ctx.args, 'profile');
+  const scope = await resolveScope(cwdOf(ctx), { autoStart: !explicit });
   const ref = flagString(ctx.args, 'ticket') ?? named;
+  if (explicit) {
+    const { config } = await loadConfig({ profileId: explicit });
+    const record = ref ? await loadTicket(config, ref) : scope.ticket && scope.kb === explicit ? await loadTicket(config, scope.ticket.ref) : null;
+    if (!record) throw new OkbError('E_NOT_FOUND', 'no matching ticket in the named profile', { key: 'ticketUnknown', params: { ref: ref ?? '' } });
+    return { scope, config, record };
+  }
   if (ref) {
     const configs: OkbConfig[] = [];
     if (scope.config) configs.push(scope.config);
@@ -409,8 +419,54 @@ async function ticketShow(ctx: Ctx): Promise<number> {
   const all = await listRepos();
   const places = new Map(await Promise.all(synced.repos.map(async (r) => [r.id, await repoPlace(config, all.find((x) => x.id === r.id) ?? { id: r.id, name: r.id })] as const)));
   const note = ticketNoteIn(bundle, synced, (id) => places.get(id) ?? false);
-  if (ctx.mode === 'json') { ctx.out.json({ ok: true, ticket: synced, progress, note }); return 0; }
+  const detail = await invoke('tickets.get', { ref: synced.ref }, { config, env: process.env, actor: actorOf() });
+  if (ctx.mode === 'json') { ctx.out.json({ ok: true, ...detail, progress, note }); return 0; }
   printTicket(ctx, synced, progress, note);
+  printTicketDetail(ctx, detail);
+  return 0;
+}
+
+function printTicketDetail(ctx: Ctx, r: Awaited<ReturnType<typeof ticketDetail>>): void {
+  ctx.out.line();
+  for (const [field, value] of [['goal', r.brief.goal], ['lastAction', r.brief.lastAction], ['next', r.brief.next]]) if (value) ctx.out.line(`${t(`ticket.resume.${field}`)} : ${value}`);
+  for (const a of r.brief.failed) ctx.out.line(`${t('ticket.resume.failed')} : ${a.approach} · ${a.conditions} → ${a.result}`);
+  for (const s of r.detail.states) ctx.out.line(`  ${t(`ticket.dimension.${s.dimension}`)}${s.environment ? ` (${s.environment})` : ''} : ${t(`ticket.observation.${s.status}`)}${s.at ? ` · ${s.at.slice(0, 10)}` : ''}`);
+  if (r.detail.close.missing.length) ctx.out.warn(t('ticket.criteriaMissing', { text: r.detail.close.missing.join(' · ') }));
+  for (const c of r.detail.criteria) ctx.out.line(`  ${c.id} · ${t(`ticket.criterion.${c.kind}`)} : ${c.text === c.kind ? t(`ticket.criterion.${c.kind}`) : c.text} · ${t(`ticket.criterionStatus.${c.status}`)}${c.required ? ` · ${t('ticket.required')}` : ''}`);
+}
+
+/** The new local follow-up uses the same operations as the app and MCP. */
+async function ticketOperational(ctx: Ctx, sub: string): Promise<number> {
+  if (sub === 'github' && ctx.args.positionals[1] === 'setup') {
+    const { config } = await effective(ctx.args);
+    const result = await invoke('tickets.github.configure', { enabled: !flagBool(ctx.args, 'off'), host: flagString(ctx.args, 'host') ?? 'github.com', repositories: flagList(ctx.args, 'repository'), allowed: flagBool(ctx.args, 'allowed') }, { config, env: process.env, actor: actorOf() });
+    if (ctx.mode === 'json') ctx.out.json({ ok: true, ...result }); else ctx.out.ok(t('ticket.githubConfigured'));
+    return 0;
+  }
+  const { config, record } = await pickTicket(ctx, ['brief', 'resume', 'close'].includes(sub) ? ctx.args.positionals[1] : undefined);
+  const c = { config, env: process.env, actor: actorOf() };
+  const ref = record.ref;
+  const strings = (names: readonly string[]) => Object.fromEntries(names.filter((k) => flagString(ctx.args, k) !== undefined).map((k) => [k, flagString(ctx.args, k)]));
+  let result: Awaited<ReturnType<typeof ticketDetail>>;
+  switch (sub) {
+    case 'brief': case 'resume': {
+      const patch = { ...strings(['goal', 'next']), ...(flagString(ctx.args, 'last-action') ? { lastAction: flagString(ctx.args, 'last-action') } : {}) };
+      result = Object.keys(patch).length ? await invoke('tickets.brief', { ref, ...patch }, c) : await invoke('tickets.get', { ref }, c); break;
+    }
+    case 'state': result = await invoke('tickets.state', { ref, state: { dimension: ctx.args.positionals[1], status: ctx.args.positionals[2], ...strings(['environment', 'detail', 'url']) } }, c); break;
+    case 'criterion': {
+      const action = ctx.args.positionals[1];
+      if (!['add', 'set'].includes(action ?? '')) throw new OkbError('E_INVALID', 'okb ticket criterion add <text> --kind tests | set <id> --status met');
+      result = await invoke('tickets.criterion', { ref, ...(action === 'set' ? { id: ctx.args.positionals[2], ...strings(['text', 'status']) } : { text: ctx.args.positionals.slice(2).join(' '), kind: flagString(ctx.args, 'kind') ?? 'other' }), ...(ctx.args.flags.required === undefined ? {} : { required: flagBool(ctx.args, 'required') }) }, c); break;
+    }
+    case 'attempt': result = await invoke('tickets.attempt', { ref, approach: ctx.args.positionals.slice(1).join(' '), ...strings(['conditions', 'result', 'next']) }, c); break;
+    case 'reuse': result = await invoke('tickets.reuse', { ref, path: ctx.args.positionals.slice(1).join(' '), ...strings(['why']) }, c); break;
+    case 'close': result = await invoke('tickets.close', { ref }, c); break;
+    case 'github': result = await invoke('tickets.github', { ref, repository: flagString(ctx.args, 'repository'), number: Number(ctx.args.positionals[1]) }, c); break;
+    case 'jira': result = await invoke('tickets.jira', { ref, issue: flagString(ctx.args, 'issue') ?? ref, status: flagString(ctx.args, 'status'), url: flagString(ctx.args, 'url'), observedAt: flagString(ctx.args, 'observed-at') }, c); break;
+    default: throw new OkbError('E_INVALID', 'unknown ticket action');
+  }
+  if (ctx.mode === 'json') ctx.out.json({ ok: true, ...result }); else printTicketDetail(ctx, result);
   return 0;
 }
 

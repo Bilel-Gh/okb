@@ -176,6 +176,12 @@ const connectorsSchema = z
       .strict()
       .default({}),
     mcp: z.array(z.string()).default([]),
+    /** Explicit opt-in for read-only GitHub ticket observations through the person's existing gh session. */
+    github: z.object({
+      enabled: z.boolean().default(false),
+      host: z.string().regex(/^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/).default('github.com'),
+      repositories: z.array(z.string().regex(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/)).max(100).default([]),
+    }).strict().optional(),
   })
   .strict();
 
@@ -200,6 +206,19 @@ export const WRITING_KNOBS = {
 } as const;
 
 const knob = <T extends readonly [string, ...string[]]>(values: T) => z.enum(values).optional();
+
+/**
+ * Sharing through drawers (2.1, src/share): the folder both colleagues reach
+ * (a team folder, the local copy of a common repository), the person's own
+ * drawer in it, and the day they said this place is allowed by their company.
+ */
+const shareSchema = z
+  .object({
+    folder: z.string().min(1),
+    drawer: z.string().regex(/^[a-z0-9][a-z0-9-]{1,39}$/),
+    allowedAt: z.string().datetime(),
+  })
+  .strict();
 
 const writingSchema = z
   .object({
@@ -366,6 +385,7 @@ export const configSchema = z
     connectors: connectorsSchema.default({}),
     conceptAssist: conceptAssistSchema.default({}),
     writing: writingSchema.default({}),
+    share: shareSchema.optional(),
     reader: readerSchema.default({}),
     changes: changesSchema.default({}),
     context: contextSchema.default({}),

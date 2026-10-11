@@ -64,11 +64,11 @@ export function passagesFor(config: OkbConfig, bundle: Bundle, question: string,
   return { passages, notes: hits.map((h) => ({ path: h.path, title: h.title })) };
 }
 
-export function composeAnswer(config: OkbConfig, question: string, passages: readonly Passage[], env: NodeJS.ProcessEnv = process.env, now = new Date()): Promise<{ answer: string; tokens: number; used: number[] }> {
+export function composeAnswer(config: OkbConfig, question: string, passages: readonly Passage[], env: NodeJS.ProcessEnv = process.env, now = new Date()): Promise<{ answer: string; tokens: number; estimated: boolean; used: number[] }> {
   return oneAtATime(() => answerNow(config, question, passages, env, now));
 }
 
-async function answerNow(config: OkbConfig, question: string, passages: readonly Passage[], env: NodeJS.ProcessEnv, now: Date): Promise<{ answer: string; tokens: number; used: number[] }> {
+async function answerNow(config: OkbConfig, question: string, passages: readonly Passage[], env: NodeJS.ProcessEnv, now: Date): Promise<{ answer: string; tokens: number; estimated: boolean; used: number[] }> {
   // Only what may leave the computer: no 🔒 note, no passage whose title or text looks like it holds a secret.
   const sendable = passages.filter((p) => !p.secret && !findSecrets(`${p.title}\n${p.text}`).length);
   if (!sendable.length) throw new OkbError('E_INVALID', 'no passage can be sent to the AI', { key: 'askNothingToSend' });
@@ -86,5 +86,5 @@ async function answerNow(config: OkbConfig, question: string, passages: readonly
   }, env, now);
   const tokens = r.tokens.input + r.tokens.output;
   const used = [...new Set([...r.text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])).filter((n) => sendable.some((p) => p.n === n)))];
-  return { answer: r.text.trim(), tokens, used };
+  return { answer: r.text.trim(), tokens, estimated: r.estimated === true || r.usage?.input === null || r.usage?.output === null, used };
 }

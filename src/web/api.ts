@@ -149,6 +149,11 @@ const NEXT = nextRoutes(kbConfig);
 const ENGINE = engineRoutes(kbConfig);
 
 export const ROUTES: Record<string, Handler> = {
+  'POST /api/onboarding': async (ctx, _q, body) => {
+    const { startOnboarding } = await import('../setup/onboarding.js');
+    const { kb: _kb, ...input } = body;
+    return startOnboarding(input, ctx.env);
+  },
   /* ---------- session ---------- */
   'GET /api/session': async (ctx) => ({
     token: ctx.token, ui: lang(), version: await productVersion(), kbs: await kbsWithKind(ctx.env), active: ctx.defaultConfig?.profile.id ?? (await activeKb(ctx)) ?? null,

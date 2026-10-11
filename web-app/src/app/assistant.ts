@@ -1,0 +1,12 @@
+export type AgentId = 'claude-code' | 'codex';
+export type AgentUsage = { input: number | null; output: number | null };
+export type UsageSummary = { calls: number; failed: number; total: number | null; knownTotal: number };
+export type AgentStatus = { selected: AgentId; agents: { id: AgentId; installed: boolean; version: string | null; ready: boolean; reason?: string }[]; privacy: 'local-agent'; terms: { agent: AgentId; checkedAt: string | null; url: string; scope: string }[] };
+export type AssistantMode = 'ask' | 'meeting' | 'explain' | 'find' | 'resume';
+export type AssistantSource = { id: string; path: string; title: string; kind: 'note' | 'document' | 'shared'; quote: string; hash: string; author?: string; drawer?: string };
+export type AssistantAction = { kind: 'note' | 'action' | Exclude<AssistantMode, 'ask'>; text: string; title?: string };
+export type AssistantAnswer = { statements: { text: string; kind: 'notes' | 'general' | 'unknown'; evidence: { source: string; quote: string }[] }[]; sources: AssistantSource[]; actions: AssistantAction[]; usage: AgentUsage; provider: string };
+export type AssistantMessage = { id: string; role: 'user' | 'assistant'; text: string; at: string; answer?: AssistantAnswer };
+export type Conversation = { id: string; title: string; messages: AssistantMessage[]; usage: AgentUsage; usageSummary?: UsageSummary; createdAt: string; updatedAt: string };
+export type ConversationState = { conversation: Conversation; busy: boolean };
+export type ConversationSummary = Pick<Conversation, 'id' | 'title' | 'updatedAt' | 'usage'>;

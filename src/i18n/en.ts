@@ -1,8 +1,12 @@
 import { EN_V1 } from './v1.en.js';
+import { EN_SHARE } from './share.en.js';
+import { EN_TICKETS } from './tickets.en.js';
 
 /** English interface catalogue. `{name}` placeholders; `.one` / `.other` plurals. */
 export const EN = {
   ...EN_V1,
+  ...EN_SHARE,
+  ...EN_TICKETS,
   // ---------- generic ----------
   'ui.yes': 'Yes',
   'ui.no': 'No',

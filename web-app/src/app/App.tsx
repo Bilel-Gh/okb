@@ -15,10 +15,13 @@ const GraphPage = lazy(() => import('../pages/Graph'));
 const InboxPage = lazy(() => import('../pages/Inbox'));
 const Repos = lazy(() => import('../pages/Repos'));
 const Projects = lazy(() => import('../pages/Projects'));
+const Tickets = lazy(() => import('../pages/Tickets'));
 const DocumentsPage = lazy(() => import('../pages/Documents'));
+const Sharing = lazy(() => import('../pages/Sharing'));
 const DayPage = lazy(() => import('../pages/Day'));
 const Learn = lazy(() => import('../pages/Learn'));
 const AskPage = lazy(() => import('../pages/Ask'));
+const Assistant = lazy(() => import('../pages/Assistant'));
 const Tools = lazy(() => import('../pages/Tools'));
 const Upkeep = lazy(() => import('../pages/Upkeep'));
 const Modules = lazy(() => import('../pages/Modules'));
@@ -40,13 +43,16 @@ function Routes({ t }: { t: Translate }) {
         {route.name === 'today' ? <Today route={route} /> : null}
         {route.name === 'brain' ? <BrainPage route={route} setTitle={setTitle} /> : null}
         {route.name === 'graph' ? <GraphPage route={route} /> : null}
-        {route.name === 'documents' ? <DocumentsPage /> : null}
+        {route.name === 'documents' ? <DocumentsPage initialQuery={route.q} /> : null}
+        {route.name === 'sharing' ? <Sharing route={route} setTitle={setTitle} /> : null}
         {route.name === 'day' ? <DayPage day={route.day} /> : null}
         {route.name === 'inbox' ? <InboxPage route={route} setTitle={setTitle} /> : null}
         {route.name === 'projects' ? <Projects route={route} setTitle={setTitle} /> : null}
+        {route.name === 'tickets' ? <Tickets route={route} setTitle={setTitle} /> : null}
         {route.name === 'repos' ? <Repos route={route} setTitle={setTitle} /> : null}
         {route.name === 'learn' ? <Learn route={route} /> : null}
         {route.name === 'ask' ? <AskPage route={route} /> : null}
+        {route.name === 'assistant' ? <Assistant route={route} /> : null}
         {route.name === 'tools' ? <Tools route={route} /> : null}
         {route.name === 'upkeep' ? <Upkeep route={route} /> : null}
         {route.name === 'modules' ? <Modules /> : null}
@@ -63,6 +69,8 @@ function Routes({ t }: { t: Translate }) {
 function crumbOf(route: Route, t: Translate): Crumb | undefined {
   if (route.name === 'brain' && route.path) return { label: t('app.screen.memory'), to: { name: 'brain', ...(route.query ? { query: route.query } : {}) } };
   if (route.name === 'projects' && route.id) return { label: t('app.screen.projects'), to: { name: 'projects' } };
+  if (route.name === 'tickets' && route.ref) return { label: t('web.repos.tickets'), to: { name: 'tickets' } };
+  if (route.name === 'sharing' && route.note) return { label: t('app.tools.tab.share'), to: { name: 'sharing' } };
   if (route.name === 'repos' && route.id) return { label: t('app.projects.repos'), to: { name: 'repos' } };
   if (route.name === 'inbox' && route.id) return { label: t('app.nav.inbox'), to: { name: 'inbox', tab: 'proposals' } };
   return undefined;

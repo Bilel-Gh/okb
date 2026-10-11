@@ -12,7 +12,7 @@ import { ErrorState, SkeletonRows } from '../ui/States';
 type Grade = 'right' | 'partial' | 'wrong' | 'ungraded';
 type Reference = 'expected' | 'person' | 'code' | 'none';
 type Item = { id: string; question: string; custom: boolean; answer: string; found: number; notes: string[]; grade: Grade; why: string; reference: Reference };
-type Result = { at: string; score: number | null; counts: Record<Grade, number>; items: Item[]; tokens: number; history: { at: string; score: number | null }[] };
+type Result = { at: string; score: number | null; counts: Record<Grade, number>; items: Item[]; tokens: number; estimated?: boolean; history: { at: string; score: number | null }[] };
 type Plan = { questions: { id: string; text: string; custom: boolean; reference: Reference; found: number }[]; tokens: number; budget: { spent: number; daily: number } };
 type ExamData = { repo: { id: string; name: string }; plan: Plan; last: Result | null; custom: { id: string; text: string; expected: string }[]; ai: boolean };
 
@@ -136,7 +136,7 @@ export function ExamPanel({ repo, color }: { repo: string; color: string }) {
                 {(['right', 'partial', 'wrong', 'ungraded'] as const).map((g) => <span key={g} className="exam-count" data-grade={g}><span className="exam-mark">{MARK[g]}</span><span className="num">{last.counts[g]}</span> {t(`app.exam.grade.${g}`)}</span>)}
               </div>
               <p className="small muted">
-                {t('app.exam.when', { day: day(last.at, t.lang), tokens: last.tokens.toLocaleString(t.lang) })}
+                {t('app.exam.when', { day: day(last.at, t.lang), tokens: `${last.estimated ? '≈ ' : ''}${last.tokens.toLocaleString(t.lang)}` })}
                 {delta && before ? <> · <span className={delta > 0 ? 'ok-ink' : delta < 0 ? 'err-ink' : ''}>{t('app.exam.delta', { delta: `${delta > 0 ? '+' : ''}${delta}`, day: day(before.at, t.lang) })}</span></> : null}
               </p>
             </div>

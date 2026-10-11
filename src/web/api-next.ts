@@ -74,18 +74,17 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
       const config = await kbConfig(ctx, q.get('kb'));
       const question = (q.get('q') ?? '').trim().slice(0, 300);
       if (!question) return { question, passages: [], notes: [] };
-      const { passagesFor } = await import('../find/answer.js');
-      const { loadBundleFor } = await import('../kb/bundle.js');
-      return { question, ...passagesFor(config, await loadBundleFor(config), question) };
+      const { passagesWithShared } = await import('../share/read.js');
+      return { question, ...(await passagesWithShared(config, ctx.env, question)) };
     },
     'POST /api/ask/answer': async (ctx, _q, b) => {
       const config = await kbConfig(ctx, b.kb);
       const question = String(b.q ?? '').trim().slice(0, 300);
       if (!question) throw new OkbError('E_INVALID', 'a question is needed', { key: 'usage', params: { usage: '{ q }' } });
-      const { composeAnswer, passagesFor } = await import('../find/answer.js');
-      const { loadBundleFor } = await import('../kb/bundle.js');
-      const { passages } = passagesFor(config, await loadBundleFor(config), question);
-      return { ok: true, passages, ...(await composeAnswer(config, question, passages, ctx.env)) };
+      const { composeAnswer } = await import('../find/answer.js');
+      const { passagesWithShared } = await import('../share/read.js');
+      const { passages, sharedIssue } = await passagesWithShared(config, ctx.env, question);
+      return { ok: true, passages, ...(sharedIssue ? { sharedIssue } : {}), ...(await composeAnswer(config, question, passages, ctx.env)) };
     },
     'GET /api/progress': async (ctx, q) => {
       const config = await kbConfig(ctx, q.get('kb'));
