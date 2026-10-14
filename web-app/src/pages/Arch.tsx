@@ -8,12 +8,16 @@ import { toast } from '../app/toast';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { layoutMap, type MapLayout, type Station } from './arch-layout';
 import { lineOf } from './Repos';
+import { exploreMap, initialFocus } from './arch-exploration';
+import { useArchWords } from './arch-copy';
+import '../styles/arch.css';
+import { flowView, renderMap } from '../../../src/arch/views';
 
 type Node = { id: string; kind: 'repo' | 'datastore' | 'external' | 'system'; name: string; tech: string; repo?: string };
 type Evidence = { repo: string; file: string; line: number };
 type Link = { id: string; from: string; to: string; kind: 'http' | 'event' | 'package' | 'service' | 'data' | 'external'; confidence: 'sure' | 'probable' | 'to-confirm'; calls: { what: string; line: number }[]; evidence: Evidence[]; verb: string };
 type Finding = { code: string; target: string; penalty: number };
-type View = { kind: 'containers' | 'context' | 'flow'; boxes: Node[]; arrows: Link[]; mermaid: string; check: { score: number; findings: Finding[] }; steps?: { from: string; to: string; what: string; verb: string }[] };
+type View = { kind: 'containers' | 'context' | 'flow'; boxes: Node[]; arrows: Link[]; mermaid: string; check: { score: number; findings: Finding[] }; groups?: { id: string; members: Node[] }[]; steps?: { from: string; to: string; what: string; verb: string }[] };
 type Question = { repo: string; what: string; evidence: Evidence; named?: string };
 type ArchData = {
   system: string | null;
@@ -29,7 +33,7 @@ type Selection = { kind: 'link' | 'station'; id: string } | null;
 /** Lines whose shape already says what they carry get no text on the map (a library, a database). */
 const QUIET = new Set<Link['kind']>(['package', 'data']);
 const CONFIDENCE_TONE: Readonly<Record<Link['confidence'], string>> = { sure: 'ok', probable: 'warn', 'to-confirm': 'warn' };
-const short = (s: string, n = 26) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
 
 function useColours(data: ArchData) {
   const repos = useQuery({ queryKey: ['repos'], queryFn: () => get<ReposLite>('/api/repos') });
@@ -54,11 +58,22 @@ function SystemMap({ layout, links, nodes, selection, select, colour, label, sca
   layout: MapLayout; links: Map<string, Link>; nodes: Map<string, Node>; selection: Selection; select: (s: Selection) => void; colour: (n: Node) => string | undefined; label: string; scale: number | null;
 }) {
   const t = useT();
+  const drawing = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    if (selection?.kind !== 'station') return;
+    const station = layout.stations.find((s) => s.id === selection.id);
+    const scroll = drawing.current?.closest<HTMLDivElement>('.arch-scroll');
+    if (!station || !scroll) return;
+    const factor = scale ?? 1;
+    // Bring the chosen repository into view without shrinking its full label.
+    scroll.scrollLeft = Math.max(0, station.x * factor - scroll.clientWidth / 2 + 8);
+    scroll.scrollTop = Math.max(0, station.y * factor - scroll.clientHeight / 3 + 48);
+  }, [layout, selection, scale]);
   const key = (s: Selection) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(s); } };
   const touches = (id: string) => selection?.kind === 'station' && (links.get(id)?.from === selection.id || links.get(id)?.to === selection.id);
   const lit = (id: string) => !selection || (selection.kind === 'link' ? selection.id === id : touches(id));
   return (
-    <svg className={`arch-map${selection ? ' has-selection' : ''}${scale ? ' zoomed' : ''}`} viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width * (scale ?? 1)} height={layout.height * (scale ?? 1)} role="group" aria-label={label}>
+    <svg ref={drawing} className={`arch-map${selection ? ' has-selection' : ''}${scale ? ' zoomed' : ''}`} viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width * (scale ?? 1)} height={layout.height * (scale ?? 1)} role="group" aria-label={label}>
       <defs>
         <marker id="arch-head" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 8 5 L 1 9" className="arch-head" /></marker>
       </defs>
@@ -69,12 +84,13 @@ function SystemMap({ layout, links, nodes, selection, select, colour, label, sca
         const to = nodes.get(e.to)?.name ?? e.to;
         const on = selection?.kind === 'link' && selection.id === e.id;
         return (
-          <g key={e.id} className={`arch-edge k-${e.kind}${on ? ' on' : ''}${lit(e.id) ? '' : ' dim'}`} role="button" tabIndex={0}
+          <g key={e.id} className={`arch-edge k-${e.kind}${on ? ' on' : ''}${lit(e.id) ? '' : ' dim'}${link.confidence === 'sure' ? '' : ' uncertain'}`} role="button" tabIndex={0}
             aria-pressed={on} aria-label={t('app.arch.linkLabel', { from, verb: link.verb, to, confidence: t(`arch.conf.${link.confidence}`) })}
             onClick={() => select(on ? null : { kind: 'link', id: e.id })} onKeyDown={key(on ? null : { kind: 'link', id: e.id })}>
             <path className="arch-hit" d={e.d} />
             <path className="arch-line" d={e.d} markerEnd={e.kind === 'package' || e.kind === 'data' ? undefined : 'url(#arch-head)'} />
-            {QUIET.has(e.kind) ? null : <text className="arch-verb" x={e.lx} y={e.ly - 8} textAnchor="middle">{short(link.verb, 22)}{link.calls.length > 1 ? ` +${link.calls.length - 1}` : ''}</text>}
+            {link.confidence !== 'sure' ? <text className="arch-uncertainty" x={e.lx} y={e.ly - 8} textAnchor="middle">?</text> : null}
+            {on && !QUIET.has(e.kind) ? <text className="arch-verb" x={e.lx} y={e.ly - 8} textAnchor="middle">{link.verb}</text> : null}
           </g>
         );
       })}
@@ -89,8 +105,8 @@ function SystemMap({ layout, links, nodes, selection, select, colour, label, sca
             <title>{node.name === node.tech ? node.name : `${node.name} — ${node.tech}`}</title>
             <circle className="arch-hit-dot" r={22} />
             <StationMark s={s} here={here} colour={colour(node)} />
-            <text className="arch-name" y={s.kind === 'system' ? 36 : 30} textAnchor="middle">{short(node.name)}</text>
-            {node.name !== node.tech ? <text className="arch-tech" y={s.kind === 'system' ? 52 : 46} textAnchor="middle">{short(node.tech, 30)}</text> : null}
+            <text className="arch-name" textAnchor="middle">{s.nameLines.map((line, i) => <tspan key={i} x={0} y={30 + i * 17}>{line}</tspan>)}</text>
+            {s.techLines.length ? <text className="arch-tech" textAnchor="middle">{s.techLines.map((line, i) => <tspan key={i} x={0} y={32 + s.nameLines.length * 17 + i * 15}>{line}</tspan>)}</text> : null}
           </g>
         );
       })}
@@ -109,7 +125,9 @@ function Zoomable({ width, children }: { width: number; children: (scale: number
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState<number | null>(null);
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
-  const fit = () => Math.min(1, (box.current?.clientWidth ?? width) / width);
+  // Readable at 100% by default; a big map scrolls instead of shrinking its text.
+  const fit = () => 1;
+  void width;
   const step = (dir: 1 | -1) => setScale((cur) => {
     const now = cur ?? fit();
     const next = dir > 0 ? ZOOMS.find((z) => z > now + 0.01) : [...ZOOMS].reverse().find((z) => z < now - 0.01);
@@ -125,7 +143,7 @@ function Zoomable({ width, children }: { width: number; children: (scale: number
   const percent = Math.round((scale ?? fit()) * 100);
   return (
     <div className="arch-zoom">
-      <div ref={box} className={`arch-scroll${scale ? ' grab' : ''}`}
+      <div ref={box} className={`arch-scroll${scale ? ' grab' : ''}`} tabIndex={0}
         onPointerDown={(e) => { if (!scale || (e.target as Element).closest('[role="button"]')) return; drag.current = { x: e.clientX, y: e.clientY, left: box.current!.scrollLeft, top: box.current!.scrollTop }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }}
         onPointerMove={(e) => { const d = drag.current; if (!d || !box.current) return; box.current.scrollLeft = d.left - (e.clientX - d.x); box.current.scrollTop = d.top - (e.clientY - d.y); }}
         onPointerUp={() => { drag.current = null; }}>
@@ -167,7 +185,7 @@ function LinkDetail({ link, nodes, pages }: { link: Link; nodes: Map<string, Nod
   const t = useT();
   const from = nodes.get(link.from);
   const to = nodes.get(link.to);
-  const said = link.calls.map((c) => c.what).filter((w) => !link.verb.includes(w) && w !== to?.name);
+  const said = [...new Set(link.calls.map((c) => c.what))];
   return (
     <div className="stack">
       <h2 className="arch-side-title">{from?.name ?? link.from} <span className="muted">→</span> {to?.name ?? link.to}</h2>
@@ -223,7 +241,7 @@ function Questions({ questions }: { questions: Question[] }) {
   );
 }
 
-/** A flow drawn as a single line: each step a numbered station, in the order the code makes the calls. */
+/** Possible reachable dependencies, not a claim about runtime order. */
 function FlowLine({ view, links, select, selection }: { view: View; links: Map<string, Link>; select: (s: Selection) => void; selection: Selection }) {
   const t = useT();
   const names = new Map(view.boxes.map((b) => [b.id, b.name]));
@@ -255,8 +273,14 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
     queryFn: () => get<ArchData>('/api/repos/arch', { from: route.from, call: route.call }),
   });
   const [selection, select] = useState<Selection>(null);
+  const words = useArchWords();
   const [anyway, setAnyway] = useState(false);
-  useEffect(() => { select(null); setAnyway(false); }, [which, route.from, route.call]);
+  const [focus, setFocus] = useState('');
+  const [expanded, setExpanded] = useState<string[]>([]);
+  const [allRelations, setAllRelations] = useState(false);
+  const [flowLimit, setFlowLimit] = useState(12);
+  const side = useRef<HTMLElement>(null);
+  useEffect(() => { select(null); setAnyway(false); setFocus(''); setExpanded([]); setAllRelations(false); setFlowLimit(12); }, [which, route.from, route.call]);
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') select(null); };
     window.addEventListener('keydown', onKey);
@@ -265,7 +289,26 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
   const data = q.data;
   const colour = useColours(data ?? { system: null });
   const view = data?.views ? (which === 'flow' ? data.views.flow : data.views[which]) : null;
-  const layout = useMemo(() => (view && view.kind !== 'flow' ? layoutMap(view) : null), [view]);
+  const complete = useMemo(() => {
+    if (!view || !data?.model) return null;
+    if (which === 'containers') return { boxes: data.model.nodes, arrows: data.model.links };
+    if (which === 'context') {
+      const system = view.boxes.find((n) => n.kind === 'system');
+      if (!system) return view;
+      const outside = data.model.nodes.filter((n) => n.kind === 'external');
+      return { boxes: [system, ...outside], arrows: outside.map((n) => {
+        const into = data.model!.links.filter((l) => l.to === n.id);
+        return { id: `context>${n.id}`, from: system.id, to: n.id, kind: 'external' as const, confidence: into.some((l) => l.confidence === 'to-confirm') ? 'to-confirm' as const : into.every((l) => l.confidence === 'sure') ? 'sure' as const : 'probable' as const, calls: into.flatMap((l) => l.calls), evidence: into.flatMap((l) => l.evidence), verb: into[0]?.verb ?? '' };
+      }) };
+    }
+    const first = view.arrows[0];
+    if (!first) return view;
+    const full = flowView(data.model, first.from, route.call ?? first.calls[0]?.what ?? '', { max: data.model.links.length + 1 });
+    return { boxes: [...full.boxes], arrows: [...full.arrows] as Link[] };
+  }, [view, data?.model, which, route.call]);
+  const currentFocus = focus || (complete && which === 'containers' ? initialFocus(complete.boxes, complete.arrows) : '');
+  const exploration = useMemo(() => complete ? exploreMap(complete, { focus: currentFocus, expanded }) : null, [complete, currentFocus, expanded]);
+  const layout = useMemo(() => (exploration && view?.kind !== 'flow' ? layoutMap(exploration) : null), [exploration, view?.kind]);
 
   if (q.isLoading) return <SkeletonRows rows={6} />;
   if (q.error || !data) return <ErrorState error={q.error} retry={() => void q.refetch()} />;
@@ -274,15 +317,21 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
   }
   const model = data.model;
   const pages = data.pages ?? {};
-  const nodes = new Map([...model.nodes, ...(view?.boxes ?? [])].map((n) => [n.id, n]));
-  const links = new Map([...model.links, ...(view?.arrows ?? [])].map((l) => [l.id, l]));
+  const nodes = new Map([...model.nodes, ...(complete?.boxes ?? [])].map((n) => [n.id, n]));
+  const links = new Map([...model.links, ...(complete?.arrows ?? [])].map((l) => [l.id, l]));
   const setView = (v: 'containers' | 'context' | 'flow') => go({ name: 'repos', tab: 'architecture', ...(v === 'containers' ? {} : { view: v }), ...(v === 'flow' && route.from ? { from: route.from } : {}), ...(v === 'flow' && route.call ? { call: route.call } : {}) });
   const copy = async () => {
     if (!view) return;
-    try { await navigator.clipboard.writeText(view.mermaid); toast(t('app.arch.copied')); } catch { toast(t('app.arch.copyFailed'), 'err'); }
+    const diagram = view.kind === 'flow' && view.arrows[0] ? flowView(model, view.arrows[0].from, route.call ?? view.arrows[0].calls[0]?.what ?? '', { max: flowLimit }).mermaid : exploration ? renderMap(exploration) : view.mermaid;
+    try { await navigator.clipboard.writeText(diagram); toast(t('app.arch.copied')); } catch { toast(t('app.arch.copyFailed'), 'err'); }
   };
   const label = (id: string) => { const l = links.get(id); return l ? `${nodes.get(l.from)?.name ?? l.from} → ${nodes.get(l.to)?.name ?? l.to}` : nodes.get(id)?.name ?? id; };
   const low = view ? view.check.score < 80 && !anyway : false;
+  const choose = (s: Selection) => {
+    select(s);
+    if (s?.kind === 'station' && nodes.get(s.id)?.kind === 'repo') { setFocus(s.id); setExpanded([]); }
+    if (s?.kind === 'link') { const l = links.get(s.id); if (l) setExpanded((ids) => [...new Set([...ids, l.from, l.to])]); }
+  };
   const selected = selection?.kind === 'link' ? links.get(selection.id) : undefined;
   const station = selection?.kind === 'station' ? nodes.get(selection.id) : undefined;
   const starts = (data.calls ?? []).filter((c, i, all) => all.findIndex((x) => x.from === c.from && x.call === c.call) === i);
@@ -290,7 +339,7 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
 
   return (
     <div className="stack" style={{ gap: 'var(--s5)' }}>
-      <p className="page-intro">{t('app.arch.intro', { name: data.system })}</p>
+      <p className="page-intro">{words.intro(data.system)}</p>
       <div className="arch-bar">
         <div className="segmented" role="group" aria-label={t('app.arch.view')}>
           {(['containers', 'context', 'flow'] as const).map((v) => <button key={v} type="button" aria-pressed={which === v} onClick={() => setView(v)}>{t(`app.arch.view.${v}`)}</button>)}
@@ -304,37 +353,64 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
           </label>
         ) : null}
         <span className="spacer" />
-        {view ? <span className={`pill num ${view.check.score >= 80 ? 'ok' : 'warn'}`} title={t('app.arch.scoreWhy')}>{t('app.arch.score', { score: view.check.score })}</span> : null}
+        {view ? <span className={`pill num ${view.check.score >= 80 ? 'ok' : 'warn'}`} title={words.structureWhy}>{words.structure} {view.check.score}/100</span> : null}
         {view ? <button type="button" className="btn ghost sm" onClick={() => void copy()}><Copy size={14} aria-hidden="true" />{t('app.arch.copy')}</button> : null}
       </div>
+
+      <p className="small muted">{which === 'flow' ? words.flowWhy : words.modelWhy}</p>
+      {which === 'containers' ? <label className="arch-focus small"><span>{words.focus}</span><select className="input" value={currentFocus} onChange={(e) => { setFocus(e.target.value); setExpanded([]); select({ kind: 'station', id: e.target.value }); }} >{model.nodes.filter((n) => n.kind === 'repo').map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label> : null}
 
       <div className="arch-grid">
         <section className="panel arch-panel" aria-label={t('app.arch.mapLabel', { name: data.system })}>
           {!view ? <div className="panel-body"><p className="muted">{t('app.arch.noEntry')}</p></div> : low ? (
             <div className="panel-body stack">
-              <p className="notice warn">{t('app.arch.low', { score: view.check.score })}</p>
+              <p className="notice warn">{words.low(view.check.score)}</p>
               <ul className="next-steps">{view.check.findings.map((f) => <li key={f.code + f.target}>{t(`arch.finding.${f.code}`, { target: label(f.target) })}</li>)}</ul>
               <span><button type="button" className="btn sm" onClick={() => setAnyway(true)}>{t('app.arch.showAnyway')}</button></span>
             </div>
           ) : view.kind === 'flow' ? (
-            <FlowLine view={view} links={links} select={select} selection={selection} />
+            <FlowLine view={{ ...view, boxes: complete?.boxes ?? view.boxes, arrows: (complete?.arrows ?? view.arrows).slice(0, flowLimit) }} links={links} select={choose} selection={selection} />
           ) : layout ? (
             <>
-              <Zoomable width={layout.width}>{(scale) => <SystemMap layout={layout} links={links} nodes={nodes} selection={selection} select={select} colour={colour} label={t('app.arch.mapLabel', { name: data.system ?? '' })} scale={scale} />}</Zoomable>
+              <Zoomable width={layout.width}>{(scale) => <SystemMap layout={layout} links={links} nodes={nodes} selection={selection} select={choose} colour={colour} label={t('app.arch.mapLabel', { name: data.system ?? '' })} scale={scale} />}</Zoomable>
               <Legend />
             </>
           ) : null}
         </section>
-        <aside className="panel arch-side" aria-live="polite">
+        <aside ref={side} className="panel arch-side" aria-live="polite" tabIndex={-1}>
           <div className="panel-body stack">
             {selection ? <button type="button" className="btn ghost sm icon arch-clear" aria-label={t('app.arch.clear')} onClick={() => select(null)}><X size={16} aria-hidden="true" /></button> : null}
             {selected ? <LinkDetail link={selected} nodes={nodes} pages={pages} />
-              : station ? <StationDetail node={station} links={model.links} nodes={nodes} pages={pages} select={select} />
+              : station ? <StationDetail node={station} links={model.links} nodes={nodes} pages={pages} select={choose} />
               : <><p className="small muted">{t('app.arch.hint')}</p><Questions questions={model.questions} /></>}
           </div>
         </aside>
       </div>
+      {which === 'flow' && complete && complete.arrows.length > flowLimit ? <section className="panel"><div className="panel-body stack"><p className="small muted" role="status">{words.flowHidden(complete.arrows.length - flowLimit)}</p><span><button type="button" className="btn sm" onClick={() => setFlowLimit((n) => n + 12)}>{words.moreFlow}</button></span></div></section> : null}
+      {exploration && (exploration.hidden.length || exploration.hiddenRelations) && which !== 'flow' ? <section className="panel arch-hidden">
+        <div className="panel-body stack">
+          <p className="small muted" role="status">{words.hidden(exploration.hidden.length, exploration.hiddenRelations, exploration.hiddenNeighbours)}</p>
+          {exploration.groups.map((group) => <details key={group.kind}>
+            <summary>{words.group[group.kind]} · {group.members.length}</summary>
+            <ul className="arch-hidden-members">{group.members.map((n) => <li key={n.id}><button type="button" className="btn ghost sm" onClick={() => { setFocus(n.kind === 'repo' ? n.id : currentFocus); setExpanded((ids) => [...new Set([...ids, n.id])]); select({ kind: 'station', id: n.id }); }}>{n.name}</button></li>)}</ul>
+          </details>)}
+          <div className="arch-open">{exploration.groups.map((group) => <button key={group.kind} type="button" className="btn sm" onClick={() => setExpanded((ids) => [...new Set([...ids, ...group.members.map((n) => n.id)])])}>{words.expand[group.kind]} · {group.members.length}</button>)}</div>
+        </div>
+      </section> : null}
+      {expanded.length ? <span><button type="button" className="btn sm ghost" onClick={() => { setExpanded([]); select(null); }}>{words.reset}</button></span> : null}
+      <section className="panel arch-relations" aria-label={words.relations}>
+        <div className="panel-body stack">
+          <div className="arch-relations-head"><h2 className="panel-title">{words.relations}</h2>{which === 'containers' ? <label className="small"><input type="checkbox" checked={allRelations} onChange={(e) => setAllRelations(e.target.checked)} /> {words.allRelations} · {model.links.length}</label> : null}</div>
+          {(() => {
+            const rows = which === 'containers' ? model.links.filter((l) => allRelations || l.from === currentFocus || l.to === currentFocus) : complete?.arrows ?? [];
+            return rows.length ? <ul className="arch-relation-list">{rows.map((l) => <li key={l.id}><button className="arch-relation-row" type="button" aria-pressed={selection?.kind === 'link' && selection.id === l.id} onClick={() => { choose({ kind: 'link', id: l.id }); side.current?.scrollIntoView({ block: 'nearest' }); side.current?.focus({ preventScroll: true }); }}>
+              <span>{nodes.get(l.from)?.name ?? l.from} <span className="muted">→</span> {nodes.get(l.to)?.name ?? l.to}</span>
+              <span className="small muted">{l.verb} · {l.calls.map((c) => c.what).join(' · ')}</span>
+              <span className={`pill ${CONFIDENCE_TONE[l.confidence]}`}>{t(`arch.conf.${l.confidence}`)}</span><span className="xs muted">{words.sourceCount(l.evidence.length)}</span>
+            </button></li>)}</ul> : <p className="small muted">{words.noRelations}</p>;
+          })()}
+        </div>
+      </section>
     </div>
   );
 }
-

@@ -68,6 +68,7 @@ describe('Assistant local (F2.3)', () => {
     expect((signedOut!.detail.usage as { provider: string }).provider).toBe('claude-code');
     const limit = (() => { try { parseClaudeResult(JSON.stringify({ is_error: true, result: 'limit reached' })); return null; } catch (e) { return e as OkbError; } })();
     expect(limit).toMatchObject({ code: 'E_IO' });
+    expect(limit!.key).toBe('agentQuotaExceeded');
     expect(limit!.key).not.toBe('agentNotSignedIn');
     for (const words of [FR_SHARE, EN_SHARE] as Record<string, string>[]) for (const part of ['title', 'why', 'fix']) expect(words[`err.agentNotSignedIn.${part}`]).toBeTruthy();
   });

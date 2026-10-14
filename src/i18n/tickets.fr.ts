@@ -1,5 +1,9 @@
 import type { EN_TICKETS } from './tickets.en.js';
 export const FR_TICKETS: Record<keyof typeof EN_TICKETS, string> = {
+  'ticket.reconcile.conflict': '{field} : information existante conservée ; la nouvelle valeur demande une relecture ({source}).',
+  'ticket.reconcile.proposal': 'Proposition : {id} — okb review {id}',
+  'ticket.reconcile.deferred': 'La reprise locale est prête. La proposition de note attend une suggestion acceptée pour {path}.',
+
   'err.ticketMergeConflict.title': 'Le ticket demande une réconciliation', 'err.ticketMergeConflict.why': 'Le ticket {ref} possède un état ou un texte différent dans la KB de destination. Aucun des deux tickets n’a été écrasé.', 'err.ticketMergeConflict.fix': 'Compare les deux tickets avant de relancer la fusion. Garde le profil source disponible jusqu’à la réussite du transfert.',
   'today.recheck': 'Notes à revérifier', 'today.recheckUnavailable': 'La fraîcheur de certaines notes ne peut pas être vérifiée.',
   'ticket.resume.goal': 'Objectif', 'ticket.resume.lastAction': 'Dernière action', 'ticket.resume.next': 'Prochaine étape', 'ticket.resume.failed': 'Piste échouée',

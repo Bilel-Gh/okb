@@ -124,10 +124,10 @@ function docsOf(layout: BrainLayout | null, bundle: Bundle, e: KbEntry): { doc: 
   const brain = e.ext.brain ?? {};
   const aliases = [...(e.ext.aliases ?? []), brain.ref ?? '', posix.basename(e.path, '.md')].filter(Boolean);
   const place = layout ? positionOf(layout, e.path).crumbs.join(' ') : posix.dirname(e.path).replace(/\//g, ' ');
-  const doc: Doc = { id: e.path, title: e.title, aliases: aliases.join(' '), headings: e.headings.join(' '), errors: note ? errorsOf(note.body) : '', place, body: body.slice(0, 6000), type: typeOf(e) };
+  const doc: Doc = { id: e.path, title: e.title, aliases: aliases.join(' '), headings: e.headings.join(' '), errors: note ? errorsOf(note.body) : '', place, body, type: typeOf(e) };
   // The title counts three times: it says what the note is about.
   const titleRoots = roots(`${e.title} ${aliases.join(' ')}`).join(' ');
-  const meaning = { id: e.path, roots: [titleRoots, titleRoots, titleRoots, roots(e.headings.join(' ')).join(' '), roots(body.slice(0, 6000)).join(' ')].join(' ') };
+  const meaning = { id: e.path, roots: [titleRoots, titleRoots, titleRoots, roots(e.headings.join(' ')).join(' '), roots(body).join(' ')].join(' ') };
   return { doc, meaning, body };
 }
 

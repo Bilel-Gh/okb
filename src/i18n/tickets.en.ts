@@ -1,4 +1,8 @@
 export const EN_TICKETS = {
+  'ticket.reconcile.conflict': '{field}: existing information kept; the incoming value needs review ({source}).',
+  'ticket.reconcile.proposal': 'Proposal: {id} — okb review {id}',
+  'ticket.reconcile.deferred': 'The local resume is ready. A note proposal needs an accepted suggestion for {path}.',
+
   'err.ticketMergeConflict.title': 'Ticket state needs reconciliation', 'err.ticketMergeConflict.why': 'Ticket {ref} has different state or text in the destination KB. Neither ticket was overwritten.', 'err.ticketMergeConflict.fix': 'Compare the two tickets before retrying the KB merge. Keep the source profile available until the transfer succeeds.',
   'today.recheck': 'Notes to recheck', 'today.recheckUnavailable': 'Some note freshness checks are unavailable.',
   'ticket.resume.goal': 'Goal', 'ticket.resume.lastAction': 'Last action', 'ticket.resume.next': 'Next step', 'ticket.resume.failed': 'Failed approach',

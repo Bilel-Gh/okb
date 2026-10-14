@@ -10,6 +10,9 @@ import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { ActionList, JournalList, useRefreshDay, type Action, type Entry, type LeftOff } from './day-parts';
 import { KeepFileButton } from '../ui/KeepFile';
 import { DocumentRows, type Doc } from './Documents';
+import { ProjectPreview, shortAction } from '../ui/WorkPreview';
+import { WorkAssistant } from '../ui/WorkAssistant';
+import type { TicketRecord } from '../app/tickets';
 
 export type Project = {
   id: string; module: string; kind: string; title: string; status: 'active' | 'waiting' | 'done';
@@ -58,9 +61,10 @@ function List() {
   const [status, setStatus] = useState<'open' | 'waiting' | 'done'>('open');
   const [adding, setAdding] = useState(false);
   const q = useQuery({ queryKey: ['projects', 'all'], queryFn: () => get<{ projects: Project[] }>('/api/projects', { status: 'all' }) });
+  const tickets = useQuery({ queryKey: ['tickets'], queryFn: () => get<{ tickets: TicketRecord[] }>('/api/tickets'), enabled: q.data?.projects.some((p) => p.kind === 'ticket') ?? false });
   if (q.isLoading) return <div className="page"><SkeletonRows rows={5} /></div>;
   if (q.error || !q.data) return <div className="page"><ErrorState error={q.error} retry={() => void q.refetch()} /></div>;
-  const all = q.data.projects;
+  const all = q.data.projects.filter((p) => p.kind !== 'repo');
   const count = (s: typeof status) => all.filter((p) => (s === 'open' ? p.status === 'active' : p.status === s)).length;
   const shown = all.filter((p) => (status === 'open' ? p.status === 'active' : p.status === status));
   return (
@@ -76,12 +80,12 @@ function List() {
       {shown.length ? (
         <section className="panel">
           <ul className="rows project-rows">
-            {shown.map((p) => (
+            {shown.map((p) => p.kind === 'ticket' ? <ProjectPreview key={p.id} project={p} ticket={tickets.data?.tickets?.find((t) => t.ref === p.ref)} /> : (
               <li key={p.id} className="link-row">
                 <a href={hrefFor({ name: 'projects', id: p.id })}>
                   <KindMark kind={p.kind} />
                   <span className="grow"><span className="title">{p.title}</span><span className="meta">{t(`app.projects.kind.${KINDS[p.kind] ? p.kind : 'subject'}`)}{p.ref && p.ref !== p.title ? ` · ${p.ref}` : ''}</span></span>
-                  <span className="project-now">{p.where ? <span>{p.where}</span> : <span className="muted">{t('app.projects.noWhere')}</span>}{p.next ? <span className="meta"><ArrowRight size={13} aria-hidden="true" />{p.next}</span> : null}</span>
+                  <span className="project-now"><span className="pill sm">{t(`app.projects.status.${p.status}`)}</span>{p.where ? <span>{shortAction(p.where)}</span> : <span className="muted">{t('app.projects.noWhere')}</span>}{p.next ? <span className="meta"><ArrowRight size={13} aria-hidden="true" />{shortAction(p.next)}</span> : null}</span>
                   <span className="meta project-when">{ago(p.updatedAt, t.lang)}</span>
                 </a>
               </li>
@@ -144,6 +148,7 @@ function Detail({ id, setTitle }: { id: string; setTitle?: (s: string) => void }
   const entries = useQuery({ queryKey: ['entries', id], queryFn: () => get<{ entries: Entry[] }>('/api/entries', { project: id, limit: 80 }) });
   const docs = useQuery({ queryKey: ['documents', 'project', id], queryFn: () => get<{ documents: Doc[] }>('/api/documents', { project: id }) });
   const p = q.data?.project;
+  useEffect(() => { if (p?.kind === 'ticket' && p.ref) go({ name: 'tickets', ref: p.ref }); }, [p?.kind, p?.ref]);
   useEffect(() => { if (p) setTitle?.(p.title); }, [p, setTitle]);
   const update = useMutation({
     mutationFn: (patch: Partial<Pick<Project, 'title' | 'status' | 'where' | 'next'>>) => post<Project>('/api/project/update', { id, ...patch }),
@@ -157,6 +162,7 @@ function Detail({ id, setTitle }: { id: string; setTitle?: (s: string) => void }
   });
   if (q.isLoading) return <div className="page"><SkeletonRows rows={5} /></div>;
   if (q.error || !p) return <div className="page"><ErrorState error={q.error} retry={() => void q.refetch()} /></div>;
+  if (p.kind === 'ticket' && p.ref) return <div className="page"><a className="btn" href={hrefFor({ name: 'tickets', ref: p.ref })}>{w('Ouvrir la fiche du ticket', 'Open ticket detail')}</a></div>;
   const statuses: Status[] = ['active', 'waiting', 'done'];
   const open = actions.data?.actions ?? [];
   return (
@@ -181,6 +187,7 @@ function Detail({ id, setTitle }: { id: string; setTitle?: (s: string) => void }
         {p.kind === 'repo' && p.ref ? <div className="panel-foot"><a className="btn sm" href={hrefFor({ name: 'repos', id: p.ref })}><FolderGit2 size={15} aria-hidden="true" />{t('app.projects.openRepo')}</a></div> : null}
         {p.kind === 'ticket' && p.ref ? <div className="panel-foot"><a className="btn sm" href={hrefFor({ name: 'tickets', ref: p.ref })}>{w('Reprendre et suivre le ticket', 'Resume and follow the ticket')}</a></div> : null}
       </section>
+      <WorkAssistant project={p.id} title={p.title} />
       <LeftOffCard project={p} />
       <div className="grid-2">
         <div className="stack lg">

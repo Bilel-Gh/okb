@@ -171,7 +171,7 @@ async function startTicketNow(config: OkbConfig, input: StartInput, ref: string,
   const now = new Date().toISOString();
   const existing = await loadTicket(config, ref);
   let textFile = existing?.textFile ?? null;
-  if (input.text?.trim()) {
+  if (input.text?.trim() && !textFile) {
     textFile = resolve(ticketsDir(config), `${ref}.md`);
     await ensureDir(ticketsDir(config));
     await writeTextAtomic(textFile, `${input.text.trim()}\n`);
@@ -182,11 +182,12 @@ async function startTicketNow(config: OkbConfig, input: StartInput, ref: string,
     const journal: JournalEntry[] = [...existing.journal];
     if (!has) journal.push({ at: now, kind: 'repo', text: input.repo.name, repo: input.repo.id });
     if (existing.status === 'done') journal.push({ at: now, kind: 'reopen', text: '' });
-    const record = await saveTicket(config, {
+    const next = {
       ...existing,
       ...(title && (existing.auto || existing.title === existing.ref) ? { title } : {}),
-      repos, status: 'active', doneAt: null, auto: existing.auto && Boolean(input.auto), textFile, journal,
-    });
+      repos, status: 'active' as const, doneAt: null, auto: existing.auto && Boolean(input.auto), textFile, journal,
+    };
+    const record = JSON.stringify(next) === JSON.stringify(existing) ? existing : saveTicket(config, next);
     if (existing.status === 'done') openDb(config).run('DELETE FROM ticket_states WHERE ref = ? AND dimension = ?', ref, 'work');
     return { record, created: false, attached: !has };
   }
@@ -210,6 +211,7 @@ async function addJournalNow(config: OkbConfig, ref: string, entry: { kind: (typ
   const text = entry.text.trim().slice(0, MAX_TEXT);
   if (!text) throw new OkbError('E_INVALID', 'empty note', { key: 'ticketEmptyNote' });
   assertNoSecrets({ text }, 'ticket note');
+  if (record.journal.some((j) => j.kind === entry.kind && j.text === text && j.repo === entry.repo)) return record;
   return saveTicket(config, { ...record, journal: [...record.journal, { at: new Date().toISOString(), kind: entry.kind, text, ...(entry.repo ? { repo: entry.repo } : {}) }] });
 }
 
@@ -325,11 +327,16 @@ export async function ticketHere(config: OkbConfig, repo: RepoEntry, refsInBranc
   if (branch && !MAIN_LINES.has(branch)) {
     const onBranch = tickets.find((t) => t.repos.some((r) => r.id === repo.id && r.branch === branch));
     if (onBranch) return onBranch;
-    const ref = refsInBranch(branch)[0];
+    const refs = refsInBranch(branch);
+    if (refs.length > 1) return null;
+    const ref = refs[0];
     if (ref) {
       const known = tickets.find((t) => t.ref === ref);
       if (known && known.repos.some((r) => r.id === repo.id)) return known;
-      if (options.autoStart) return (await startTicket(config, { ref, repo, auto: true })).record;
+      if (options.autoStart) {
+        const { resumeTicket } = await import('./ticket-resume.js');
+        return (await resumeTicket(config, { ref, repo, auto: true }, { agent: true, proposeNote: false })).ticket;
+      }
       return known ?? null;
     }
   }

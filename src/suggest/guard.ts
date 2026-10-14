@@ -10,9 +10,9 @@ import { loadQueue, setStatus, type Suggestion } from './suggest.js';
  * place, the note it completes, or the folder of a pack (a repository's pages).
  * Typed by the person in a terminal, the command is their own act and passes.
  */
-export async function requireAccepted(config: OkbConfig, path: string, suggestionId: string | undefined): Promise<Suggestion | null> {
+export async function requireAccepted(config: OkbConfig, path: string, suggestionId: string | undefined, agent?: boolean): Promise<Suggestion | null> {
   if (!config.kb.brain) return null;
-  const byClaude = invokedBy() === 'claude';
+  const byClaude = agent ?? invokedBy() === 'claude';
   const queue = await loadQueue(config);
   const s = suggestionId ? queue.find((x) => x.id.toLowerCase() === suggestionId.toLowerCase()) : undefined;
   if (!byClaude) return s ?? null;

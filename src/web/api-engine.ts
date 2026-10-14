@@ -25,6 +25,7 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
   return {
     'GET /api/tickets': op('tickets.list', () => ({})),
     'GET /api/ticket': op('tickets.get', (q) => fromQuery(q, ['ref'])),
+    'POST /api/tickets/resume': op('tickets.resume', (_q, b) => pick(b, ['ref', 'repo', 'title', 'text', 'goal', 'lastAction', 'next', 'note', 'suggestion', 'context', 'decisions', 'attempts', 'criteria', 'sources', 'waiting'])),
     'POST /api/tickets/start': op('tickets.start', (_q, b) => pick(b, ['ref', 'repo', 'title', 'text'])),
     'POST /api/ticket/brief': op('tickets.brief', (_q, b) => pick(b, ['ref', 'goal', 'lastAction', 'next'])),
     'POST /api/ticket/state': op('tickets.state', (_q, b) => ({ ref: b.ref, state: pick(b, ['dimension', 'environment', 'status', 'detail', 'url']) })),
@@ -53,7 +54,7 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
     'GET /api/assistant/conversations': op('assistant.conversations', () => ({})),
     'POST /api/assistant/start': op('assistant.start', () => ({})),
     'GET /api/assistant/conversation': op('assistant.conversation', (q) => fromQuery(q, ['id'])),
-    'POST /api/assistant/ask': op('assistant.ask', (_q, b) => pick(b, ['question', 'conversation', 'mode'])),
+    'POST /api/assistant/ask': op('assistant.ask', (_q, b) => pick(b, ['question', 'conversation', 'mode', 'project', 'work'])),
     'POST /api/assistant/cancel': op('assistant.cancel', (_q, b) => pick(b, ['conversation'])),
     'POST /api/assistant/end': op('assistant.end', (_q, b) => pick(b, ['conversation', 'later'])),
     'POST /api/assistant/action': op('assistant.action', (_q, b) => pick(b, ['conversation', 'message', 'index'])),

@@ -20,6 +20,8 @@ import { checkpointIsUsable, loadCheckpoint, saveCheckpoint, loadNormalized, sav
 import { proposeFiles } from '../../proposal/files.js';
 import { analysisTemplate } from '../../pipeline/analysis.js';
 import { detectCorrections } from '../../pipeline/corrections.js';
+import { querySource } from '../../pipeline/source-query.js';
+import { issueWindow, readingReport, recordWindow, windowIdentity } from '../../pipeline/reading.js';
 import { prepareProposal } from '../../pipeline/ingest.js';
 import { materializeFile } from '../../proposal/materialize.js';
 import { listProposals, loadProposal, saveProposal, updateProposalStatus } from '../../proposal/store.js';
@@ -501,6 +503,54 @@ async function emitExtract(
   doc: Awaited<ReturnType<typeof extractSource>>,
 ): Promise<number> {
   const runId = flagString(args, 'run') ?? shortId(`${doc.source.id}:${doc.source.sha256}`);
+  const query = flagString(args, 'query');
+  const resultFile = flagString(args, 'window-result');
+  if (query && (resultFile || flagBool(args, 'coverage') || flagBool(args, 'meeting-report') || flagBool(args, 'resume'))) throw new OkbError('E_INVALID', 'targeted search is separate from complete meeting processing');
+  if (resultFile || flagBool(args, 'coverage') || flagBool(args, 'meeting-report')) {
+    if (resultFile) {
+      const result = await readFile(resolve(resultFile), 'utf8');
+      if (Buffer.byteLength(result) > 2_000_000) throw new OkbError('E_INVALID', 'window result exceeds 2 MB');
+      let parsed: unknown;
+      try { parsed = JSON.parse(result); } catch { throw new OkbError('E_INVALID', 'window result must be JSON'); }
+      await recordWindow(config, runId, doc, parsed);
+    }
+    const report = await readingReport(config, runId, doc);
+    const cursor = flagNumber(args, 'cursor') ?? 0;
+    const factPage = flagBool(args, 'meeting-report') ? paginate(report.facts, { cursor: String(cursor), limit: flagNumber(args, 'limit') ?? 20 }).page : [];
+    const rangeCursor = Math.min(flagNumber(args, 'range-cursor') ?? 0, report.coverage.unprocessedRanges.length);
+    const ranges = report.coverage.unprocessedRanges.slice(rangeCursor, rangeCursor + 40);
+    const envelopeFor = () => ({ ok: true, runId, source: report.source,
+      coverage: { ...report.coverage, unprocessedRanges: ranges, omittedRanges: report.coverage.unprocessedRanges.length - ranges.length, nextRangeCursor: rangeCursor + ranges.length < report.coverage.unprocessedRanges.length ? String(rangeCursor + ranges.length) : null },
+      windows: { delivered: report.windows.length, processed: report.windows.filter(w => w.processed).length },
+      ...(flagBool(args, 'meeting-report') ? { facts: factPage, truncation: { truncated: cursor + factPage.length < report.facts.length, shown: factPage.length, total: report.facts.length, nextCursor: cursor + factPage.length < report.facts.length ? String(cursor + factPage.length) : null } } : {}),
+      limits: report.limits });
+    const budget = config.context.budgets.ingestOutputTokens;
+    while (estimateTokens(JSON.stringify(envelopeFor(), null, 2) + '\n') > budget && (factPage.length || ranges.length)) { if (ranges.length) ranges.pop(); else factPage.pop(); }
+    if (estimateTokens(JSON.stringify(envelopeFor(), null, 2) + '\n') > budget || (report.coverage.unprocessedRanges.length > rangeCursor && !ranges.length) || (flagBool(args, 'meeting-report') && report.facts.length > cursor && !factPage.length)) throw new OkbError('E_CONFIG', 'ingestOutputTokens is too small for a reading report page with progress');
+    const envelope = envelopeFor();
+    if (mode === 'json') out.json(envelope);
+    else { out.line(`run ${runId}: ${report.coverage.processedBlocks}/${report.coverage.totalBlocks} blocks reported processed; ${report.coverage.complete ? 'all extracted blocks' : 'incomplete'}`); for (const fact of factPage) out.line(`[${fact.id}] ${fact.kind} (${fact.status}): ${fact.text}`); for (const limit of report.limits) out.line(`limit: ${limit}`); if ('truncation' in envelope && envelope.truncation) out.truncation(envelope.truncation, `okb ingest ${doc.source.uri} --extract-only --run ${runId} --meeting-report`); }
+    return 0;
+  }
+  if (query !== undefined) {
+    if (!query.trim()) throw new OkbError('E_INVALID', 'query must contain search terms');
+    const hits = querySource(doc, query); const cursor = flagNumber(args, 'cursor') ?? 0;
+    const selected = paginate(hits, { cursor: String(cursor), limit: flagNumber(args, 'limit') ?? 5 }).page;
+    const corrections = detectCorrections(doc);
+    const envelopeFor = () => {
+      const ids = new Set(selected.flatMap(h => h.blockIds));
+      return { ok: true, runId, source: doc.source, selection: { mode: 'targeted', query, matchedBlocks: hits.length, totalBlocks: doc.blocks.length, completeMeeting: false },
+        hits: selected.map(h => ({ blockId: h.blockId, score: h.score })), blocks: doc.blocks.filter(b => ids.has(b.id)),
+        corrections: corrections.filter(c => ids.has(c.correctingBlockId)),
+        truncation: { truncated: cursor + selected.length < hits.length, shown: selected.length, total: hits.length, nextCursor: cursor + selected.length < hits.length ? String(cursor + selected.length) : null },
+        limits: ['Lexical search and neighbouring passages; no complete meeting coverage or semantic answer is claimed.'] };
+    };
+    while (selected.length && estimateTokens(JSON.stringify(envelopeFor(), null, 2) + '\n') > config.context.budgets.ingestOutputTokens) selected.pop();
+    if ((hits.length > cursor && !selected.length) || estimateTokens(JSON.stringify(envelopeFor(), null, 2) + '\n') > config.context.budgets.ingestOutputTokens) throw new OkbError('E_CONFIG', 'ingestOutputTokens is too small for one hit and its neighbouring evidence; use complete extraction for smaller windows');
+    const envelope = envelopeFor();
+    if (mode === 'json') out.json(envelope); else { out.line(`run ${runId}: targeted search, ${hits.length} matching blocks (not a full report)`); for (const block of envelope.blocks) out.line(`[${block.id}] ${block.text}`); out.truncation(envelope.truncation, `okb ingest ${doc.source.uri} --extract-only --run ${runId} --query ${JSON.stringify(query)}`); }
+    return 0;
+  }
   const existing = await loadCheckpoint(config, runId);
   let cursor = flagNumber(args, 'cursor') ?? 0;
 
@@ -522,16 +572,18 @@ async function emitExtract(
   const slice = paginate(doc.blocks, { limit, cursor: String(cursor) });
   const page = [...slice.page];
   const budget = config.context.budgets.ingestOutputTokens;
+  const corrections = detectCorrections(doc);
   const envelopeFor = (blocks: typeof page) => {
     const end = cursor + blocks.length;
     return { ok: true, runId, source: doc.source, blocks,
       truncation: { truncated: end < doc.blocks.length, shown: blocks.length, total: doc.blocks.length, nextCursor: end < doc.blocks.length ? String(end) : null },
-      corrections: detectCorrections({ ...doc, blocks }), checkpointMeaning: 'delivered blocks, not proof of semantic reading' };
+      corrections: corrections.filter(c => blocks.some(b => b.id === c.correctingBlockId)), window: windowIdentity(doc, blocks), checkpointMeaning: 'delivered blocks, not proof of semantic reading; record --window-result then inspect --coverage' };
   };
   while (page.length && estimateTokens(JSON.stringify(envelopeFor(page), null, 2) + '\n') > budget) page.pop();
   if (!page.length && cursor < doc.blocks.length) throw new OkbError('E_CONFIG', 'ingestOutputTokens is too small for one block and its metadata');
   const envelope = envelopeFor(page);
   const { truncation } = envelope;
+  if (page.length) await issueWindow(config, runId, doc, page);
 
   await saveCheckpoint(config, {
     runId,

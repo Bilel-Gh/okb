@@ -39,7 +39,7 @@ describe('a workspace: one KB for a team of repositories, narrowed to the one at
     const routed = await json(['route', '--suggest', '--cwd', ws, "j'ai le ticket ORD-42 sur orders-service, il faut autoriser 100 lignes"], env, ws);
     expect(routed.scope).toMatchObject({ repo: 'orders-service', ticket: 'ORD-42', changed: true });
     expect(routed.context).toContain('OKB narrowed its scope to "orders-service"');
-    expect(routed.context).toContain('okb ticket start ORD-42 --repo orders-service');
+    expect(routed.context).toContain('okb ticket resume ORD-42 --repo orders-service');
     expect(routed.context).toContain(`Code: ${orders}`);
     // Naming the repository already in scope adds nothing to say.
     expect((await json(['route', '--suggest', '--cwd', ws, 'on reste sur orders-service'], env, ws)).scope).toBeNull();
@@ -54,7 +54,7 @@ describe('a workspace: one KB for a team of repositories, narrowed to the one at
     // Inside the repository's folder, a ticket OKB does not follow yet is reported too.
     const inRepo = await json(['route', '--suggest', '--cwd', orders, 'je commence aussi ORD-77'], env, orders);
     expect(inRepo.scope).toMatchObject({ repo: 'orders-service', ticket: 'ORD-77', changed: false });
-    expect(inRepo.context).toContain('okb ticket start ORD-77 --repo orders-service');
+    expect(inRepo.context).toContain('okb ticket resume ORD-77 --repo orders-service');
     expect((await json(['route', '--suggest', '--cwd', orders, 'où en est ORD-42 ?'], env, orders)).scope).toBeNull();
 
     // The work happens on a branch named after the ticket: OKB finds it and follows its commits.

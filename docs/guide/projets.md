@@ -1,8 +1,10 @@
 # Projets, actions et journal : garder le fil
 
 Un projet, c'est ce sur quoi tu travailles : un cours, une mission, un événement.
-Avec le module développeur, tes tickets et tes repos sont des projets tout seuls.
-OKB s'en sert pour te dire, chaque matin, par où reprendre.
+Avec le module développeur, tes tickets entrent dans le travail à reprendre.
+Les repos restent dans **Projets › Repos**, comme contexte technique : leur
+documentation, les tickets associés et la fraîcheur des sources. Ils ne se
+mélangent plus à la liste ordinaire des projets ; leurs données sont conservées.
 
 ## Un projet
 
@@ -28,6 +30,15 @@ okb project set "Sortie de juin" --status done
 
 Un projet se désigne par son titre, son identifiant (`P-1a2b3c`) ou, pour un
 ticket, sa référence (`ABC-231`).
+
+Les tickets ont le même aperçu dans Aujourd’hui, Projets et la page de leur repo :
+référence et titre, état court, puis suite ou blocage. Leur fiche spécialisée
+contient le brief, les états indépendants, les tentatives, le journal et les
+éléments du projet associé. Les anciennes adresses de projet d’un ticket
+ouvrent cette fiche ; aucune donnée ni correction humaine n’est supprimée.
+
+Depuis une fiche, les trois liens d’aide préparent une question contextualisée
+dans l’[Assistant](assistant-local.md), avant tout envoi.
 
 ## Les actions et ce que tu attends
 
@@ -90,7 +101,8 @@ depuis la dernière fois :
 | Par où reprendre | la prochaine étape du projet, sinon la première action ouverte |
 
 Tu corriges une ligne si besoin ; OKB note que c'est toi qui l'as corrigée. Au
-retour, tu retrouves ces lignes en haut du projet et dans Aujourd'hui.
+retour, tu retrouves ces lignes en haut du projet. Aujourd’hui garde un aperçu
+court de la suite ou de l’attente ; ouvre la fiche pour lire les lignes complètes.
 
 ## Aujourd'hui
 

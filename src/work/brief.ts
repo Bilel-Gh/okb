@@ -259,12 +259,12 @@ export function renderBrief(brief: Brief, options: { mentionedRef?: string | nul
       ? 'While working, record each decision, trap or open question in one line: `okb ticket note "<text>" --kind decision|trap|question` (a local journal; nothing is written in the KB). When the ticket is done, offer /okb-dev:ticket.'
       : options.mentionedRef
         ? startLine(options.mentionedRef, r.id)
-        : `No ticket in progress. When the user starts one, run \`okb ticket start <ref> --repo ${r.id}\` (local follow-up of branch, commits and journal; nothing is written in the KB), then follow /okb-dev:ticket's start mode.`,
+        : `No ticket in progress. When the user starts one, run \`okb ticket resume <ref> --repo ${r.id}\` (reconciles authorized notes with local follow-up; any note update remains a proposal), then follow /okb-dev:ticket's find/create/resume gesture.`,
   );
   return lines.join('\n');
 }
 
 /** What Claude does with a ticket the user names and OKB does not follow yet. */
 export function startLine(ref: string, repoId: string): string {
-  return `The user mentions ticket ${ref}, which OKB does not follow yet. If they are starting work on it, save the ticket text they gave to a file in your scratch folder and run \`okb ticket start ${ref} --repo ${repoId} --ticket-file <file>\` (local follow-up of branch, commits and journal; nothing is written in the KB), then follow /okb-dev:ticket's start mode.`;
+  return `The user mentions ticket ${ref}, which OKB does not follow yet. If they are starting work on it, save the ticket text they gave to a file in your scratch folder and run \`okb ticket resume ${ref} --repo ${repoId} --ticket-file <file>\` (reconciles authorized notes with local follow-up; any note update remains a proposal), then follow /okb-dev:ticket's find/create/resume gesture.`;
 }

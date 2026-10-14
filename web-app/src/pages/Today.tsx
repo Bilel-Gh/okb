@@ -14,6 +14,8 @@ import { TypeMark } from '../ui/TypeMark';
 import { NotesToRecheck, type NoteToRecheck } from '../ui/NotesToRecheck';
 import { ActionList, JournalList, type Action, type Entry } from './day-parts';
 import { KindMark, type Project } from './Projects';
+import { ProjectPreview, shortAction, workHref } from '../ui/WorkPreview';
+import type { TicketRecord } from '../app/tickets';
 
 export type Suggestion = {
   id: string; type: string; title: string; why: string; breadcrumb: string; status: string; recommendation: 'create' | 'complete' | 'link' | 'nothing';
@@ -147,25 +149,25 @@ type TodayData = {
 /** The projects to pick up, each with where the person was. */
 function Resume({ projects }: { projects: Project[] }) {
   const t = useT();
-  if (!projects.length) return <Empty title={t('app.today.resumeNone')} action={<a className="btn sm" href={hrefFor({ name: 'projects' })}>{t('app.today.openProjects')}<ArrowRight size={14} aria-hidden="true" /></a>}>{t('app.today.resumeNoneText')}</Empty>;
-  const [first, ...rest] = projects;
+  const tickets = useQuery({ queryKey: ['tickets'], queryFn: () => get<{ tickets: TicketRecord[] }>('/api/tickets'), enabled: projects.some((p) => p.kind === 'ticket') });
+  const work = projects.filter((p) => p.kind !== 'repo');
+  if (!work.length) return <Empty title={t('app.today.resumeNone')} action={<a className="btn sm" href={hrefFor({ name: 'projects' })}>{t('app.today.openProjects')}<ArrowRight size={14} aria-hidden="true" /></a>}>{t('app.today.resumeNoneText')}</Empty>;
+  const [first, ...rest] = work;
   return (
     <div className="resume">
-      <a className="resume-main" href={hrefFor({ name: 'projects', id: first!.id })}>
+      {first!.kind === 'ticket' ? <ul className="rows"><ProjectPreview project={first!} ticket={tickets.data?.tickets?.find((t) => t.ref === first!.ref)} /></ul> : <><a className="resume-main" href={workHref(first!)}>
         <KindMark kind={first!.kind} />
-        <span className="grow"><span className="title">{first!.title}</span><span className="meta">{first!.where || t('app.projects.noWhere')}</span></span>
+        <span className="grow"><span className="title">{first!.title}</span><span className="meta">{shortAction(first!.where) || t('app.projects.noWhere')}</span></span>
         <span className="btn primary sm"><Play size={14} aria-hidden="true" />{t('app.today.resumeGo')}</span>
       </a>
       {first!.leftOff ? (
         <dl className="resume-left">
-          {(['done', 'tried', 'waiting', 'resume'] as const).filter((f) => first!.leftOff![f]).map((f) => <div key={f}><dt>{t(`app.leftOff.${f}`)}</dt><dd>{first!.leftOff![f]}</dd></div>)}
+          {(['waiting', 'resume'] as const).filter((f) => first!.leftOff![f]).map((f) => <div key={f}><dt>{t(`app.leftOff.${f}`)}</dt><dd>{shortAction(first!.leftOff![f])}</dd></div>)}
         </dl>
-      ) : first!.next ? <p className="resume-next"><ArrowRight size={15} aria-hidden="true" /><span>{first!.next}</span></p> : null}
+      ) : first!.next ? <p className="resume-next"><ArrowRight size={15} aria-hidden="true" /><span>{shortAction(first!.next)}</span></p> : null}</>}
       {rest.length ? (
         <ul className="rows tight">
-          {rest.map((p) => (
-            <li key={p.id} className="link-row"><a href={hrefFor({ name: 'projects', id: p.id })}><KindMark kind={p.kind} size="sm" /><span className="grow"><span className="title">{p.title}</span><span className="meta">{p.leftOff?.resume || p.next || p.where || t('app.projects.noWhere')}</span></span></a></li>
-          ))}
+          {rest.map((p) => <ProjectPreview key={p.id} project={p} ticket={tickets.data?.tickets?.find((t) => t.ref === p.ref)} />)}
         </ul>
       ) : null}
     </div>

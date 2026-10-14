@@ -10,6 +10,7 @@ export type TicketRecord = {
   ref: string; title: string; status: 'active' | 'done'; updatedAt: string; startedAt: string;
   repos: { id: string; branch: string | null }[];
   journal: { at: string; kind: string; text: string; repo?: string; sha?: string }[];
+  next?: string; waiting?: { status: string; detail: string } | null;
 };
 export type TicketState = { dimension: TicketDimension; environment: string | null; status: string; source: 'person' | 'agent' | 'github' | 'jira'; at: string | null; detail: string; url: string | null };
 export type TicketCriterion = { id: string; kind: 'tests' | 'documentation' | 'acceptance' | 'confirmation' | 'other'; text: string; required: boolean; status: 'unknown' | 'pending' | 'met' | 'waived'; at: string };

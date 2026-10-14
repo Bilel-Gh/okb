@@ -25,7 +25,7 @@ export type Route =
   | { name: 'inbox'; tab?: InboxTab; id?: string; all?: boolean; compose?: boolean }
   | { name: 'learn'; tab?: LearnTab }
   | { name: 'ask'; q?: string }
-  | { name: 'assistant'; id?: string }
+  | { name: 'assistant'; id?: string; project?: string; workKind?: string; workRef?: string; prompt?: string; mode?: 'ask' | 'resume' | 'find' }
   | { name: 'tools'; tab?: ToolsTab }
   | { name: 'upkeep'; tab?: UpkeepTab }
   | { name: 'modules' }
@@ -114,7 +114,7 @@ export function parseRoute(hash: string): Route {
     case 'ask':
       return q.q ? { name: 'ask', q: q.q } : { name: 'ask' };
     case 'assistant':
-      return q.q ? { name: 'ask', q: q.q } : { name: 'assistant', ...(q.id ? { id: q.id } : {}) };
+      return q.q ? { name: 'ask', q: q.q } : { name: 'assistant', ...(q.id ? { id: q.id } : {}), ...(q.project ? { project: q.project } : {}), ...(q.workKind && q.workRef ? { workKind: q.workKind, workRef: q.workRef } : {}), ...(q.prompt ? { prompt: q.prompt } : {}), ...(q.mode === 'resume' || q.mode === 'find' || q.mode === 'ask' ? { mode: q.mode } : {}) };
     case 'tools':
       return { name: 'tools' };
     case 'source':
@@ -188,7 +188,7 @@ export function hrefFor(route: Route): string {
       return '#/review';
     case 'learn': return route.tab === 'career' ? '#/career' : route.tab ? `#/learn/${route.tab}` : '#/learn';
     case 'ask': return route.q ? `#/ask?${new URLSearchParams({ q: route.q })}` : '#/ask';
-    case 'assistant': return withQuery('#/assistant', { id: route.id });
+    case 'assistant': return withQuery('#/assistant', { id: route.id, project: route.project, workKind: route.workKind, workRef: route.workRef, prompt: route.prompt, mode: route.mode });
     case 'tools': return route.tab ? `#/${route.tab}` : '#/tools';
     case 'upkeep': return route.tab ? `#/${route.tab}` : '#/upkeep';
     case 'modules': return '#/modules';

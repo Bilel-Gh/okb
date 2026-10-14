@@ -19,6 +19,19 @@ async function env() {
 }
 
 describe('source adapters', () => {
+  it('preserves a literal Correction: label rather than mistaking it for a speaker', async () => {
+    const { config } = await env();
+    const doc = await extractSource({ uri: 'file:///label.vtt', bytes: Buffer.from('WEBVTT\n\n00:00.000 --> 00:01.000\nCorrection: the queue retains seven days.') }, config);
+    expect(doc.blocks[0]?.text).toBe('Correction: the queue retains seven days.');
+    expect(doc.blocks[0]?.speaker).toBeUndefined();
+    expect(detectCorrections(doc)).toHaveLength(1);
+  });
+  it('keeps a final correction linked beyond the twelve-cue default window', async () => {
+    const { config } = await env();
+    const cues = ['The retention policy is thirty days.', ...Array.from({ length: 30 }, (_, i) => `Unrelated topic ${i}.`), 'Correction: the retention policy is seven days, not thirty days.'];
+    const doc = await extractSource({ uri: 'file:///fictitious-long.vtt', filename: 'long.vtt', bytes: Buffer.from('WEBVTT\n\n' + cues.map((text, i) => `00:00:${String(i).padStart(2, '0')}.000 --> 00:00:${String(i + 1).padStart(2, '0')}.000\n<v Dana>${text}</v>`).join('\n\n')) }, config);
+    expect(detectCorrections(doc).at(-1)?.correctedBlockId).toBe(doc.blocks[0]!.id);
+  });
   it('declares exactly what it supports', async () => {
     const { config } = await env();
     const matrix = supportMatrix(config);

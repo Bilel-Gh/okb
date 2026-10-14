@@ -230,3 +230,57 @@ enrichissent les prochains résultats. Le logiciel n’entraîne pas Claude et n
 déduit pas automatiquement un profil psychologique. Les corrections de savoir
 passent par une proposition. Pour aller plus loin, mesurer d’abord les réponses
 utiles, les fausses attributions et le temps de revue sur un corpus représentatif.
+
+
+## Lire l’architecture d’un espace de travail
+
+Le modèle déterministe garde tous les nœuds, toutes les relations et les repères
+fichier:ligne (`src/arch/model.ts`). Le scan reste statique : une méthode Fetch
+calculée, des options variables ou un spread restent `ANY`, et une correspondance
+avec cette méthode inconnue reste probable. La variable de base nommant un repo
+limite les candidats avant la correspondance de chemin et de méthode ; un conflit
+avec les routes de ce repo devient une question. Une relation regroupant plusieurs
+appels conserve la confiance la plus faible. Une dépendance de technologie de
+base de données indique une utilisation possible, jamais une instance ou une base
+partagée prouvée. Les données détectées restent séparées par repo tant que leur
+identité commune n’est pas établie.
+
+L’écran Architecture commence avec un repo et huit éléments au plus : le repo
+choisi et ses voisins entrants et sortants. Le nom complet se répartit sur plusieurs
+lignes ; le texte reste à 100 % et le dessin peut défiler. Les retours et les appels
+sautant une colonne ont des voies distinctes au-dessus du dessin ; les autres liens
+passent entre les colonnes, hors des labels. Les verbes et les méthodes se lisent
+dans la liste des relations et dans les preuves du lien sélectionné, pour éviter
+l’empilement de textes sur les flèches. Un point d’interrogation marque chaque lien
+incertain ; le statut reste aussi écrit dans la liste.
+
+Les comptes précisent les éléments et relations hors du dessin, ainsi que les
+voisins directs masqués. Les groupes par nature (repos, bases, systèmes externes)
+peuvent être ouverts pour choisir un membre ou développés dans le dessin. Toutes
+les relations restent accessibles dans la liste, avec leurs noms complets,
+méthodes, confiance et accès aux preuves des deux côtés lorsqu’elles existent.
+Sélectionner un repo recadre son voisinage ; choisir un lien ajoute ses deux
+extrémités au dessin. Sur téléphone, le panneau de preuves et la liste passent
+sous le graphe ; choisir une relation place le focus clavier sur les preuves.
+
+Les exports conteneurs et contexte gardent douze boîtes au plus et décrivent les
+membres de chaque groupe (`View.groups`). Les liens entrants, sortants et internes
+aux groupes gardent leurs identifiants et leurs preuves. L’interface travaille
+sur le modèle complet pour développer ces groupes ; copier en Mermaid exporte
+le dessin visible, pas une version arbitrairement tronquée du système. Les
+parcours listent douze relations à la fois, signalent celles qui restent et
+permettent de continuer. `View.omittedRelations` décrit aussi les identifiants
+omis dans un export borné. Tous les candidats d’un premier appel ambigu restent
+présents. Un parcours représente les dépendances possibles accessibles depuis
+cet appel : il ne prouve pas leur ordre d’exécution ni leur causalité avec une
+route particulière. Le score affiché est un contrôle de structure, pas une
+certification de vérité.
+
+Les régressions couvrent méthodes dynamiques, conflits de périmètre, confiance
+mixte, groupes, bases communes ou isolées, noms longs, cycles et auto-appels.
+`tests/journeys/architecture.journey.ts` inspecte l’application construite dans
+Chromium à 1440, 1280 et 390 pixels, vérifie l’absence de collision entre noms et
+de débordement de page, l’expansion et l’accès clavier aux preuves. Les captures
+se placent dans le dossier temporaire de la machine, avec le préfixe
+`okb-architecture-`. Ces fixtures fictives ne reproduisent pas le graphe réel de
+la personne et ne valident pas tous les frameworks ou tous les navigateurs.

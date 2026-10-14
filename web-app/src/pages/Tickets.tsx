@@ -8,6 +8,11 @@ import { useShareWords } from '../app/sharing';
 import { CRITERION_WORDS, DIMENSION_WORDS, STATE_WORDS, TICKET_STATES, type GithubPermission, type TicketCriterion, type TicketRecord, type TicketState, type TicketView } from '../app/tickets';
 import { ConfirmDialog } from '../ui/Confirm';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
+import { TicketPreview } from '../ui/WorkPreview';
+import { WorkAssistant } from '../ui/WorkAssistant';
+import type { Project } from './Projects';
+import { ActionList, type Action } from './day-parts';
+import { DocumentRows, type Doc } from './Documents';
 
 function useTicketWrite(ref: string) {
   const qc = useQueryClient();
@@ -46,7 +51,7 @@ function List() {
   const shown = q.data.tickets.filter((t) => t.status === filter);
   return <div className="page stack lg"><div className="page-head"><div className="segmented" role="group" aria-label={w('Filtrer les tickets', 'Filter tickets')}>{(['active', 'done'] as const).map((v) => <button key={v} type="button" aria-pressed={filter === v} onClick={() => setFilter(v)}>{v === 'active' ? w('À reprendre', 'To resume') : w('Travail terminé', 'Work done')}</button>)}</div><span className="spacer" /><button className="btn primary" type="button" onClick={() => setAdding(!adding)} aria-expanded={adding}><Plus size={16} aria-hidden="true" />{w('Suivre un ticket', 'Follow a ticket')}</button></div>
     {adding ? <section className="panel"><div className="panel-body"><StartTicket /></div></section> : null}
-    <section className="panel"><div className="panel-head"><h2><TicketIcon size={17} aria-hidden="true" />{w('Mes tickets', 'My tickets')}</h2></div><div className="panel-body"><p className="muted">{w('Le travail terminé ne confirme ni la PR, ni la CI, ni la livraison.', 'Finished work does not confirm the PR, CI or delivery.')}</p></div>{shown.length ? <ul className="rows">{shown.map((t) => <li className="link-row" key={t.ref}><a href={hrefFor({ name: 'tickets', ref: t.ref })}><span className="grow"><span className="title">{t.ref} · {t.title}</span><span className="meta">{t.repos.map((r) => `${r.id}${r.branch ? ` · ${r.branch}` : ''}`).join(', ')}</span></span><When at={t.updatedAt} /></a></li>)}</ul> : <div className="panel-body"><Empty title={w('Aucun ticket dans cette liste', 'No ticket in this list')} /></div>}</section>
+    <section className="panel"><div className="panel-head"><h2><TicketIcon size={17} aria-hidden="true" />{w('Mes tickets', 'My tickets')}</h2></div><div className="panel-body"><p className="muted">{w('Le travail terminé ne confirme ni la PR, ni la CI, ni la livraison.', 'Finished work does not confirm the PR, CI or delivery.')}</p></div>{shown.length ? <ul className="rows">{shown.map((t) => <TicketPreview key={t.ref} ticket={t} />)}</ul> : <div className="panel-body"><Empty title={w('Aucun ticket dans cette liste', 'No ticket in this list')} /></div>}</section>
   </div>;
 }
 
@@ -117,11 +122,26 @@ function External({ view }: { view: TicketView }) {
     <details><summary>{w('Déclarer un état Jira observé', 'Declare an observed Jira state')}</summary><form className="stack ticket-form" onSubmit={(e) => { e.preventDefault(); write.mutate({ endpoint: 'jira', body: { issue: view.ticket.ref, status: jiraStatus, url: jiraUrl, observedAt: new Date(observedAt).toISOString() } }); }}><p className="muted small">{w('Cette saisie ne contacte pas Jira et ne déduit aucun état de livraison de son libellé.', 'This does not contact Jira or infer delivery from its label.')}</p><label className="field"><span className="label">{w('État Jira que j’ai observé', 'Jira state I observed')}</span><input className="input" required maxLength={200} value={jiraStatus} onChange={(e) => setJiraStatus(e.target.value)} /></label><label className="field"><span className="label">{w('Lien du ticket Jira', 'Jira issue link')}</span><input className="input" type="url" required value={jiraUrl} onChange={(e) => setJiraUrl(e.target.value)} placeholder="https://jira.example/browse/ABC-42" /></label><label className="field"><span className="label">{w('Date de cette observation', 'Date of this observation')}</span><input className="input" type="datetime-local" required value={observedAt} onChange={(e) => setObservedAt(e.target.value)} /></label><button className="btn primary" disabled={!jiraStatus.trim() || !jiraUrl || !observedAt || !Number.isFinite(Date.parse(observedAt)) || write.isPending}>{w('Garder cette observation Jira', 'Keep this Jira observation')}</button></form></details><SaveError error={write.error} />
   </div></section>;
 }
+function AssociatedProject({ refId }: { refId: string }) {
+  const w = useShareWords();
+  const q = useQuery({ queryKey: ['projects', 'all'], queryFn: () => get<{ projects: Project[] }>('/api/projects', { status: 'all' }) });
+  const project = q.data?.projects?.find((p) => p.kind === 'ticket' && p.ref === refId);
+  const actions = useQuery({ queryKey: ['actions', project?.id], queryFn: () => get<{ actions: Action[] }>('/api/actions', { project: project!.id }), enabled: !!project });
+  const docs = useQuery({ queryKey: ['documents', 'project', project?.id], queryFn: () => get<{ documents: Doc[] }>('/api/documents', { project: project!.id }), enabled: !!project });
+  if (q.error) return <ErrorState error={q.error} retry={() => void q.refetch()} />;
+  if (!project) return null;
+  return <details className="panel repo-secondary"><summary>{w('Reprise, actions et documents associés', 'Associated resumption, actions and documents')}</summary><div className="stack lg">
+    {project.where || project.next || project.leftOff ? <dl className="ticket-brief">{project.where ? <div><dt>{w('Contexte conservé', 'Saved context')}</dt><dd>{project.where}</dd></div> : null}{project.next ? <div><dt>{w('Suite conservée', 'Saved next step')}</dt><dd>{project.next}</dd></div> : null}{project.leftOff ? (['done', 'tried', 'waiting', 'resume'] as const).filter((f) => project.leftOff![f]).map((f) => <div key={f}><dt>{w(({ done: 'Fait', tried: 'Essayé', waiting: 'En attente', resume: 'Par où reprendre' })[f], ({ done: 'Done', tried: 'Tried', waiting: 'Waiting', resume: 'Where to resume' })[f])}</dt><dd>{project.leftOff![f]}</dd></div>) : null}</dl> : null}
+    <ActionList project={project.id} kind="todo" actions={(actions.data?.actions ?? []).filter((a) => a.kind === 'todo' || a.kind === 'asked')} placeholder={w('Une chose à faire…', 'Something to do…')} empty={w('Aucune action', 'No action')} />
+    <ActionList project={project.id} kind="waiting" actions={(actions.data?.actions ?? []).filter((a) => a.kind === 'waiting')} placeholder={w('Ce que j’attends…', 'What I am waiting for…')} empty={w('Aucune attente', 'No waiting')} />
+    {actions.error || docs.error ? <ErrorState error={actions.error ?? docs.error} /> : null}{docs.data?.documents?.length ? <DocumentRows docs={docs.data.documents} showProject={false} /> : null}{project.folder ? <a className="link" href={hrefFor({ name: 'brain', path: project.folder })}>{w('Notes associées', 'Associated notes')}</a> : null}
+  </div></details>;
+}
 function Detail({ refId, setTitle }: { refId: string; setTitle?: (s: string) => void }) {
   const w = useShareWords(); const q = useQuery({ queryKey: ['ticket', refId], queryFn: () => get<TicketView>('/api/ticket', { ref: refId }) });
   useEffect(() => { if (q.data) setTitle?.(`${q.data.ticket.ref} · ${q.data.ticket.title}`); }, [q.data?.ticket.title, q.data?.ticket.ref, setTitle]);
   if (q.isLoading) return <div className="page"><SkeletonRows /></div>;
   if (q.error || !q.data) return <div className="page"><ErrorState error={q.error} retry={() => void q.refetch()} /></div>;
-  return <div className="page stack lg"><a className="link" href={hrefFor({ name: 'tickets' })}><ArrowLeft size={15} aria-hidden="true" />{w('Tous mes tickets', 'All my tickets')}</a><h1 className="ticket-title">{q.data.ticket.ref} · {q.data.ticket.title}</h1><Brief view={q.data} /><States view={q.data} /><div className="grid-2"><div className="stack lg"><Criteria view={q.data} /><Reuses view={q.data} /></div><div className="stack lg"><Attempts view={q.data} /><External view={q.data} /></div></div></div>;
+  return <div className="page stack lg"><a className="link" href={hrefFor({ name: 'tickets' })}><ArrowLeft size={15} aria-hidden="true" />{w('Tous mes tickets', 'All my tickets')}</a><h1 className="ticket-title">{q.data.ticket.ref} · {q.data.ticket.title}</h1><WorkAssistant kind="ticket" refId={q.data.ticket.ref} title={`${q.data.ticket.ref} · ${q.data.ticket.title}`} /><Brief view={q.data} /><States view={q.data} /><AssociatedProject refId={refId} /><details className="panel repo-secondary"><summary>{w('Journal et repos du ticket', 'Ticket journal and repositories')}</summary><div className="stack">{q.data.ticket.repos.map((r) => <a className="link" key={r.id} href={hrefFor({ name: 'repos', id: r.id })}>{r.id}{r.branch ? ` · ${r.branch}` : ''}</a>)}{q.data.ticket.journal.length ? <ul className="stack">{q.data.ticket.journal.map((j, i) => <li key={i}><span className="meta">{j.kind} · <When at={j.at} /></span><p>{j.text}</p></li>)}</ul> : <p className="muted">{w('Aucune ligne de journal', 'No journal entries')}</p>}</div></details><div className="grid-2"><div className="stack lg"><Criteria view={q.data} /><Reuses view={q.data} /></div><div className="stack lg"><Attempts view={q.data} /><External view={q.data} /></div></div></div>;
 }
 export default function Tickets({ route, setTitle }: { route: Extract<Route, { name: 'tickets' }>; setTitle?: (s: string) => void }) { return route.ref ? <Detail key={route.ref} refId={route.ref} setTitle={setTitle} /> : <List />; }

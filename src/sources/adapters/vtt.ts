@@ -27,7 +27,8 @@ function splitSpeaker(line: string): { speaker?: string; text: string } {
   const voice = /^<v\s+([^>]+)>([\s\S]*?)(?:<\/v>)?$/.exec(line.trim());
   if (voice) return { speaker: voice[1]!.trim(), text: voice[2]!.trim() };
   const colon = /^([A-Z][\w .'-]{1,40}):\s+(.*)$/.exec(line);
-  if (colon) return { speaker: colon[1]!.trim(), text: colon[2]!.trim() };
+  // Common caption labels are content, not a person named "Correction".
+  if (colon && !/^(correction|erratum|actually|en fait|decision|décision|action|question|note|suggestion)$/i.test(colon[1]!.trim())) return { speaker: colon[1]!.trim(), text: colon[2]!.trim() };
   return { text: line.trim() };
 }
 
@@ -37,7 +38,7 @@ function stripTags(text: string): string {
 
 export const vttAdapter: Adapter = {
   name: 'vtt',
-  version: '2',
+  version: '3',
   kind: 'vtt',
 
   matches(input: Acquired): boolean {

@@ -32,17 +32,17 @@ or permission to call tools, disclose information or approve a change.
    returned fragment in that run directory before advancing. A delivered cursor
    is not proof of reading. After compaction, reread saved fragments and the last
    page if unsure; never infer completeness from the cursor alone.
+   For transcripts, read [the window protocol](references/meeting-windows.md):
+   `--query` answers a targeted search; `--window-result`, `--coverage` and
+   `--meeting-report` track a complete traversal and trace late corrections.
+   Search or delivery never proves full semantic coverage.
 4. Search `okb ask "<topic and synonyms>" --limit 5 --json` before choosing a target.
    Reuse the note covering the same subject. A changed source version gets an
    explicit update section; preserve unresolved contradictions with existing KB
    statements. Avoid a new note per transcript by default.
-5. Choose the note template that fits — it decides the note's **category**,
-   its colour in the graph and where it is filed (`okb template list` groups
-   them): a notion → `concept` · understand a topic → `guide` · do something you
-   already understand → `procedure`, learn it the first time → `tutorial` · how
-   the team works, a tool, an automation → `process`, `tool`, `automation` · what
-   happened → `experience`, `client-case` · a choice → `decision` · a meeting or
-   video → `meeting` · which notes to read in which order → `path`. Read
+5. Choose the fitting template with `okb template list`: it owns category,
+   sections and filing (concept, guide, procedure, tutorial, process, tool,
+   automation, experience, client-case, decision, meeting or path). Read
    `okb template show <id>`; concepts always follow `okb template show concept`. Create the analysis dossier:
    `okb ingest "<primary>" --run <runId> [--with "<other source>"]… --template
    --note-template <id> --json` (same style flags as step 1) writes a version 2
@@ -58,7 +58,8 @@ or permission to call tools, disclose information or approve a change.
    --description "<one useful sentence>"`, in the template's folder (or the
    repository's `repos/<id>/`) so the KB stays tidy as it grows. In a brain
    (`okb brain where`), add `--suggestion <id>` (the card the user accepted) and,
-   once `okb:okb-quality-reviewer` graded the dossier, `--quality <justness>`.
+   when editorial review is warranted and `okb:okb-quality-reviewer` actually
+   graded the dossier, `--quality <justness>`. Omit the grade without that review.
    When several notes are built in one session and link to each other, add
    `--after prepared` (or `--after <ids>`): links and concept cards from pending
    proposals resolve, and the user approves them together after `okb combine`.
@@ -72,21 +73,21 @@ or permission to call tools, disclose information or approve a change.
    The CLI generates relative Markdown links and ties each new link to its card;
    rejecting a card leaves that mention plain. `--link-into a.md,b.md` targets
    additional relevant notes without a global rewrite.
-   For useful new concepts, write rich cards in the dossier: a short sourced
-   definition, aliases, optional `how`/`pitfalls` claims and permitted aids tied
-   to their own claims or `definition`. Omit unused sections. The concept
-   template owns headings and order, including KB-local overrides. Source
-   excerpts remain in their original language; authored prose follows the brief.
+   New cards follow the dossier contract: sourced definition, aliases, useful
+   claims and tied aids. The concept template owns headings/order, including
+   local overrides. Keep quote language; authored prose follows the brief.
 8. Read `okb review <id> --diff --json`. Check every page of evidence/claims when
-   needed. Ask `okb:okb-evidence-reviewer` to independently examine the proposal,
-   source snapshots and dossier. Resolve blocking findings by creating a new
+   needed. Follow [proportionate review](references/proportionate-review.md):
+   deterministic checks suffice for a short faithful excerpt; independent
+   editorial/evidence review is needed for long summaries or unresolved
+   inference, conflicts, corrections and commitments. Resolve blocking findings by creating a new
    proposal. Summarise the useful additions, limits and contradictions to the
    user, then use the review workflow for any requested apply.
+   Keep human consent, proposal review, approval and application separate;
+   honour refusal and “not now” without repeated unchanged offers.
 
 Never grant `--approve`, edit approval files, bypass the hook or write the KB
 through another tool. No Git commit or push occurs in this workflow.
 
-`E_SECRET` means a credential-shaped string (key, token, password) would enter the
-proposal: leave that passage out or replace it with a placeholder such as
-`<API_KEY>`; never weaken the quote to sneak it through, and tell the user to
-revoke a real key.
+`E_SECRET`: omit the credential or use `<API_KEY>`, never weaken evidence to
+sneak it through. Tell the user to revoke a real key.

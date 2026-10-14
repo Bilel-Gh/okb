@@ -183,7 +183,9 @@ export async function extractSource(
       blocks.push({ ...block, id: `${sourceId}#${index}`, index, text: block.text.slice(part * maxChars, (part + 1) * maxChars), ...(parts > 1 ? { part: { index: part + 1, total: parts } } : {}) });
     }
   }
-  const doc: NormalizedDoc = { ...extracted, source: { ...extracted.source, adapterVersion: `${extracted.source.adapterVersion}:bounded-1` }, blocks,
+  // The bounding budget affects block IDs and text boundaries. Include it in
+  // the extraction revision so indexes/checkpoints never reuse a different layout.
+  const doc: NormalizedDoc = { ...extracted, source: { ...extracted.source, adapterVersion: `${extracted.source.adapterVersion}:bounded-2:${maxChars}` }, blocks,
     outline: blocks.filter(b => b.kind === 'heading').map(b => ({ depth: b.section?.length ?? 1, text: b.text, blockId: b.id })) };
 
 

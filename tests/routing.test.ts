@@ -16,6 +16,9 @@ async function skillDir(skill: string): Promise<string> { for (const p of PLUGIN
  */
 const CASES: readonly { request: string; expect: SkillId; why: string }[] = [
   // positive
+  { request: 'Reprends le ticket ORD-42 commencé hors OKB', expect: 'okb-dev-ticket', why: 'resume existing work' },
+  { request: 'Je commence le ticket ORD-43', expect: 'okb-dev-ticket', why: 'new ticket' },
+  { request: 'Resume ticket ORD-44 from this branch', expect: 'okb-dev-ticket', why: 'resume ticket (en)' },
   { request: 'Install okb and point it at my notes folder', expect: 'okb-setup', why: 'explicit install' },
   { request: "Je veux changer le niveau d'aide aux concepts", expect: 'okb-setup', why: 'assist level' },
   { request: 'Ingest meeting-2026-01.vtt into the fleet notes', expect: 'okb-ingest', why: 'source file' },

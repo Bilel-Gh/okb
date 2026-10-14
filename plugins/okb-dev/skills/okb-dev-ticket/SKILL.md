@@ -1,6 +1,6 @@
 ---
 name: okb-dev-ticket
-description: Follow a ticket in a code repository OKB documents and keep its knowledge base current — at the start, brief the user from the KB (notes to read, files likely to change, open questions, plan); when done, prepare cited updates for approval at two levels, the repository's notes (ticket note, where to change what, traps) and the shared KB (business concepts, features across repositories). Use when the user starts or finishes a ticket (« je commence le ticket ABC-123 », « j'ai fini mon ticket ») or brings a fact about the repository. Do not use for writing code, for a repository OKB does not document yet (offer /okb-dev:onboard), or for another tool's knowledge base.
+description: Find, create or resume a ticket in a registered repository from its reference, local state and authorized KB notes. Brief the user on what was done, why, failed attempts, blockers and the next action; prepare useful cited note updates for human review. Use when the user starts, resumes or finishes a ticket, including work started before OKB. Do not use to write code, onboard an unregistered repository (offer /okb-dev:onboard), or update another tool's knowledge base.
 ---
 
 # Follow a ticket, then feed the KB at the right level
@@ -14,15 +14,43 @@ description: Follow a ticket in a code repository OKB documents and keep its kno
 No repository in scope and none named → ask which one (`okb scope --json` lists
 the workspace's). Not registered → offer `/okb-dev:onboard` and stop.
 
-## Starting a ticket
+## Find, create or resume a ticket in one gesture
 
-Save the ticket text the user gave to a file in your scratch folder, then
-`okb ticket start <ref> [--repo <id>] --ticket-file <file> --json`. OKB now
-follows its branch and commits (no AI, nothing in the KB) and narrows to the
-repository. Run the `ask` command it returns (scoped search), read the top
-notes, then answer: the notes to read first, the files likely to change
-(`path:line`, checked in the code), the open questions it meets, related
-tickets, a short plan. Write nothing in the KB.
+1. Use the reference explicitly named by the person; otherwise inspect the current
+   branch and the conversation actually available. Save supplied ticket text in
+   the scratch folder. Never claim access to another conversation or an
+   unconfigured Jira/GitHub account. Read authorized branch, commits and diff
+   when they help explain ongoing work; Git is not evidence of deployment.
+2. Run `okb ticket resume <ref> [--repo <id>] --ticket-file <file> --json`.
+   Without a file, omit `--ticket-file`. The command also accepts `--goal`,
+   `--last-action`, `--next` and `--note <KB path>`. With no reference, a single
+   reference in the current branch is enough. **Do not run `start` first**:
+   `resume` searches operational SQLite state and authorized KB notes before
+   creating anything. The existing `start` command uses this same reconciliation.
+3. An ambiguity returns its candidates. Ask only for the indispensable reference,
+   repo, profile (`--kb`) or note (`--note`), then retry. Never pick the first
+   candidate. A reference can span explicitly named repos; profiles stay isolated.
+4. Read `notes`, the returned brief and its `conflicts`. Existing human text,
+   goal and next step stay intact; fresh conflicting text goes into the journal
+   once. Explain the conflict in one sentence. A note alone restores local
+   follow-up; follow-up alone prepares one note proposal. Identical retries reuse
+   the same proposal, including an **écartée/superseded** proposal. Never revive
+   or repeatedly offer a refusal. No Markdown file is written directly.
+5. Use available facts only: objective, useful context, last action, decisions
+   **and reasons**, failed attempts **and conditions**, waiting/blocker, next step,
+   sources and exit criteria. Missing facts remain unknown. The common engine
+   `tickets.resume` accepts these structured fields (`decisions`, `attempts`,
+   `criteria`, `sources`, `waiting`) for MCP/API callers; in the CLI use `brief`,
+   `note`, `attempt`, `criterion` and `state` for explicit additions. `brief`
+   intentionally corrects a field; automatic reconciliation only fills an empty one.
+6. Run the returned scoped `ask` command, read relevant passages, and give a short
+   resume: what was done, why, what failed, what blocks, and the next action.
+   Open the cited code before asserting files to change. Present a new proposal
+   only if useful, with its sources and unknowns; the person reviews/applies it.
+   In a brain, `proposalDeferred` means an accepted suggestion is still required:
+   present one card for the returned path, wait for the person's choice, then retry
+   with `--suggestion <id>`. Never accept that card yourself. An existing note's
+   new facts become a reviewable complement that preserves its original content.
 
 **While working**, each time a decision is taken, a trap found or a question
 left open, record one line with its *why*:
@@ -54,7 +82,7 @@ left open, record one line with its *why*:
    With `sharedKb` set (the repository has its own KB), add `--to-kb <sharedKb.id>`.
    Then `okb repo questions --propose` if questions changed, and `okb combine <ids…>`.
    **In a brain**, steps 3–4 start with the cards: [the brain rules](references/brain.md).
-5. **Review** with `okb:okb-evidence-reviewer`, present one proposal (what the
+5. **Review** deterministic evidence and proposal checks first. Use `okb:okb-evidence-reviewer` for interpretive or contradictory claims that need editorial judgment, not mechanically copied facts. Present one proposal (what the
    KB learns, which notes change, repository vs shared), offer « Relire dans
    l'app web (okb serve) » · « Voir le diff ici » · « Plus tard ». Never approve.
 6. **Next.** Offer `/okb-dev:ship` for the commit and PR text when not merged yet.

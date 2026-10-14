@@ -2,29 +2,49 @@
  * The system map laid out like a metro map: the ways in on the left, each
  * repository one column after those that call it, its databases right under
  * it, shared libraries on a line of their own at the bottom, outside systems
- * at the far right. Lines run horizontally, vertically or at 45°; a call that
- * goes back to the left runs on a lane below the stations.
+ * at the far right. Lines use corridors between columns; return calls and calls spanning a
+ * column use separate lanes above the stations. Full names wrap, with row
+ * spacing derived from their height.
  */
 export type MapBox = { readonly id: string; readonly kind: 'repo' | 'datastore' | 'external' | 'system'; readonly name: string; readonly tech: string };
 export type MapArrow = { readonly id: string; readonly from: string; readonly to: string; readonly kind: 'http' | 'event' | 'package' | 'service' | 'data' | 'external' };
-export type Station = MapBox & { readonly x: number; readonly y: number };
+export type Station = MapBox & { readonly x: number; readonly y: number; readonly nameLines: readonly string[]; readonly techLines: readonly string[]; readonly labelHeight: number };
 export type MapEdge = { readonly id: string; readonly from: string; readonly to: string; readonly kind: MapArrow['kind']; readonly d: string; readonly lx: number; readonly ly: number; readonly back: boolean };
 export type MapLayout = { readonly stations: Station[]; readonly edges: MapEdge[]; readonly width: number; readonly height: number };
 
 export const COL = 232;
 export const ROW = 128;
-const PAD_X = 104;
+const PAD_X = 132;
 const PAD_Y = 48;
 /** Room under the lowest station for its two-line label. */
 const LABEL_ROOM = 64;
+
+/** Wrap all words without losing characters, including long technical identifiers. */
+export function labelLines(text: string, size = 28): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line && line.length + word.length + 1 > size) { lines.push(line); line = ''; }
+    let rest = word;
+    while (rest.length > size) { if (line) { lines.push(line); line = ''; } lines.push(rest.slice(0, size)); rest = rest.slice(size); }
+    line += `${line ? ' ' : ''}${rest}`;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
 const FLOW = new Set<MapArrow['kind']>(['http', 'event', 'service']);
 
 type Point = readonly [number, number];
 
 export function layoutMap(view: { readonly boxes: readonly MapBox[]; readonly arrows: readonly MapArrow[] }): MapLayout {
+  if (!view.boxes.length) return { stations: [], edges: [], width: COL, height: ROW };
+  const names = new Map(view.boxes.map((b) => [b.id, labelLines(b.name)]));
+  const techs = new Map(view.boxes.map((b) => [b.id, b.tech !== b.name ? labelLines(b.tech, 32) : []]));
+  const labelHeight = (id: string) => 30 + names.get(id)!.length * 17 + techs.get(id)!.length * 15;
+  const rowGap = Math.max(ROW, ...view.boxes.map((b) => labelHeight(b.id) + 36));
   const known = new Set(view.boxes.map((b) => b.id));
-  const arrows = view.arrows.filter((a) => known.has(a.from) && known.has(a.to) && a.from !== a.to);
-  const flow = arrows.filter((a) => FLOW.has(a.kind));
+  const arrows = view.arrows.filter((a) => known.has(a.from) && known.has(a.to));
+  const flow = arrows.filter((a) => FLOW.has(a.kind) && a.from !== a.to);
   const byName = (a: MapBox, b: MapBox) => a.name.localeCompare(b.name);
 
   const core = view.boxes.filter((b) => b.kind === 'repo' || b.kind === 'system');
@@ -79,7 +99,7 @@ export function layoutMap(view: { readonly boxes: readonly MapBox[]; readonly ar
       const want = Number.isFinite(centre(b.id)) ? Math.round(centre(b.id)) : r;
       r = Math.max(r, want);
       row.set(b.id, r);
-      for (const s of stores(b.id)) { r += 1; col.set(s.id, c); row.set(s.id, r); }
+      for (const s of stores(b.id).filter((s) => !row.has(s.id))) { r += 1; col.set(s.id, c); row.set(s.id, r); }
       lowest = Math.max(lowest, r);
       r += 1;
     }
@@ -113,82 +133,60 @@ export function layoutMap(view: { readonly boxes: readonly MapBox[]; readonly ar
   }
   for (const b of view.boxes.filter((x) => !row.has(x.id))) { // a database of a bottom-line repository
     col.set(b.id, col.get(arrows.find((a) => a.to === b.id)?.from ?? '') ?? 0);
-    row.set(b.id, bottomRow + 1);
+    let r = bottomRow + 1;
+    const c = col.get(b.id)!;
+    while (taken.has(`${c},${r}`)) r += 1;
+    taken.add(`${c},${r}`);
+    row.set(b.id, r);
   }
 
   // A call going back runs on a lane of its own, above or below the stations it spans: the side whose
   // climb from either end crosses no other station (above when both are clear).
-  const place = (id: string): Point => [PAD_X + col.get(id)! * COL, row.get(id)! * ROW];
+  const place = (id: string): Point => [PAD_X + col.get(id)! * COL, row.get(id)! * rowGap];
   const lanePlan = new Map<string, number>();
-  const used = new Map<number, number>();
-  for (const a of arrows.filter((x) => back.has(x.id))) {
-    const [sx] = place(a.from);
-    const [tx] = place(a.to);
-    if (sx === tx) continue;
-    const ends = [a.from, a.to];
-    const spanRows = view.boxes.filter((b) => { const [x] = place(b.id); return x >= Math.min(sx, tx) && x <= Math.max(sx, tx) && row.get(b.id)! < bottomRow; }).map((b) => row.get(b.id)!);
-    const crossings = (lane: number) => ends.reduce((n, id) => n + view.boxes.filter((b) => b.id !== a.from && b.id !== a.to && col.get(b.id) === col.get(id) && (row.get(b.id)! - row.get(id)!) * (lane - row.get(id)!) > 0 && Math.abs(row.get(b.id)! - row.get(id)!) < Math.abs(lane - row.get(id)!)).length, 0);
-    const above = Math.min(...spanRows) - 0.5;
-    const below = Math.max(...spanRows) + 0.5;
-    const lane = crossings(above) <= crossings(below) ? above : below;
-    const k = used.get(lane) ?? 0;
-    used.set(lane, k + 1);
-    lanePlan.set(a.id, lane * ROW + (lane < 0 ? -k : k) * 12);
+  // Return calls and calls spanning a column use separate lanes above the map.
+  // A corridor between columns keeps the vertical segment out of every label.
+  for (const a of arrows.filter((x) => x.from !== x.to && (back.has(x.id) || col.get(x.to)! < col.get(x.from)! || Math.abs(col.get(x.to)! - col.get(x.from)!) > 1))) {
+    lanePlan.set(a.id, -rowGap / 2 - lanePlan.size * 12);
   }
   const top = PAD_Y + Math.max(0, ...[...lanePlan.values()].map((y) => 24 - y));
 
-  const stations: Station[] = view.boxes.map((b) => { const [x, y] = place(b.id); return { ...b, x, y: y + top }; });
+  const stations: Station[] = view.boxes.map((b) => { const [x, y] = place(b.id); return { ...b, x, y: y + top, nameLines: names.get(b.id)!, techLines: techs.get(b.id)!, labelHeight: labelHeight(b.id) }; });
   const at = new Map(stations.map((s) => [s.id, s]));
   const maxX = Math.max(...stations.map((s) => s.x));
   const maxY = Math.max(...stations.map((s) => s.y));
 
   // Lines. Two lines between the same stations are drawn side by side.
   const twins = new Map<string, number>();
+  const pairCount = new Map<string, number>();
+  for (const a of arrows) { const pair = [a.from, a.to].sort().join('|'); pairCount.set(pair, (pairCount.get(pair) ?? 0) + 1); }
   const edges: MapEdge[] = arrows.map((a) => {
     const s = at.get(a.from)!;
     const t = at.get(a.to)!;
     const pair = [a.from, a.to].sort().join('|');
     const n = twins.get(pair) ?? 0;
     twins.set(pair, n + 1);
-    const shift = n * 8;
+    const shift = (n - (pairCount.get(pair)! - 1) / 2) * 6;
     const planned = lanePlan.get(a.id);
     let points: Point[];
     let label: Point;
-    if (planned !== undefined) {
+    if (a.from === a.to) {
+      points = [[s.x - 8, s.y], [s.x - 32, s.y - 24], [s.x - 32, s.y - 36], [s.x + 32, s.y - 36], [s.x + 32, s.y - 24], [s.x + 8, s.y]];
+      label = [s.x, s.y - 36];
+    } else if (planned !== undefined) {
       const lane = planned + top;
-      const c = 24;
-      const dir = Math.sign(t.x - s.x);
-      const up = Math.sign(lane - s.y);
-      points = [[s.x, s.y], [s.x, lane - up * c], [s.x + dir * c, lane], [t.x - dir * c, lane], [t.x, lane - up * c], [t.x, t.y]];
-      label = [(s.x + t.x) / 2, lane];
+      const fromLane = s.x + COL / 2;
+      const toLane = t.x - COL / 2;
+      points = [[s.x, s.y], [fromLane, s.y], [fromLane, lane], [toLane, lane], [toLane, t.y], [t.x, t.y]];
+      label = [(fromLane + toLane) / 2, lane];
     } else {
-      ({ points, label } = metro([s.x, s.y + shift], [t.x, t.y + shift]));
+      const corridor = s.x === t.x ? s.x + COL / 2 + shift : (s.x + t.x) / 2 + shift;
+      points = s.y === t.y ? [[s.x, s.y + shift], [t.x, t.y + shift]] : [[s.x, s.y + shift], [corridor, s.y + shift], [corridor, t.y + shift], [t.x, t.y + shift]];
+      label = [corridor, (s.y + t.y) / 2];
     }
     return { id: a.id, from: a.from, to: a.to, kind: a.kind, d: path(trim(points, 12, 16)), lx: label[0], ly: label[1], back: planned !== undefined };
   });
-  return { stations, edges, width: maxX + PAD_X, height: maxY + LABEL_ROOM };
-}
-
-/**
- * From one station to another with straight and 45° segments: level (or upright)
- * first, then the diagonal, then a straight end long enough to carry the arrow.
- */
-const END = 24;
-function metro(a: Point, b: Point): { points: Point[]; label: Point } {
-  const [x1, y1] = a;
-  const [x2, y2] = b;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  if (dx === 0 || dy === 0) return { points: [a, b], label: [(x1 + x2) / 2, (y1 + y2) / 2] };
-  const sx = Math.sign(dx);
-  const sy = Math.sign(dy);
-  const level = Math.abs(dy) <= Math.abs(dx);
-  const straight = Math.abs(Math.abs(dx) - Math.abs(dy));
-  const end = straight >= END ? Math.max(END, straight / 2) : straight;
-  const start = straight - end;
-  const p1: Point = level ? [x1 + sx * start, y1] : [x1, y1 + sy * start];
-  const p2: Point = level ? [x2 - sx * end, y2] : [x2, y2 - sy * end];
-  return { points: [a, p1, p2, b], label: [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2] };
+  return { stations, edges, width: maxX + PAD_X, height: Math.max(maxY + LABEL_ROOM, ...stations.map((s) => s.y + s.labelHeight + 20)) };
 }
 
 /** Shorten the first and last segments so a line stops at a station's ring and its arrow shows. */

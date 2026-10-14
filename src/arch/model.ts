@@ -92,7 +92,8 @@ export function buildModel(maps: readonly RepoMap[], options: { lang?: 'fr' | 'e
         ...same,
         calls: [...same.calls, ...l.calls.filter((c) => !same.calls.some((s) => s.what === c.what))],
         evidence: [...same.evidence, ...l.evidence.filter((e) => !same.evidence.some((s) => s.repo === e.repo && s.file === e.file && s.line === e.line))],
-        confidence: same.confidence === 'sure' || l.confidence === 'sure' ? 'sure' : same.confidence,
+        // Aggregation must preserve the weakest evidence, including a call with unknown method.
+        confidence: same.confidence === 'to-confirm' || l.confidence === 'to-confirm' ? 'to-confirm' : same.confidence === 'probable' || l.confidence === 'probable' ? 'probable' : 'sure',
       };
       links[links.indexOf(same)] = merged;
     } else links.push({ ...l, id: `${l.kind}:${l.from}>${l.to}` });
@@ -115,20 +116,24 @@ export function buildModel(maps: readonly RepoMap[], options: { lang?: 'fr' | 'e
       const { method, path } = splitCall(c.name);
       const exact = (routes.get(GENERIC_METHODS.has(method) ? `* ${path}` : `${method} ${path}`) ?? []).filter((r) => r.map !== a);
       const anyMethod = exact.length ? [] : (routes.get(`ANY ${path}`) ?? []).filter((r) => r.map !== a);
-      const sameRoute = exact.length ? exact : anyMethod;
+      let sameRoute = exact.length ? exact : anyMethod;
       const base = c.detail?.startsWith('base ') ? c.detail.slice(5) : null;
+      // An explicitly named scanned target narrows scope before path matching. A route
+      // in an unrelated repository must not override a method mismatch there.
+      const namedTargets = base ? maps.filter((b) => b !== a && [...tokens(base)].some((t) => tokens(b.repo.name).has(t))) : [];
+      if (namedTargets.length) sameRoute = sameRoute.filter((r) => namedTargets.includes(r.map));
       if (sameRoute.length) {
         // Several repositories serve the same path: the base variable decides, else each is only probable.
         const named = base ? sameRoute.filter((r) => [...tokens(base)].some((t) => tokens(r.map.repo.name).has(t))) : [];
         const pick = named.length === 1 ? named : sameRoute;
         for (const r of pick) {
-          addLink({ from: repoId(a), to: repoId(r.map), kind: 'http', confidence: pick.length === 1 && exact.length ? 'sure' : 'probable',
+          addLink({ from: repoId(a), to: repoId(r.map), kind: 'http', confidence: pick.length === 1 && !GENERIC_METHODS.has(method) ? 'sure' : 'probable',
             calls: [{ what: c.name, line: c.evidence.line }], evidence: [ev(a, c), ev(r.map, r.route)], verb: verbOf(method, path, lang) });
         }
         continue;
       }
       // No route matches. A base variable naming a repository whose routes OKB cannot see: probable; otherwise a question.
-      const target = base ? maps.find((b) => b !== a && !hasRoutes(b) && [...tokens(base)].some((t) => tokens(b.repo.name).has(t))) : undefined;
+      const target = namedTargets.length === 1 && !hasRoutes(namedTargets[0]!) ? namedTargets[0] : undefined;
       if (target) {
         addLink({ from: repoId(a), to: repoId(target), kind: 'http', confidence: 'probable', calls: [{ what: c.name, line: c.evidence.line }], evidence: [ev(a, c)], verb: verbOf(method, path, lang) });
       } else {
@@ -168,7 +173,7 @@ export function buildModel(maps: readonly RepoMap[], options: { lang?: 'fr' | 'e
       addNode({ id, kind: 'datastore', name: DATASTORE_NAMES[s] ?? s, tech: s, repo: a.repo.name });
       const stackItem = a.stack.find((x) => x.id === s);
       const e = stackItem?.evidence?.[0] ? { repo: a.repo.name, file: stackItem.evidence[0].file, line: stackItem.evidence[0].line } : null;
-      addLink({ from: repoId(a), to: id, kind: 'data', confidence: 'sure', calls: [], evidence: e ? [e] : [], verb: lang === 'fr' ? 'stocke ses données' : 'stores its data' });
+      addLink({ from: repoId(a), to: id, kind: 'data', confidence: e ? 'probable' : 'to-confirm', calls: [], evidence: e ? [e] : [], verb: lang === 'fr' ? 'utilise cette technologie de données' : 'uses this data technology' });
     }
     // Outside systems called by their host.
     for (const c of a.consumes.filter((x) => x.kind === 'url' && x.detail !== 'local')) {

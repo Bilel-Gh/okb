@@ -201,9 +201,13 @@ export const ROUTING_RULES: readonly RoutingRule[] = [
   },
   {
     skill: 'okb-dev-ticket',
-    when: 'a ticket or a piece of work on a documented repository is done, or something learned about it should be kept',
+    when: 'a ticket in a registered repository should be found, created, resumed or finished, including work started outside OKB',
     notWhen: 'writing code, reviewing a pull request, or a repository not documented yet',
     positive: [
+      strong(/\b(reprends?|reprendre|repren[ds]|retrouve|commence|commencer|resume|start|reconstruct|recover)\b.{0,30}\b(ticket|story|issue)\b/i),
+      strong(/\b(travaille|working|work)\b.{0,25}\b(ticket|story|issue)\b/i),
+      strong(/\b(ticket|story|issue)\b.{0,25}\b(reprendre|reprends|commenc[ée]|ongoing|resume|recover|reconstruct)\b/i),
+      weak(/\b(ticket|story|issue)\b/i),
       strong(/\b(fini|termin[ée]|boucl[ée]|livr[ée]|merg[ée]|finished|completed|done with|merged)\b.{0,20}\b(ticket|story|bug|fix|feature|issue|pr|pull request|t[âa]che)\b/i),
       strong(/\b(ticket|story|issue)\b.{0,15}\b(fini|termin[ée]|done|finished|merg)/i),
       strong(/\b(kb|base) (du|de ce|of (this|the)) (repo|repository|d[ée]p[ôo]t|projet)\b.{0,40}\b(ajoute|enrichi|mets? à jour|update|add)\b|\b(ajoute|enrichi[rs]?|mets? à jour|update|add)\b.{0,40}\b(kb|base) (du|de ce|of (this|the)) (repo|repository|d[ée]p[ôo]t|projet)\b/i),

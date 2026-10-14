@@ -147,6 +147,25 @@ in their colour; no blur, no glow, no frosted glass on the graph).
 
 ## Do's and don'ts
 
+The October usage fixes keep the same five destinations and Atelier tokens.
+Ordinary Projects holds work; repository context stays in Repos. Today,
+Projects and Repos reuse `WorkPreview`: title/reference, a named state and a
+short next action or blocker link to the specialized ticket. Full text stays
+in its detail and the old project address still resolves. Repo documentation,
+associated work and source freshness come before technical details.
+
+Work pages offer three contextual Assistant starts (resume, decision reason,
+previous error); choosing one prepares the local context and question without
+starting a paid call. The answer keeps located passages and access to the
+source; errors retain local search. Conversation context follows later turns.
+
+Architecture starts with a bounded useful set. Hidden counts, explicit expansion,
+group members and a relation list preserve access to the complete model. Names
+wrap at a readable size; the canvas scrolls rather than shrinking all labels.
+Uncertain calls, their method/scope and evidence remain distinct from confirmed
+declarations. Browser checks on dense fictional data complement layout tests;
+they do not establish fidelity to any personal repository or WCAG certification.
+
 - **Do** use the tokens (`var(--fill)`, `var(--accent)`, `var(--c)`…), never a raw
   colour in a component.
 - **Do** check both themes, light and dark, gradient and flat, desktop and phone.

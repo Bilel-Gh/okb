@@ -8,7 +8,7 @@ import { AssistantPanel } from '../../web-app/src/ui/AssistantPanel.js';
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const empty = { id: 'conversation-1', title: 'Reprise', messages: [], usage: { input: null, output: null } };
 const reply = { ...empty, messages: [{ id: 'user-1', role: 'user', text: 'Comment reprendre ?' }, { id: 'reply-1', role: 'assistant', text: 'Reprise', answer: { provider: 'fake', usage: { input: null, output: null }, statements: [{ text: 'La note indique de garder le même identifiant.', kind: 'notes', evidence: [{ source: 'S1', quote: 'La demande garde son identifiant.' }] }, { text: 'Une explication générale.', kind: 'general', evidence: [] }, { text: 'Je ne connais pas le délai.', kind: 'unknown', evidence: [] }], sources: [{ id: 'S1', path: 'Retry.md', title: 'Retry de Sam', kind: 'shared', author: 'Sam', drawer: 'sam', quote: 'La demande garde son identifiant.', hash: 'source-1' }], actions: [{ kind: 'action', text: 'Vérifier le délai de conservation.' }, { kind: 'note', text: 'Garder la décision sur le délai.', title: 'Délai' }, { kind: 'explain', text: 'Explique les doubles effets avec un exemple.' }] } }] };
-function mount(options: { missing?: boolean; fail?: boolean; slow?: boolean; panel?: boolean } = {}) {
+function mount(options: { missing?: boolean; fail?: boolean; slow?: boolean; panel?: boolean; contextual?: boolean } = {}) {
   const calls: { url: string; body?: Record<string, unknown> }[] = [];
   let finish: ((v: Response) => void) | undefined;
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
@@ -27,7 +27,7 @@ function mount(options: { missing?: boolean; fail?: boolean; slow?: boolean; pan
     return new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
   }));
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={qc}>{options.panel ? <AssistantPanel context="Retry" /> : <Assistant route={{ name: 'assistant' }} />}</QueryClientProvider>);
+  render(<QueryClientProvider client={qc}>{options.panel ? <AssistantPanel context="Retry" /> : <Assistant route={options.contextual ? { name: 'assistant', workKind: 'ticket', workRef: 'ABC-42', prompt: 'Où j’en étais sur ABC-42 ?', mode: 'resume' } : { name: 'assistant' }} />}</QueryClientProvider>);
   return { calls, finish: () => finish?.(new Response(JSON.stringify({ conversation: reply, busy: false }))) };
 }
 async function ask() { fireEvent.change(await screen.findByLabelText('Mon message à l’assistant'), { target: { value: 'Comment reprendre ?' } }); fireEvent.click(screen.getByRole('button', { name: 'Envoyer à mon agent' })); }
@@ -76,6 +76,18 @@ describe('assistant on the person’s local agent (F2.3)', () => {
     expect((screen.getByLabelText('Mon message à l’assistant') as HTMLTextAreaElement).value).toBe('Comment reprendre ?');
     await screen.findByText('Tokens non communiqués · 1 appels · 1 échoués ou arrêtés · part mesurée : 40');
     expect(screen.queryByText('0 tokens')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Continuer sans IA' }).getAttribute('href')).toBe('#/ask?q=Comment+reprendre+%3F');
+  });
+  it('starts a contextual question only after its submit and carries the selected work in the request', async () => {
+    const { calls } = mount({ contextual: true });
+    await screen.findByRole('link', { name: 'ABC-42' });
+    expect((screen.getByLabelText('Mon message à l’assistant') as HTMLTextAreaElement).value).toContain('ABC-42');
+    expect(screen.queryByText('Parlez à votre cerveau')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByLabelText('Mon message à l’assistant'));
+    expect(calls.some((c) => c.body)).toBe(false);
+    fireEvent.click(await screen.findByRole('button', { name: 'Envoyer à mon agent' }));
+    await screen.findByText('La note indique de garder le même identifiant.');
+    expect(calls.find((c) => c.url.endsWith('/ask'))?.body).toMatchObject({ question: 'Où j’en étais sur ABC-42 ?', work: { kind: 'ticket', ref: 'ABC-42' }, mode: 'resume' });
   });
   it('keeps the panel’s conversation when opening its full screen', async () => {
     mount({ panel: true });

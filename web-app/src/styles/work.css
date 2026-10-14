@@ -1,0 +1,16 @@
+.work-preview > a { align-items: flex-start !important; min-width: 0; }
+.project-rows > .work-preview.link-row > a { grid-template-columns: 34px minmax(0, 1fr); }
+.work-preview-body { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.work-preview .title { overflow-wrap: anywhere; }
+.work-state { flex-shrink: 0; }
+.work-next { white-space: normal; overflow-wrap: anywhere; }
+.work-detail-link { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); }
+.work-preview > a:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 8px; }
+.work-assistant { padding: 12px 0; gap: 8px; }
+.work-assistant .btn { white-space: normal; height: auto; min-height: 34px; text-align: left; }
+.repo-secondary { padding: 14px 18px; }
+.repo-secondary > summary { color: var(--ink-2); cursor: pointer; font-weight: 600; }
+.repo-secondary[open] > summary { margin-bottom: 14px; }
+.assistant-work-context { padding: 12px; border: 1px solid var(--hair); border-radius: 10px; overflow-wrap: anywhere; }
+.assistant-messages.prepared-empty { min-height: 0; padding: 0; }
+@media (max-width: 600px) { .work-assistant { flex-direction: column; align-items: stretch; } .work-preview > a { padding-inline: 12px; } }

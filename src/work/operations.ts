@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { resumeTicket } from './ticket-resume.js';
 import { loadBundleFor } from '../kb/bundle.js';
 import { findRepo, listRepos } from '../repo/registry.js';
 import { isSecret } from '../security/confidential.js';
@@ -22,7 +23,7 @@ async function view(ctx: OpContext, ticketRef: string) {
 
 export const ticketsList = defineOperation({
   id: 'tickets.list', module: 'dev', effect: 'read', summary: 'Local tickets; done describes the work, not CI, review or delivery.',
-  input: z.object({}).strict(), run: async ({ config }) => ({ tickets: await listTickets(config) }),
+  input: z.object({}).strict(), run: async ({ config }) => ({ tickets: await Promise.all((await listTickets(config)).map(async (ticket) => { const detail = await ticketDetail(config, ticket.ref); return { ...ticket, next: detail.detail.next, waiting: detail.detail.states.find((s) => s.dimension === 'waiting') ?? null }; })) }),
 });
 export const ticketsGet = defineOperation({
   id: 'tickets.get', module: 'dev', effect: 'read', summary: 'Resume a ticket: goal, last action, failed attempts with conditions, next step, separate states and exit criteria.',
@@ -41,6 +42,15 @@ export const ticketsStart = defineOperation({
     if (!repo || repo.kb !== ctx.config.profile.id) throw new OkbError('E_NOT_FOUND', 'no registered repository in this profile', { key: 'repoUnknown', params: { id: input.repo } });
     const { record, created, attached } = await startTicket(ctx.config, { ...input, repo });
     return { ...(await view(ctx, record.ref)), created, attached };
+  },
+});
+export const ticketsResume = defineOperation({
+  id: 'tickets.resume', module: 'dev', effect: 'propose', summary: 'Find or reconstruct a ticket from its exact reference, authorized notes and local Git; preserve human facts and prepare at most one note proposal.',
+  input: briefSchema.extend({ ref, repo: z.string().min(1).max(150), title: z.string().trim().max(200).optional(), text: z.string().max(20_000).optional(), base: z.string().max(200).optional(), note: z.string().max(500).optional(), suggestion: z.string().max(100).optional(), context: z.string().trim().max(2000).optional(), decisions: z.array(z.object({ text: z.string().trim().min(1).max(900), why: z.string().trim().min(1).max(900) }).strict()).max(30).optional(), attempts: z.array(attemptSchema.extend({ next: z.string().max(600).default('') })).max(30).optional(), criteria: z.array(criterionSchema).max(30).optional(), sources: z.array(z.string().trim().min(1).max(1000)).max(30).optional(), waiting: z.object({ status: z.enum(['waiting', 'blocked', 'none']), detail: z.string().max(1000) }).strict().optional() }).strict(),
+  run: async (ctx, input) => {
+    const repo = await findRepo(input.repo, ctx.env);
+    if (!repo || repo.kb !== ctx.config.profile.id) throw new OkbError('E_NOT_FOUND', 'no registered repository in this profile', { key: 'repoUnknown', params: { id: input.repo } });
+    return resumeTicket(ctx.config, { ...input, repo }, { agent: ctx.actor === 'agent' });
   },
 });
 export const ticketsBrief = defineOperation({

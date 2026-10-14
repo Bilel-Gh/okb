@@ -11,7 +11,7 @@ import type { AiRequest } from '../ai/provider.js';
 
 export type AgentId = 'claude-code' | 'codex';
 export type AgentUsage = { input: number | null; output: number | null };
-export type Source = { id: string; path: string; title: string; kind: 'note' | 'document' | 'shared'; quote: string; hash: string; author?: string; drawer?: string };
+export type Source = { id: string; path: string; title: string; kind: 'note' | 'document' | 'shared' | 'work'; quote: string; hash: string; author?: string; drawer?: string; workKind?: string; ref?: string; passages?: { text: string; start: number; end: number; startLine: number; endLine: number }[] };
 export type BridgeRequest = { system: string; prompt: string; sources: Source[]; schema: Record<string, unknown>; signal?: AbortSignal; tools?: 'okb-read' | 'none' };
 export type BridgeResult = { answer: unknown; usage: AgentUsage; provider: string };
 const localRequests = new Map<symbol, AbortController>();
@@ -90,10 +90,11 @@ export function parseClaudeResult(raw: string): BridgeResult {
   const tokens: AgentUsage = { input: input === null ? null : input + cached, output: count(usage.output_tokens) };
   if (value.is_error || value.type === 'error') {
     const detail = { usage: { ...tokens, tokens: tokens.input !== null && tokens.output !== null ? tokens.input + tokens.output : undefined, provider: 'claude-code' } };
-    // The agent's own words are not repeated. The one failure the person can fix alone is named: an expired sign-in.
+    // The agent's own words are not repeated; actionable connection and usage failures are named.
     if (typeof value.result === 'string' && /authenticat|not logged in|please (?:run )?\/?login|oauth|invalid api key/i.test(value.result)) {
       throw new OkbError('E_CONFIG', 'the local agent is not signed in; run it in a terminal and sign in', { key: 'agentNotSignedIn', detail });
     }
+    if (typeof value.result === 'string' && /quota|rate.?limit|usage.?limit|limit reached|out of credits|insufficient credits|credit balance/i.test(value.result)) throw new OkbError('E_IO', 'the local agent reported a usage limit; continue with local search', { key: 'agentQuotaExceeded', detail });
     throw new OkbError('E_IO', 'local agent failed; check its connection or usage limit', { detail });
   }
   let answer = value.structured_output;

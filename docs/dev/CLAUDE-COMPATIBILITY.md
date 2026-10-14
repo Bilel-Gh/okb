@@ -22,3 +22,51 @@ Observé ici : manifest validé par `claude plugin validate ./plugin`, `--strict
 et sous-commande `plugin eval` absents du CLI 2.1.27. Ni une mise à jour globale
 ni un score d’évaluation n’ont été fabriqués. Sur le poste cible, relever la
 version et tester `bin/okb`, le hook et le routage dans la session réellement utilisée.
+
+## Hooks : vérification du 13 octobre 2026
+
+Version observée avec `claude --version` : **2.1.289**, sur macOS. Le
+[contrat officiel des hooks](https://code.claude.com/docs/en/hooks) donne
+`startup`, `resume`, `clear`, `compact` et `fork` comme sources de SessionStart.
+OKB couvre les quatre premières ; une session fork n'est pas annoncée comme
+couverte. SessionStart, UserPromptSubmit et PostToolUse acceptent
+`hookSpecificOutput.additionalContext`. Stop accepte aussi ce contexte et peut
+poursuivre le tour ; OKB ignore `stop_hook_active` pour éviter une boucle. Les
+hooks de suggestion restent non bloquants. Les protections d'approbation et de
+lecture secrète conservent leurs décisions existantes.
+
+Les hooks utilisent le même runtime, livré dans les deux plugins (parité testée).
+`OKB_CLI` explicite est prioritaire, puis le CLI du paquet avec le Node exécutant
+le hook, le launcher, le checkout/cache et le PATH. Un `OKB_CLI` invalide est
+signalé, sans fallback silencieux. `OKB_NODE` transmet ce runtime au wrapper.
+Le chargement initial du hook exige encore `node` sur le PATH de Claude : un
+Node absent avant ce démarrage ne peut pas être diagnostiqué par ce script Node.
+Le runtime du moteur exige Node 22.13+ ; le Node embarqué dans le desktop ne
+configure pas automatiquement le PATH d'une installation Claude externe.
+
+Les traces locales sont dans `$OKB_HOME/hooks/diagnostics.jsonl` (par défaut le
+home OKB habituel), limitées à 256 ko avec une rotation. `OKB_HOOK_DIAGNOSTICS=0`
+les désactive. Elles contiennent l'horodatage, l'événement, le nom du hook, la
+raison fixe, la durée, le résultat et les versions. Aucun prompt, transcript,
+chemin métier, argument CLI, stderr, variable d'environnement ou secret n'est
+journalisé. La fenêtre lue par Stop est bornée à la fin du transcript ; elle
+n'annonce aucune couverture intégrale de la session.
+
+| Observation | Interprétation / vérification |
+|---|---|
+| Aucune trace `started` | Pas de preuve d'exécution : vérifier `/hooks`, plugin activé, matcher et runtime du shell Claude. Un manifeste validé ne prouve pas le chargement. |
+| `headless`, `continuation`, `excluded-*`, `irrelevant-command`, `already-sent` | Silence volontaire, indiqué par une raison fixe. |
+| `binary-absent`, `runtime-unsupported`, `binary-or-runtime-absent` | Résolution du moteur ou du runtime échouée. |
+| `profile-or-repo-unresolved`, `outside-scope`, `profile-resolution-error`, `brief-error` | Configuration/périmètre ou génération locale du contexte à vérifier. `no-context` seul ne prouve pas une erreur. |
+| `timeout`, `deadline`, `cli-error`, `invalid-output` | Délai, erreur du processus ou contrat de sortie. Les contenus d'erreur restent hors des traces. |
+| `context-sent` | JSON émis par le hook ; vérifier le debug Claude pour sa livraison. Cela ne prouve pas que le modèle a utilisé ou respecté ce contexte. |
+
+Les tests locaux et les copies de cache utilisent des fixtures isolées. Aucun
+appel au modèle n'a été lancé pour valider ces hooks ; les sessions agent réelles
+et les autres plateformes restent à vérifier avant d'annoncer leur compatibilité.
+
+Validation native supplémentaire du même jour : `claude plugin validate
+./plugin --strict` et `claude plugin validate ./plugins/okb-dev --strict` passent
+avec Claude Code 2.1.289, un `CLAUDE_CONFIG_DIR` et un `OKB_HOME` temporaires.
+Aucun appel au modèle ni modification de la configuration personnelle. Cela
+confirme les métadonnées chargées par le validateur, pas une conversation réelle.

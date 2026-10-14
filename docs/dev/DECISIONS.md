@@ -1342,3 +1342,49 @@ Renderer sandboxé, Node désactivé, contexte isolé, navigation limitée à l'
 La distribution signée exige deux feeds HTTPS fixes et une identité d'éditeur. Le prototype laisse les mises à jour désactivées. Canaux runtime et build utilisent les mêmes manifestes explicites, `latest` ou `beta`. L'identité installée est contrôlée par codesign sur Mac, par Authenticode et les métadonnées d'éditeur sur Windows ; le téléchargement est aussi vérifié par l'updater. Aucun téléchargement automatique, installation seulement après le geste de la personne. La commande de release exige signature et parcours navigateur, sans publication implicite.
 
 Le chargement du panneau Assistant est différé jusqu'à son ouverture. Un seul titre principal accessible reste présent ; les titres Markdown et leurs ancres sont conservés. Les tests de composants ne valent ni contrôle visuel ni conformité WCAG. Un prototype Mac non signé et le runtime embarqué peuvent être vérifiés localement ; Windows réel, certificats, notarisation, mise à jour et les deux semaines chez les proches restent à valider. Voir [la spec](specs/2026-10-11-3.0-desktop.md).
+
+## D69 — Corriger la reprise depuis l’usage, sans nouveau moteur (13 octobre 2026)
+
+La commande ticket réconcilie l’état opérationnel et les notes autorisées avant
+création. La référence normalisée et le repo participent à l’identité ; une
+ambiguïté requiert seulement le choix manquant. Les informations humaines sont
+conservées, les conflits explicités et les écritures de savoir préparées en
+propositions. Les appels identiques ne réoffrent pas un changement refusé.
+Les dimensions travail, revue, CI et livraison restent indépendantes.
+
+Les projets/tickets représentent le travail ; Repos porte son contexte
+technique. Une présentation d’aperçu commune renvoie au détail spécialisé, avec
+les anciens liens préservés. Atelier, les cinq destinations et Progresser
+restent en place. L’Assistant se lance depuis un travail et sélectionne des
+passages dans la note entière ; il conserve son contexte aux tours suivants.
+
+Les hooks gardent leur contrat **Claude Code**. Leur runtime commun distingue
+les exclusions volontaires, la résolution, les délais, les erreurs CLI et la
+sortie invalide. Le diagnostic borné ne journalise pas les entrées ou secrets.
+Un fichier absent ne permet pas de prouver qu’un hook est chargé ; un contexte
+délivré ne permet pas de prouver que le modèle l’a utilisé.
+
+L’architecture conserve les relations du modèle sous les regroupements et
+permet d’explorer les voisins/preuves avec une liste complémentaire. Le scanner
+garde une méthode HTTP dynamique inconnue et ne transforme pas une technologie
+de données en instance certaine. Le rendu testé ne prouve pas l’exactitude du
+scan sur un repo personnel.
+
+La lecture d’un gros VTT distingue recherche ciblée et compte rendu complet.
+Les snapshots et blocs/timecodes existants sont conservés. Un ledger hors KB
+cache les résultats par fenêtre, affiche couverture déclarée et lacunes,
+valide citations/appartenance et garde les faits remplacés avec leur correction.
+La détection lexicale considère aussi des corrections éloignées ; elle ne
+décide pas seule du sens. Le dossier final passe par la proposition existante.
+
+La revue D41 devient proportionnée à la demande d’usage : pas de second modèle
+pour répéter les contrôles déterministes ; revue éditoriale justifiée pour une
+synthèse longue, inférence, contradiction, correction ou engagement incertain.
+Consentement, proposition, approbation et application ne sont pas fusionnés.
+Les refus et « pas maintenant » ne déclenchent pas de relance inchangée.
+
+Le minimum Node reste 22.13.0 après vérification des API et des déclarations
+des dépendances ; CLI, compilation et runtime embarqué sont documentés séparément.
+Les mesures locales ne déclarent ni économie facturée, ni vérité garantie,
+ni qualité d’usage ou marché acquis. Voir le
+[bilan d’acceptation](VALIDATION-USAGE-2026-10-13.md).

@@ -18,7 +18,7 @@ import { assistantAction, assistantAsk, assistantCancel, assistantConfigure, ass
 import { exportSpace } from './ops/export.js';
 import { understandingReadOp, understandingKeepOp, understandingRecordOp, understandingOverviewOp, understandingMeetingOp, understandingReadinessOp, understandingLearningOp, understandingProgressOp, understandingObjectiveAddOp, understandingObjectiveDoneOp, understandingReviewOp } from './ops/understanding.js';
 import type { Operation, OpContext } from './operation.js';
-import { ticketsList, ticketsGet, ticketsStart, ticketsBrief, ticketsState, ticketsCriterion, ticketsAttempt, ticketsReuse, ticketsClose, ticketsGithubConfig, ticketsGithubStatus, ticketsGithub, ticketsJira } from '../work/operations.js';
+import { ticketsList, ticketsGet, ticketsStart, ticketsResume, ticketsBrief, ticketsState, ticketsCriterion, ticketsAttempt, ticketsReuse, ticketsClose, ticketsGithubConfig, ticketsGithubStatus, ticketsGithub, ticketsJira } from '../work/operations.js';
 
 export { jsonSchemaOf } from './schema.js';
 export type { Actor, Effect, OpContext, Operation } from './operation.js';
@@ -28,6 +28,7 @@ const OPS = {
   'tickets.list': ticketsList,
   'tickets.get': ticketsGet,
   'tickets.start': ticketsStart,
+  'tickets.resume': ticketsResume,
   'tickets.brief': ticketsBrief,
   'tickets.state': ticketsState,
   'tickets.criterion': ticketsCriterion,

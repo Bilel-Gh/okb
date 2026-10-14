@@ -188,11 +188,13 @@ export const ROUTES: Record<string, Handler> = {
     // Tickets OKB follows in this KB, and the workspaces that use it.
     const { listTickets } = await import('../work/tickets.js');
     const { listWorkspaces } = await import('../work/workspaces.js');
-    const tickets = (await listTickets(config)).filter((tk) => tk.status === 'active' || Date.now() - Date.parse(tk.updatedAt) < 30 * 86_400_000).slice(0, 30).map((tk) => ({
+    const { ticketDetail } = await import('../work/ticket-state.js');
+    const tickets = await Promise.all((await listTickets(config)).filter((tk) => tk.status === 'active' || Date.now() - Date.parse(tk.updatedAt) < 30 * 86_400_000).slice(0, 30).map(async (tk) => { const detail = await ticketDetail(config, tk.ref); return ({
+      next: detail.detail.next, waiting: detail.detail.states.find((s) => s.dimension === 'waiting') ?? null,
       ref: tk.ref, title: tk.title, status: tk.status, updatedAt: tk.updatedAt, repos: tk.repos.map((r) => ({ id: r.id, branch: r.branch })),
       commits: tk.journal.filter((j) => j.kind === 'commit').length,
       journal: tk.journal.filter((j) => ['note', 'decision', 'trap', 'question'].includes(j.kind)).slice(-6).map((j) => ({ at: j.at, kind: j.kind, text: j.text })),
-    }));
+    }); }));
     const workspaces = (await listWorkspaces(ctx.env)).filter((w) => w.kb === config.profile.id).map((w) => ({ id: w.id, name: w.name, roots: w.roots.map((r) => (ctx.env.HOME && r.startsWith(`${ctx.env.HOME}/`) ? `~${r.slice(ctx.env.HOME.length)}` : r)), prefixes: w.tickets.prefixes }));
     // A brain's repository folders not linked to code on this computer (a brain received, the demo).
     const { brainRepos } = await import('../knowledge/brain-repos.js');
@@ -231,11 +233,13 @@ export const ROUTES: Record<string, Handler> = {
     const mermaid = landscape && landscape.repos.length > 1 ? /```mermaid\n([\s\S]*?)```/.exec(landscape.content)?.[1] ?? null : null;
     const home = ctx.env.HOME ?? '';
     const { listTickets } = await import('../work/tickets.js');
-    const tickets = (await listTickets(config)).filter((tk) => tk.repos.some((r) => r.id === repo.id)).slice(0, 12).map((tk) => ({
+    const { ticketDetail } = await import('../work/ticket-state.js');
+    const tickets = await Promise.all((await listTickets(config)).filter((tk) => tk.repos.some((r) => r.id === repo.id)).slice(0, 12).map(async (tk) => { const detail = await ticketDetail(config, tk.ref); return ({
+      next: detail.detail.next, waiting: detail.detail.states.find((s) => s.dimension === 'waiting') ?? null,
       ref: tk.ref, title: tk.title, status: tk.status, updatedAt: tk.updatedAt, branch: tk.repos.find((r) => r.id === repo.id)?.branch ?? null,
       commits: tk.journal.filter((j) => j.kind === 'commit' && j.repo === repo.id).length,
       journal: tk.journal.filter((j) => ['note', 'decision', 'trap', 'question'].includes(j.kind)).slice(-6).map((j) => ({ at: j.at, kind: j.kind, text: j.text })),
-    }));
+    }); }));
     return {
       repo: { ...repo, displayPath: home && repo.path.startsWith(`${home}/`) ? `~${repo.path.slice(home.length)}` : repo.path }, status, level, freshness: fresh, questions, tickets,
       map: map ? compact(map) : null,

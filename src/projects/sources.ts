@@ -14,13 +14,13 @@ export type ProjectSeed = { readonly kind: string; readonly ref: string; readonl
 /** Something that happened on a module's project (a ticket's decision, a commit): a line of its journal. */
 export type ModuleEvent = { readonly kind: string; readonly ref: string; readonly at: string; readonly entry: EntryKind; readonly text: string; /** What it touched (a repository). */ readonly area?: string | null };
 /** A piece of work a module follows (with the developer module: a ticket), and what it touches (its repositories). */
-export type ModuleWork = { readonly kind: string; readonly ref: string; readonly title: string; readonly status: 'active' | 'done'; readonly areas: readonly string[]; readonly startedAt: string; readonly updatedAt: string; readonly doneAt: string | null };
+export type ModuleWork = { readonly kind: string; readonly ref: string; readonly title: string; readonly status: 'active' | 'done'; readonly areas: readonly string[]; readonly startedAt: string; readonly updatedAt: string; readonly doneAt: string | null; /** Bounded operational facts for a contextual assistant; never a note's content. */ readonly context?: { readonly goal: string; readonly lastAction: string; readonly next: string; readonly states: readonly { dimension: string; environment: string | null; status: string; detail: string; at: string | null }[]; readonly omittedStates: number; readonly shortenedFields: number } };
 /** A module's dated reason to recheck a note; « doubtful » is not a claim that it is false. */
 export type NoteToRecheck = { readonly path: string; readonly title: string; readonly scope: string; readonly verdict: 'changed' | 'stale'; readonly files: readonly string[]; readonly at: string; readonly next: string };
 export type ProjectSource = {
   readonly seeds: (config: OkbConfig, env: NodeJS.ProcessEnv) => Promise<readonly ProjectSeed[]>;
   readonly events?: (config: OkbConfig, env: NodeJS.ProcessEnv) => Promise<readonly ModuleEvent[]>;
-  readonly work?: (config: OkbConfig, env: NodeJS.ProcessEnv) => Promise<readonly ModuleWork[]>;
+  readonly work?: (config: OkbConfig, env: NodeJS.ProcessEnv, selection?: { kind: string; ref: string }) => Promise<readonly ModuleWork[]>;
   readonly notesToRecheck?: (config: OkbConfig, env: NodeJS.ProcessEnv, bundle: Bundle) => Promise<readonly NoteToRecheck[]>;
   /** Names that belong to the workplace (repositories…): kept out of what the person takes with them. */
   readonly privateNames?: (env: NodeJS.ProcessEnv) => Promise<readonly { name: string; kind: string }[]>;
@@ -45,9 +45,9 @@ async function sources(env: NodeJS.ProcessEnv): Promise<[ModuleId, ProjectSource
 }
 
 /** The work the modules in use follow: what is in progress, what was finished. */
-export async function moduleWork(config: OkbConfig, env: NodeJS.ProcessEnv = process.env): Promise<ModuleWork[]> {
+export async function moduleWork(config: OkbConfig, env: NodeJS.ProcessEnv = process.env, selection?: { kind: string; ref: string }): Promise<ModuleWork[]> {
   const out: ModuleWork[] = [];
-  for (const [, source] of await sources(env)) if (source.work) out.push(...(await source.work(config, env).catch(() => [])));
+  for (const [, source] of await sources(env)) if (source.work) out.push(...(await source.work(config, env, selection).catch(() => [])));
   return out;
 }
 

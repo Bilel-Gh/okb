@@ -1,0 +1,59 @@
+{
+  "fixture": {
+    "cues": 1800,
+    "bytes": 252299,
+    "repeatedCaptions": 42,
+    "finalCorrection": 1799,
+    "knownEvidencePoints": 5
+  },
+  "runtime": {
+    "node": "v24.19.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "extraction": {
+    "ms": 11.335125000000005,
+    "blocks": 1800,
+    "support": "full"
+  },
+  "previousPageLocalContract": {
+    "simulated": true,
+    "pages": 42,
+    "tokensEstimated": 165053,
+    "ms": 994.8721249999999,
+    "finalCorrectionLinked": false
+  },
+  "targeted": {
+    "matchingBlocks": 2,
+    "evidenceBlocks": 4,
+    "tokensEstimated": 568,
+    "coldMs": 30.516792000000123,
+    "cachedMs": 0.10362499999996544,
+    "initialAndFinalEvidencePresent": true,
+    "completeMeeting": false
+  },
+  "fullWindowLedger": {
+    "windows": 45,
+    "deliveredTokensEstimated": 113398,
+    "ms": 757.4732080000001,
+    "coverage": {
+      "totalBlocks": 1800,
+      "deliveredBlocks": 1800,
+      "processedBlocks": 1800,
+      "complete": true,
+      "extractionComplete": true,
+      "unprocessedRanges": []
+    },
+    "evidencePointsRetained": 5,
+    "knownEvidencePointsOmitted": 0,
+    "initialFactSuperseded": true
+  },
+  "elapsedMs": 1809.8545419999998,
+  "limits": [
+    "No model call: window facts are supplied from the synthetic oracle, not generated.",
+    "Tokens are UTF-8 bytes / 3.8 estimates, not provider usage or billed tokens.",
+    "Targeted retrieval is comparable only for the retention question; it does not replace full coverage.",
+    "Latency measures local extraction/index/ledger work, excluding model, CLI spawn and human review.",
+    "No assistant-alone comparison, semantic quality score or human time-saving claim."
+  ]
+}

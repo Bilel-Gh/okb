@@ -13,12 +13,14 @@ import { Prose } from '../reader/Prose';
 import { LevelBar, type Tier } from '../ui/LevelBar';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { ExamPanel } from './Exam';
+import { TicketPreview } from '../ui/WorkPreview';
+import { useShareWords } from '../app/sharing';
 
 const Arch = lazy(() => import('./Arch'));
 
 type Gap = { part: string; points: number; key: string; params: Record<string, string | number> };
 type Level = { percent: number; tier: Tier; partial: boolean; parts: { id: string; weight: number; score: number; measured: boolean }[]; next: Gap[] };
-type TicketItem = { ref: string; title: string; status: string; branch?: string | null; commits: number; updatedAt: string; repos: { id: string; branch?: string | null }[]; journal: { kind: string; text: string }[] };
+type TicketItem = { ref: string; title: string; status: 'active' | 'done'; next?: string; waiting?: { status: string; detail: string } | null; branch?: string | null; commits: number; updatedAt: string; repos: { id: string; branch?: string | null }[]; journal: { kind: string; text: string }[] };
 type Linked = { id: string; name: string; path: string; product?: string; description: string | null; stack: string[]; level: Level; status: { questions: { state: string }[]; notes: { kind: string; state: string; path: string }[]; stale: number; tickets: number; pending: { id: string }[] } };
 type Unlinked = { name: string; product: string; folder: string; level: Level };
 type ReposData = { repos: Linked[]; unlinked: Unlinked[]; tickets: TicketItem[]; workspaces?: { name: string; roots: string[]; prefixes: string[] }[] };
@@ -109,7 +111,7 @@ function TierScale() {
   );
 }
 
-function Tickets({ tickets, showRepos }: { tickets: TicketItem[]; showRepos: boolean }) {
+function Tickets({ tickets }: { tickets: TicketItem[] }) {
   const t = useT();
   if (!tickets.length) return null;
   return (
@@ -118,19 +120,9 @@ function Tickets({ tickets, showRepos }: { tickets: TicketItem[]; showRepos: boo
       <div className="panel-body stack">
         <p className="small muted">{t('web.repos.ticketsLead')}</p>
         <ul className="rows tight panel">
-          {tickets.map((tk) => (
-            <li key={tk.ref} style={{ alignItems: 'flex-start' }}>
-              <GitBranch size={16} className="muted" aria-hidden="true" style={{ marginTop: 3 }} />
-              <div className="grow">
-                <a className="title" href={hrefFor({ name: 'tickets', ref: tk.ref })}>{tk.ref}{tk.title && tk.title !== tk.ref ? ` · ${tk.title}` : ''}</a>
-                <span className="meta">{[showRepos ? tk.repos.map((r) => (r.branch ? `${r.id} (${r.branch})` : r.id)).join(', ') : tk.branch ?? t('scope.noBranch'), tn(t, 'scope.commits', tk.commits), rel(tk.updatedAt, t.lang)].join(' · ')}</span>
-                {tk.journal.map((j, i) => <span key={i} className="small"><span className="muted">{t(`ticket.kind.${j.kind}`)} · </span>{j.text}</span>)}
-              </div>
-              <span className={`pill sm ${tk.status === 'active' ? 'accent' : 'ok'}`}>{t(`ticket.status.${tk.status}`)}</span>
-            </li>
-          ))}
+          {tickets.map((tk) => <TicketPreview key={tk.ref} ticket={tk} />)}
         </ul>
-        <code className="cmd"><Terminal size={13} aria-hidden="true" />/okb:ticket</code>
+        <code className="cmd"><Terminal size={13} aria-hidden="true" />/okb-dev:ticket</code>
       </div>
     </section>
   );
@@ -277,6 +269,7 @@ function CodeMap({ map, risks }: { map: NonNullable<RepoDetail['map']>; risks: R
 }
 
 function LinkedDetail({ id, color, setTitle }: { id: string; color: string; setTitle?: (s: string) => void }) {
+  const w = useShareWords();
   const t = useT();
   const qc = useQueryClient();
   const d = useQuery({ queryKey: ['repo', id], queryFn: () => get<RepoDetail>('/api/repo', { id }) });
@@ -310,10 +303,6 @@ function LinkedDetail({ id, color, setTitle }: { id: string; color: string; setT
       {s.stale ? <div className="notice warn"><TriangleAlert size={18} aria-hidden="true" /><div className="stack" style={{ gap: 8 }}><span>{tn(t, 'repo.status.stale', s.stale)}</span><code className="cmd">/okb-dev:onboard refresh</code></div></div> : null}
       <div className="grid-2">
         <div className="stack lg">
-          <LevelPanel name={repo.name} level={d.data.level} color={color} />
-          <Questions repoId={repo.id} questions={d.data.questions} />
-        </div>
-        <div className="stack lg">
           <section className="panel">
             <div className="panel-head"><h2><BookOpen size={17} aria-hidden="true" />{t('repo.status.notes')}</h2><span className="pill sm num">{written} / {s.notes.length}</span></div>
             <ul className="rows tight">
@@ -326,27 +315,28 @@ function LinkedDetail({ id, color, setTitle }: { id: string; color: string; setT
             </ul>
             {s.tickets || s.otherNotes ? <p className="panel-foot small muted">{t('repo.status.more', { tickets: s.tickets, other: s.otherNotes })}</p> : null}
           </section>
-          <section className="panel">
+          <details className="panel repo-secondary"><summary>{w('Couverture de lecture', 'Reading coverage')}</summary><section>
             <div className="panel-head"><h2>{t('web.repos.progress')}</h2></div>
             <div className="panel-body stack">
               <Meter label={t('web.repos.questions')} done={answered} total={d.data.questions.length} color={color} />
               {s.coverage.readTotal ? <Meter label={t('web.repos.read')} done={s.coverage.readFiles} total={s.coverage.readTotal} color={color} /> : null}
               {s.coverage.skimTotal ? <Meter label={t('web.repos.skimmed')} done={s.coverage.skimFiles} total={s.coverage.skimTotal} color={color} /> : null}
             </div>
-          </section>
-          <Tickets tickets={d.data.tickets} showRepos={false} />
-          {d.data.freshness.notes.length ? (
+          </section></details>
+        </div><div className="stack lg">
+          <Tickets tickets={d.data.tickets} />
+          {(
             <section className="panel">
               <div className="panel-head"><h2>{t('web.repos.freshness')}</h2></div>
               <ul className="rows tight">
                 {d.data.freshness.notes.map((n) => <li key={n.path} className="link-row"><a href={hrefFor({ name: 'brain', path: n.path })}><span className="grow"><span className="title">{n.path.split('/').pop()?.replace(/\.md$/, '')}</span>{n.files.length ? <span className="meta">{n.files.slice(0, 3).map((f) => f.file).join(', ')}</span> : null}</span><span className={`pill sm ${n.verdict === 'fresh' ? 'ok' : n.verdict === 'stale' ? 'warn' : ''}`}>{t(`repo.verdict.${n.verdict}`)}</span></a></li>)}
               </ul>
+              {!d.data.freshness.notes.length ? <p className="panel-body muted small">{w('Aucune source liée à vérifier : la fraîcheur reste inconnue.', 'No linked source to check: freshness remains unknown.')}</p> : null}
             </section>
-          ) : null}
+          )}
         </div>
       </div>
-      <ExamPanel repo={repo.id} color={color} />
-      {map ? <CodeMap map={map} risks={d.data.risks} /> : null}
+      <details className="panel repo-secondary"><summary>{w('Détails techniques et compréhension', 'Technical details and understanding')}</summary><div className="stack lg"><LevelPanel name={repo.name} level={d.data.level} color={color} /><Questions repoId={repo.id} questions={d.data.questions} /><ExamPanel repo={repo.id} color={color} />{map ? <CodeMap map={map} risks={d.data.risks} /> : null}</div></details>
       {d.data.landscape ? (
         <section className="panel">
           <div className="panel-head"><h2><Network size={17} aria-hidden="true" />{t('web.repos.landscapeTitle')}</h2><a className="link" href={hrefFor({ name: 'repos', tab: 'architecture' })}>{t('app.repos.tab.arch')}</a></div>
@@ -407,12 +397,10 @@ export default function Repos({ route, setTitle }: { route: Extract<Route, { nam
   ];
   const products = [...new Set(all.map((r) => r.product))].sort((a, b) => a.localeCompare(b));
   const unlinked = all.filter((r) => !r.linked).length;
-  const active = q.data.tickets.filter((tk) => tk.status === 'active');
   return (
     <div className="page">
       <p className="page-intro">{t('app.repos.introShort')}</p>
       {unlinked ? <p className="notice plain small"><Link2 size={16} aria-hidden="true" />{t('app.repos.unlinkedNotice')}</p> : null}
-      {active.length ? <Tickets tickets={active} showRepos /> : null}
       {all.length ? products.map((product) => {
         const color = lineOf(product, products);
         const rows = all.filter((r) => r.product === product).sort((a, b) => b.level.percent - a.level.percent || a.name.localeCompare(b.name));

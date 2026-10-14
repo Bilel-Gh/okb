@@ -80,3 +80,29 @@ describe('the system map is laid out like a metro map', () => {
     expect(loop.stations.map((s) => s.x)).toEqual([...new Set(loop.stations.map((s) => s.x))]);
   });
 });
+
+describe('architecture labels and shared infrastructure', () => {
+  it('allocates room for a full long name and keeps shared and orphan databases distinct', () => {
+    const boxes = [box('front'), { ...box('api'), name: 'Service de gestion des commandes internationales et des remboursements auprès des fournisseurs partenaires' }, box('db', 'datastore'), box('orphan1', 'datastore'), box('orphan2', 'datastore')];
+    const map = layoutMap({ boxes, arrows: [arrow('front', 'api'), arrow('front', 'db', 'data'), arrow('api', 'db', 'data')] });
+    expect(new Set(map.stations.map((s) => `${s.x},${s.y}`)).size).toBe(boxes.length);
+    expect(map.stations.find((s) => s.id === 'api')?.nameLines.join(' ')).toBe(boxes[1]!.name);
+    for (const s of map.stations) expect(s.y + s.labelHeight).toBeLessThan(map.height);
+  });
+  it('preserves a self-call, and returns finite bounds for an empty map', () => {
+    const map = layoutMap({ boxes: [box('api')], arrows: [arrow('api', 'api')] });
+    expect(map.edges).toHaveLength(1);
+    const empty = layoutMap({ boxes: [], arrows: [] });
+    expect(Number.isFinite(empty.width) && Number.isFinite(empty.height)).toBe(true);
+  });
+});
+
+describe('return corridors remain inside the drawing', () => {
+  it('holds a cycle returning to the first column, including its outside routing lanes', () => {
+    const map = layoutMap({ boxes: [box('a'), box('b'), box('c')], arrows: [arrow('a', 'b'), arrow('b', 'c'), arrow('c', 'a')] });
+    for (const e of map.edges) {
+      const points = [...e.d.matchAll(/[ML] ?(-?[\d.]+)[ ,](-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])] as const);
+      for (const [x, y] of points) { expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThanOrEqual(map.width); expect(y).toBeGreaterThanOrEqual(0); expect(y).toBeLessThanOrEqual(map.height); }
+    }
+  });
+});

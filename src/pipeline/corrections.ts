@@ -20,25 +20,32 @@ const MARKERS: readonly { re: RegExp; label: string }[] = [
 ];
 
 const CONTENT_WORD = /[\p{L}][\p{L}\p{N}_-]{3,}/gu;
+const STOP_WORDS = new Set(['that', 'this', 'with', 'from', 'have', 'will', 'were', 'been', 'days', 'actually', 'correction', 'dans', 'pour', 'avec', 'mais', 'plus', 'nous', 'vous', 'cette', 'cela', 'jours', 'fait', 'pardon']);
 
 /**
  * A later sentence that corrects an earlier one is the single most dangerous
  * thing to lose when summarising a long transcript: the summary keeps the wrong
  * version. These pairs are surfaced so both survive into the proposal.
  */
-export function detectCorrections(doc: NormalizedDoc, lookBack = 12): Correction[] {
+export function detectCorrections(doc: NormalizedDoc, lookBack = Infinity): Correction[] {
   const out: Correction[] = [];
   const blocks = doc.blocks;
+  const previousByTerm = new Map<string, number[]>();
 
   for (const [i, block] of blocks.entries()) {
     const marker = MARKERS.find((m) => m.re.test(block.text));
-    if (!marker) continue;
-
     const terms = contentWords(block.text);
+    if (marker) {
     let best: { block: Block; shared: string[] } | null = null;
-    for (let j = i - 1; j >= Math.max(0, i - lookBack); j -= 1) {
+    // An inverted index reaches distant corrections without comparing every
+    // pair of cues. This is a lexical candidate, never proof of contradiction.
+    const candidates = new Map<number, string[]>();
+    for (const term of terms) for (const j of previousByTerm.get(term) ?? []) {
+      if (j < i - lookBack) continue;
+      const shared = candidates.get(j) ?? []; shared.push(term); candidates.set(j, shared);
+    }
+    for (const [j, shared] of [...candidates].sort((a, b) => b[0] - a[0])) {
       const prev = blocks[j]!;
-      const shared = [...contentWords(prev.text)].filter((t) => terms.has(t));
       if (shared.length >= 2 && (!best || shared.length > best.shared.length)) {
         best = { block: prev, shared };
       }
@@ -52,6 +59,10 @@ export function detectCorrections(doc: NormalizedDoc, lookBack = 12): Correction
       locator: formatLocator(block.locator),
       sharedTerms: best?.shared.slice(0, 6) ?? [],
     });
+    }
+    for (const term of terms) {
+      const previous = previousByTerm.get(term) ?? []; previous.push(i); previousByTerm.set(term, previous);
+    }
   }
 
   return out;
@@ -59,6 +70,6 @@ export function detectCorrections(doc: NormalizedDoc, lookBack = 12): Correction
 
 function contentWords(text: string): Set<string> {
   const out = new Set<string>();
-  for (const m of text.toLowerCase().matchAll(CONTENT_WORD)) out.add(m[0]!);
+  for (const m of text.toLowerCase().matchAll(CONTENT_WORD)) if (!STOP_WORDS.has(m[0]!)) out.add(m[0]!);
   return out;
 }

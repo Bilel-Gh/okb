@@ -19,6 +19,21 @@ issus des notes, les connaissances générales et les points inconnus. Une
 référence doit citer des mots présents dans le passage fourni ; elle permet
 de revenir au texte, sans garantir sa vérité.
 
+Depuis un projet ou la fiche d’un ticket, les liens **Où j’en étais**,
+**Pourquoi cette décision ?** et **A-t-on déjà rencontré cette erreur ?**
+préparent une question dans l’Assistant. Relis-la, précise la décision ou le
+message d’erreur, puis envoie-la. Ouvrir ce parcours ne lance aucun agent.
+Le travail sélectionné apparaît avec un lien de retour ; son état opérationnel
+est relu dans cet espace à chaque question. Il reste distinct des preuves dans
+les notes : travail terminé ne veut pas dire livré.
+
+La recherche locale indexe le texte complet des notes. L’Assistant choisit au
+plus deux fenêtres pertinentes par longue note, avec des voisins et des
+ellipses pour ce qui est sauté, au lieu d’envoyer systématiquement son début.
+Une reformulation reprend les questions récentes et relit les notes trouvées,
+sans renvoyer leurs anciennes copies. Cette sélection bornée peut omettre une
+preuve : elle ne constitue pas une revue exhaustive ni un contrôle de vérité.
+
 Tu peux annuler une réponse, y compris la première de la conversation.
 Une réponse reçue après annulation n’est pas conservée. Si une source change
 ou devient protégée pendant la génération, le résultat est refusé : pose
@@ -36,6 +51,11 @@ hors du dossier de notes et du partage. Les anciennes réponses ne sont pas
 réinjectées dans le modèle avec leurs anciennes sources. Les réglages et
 hooks personnels de l’agent sont une frontière de confiance ; la restriction
 des outils OKB ne transforme pas tout le programme CLI en sandbox système.
+
+Sans agent compatible, avec une session expirée ou une limite d’utilisation,
+la question reste disponible et **Chercher dans mes notes sans IA** ou
+**Continuer sans IA** ouvre la recherche locale avec le texte préparé. Aucun
+autre fournisseur n’est appelé pour contourner cet échec.
 
 La consommation comprend les appels échoués ou annulés, même lorsqu’aucun
 message n’a été gardé. Si le CLI ne donne pas ses tokens, la conversation

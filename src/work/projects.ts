@@ -8,6 +8,7 @@ import { developerNotesToRecheck } from './freshness.js';
 import { loadBundleFor } from '../kb/bundle.js';
 import { isSecret } from '../security/confidential.js';
 import { asBundlePath } from '../util/paths.js';
+import { ticketDetail } from './ticket-state.js';
 
 /** The developer module's projects: the repositories of this KB and its tickets. */
 async function seeds(config: OkbConfig, env: NodeJS.ProcessEnv): Promise<ProjectSeed[]> {
@@ -44,10 +45,17 @@ async function events(config: OkbConfig): Promise<ModuleEvent[]> {
 }
 
 /** The tickets, as work in progress or finished, with the repositories each one touches. */
-async function work(config: OkbConfig): Promise<ModuleWork[]> {
-  return (await listTickets(config)).map((t) => ({
+async function work(config: OkbConfig, _env: NodeJS.ProcessEnv, selection?: { kind: string; ref: string }): Promise<ModuleWork[]> {
+  const tickets = (await listTickets(config)).filter((t) => !selection || selection.kind === 'ticket' && selection.ref === t.ref);
+  return Promise.all(tickets.map(async (t) => {
+    const base: ModuleWork = {
     kind: 'ticket', ref: t.ref, title: t.title, status: t.status === 'done' ? 'done' as const : 'active' as const,
     areas: t.repos.map((r) => r.id), startedAt: t.startedAt, updatedAt: t.updatedAt, doneAt: t.doneAt,
+    };
+    if (!selection) return base;
+    const { detail } = await ticketDetail(config, t.ref);
+    const states = [...detail.states].sort((a, b) => (a.dimension === 'waiting' ? -1 : b.dimension === 'waiting' ? 1 : (b.at ?? '').localeCompare(a.at ?? ''))).slice(0, 12);
+    return { ...base, context: { goal: detail.goal.slice(0, 600), lastAction: detail.lastAction.slice(0, 600), next: detail.next, states: states.map((s) => ({ dimension: s.dimension, environment: s.environment, status: s.status, detail: s.detail.slice(0, 300), at: s.at })), omittedStates: Math.max(0, detail.states.length - states.length), shortenedFields: Number(detail.goal.length > 600) + Number(detail.lastAction.length > 600) + states.filter((s) => s.detail.length > 300).length } };
   }));
 }
 

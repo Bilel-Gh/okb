@@ -32,6 +32,8 @@ Tu peux tout faire de trois façons, au choix :
 [comprendre et apprendre](comprendre.md) · [l’application desktop](application-desktop.md) ·
 [l’assistant local](assistant-local.md) · [export complet et restauration](export-et-restauration.md).
 [Le suivi d’un ticket](reprendre-un-ticket.md) détaille la préparation 2.4.
+[Les gros transcripts](transcripts-longs.md) distinguent une question ciblée
+d’un compte rendu couvrant toutes les fenêtres, avec leurs corrections.
 Ces guides décrivent le code de développement ; la publication et les essais
 d’usage réel suivent les portes de la feuille de route.
 

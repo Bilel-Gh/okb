@@ -12,7 +12,7 @@ OKB_PLUGIN_VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$here/../.clau
 export OKB_PLUGIN_VERSION
 cli="$here/../../dist/cli/index.js"
 if [ -f "$cli" ]; then
-  exec node "$cli" "$@"
+  exec "${OKB_NODE:-node}" "$cli" "$@"
 fi
 # Plugin copied without its package (e.g. a marketplace cache): use the launcher
 # that points to the user's checkout or install, then another okb on PATH.

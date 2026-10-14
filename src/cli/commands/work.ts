@@ -18,7 +18,7 @@ import { OkbError } from '../../util/errors.js';
 import { buildBrief, renderBrief, type Brief } from '../../work/brief.js';
 import { tiedNotes } from '../../work/rank.js';
 import { chooseScope, resolveScope, scopeFor, workspaceOfRepo, workspaceRepos, type Scope } from '../../work/scope.js';
-import { addJournal, finishTicket, listTickets, loadTicket, NOTE_KINDS, startTicket, syncTicket, ticketId, ticketText, titleFrom, type TicketRecord } from '../../work/tickets.js';
+import { addJournal, finishTicket, listTickets, loadTicket, NOTE_KINDS, syncTicket, ticketId, ticketText, titleFrom, type TicketRecord } from '../../work/tickets.js';
 import { addWorkspace, findWorkspace, learnPrefixes, listWorkspaces, looksLikeNotes, removeWorkspace, reposIn, ticketRefs, updateWorkspace, workspaceForDir, type Workspace } from '../../work/workspaces.js';
 import { flagBool, flagList, flagString, flagValues } from '../args.js';
 import { choose, input, spin } from '../ui/prompt.js';
@@ -344,10 +344,11 @@ function printBrief(ctx: Ctx, scope: Scope, brief: Brief | null): void {
 
 /** `okb scope --context --cwd <dir>`: the brief for Claude (the session hook). Silent when there is no scope. */
 async function scopeContext(ctx: Ctx, cwd: string): Promise<number> {
-  const scope = await resolveScope(cwd, { autoStart: true }).catch(() => null);
+  let reason = 'no-context';
+  const scope = await resolveScope(cwd, { autoStart: true }).catch(() => { reason = 'profile-resolution-error'; return null; });
   let text = '';
   if (scope?.config) {
-    const brief = await buildBrief(scope, { sync: true }).catch(() => null);
+    const brief = await buildBrief(scope, { sync: true }).catch(() => { reason = 'brief-error'; return null; });
     if (brief) text = renderBrief(brief);
     // In a workspace, outside its repositories: a folder of notes or a new repository says what it is.
     if (!scope.repo) {
@@ -360,7 +361,7 @@ async function scopeContext(ctx: Ctx, cwd: string): Promise<number> {
     const { repoContextText } = await import('./repo.js');
     text = await repoContextText(cwd);
   }
-  if (ctx.mode === 'json') ctx.out.json({ ok: true, context: text });
+  if (ctx.mode === 'json') ctx.out.json({ ok: true, context: text, reason: text ? 'context-sent' : reason === 'no-context' && !scope?.config ? 'outside-scope' : reason });
   else if (text) ctx.out.line(text);
   return 0;
 }
@@ -371,12 +372,12 @@ export async function cmdTicket(ctx: Ctx): Promise<number> {
   const sub = ctx.args.positionals[0];
   switch (sub) {
     case undefined: case 'status': case 'st': return ticketShow(ctx);
-    case 'start': case 'new': case 'begin': return ticketStart(ctx);
+    case 'start': case 'new': case 'begin': case 'resume': return ticketStart(ctx);
     case 'note': case 'log': return ticketNote(ctx);
     case 'done': case 'finish': case 'end': return ticketDone(ctx);
     case 'list': case 'ls': return ticketList(ctx);
     case 'commit': return ticketCommit(ctx);
-    case 'brief': case 'resume': case 'state': case 'criterion': case 'attempt': case 'reuse': case 'close': case 'github': case 'jira': return ticketOperational(ctx, sub);
+    case 'brief': case 'state': case 'criterion': case 'attempt': case 'reuse': case 'close': case 'github': case 'jira': return ticketOperational(ctx, sub);
     default: {
       if (/^[A-Za-z][A-Za-z0-9]{0,15}-\d{1,7}$/.test(sub)) return ticketShow({ ...ctx, args: { ...ctx.args, positionals: ['status', sub] } });
       throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { key: 'unknownSub', params: { sub, usage: 'okb ticket [start|note|done|list]' } });
@@ -401,10 +402,15 @@ async function pickTicket(ctx: Ctx, named?: string): Promise<{ scope: Scope; con
     for (const kb of new Set((await listRepos()).map((r) => r.kb))) {
       if (kb !== scope.kb) { const c = await loadConfig({ profileId: kb }).then((r) => r.config, () => null); if (c) configs.push(c); }
     }
+    const matches = [];
     for (const config of configs) {
       const record = await loadTicket(config, ref);
-      if (record) return { scope, config, record };
+      if (record) matches.push({ scope, config, record });
     }
+    const scoped = matches.filter((m) => scope.repo && m.config.profile.id === scope.repo.kb && m.record.repos.some((r) => r.id === scope.repo!.id));
+    if (scoped.length === 1) return scoped[0]!;
+    if (matches.length === 1) return matches[0]!;
+    if (matches.length > 1) throw new OkbError('E_CONFLICT', 'this reference exists in several profiles', { detail: { ref: ticketId(ref), profiles: matches.map((m) => m.config.profile.id) }, hint: 'Name the intended profile with --kb <profile>.' });
     throw new OkbError('E_NOT_FOUND', `no ticket ${ticketId(ref)}`, { key: 'ticketUnknown', params: { ref: ticketId(ref) } });
   }
   if (!scope.ticket || !scope.config) throw new OkbError('E_NOT_FOUND', 'no ticket in progress here', { key: 'ticketNone', hint: 'okb ticket start <ABC-123>' });
@@ -488,19 +494,34 @@ function printTicket(ctx: Ctx, record: TicketRecord, progress: readonly { id: st
 
 async function ticketStart(ctx: Ctx): Promise<number> {
   const { args, out } = ctx;
-  const given = args.positionals.slice(1).join(' ').trim();
   const scope = await resolveScope(cwdOf(ctx));
+  const given = args.positionals.slice(1).join(' ').trim() || flagString(args, 'ticket') || scope.ticket?.ref || '';
   const repoArg = flagString(args, 'repo');
   let repo = repoArg ? await findRepo(repoArg) : scope.repo;
   if (repoArg && !repo) throw new OkbError('E_NOT_FOUND', `repository "${repoArg}" is not registered`, { key: 'repoUnknown', params: { id: repoArg } });
   const textFile = flagString(args, 'ticket-file') ?? flagString(args, 'text-file');
   const text = textFile ? await readFile(resolve(textFile), 'utf8') : flagValues(args, 'text').join('\n');
   // The reference: given, else found in the text or the title.
+  const branch = repo ? await currentBranch(repo.path) : null;
   const refs = ticketRefs(`${given}\n${text}`, scope.workspace?.tickets ?? null, 'message');
-  const isRef = /^[A-Za-z][A-Za-z0-9]{0,15}-\d{1,7}$/.test(given);
-  const ref = isRef ? given : refs[0];
+  const branchRefs = branch ? ticketRefs(branch, scope.workspace?.tickets ?? null, 'branch') : [];
+  if (refs.length > 1 && !/^[A-Za-z][A-Za-z0-9]{0,15}[-_]\d{1,7}$/.test(given)) throw new OkbError('E_CONFLICT', 'several ticket references are available', { detail: { refs }, hint: 'Name the one ticket to resume.' });
+  if (!refs.length && !given && branchRefs.length > 1) throw new OkbError('E_CONFLICT', 'several ticket references are on the branch', { detail: { refs: branchRefs }, hint: 'Name the one ticket to resume.' });
+  const isRef = /^[A-Za-z][A-Za-z0-9]{0,15}[-_]\d{1,7}$/.test(given);
+  const ref = isRef ? given : refs[0] ?? branchRefs[0];
   const title = flagString(args, 'title') ?? (isRef ? undefined : given || undefined);
   if (!ref && !title) throw new OkbError('E_INVALID', 'usage: okb ticket start <ABC-123> [--repo <repo>] [--title "…"] [--ticket-file f]', { key: 'usage', params: { usage: 'okb ticket start <ABC-123> [--repo <repo>] [--title "…"] [--ticket-file f]' } });
+  if (!repo && ref) {
+    const explicitKb = flagString(args, 'kb') ?? flagString(args, 'profile');
+    const profile = explicitKb ?? scope.kb;
+    if (profile) {
+      const { config } = await loadConfig({ profileId: profile });
+      const known = await loadTicket(config, ref);
+      const registered = await listRepos();
+      const candidates = known ? registered.filter((r) => r.kb === profile && known.repos.some((tr) => tr.id === r.id)) : [];
+      if (candidates.length === 1) repo = candidates[0]!;
+    }
+  }
   if (!repo && scope.workspace) {
     // At the top of a workspace: the repository named in the ticket's text.
     const { reposNamed } = await import('../../work/scope.js');
@@ -508,8 +529,11 @@ async function ticketStart(ctx: Ctx): Promise<number> {
     if (named.length === 1) repo = named[0]!;
   }
   if (!repo) throw new OkbError('E_INVALID', 'which repository is this ticket about?', { key: 'ticketWhichRepo', hint: 'okb ticket start <ABC-123> --repo <repo>' });
+  const explicitKb = flagString(args, 'kb') ?? flagString(args, 'profile');
+  if (explicitKb && explicitKb !== repo.kb) throw new OkbError('E_CONFLICT', 'repository belongs to another profile', { detail: { repo: repo.id, kb: repo.kb, requested: explicitKb } });
   const { config } = await loadConfig({ profileId: repo.kb });
-  const { record, created, attached } = await startTicket(config, { ...(ref ? { ref } : {}), ...(title ? { title } : {}), repo, ...(text.trim() ? { text } : {}), ...(flagString(args, 'base') ? { base: flagString(args, 'base')! } : {}) });
+  const reconciled = await invoke('tickets.resume', { ref: ref ?? ticketId(title!), repo: repo.id, ...(title ? { title } : {}), ...(text.trim() ? { text } : {}), ...Object.fromEntries(['goal', 'next', 'note', 'base', 'suggestion'].filter((k) => flagString(args, k) !== undefined).map((k) => [k, flagString(args, k)])), ...(flagString(args, 'last-action') ? { lastAction: flagString(args, 'last-action') } : {}) }, { config, env: process.env, actor: actorOf() });
+  const { ticket: record, created, attached } = reconciled;
   // The team's prefix, learned from the first ticket that uses it.
   const ws = scope.workspace ?? (await workspaceForDir(repo.path));
   const prefix = /^[A-Z][A-Z0-9]*-\d+$/.test(record.ref) ? record.ref.split('-')[0]! : null;
@@ -518,11 +542,14 @@ async function ticketStart(ctx: Ctx): Promise<number> {
   const fresh = scope.via === 'folder' ? { ...scope, ticket: record } : await scopeFor(ws, repo, record, 'chosen');
   const brief = await buildBrief(fresh).catch(() => null);
   if (ctx.mode === 'json') {
-    out.json({ ok: true, created, attached, ticket: record, repo: repo.id, kb: repo.kb, brief, ask: `okb ask ${JSON.stringify([record.title, text.slice(0, 300)].filter(Boolean).join(' '))} --repo ${repo.id} --json` });
+    out.json({ ok: true, ...reconciled, created, attached, ticket: record, repo: repo.id, kb: repo.kb, brief, ask: `okb ask ${JSON.stringify([record.title, text.slice(0, 300)].filter(Boolean).join(' '))} --repo ${repo.id} --json` });
     return 0;
   }
   out.ok(t(created ? 'ticket.started' : attached ? 'ticket.attached' : 'ticket.resumed', { ref: paint.bold(record.ref), repo: paint.name(repo.name) }));
   out.line(paint.dim(`   ${t('ticket.followHow')}`));
+  for (const conflict of reconciled.conflicts) out.warn(t('ticket.reconcile.conflict', { field: conflict.field, source: conflict.source }));
+  if (reconciled.proposal && !reconciled.proposal.reused) out.line(t('ticket.reconcile.proposal', { id: reconciled.proposal.id }));
+  if (reconciled.proposalDeferred) out.tip(t('ticket.reconcile.deferred', { path: reconciled.proposalDeferred.path }));
   out.next(['okb ticket note "…" --kind decision', 'okb ticket', '/okb-dev:ticket']);
   return 0;
 }

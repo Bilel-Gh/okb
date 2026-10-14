@@ -104,6 +104,42 @@ export function detectProvides(inv: Inventory): Iface[] {
 
 /* ---------------------------------------------------------------- consumes */
 
+/** Read top-level Fetch options without evaluating source code. Unreadable input stays unknown. */
+function fetchMethod(text: string): string {
+  const tail = text.trimStart();
+  if (!tail.startsWith(',')) return 'GET';
+  const object = tail.slice(1).trimStart();
+  if (!object.startsWith('{')) return 'ANY';
+  const properties: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let escaped = false;
+  let start = 1;
+  let closed = false;
+  for (let i = 0; i < Math.min(object.length, 8192); i++) {
+    const c = object[i]!;
+    if (quote) { if (escaped) escaped = false; else if (c === '\\') escaped = true; else if (c === quote) quote = null; continue; }
+    if (c === "'" || c === '"' || c === '`') { quote = c; continue; }
+    // Comments or computed syntax can carry a method we cannot establish here.
+    if (c === '/' && (object[i + 1] === '/' || object[i + 1] === '*')) return 'ANY';
+    if (c === '{' || c === '(' || c === '[') depth += 1;
+    if (c === '}' || c === ')' || c === ']') {
+      depth -= 1;
+      if (depth === 0) { properties.push(object.slice(start, i).trim()); closed = c === '}'; break; }
+    }
+    if (c === ',' && depth === 1) { properties.push(object.slice(start, i).trim()); start = i + 1; }
+  }
+  if (!closed) return 'ANY';
+  let method = 'GET';
+  for (const property of properties) {
+    if (property.startsWith('...') || property.startsWith('[') || /^get\s+method\b/.test(property)) return 'ANY';
+    const field = /^(?:method|['"]method['"])\s*:(.*)$/s.exec(property);
+    if (field) method = /^\s*['"`]([A-Za-z]+)['"`]\s*$/.exec(field[1]!)?.[1]?.toUpperCase() ?? 'ANY';
+    else if (/^method\b/.test(property)) method = 'ANY';
+  }
+  return method;
+}
+
 /**
  * Outgoing HTTP calls in code: `fetch(url, { method })`, `axios.post(url)`,
  * Python `requests.get(url)`, Java `RestTemplate` and `WebClient`. A call to an
@@ -123,8 +159,8 @@ function httpCalls(path: string, text: string): { name: string; base: string | n
     out.push({ name: `${method.toUpperCase()} ${normalizePath(rest)}`, base: lead ? baseVariable(lead[1]!, constants) : null, index });
   };
   if (/\.(m?[jt]sx?|cjs)$/.test(path)) {
-    for (const m of text.matchAll(/\bfetch\(\s*(`[^`]*`|'[^']*'|"[^"]*")\s*(?:,\s*\{([^}]*)\})?/g)) {
-      add(/method\s*:\s*['"`](\w+)['"`]/i.exec(m[2] ?? '')?.[1] ?? 'GET', m[1]!, m.index);
+    for (const m of text.matchAll(/\bfetch\(\s*(`[^`]*`|'[^']*'|"[^"]*")\s*/g)) {
+      add(fetchMethod(text.slice(m.index + m[0].length)), m[1]!, m.index);
     }
     for (const m of text.matchAll(/\b(?:axios|got|ky|superagent|httpClient|this\.http|\$http)\.(get|post|put|patch|delete)\(\s*(`[^`]*`|'[^']*'|"[^"]*")/g)) add(m[1]!, m[2]!, m.index);
   }

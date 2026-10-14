@@ -1,0 +1,29 @@
+/* Progressive architecture exploration uses the existing Atelier tokens. */
+.arch-focus { display: flex; flex-direction: column; gap: var(--s2); max-width: min(680px, 100%); min-width: 0; }
+.arch-focus .input { width: 100%; min-width: 0; max-width: 100%; }
+.arch-side { min-width: 0; overflow-wrap: anywhere; }
+.arch-map { max-width: none; }
+.arch-scroll { padding-top: 48px; }
+.arch-uncertainty { font-size: 15px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 6px; }
+.arch-edge.uncertain .arch-line { stroke-dasharray: 6 5; }
+.arch-hidden summary { cursor: pointer; font-weight: 600; padding: var(--s2) 0; }
+.arch-hidden-members { list-style: none; padding: var(--s2) 0; margin: 0; display: grid; gap: var(--s1); }
+.arch-hidden-members button { white-space: normal; height: auto; min-height: 34px; text-align: left; }
+.arch-relations-head { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; justify-content: space-between; }
+.arch-relation-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.arch-relation-list li + li { border-top: 1px solid var(--hair); }
+.arch-relation-row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s2) var(--s4); padding: var(--s3); border: 0; border-radius: var(--r-sm); background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.arch-relation-row > :first-child { font-weight: 600; }
+.arch-relation-row > :nth-child(2) { grid-column: 1; }
+.arch-relation-row > :nth-child(3) { grid-column: 2; grid-row: 1; align-self: start; }
+.arch-relation-row > :nth-child(4) { grid-column: 2; grid-row: 2; }
+.arch-relation-row:hover, .arch-relation-row[aria-pressed="true"] { background: var(--hover); }
+.arch-relation-row:focus-visible, .arch-hidden summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 560px) {
+  .arch-relation-row { grid-template-columns: minmax(0, 1fr); }
+  .arch-relation-row > :nth-child(3), .arch-relation-row > :nth-child(4) { grid-column: 1; grid-row: auto; justify-self: start; }
+  .arch-focus { max-width: 100%; }
+  .arch-hidden .arch-open .btn { height: auto; min-height: 34px; white-space: normal; }
+}
+.arch-side a.btn, .arch-open .btn { white-space: normal; height: auto; min-height: 30px; max-width: 100%; overflow-wrap: anywhere; }
+.arch-side .stack > span { min-width: 0; max-width: 100%; }

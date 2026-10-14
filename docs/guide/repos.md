@@ -12,6 +12,14 @@ bon ordre, et te prépare sa **KB à lui**. Tu y trouves :
 
 Ensuite, après chaque ticket, la KB du repo s'enrichit de ce que tu as appris.
 
+Dans l’application, **Projets** montre le travail à accomplir, tandis que
+**Projets › Repos** donne accès au contexte technique. Ouvre un repo pour
+retrouver d’abord ses notes, ses tickets et la fraîcheur de leurs sources.
+L’absence de source liée laisse cette fraîcheur inconnue. La couverture de
+lecture, les questions et la carte technique restent derrière des accès
+repliables. Les aperçus de tickets affichent une suite ou un blocage court ;
+leur journal et les informations complètes sont dans la fiche spécialisée.
+
 Tu n'as besoin de rien savoir sur le repo. S'il existe des transcripts de
 passation ou des docs, tu les donnes ; sinon OKB part du code et des README.
 

@@ -49,6 +49,13 @@ Details: [release notes 2.0.0](docs/releases/RELEASE-2.0.0.md) · guides (FR):
 
 ## Development preview: 2.1 through 3.0
 
+The [13 October usage fixes](docs/releases/RELEASE-USAGE-2026-10-13.md) add
+ticket reconciliation, diagnosable Claude hooks, work-context Assistant actions,
+progressive architecture exploration and traceable long-transcript windows.
+They preserve the proposal and human approval boundary. See the
+[acceptance evidence and limits](docs/dev/VALIDATION-USAGE-2026-10-13.md) and
+[CLI/build/desktop runtime analysis](docs/dev/NODE-RUNTIME.md).
+
 The next steps keep the same engine, local Markdown knowledge and SQLite state.
 The Atelier interface and the five screens remain the foundation.
 
