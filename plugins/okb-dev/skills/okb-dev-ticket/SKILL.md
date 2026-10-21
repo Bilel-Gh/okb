@@ -1,6 +1,6 @@
 ---
 name: okb-dev-ticket
-description: Find, create or resume a ticket in a registered repository from its reference, local state and authorized KB notes. Brief the user on what was done, why, failed attempts, blockers and the next action; prepare useful cited note updates for human review. Use when the user starts, resumes or finishes a ticket, including work started before OKB. Do not use to write code, onboard an unregistered repository (offer /okb-dev:onboard), or update another tool's knowledge base.
+description: Find, create or resume a ticket in a registered repository from its reference, local state and authorized KB notes; complete its sheet from what your tools can read. Brief the user on what was done, why, failed attempts, blockers and the next action; prepare useful cited note updates for human review. Use when the user starts, resumes, completes or finishes a ticket, even one started before OKB. Do not use to write code, onboard an unregistered repository (offer /okb-dev:onboard), or update another tool's knowledge base.
 ---
 
 # Follow a ticket, then feed the KB at the right level
@@ -51,6 +51,8 @@ the workspace's). Not registered → offer `/okb-dev:onboard` and stop.
    present one card for the returned path, wait for the person's choice, then retry
    with `--suggestion <id>`. Never accept that card yourself. An existing note's
    new facts become a reviewable complement that preserves its original content.
+
+**OKB requests** or « complète ce ticket »: [the sheet](references/sheet.md).
 
 **While working**, each time a decision is taken, a trap found or a question
 left open, record one line with its *why*:

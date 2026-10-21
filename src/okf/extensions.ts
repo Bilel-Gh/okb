@@ -55,6 +55,8 @@ export type OkbExtension = {
   confidentiality?: 'normal' | 'confidential' | 'secret';
   /** What the note was born from: a ticket reference, a meeting, a session. */
   origin?: string;
+  /** The tickets this note documents (F2.4-11): it appears on their sheet wherever it is filed. */
+  tickets?: string[];
   /** Day the note was last checked against its subject. */
   checked?: string;
 };

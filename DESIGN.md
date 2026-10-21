@@ -145,6 +145,20 @@ reader in `styles/brain.css`; the graph in `styles/graph.css` (canvas engine:
 `graph/GraphView.ts`: themes as flat tinted discs with a crisp edge, hubs ringed
 in their colour; no blur, no glow, no frosted glass on the graph).
 
+### The ticket sheet (D70)
+
+`pages/ticket/` holds the ticket sheet: `TicketPage` (header, journey, columns,
+« More details »), `panels` (In 30 seconds, To do, Linked notes, Details,
+pending requests, History) and `parts` (`Editable` text edited where it is
+read, `Slot` for an undefined field with « + Add » and ✦ ask the agent, `Prov`
+origin as a dot plus its word, `ImportanceBars` one to three bars, `TkRing`
+completeness). `pages/today-work.tsx` holds Today's pick-up cards, compact
+lines and filters, the todo board and the agent requests. Styles are in
+`styles/ticket.css`, Atelier tokens only. Scale: text 12 / 13 / 14 / 15 / 22,
+icons 14 / 16 / 18. Labels are small capitals in ink-3; the important line
+(objective, next step) is bold; meaning in colour always comes with a word.
+Actions shown on hover are also shown on keyboard focus.
+
 ## Do's and don'ts
 
 The October usage fixes keep the same five destinations and Atelier tokens.

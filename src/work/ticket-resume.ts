@@ -102,7 +102,7 @@ export async function resumeTicket(config: OkbConfig, input: ResumeInput, option
       if (!kept) patch[field] = value.slice(0, field === 'next' ? 600 : 1000);
       else if (kept !== value) conflicts.push({ field, kept, incoming: value, source: input[field] ? 'input' : note!.path });
     }
-    if (Object.keys(patch).length) await updateTicketBrief(config, ref, patch);
+    if (Object.keys(patch).length) await updateTicketBrief(config, ref, patch, options.agent ? 'agent' : 'person');
     const synced = await syncTicket(config, (await loadTicket(config, ref))!, [input.repo]);
     const final = await ticketDetail(config, ref);
     if (options.agent) final.detail.reuses = final.detail.reuses.filter((r) => { const entry = bundle.byPath.get(r.path as never); return Boolean(entry && !isSecret(entry.ext)); });
@@ -126,7 +126,7 @@ export async function resumeTicket(config: OkbConfig, input: ResumeInput, option
       if (prior) proposal = { id: prior.id, status: prior.status, reused: true };
       else {
         const fields = [['Objectif', final.detail.goal], ['Contexte utile', input.context || input.text], ['Dernière action', final.detail.lastAction], ['Décisions et raisons', final.ticket.journal.filter((j) => j.kind === 'decision').map((j) => `- ${j.text}`).join('\n')], ['Essais ratés et conditions', final.detail.attempts.map((a) => `- ${a.approach} ; ${a.conditions} → ${a.result}`).join('\n')], ['Blocage / attente', input.waiting ? `${input.waiting.status}: ${input.waiting.detail}` : ''], ['Prochaine étape', final.detail.next], ['Critères de fin', final.detail.criteria.filter((c) => c.text !== c.kind).map((c) => `- ${c.text} (${c.status})`).join('\n')]];
-        const content = `---\n${YAML.stringify({ title: `${ref} — ${final.ticket.title}`, type: 'note', description: `Reprise déclarative du ticket ${ref} dans ${input.repo.name}.`, status: 'draft', generated: { by: config.okf.machineActor, at: started.record.startedAt }, 'x_okb': { origin: ref, confidence: 'heard', brain: { type: 'ticket', ref, repo: input.repo.id } } })}---\n# ${ref} — ${final.ticket.title}\n\n${fields.map(([h, v]) => `## ${h}\n\n${v?.trim() || 'Inconnu.'}`).join('\n\n')}\n\n## Sources\n\n- Suivi local : ${ref}, repo ${input.repo.id}. Informations déclarées ; Git ne confirme ni CI ni livraison.\n${(input.sources ?? []).map((source) => `- ${source}`).join('\n')}\n`;
+        const content = `---\n${YAML.stringify({ title: `${ref} — ${final.ticket.title}`, type: 'note', description: `Reprise déclarative du ticket ${ref} dans ${input.repo.name}.`, status: 'draft', generated: { by: config.okf.machineActor, at: started.record.startedAt }, 'x_okb': { origin: ref, tickets: [ref], confidence: 'heard', brain: { type: 'ticket', ref, repo: input.repo.id } } })}---\n# ${ref} — ${final.ticket.title}\n\n${fields.map(([h, v]) => `## ${h}\n\n${v?.trim() || 'Inconnu.'}`).join('\n\n')}\n\n## Sources\n\n- Suivi local : ${ref}, repo ${input.repo.id}. Informations déclarées ; Git ne confirme ni CI ni livraison.\n${(input.sources ?? []).map((source) => `- ${source}`).join('\n')}\n`;
         // Never replace an occupied path: it may be a human note without recognizable identity.
         if (bundle.snapshot.files.has(path)) throw new OkbError('E_CONFLICT', 'the ticket note destination is already occupied', { detail: { path } });
         await saveReviewable(path, content, `ticket-resume:${ref}:${input.repo.id}`);

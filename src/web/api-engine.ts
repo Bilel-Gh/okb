@@ -1,3 +1,4 @@
+import { ticketId } from '../work/tickets.js';
 import { resolve } from 'node:path';
 import type { OkbConfig } from '../config/schema.js';
 import { getDocument } from '../documents/documents.js';
@@ -19,6 +20,14 @@ type Handler = (ctx: any, q: URLSearchParams, b: Body) => Promise<unknown>;
 const pick = (b: Body, keys: readonly string[]): Body => Object.fromEntries(keys.filter((k) => b[k] !== undefined && b[k] !== null).map((k) => [k, b[k]]));
 const fromQuery = (q: URLSearchParams, keys: readonly string[]): Body => Object.fromEntries(keys.filter((k) => q.get(k)).map((k) => [k, q.get(k)!]));
 
+/** A ticket reference typed in the app (`#demo_4211`) is normalised here, where the modules meet (F2.0-25). */
+function withWork<T extends Record<string, unknown>>(input: T): T {
+  const ref = input.workRef;
+  if (typeof ref !== 'string') return input;
+  const bare = ref.trim().replace(/^#/, '');
+  return { ...input, workRef: bare ? ticketId(bare) : null };
+}
+
 export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
   const op = (id: string, input: (q: URLSearchParams, b: Body) => unknown): Handler => async (ctx, q, b) =>
     invoke(id, input(q, b), { config: await kbConfig(ctx, q.get('kb') ?? b.kb), env: ctx.env, actor: 'person' });
@@ -27,6 +36,24 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
     'GET /api/ticket': op('tickets.get', (q) => fromQuery(q, ['ref'])),
     'POST /api/tickets/resume': op('tickets.resume', (_q, b) => pick(b, ['ref', 'repo', 'title', 'text', 'goal', 'lastAction', 'next', 'note', 'suggestion', 'context', 'decisions', 'attempts', 'criteria', 'sources', 'waiting'])),
     'POST /api/tickets/start': op('tickets.start', (_q, b) => pick(b, ['ref', 'repo', 'title', 'text'])),
+    'GET /api/ticket/sheet': op('tickets.sheet', (q) => fromQuery(q, ['ref'])),
+    'POST /api/ticket/field': op('tickets.field.set', (_q, b) => pick(b, ['ref', 'field', 'value', 'url'])),
+    'POST /api/ticket/field/clear': op('tickets.field.clear', (_q, b) => pick(b, ['ref', 'field'])),
+    'POST /api/ticket/field/na': op('tickets.field.na', (_q, b) => pick(b, ['ref', 'field', 'reason'])),
+    'POST /api/ticket/conflict': op('tickets.conflict.resolve', (_q, b) => pick(b, ['ref', 'field', 'keep'])),
+    'POST /api/ticket/rename': op('tickets.rename', (_q, b) => pick(b, ['ref', 'title'])),
+    'POST /api/ticket/pin': op('tickets.pin', (_q, b) => pick(b, ['ref', 'pinned'])),
+    'POST /api/ticket/source': op('tickets.source', (_q, b) => pick(b, ['ref', 'provider', 'url'])),
+    'POST /api/ticket/repos/detach': op('tickets.repos.detach', (_q, b) => pick(b, ['ref', 'repo'])),
+    'POST /api/ticket/unfollow': op('tickets.unfollow', (_q, b) => pick(b, ['ref'])),
+    'POST /api/ticket/restore': op('tickets.restore', (_q, b) => pick(b, ['ref'])),
+    'GET /api/ticket/links': op('tickets.links.list', (q) => fromQuery(q, ['ref'])),
+    'POST /api/ticket/links': op('tickets.links.set', (_q, b) => pick(b, ['ref', 'path', 'state'])),
+    'POST /api/ticket/links/scan': op('tickets.links.scan', () => ({})),
+    'GET /api/ticket/requests': op('tickets.requests.list', (q) => fromQuery(q, ['ref', 'repo'])),
+    'POST /api/ticket/requests': op('tickets.requests.create', (_q, b) => pick(b, ['ref', 'fields'])),
+    'POST /api/ticket/requests/cancel': op('tickets.requests.cancel', (_q, b) => pick(b, ['id'])),
+    'GET /api/ticket/requests/prompt': op('tickets.requests.prompt', (q) => fromQuery(q, ['id', 'lang'])),
     'POST /api/ticket/brief': op('tickets.brief', (_q, b) => pick(b, ['ref', 'goal', 'lastAction', 'next'])),
     'POST /api/ticket/state': op('tickets.state', (_q, b) => ({ ref: b.ref, state: pick(b, ['dimension', 'environment', 'status', 'detail', 'url']) })),
     'POST /api/ticket/criterion': op('tickets.criterion', (_q, b) => pick(b, ['ref', 'id', 'kind', 'text', 'required', 'status'])),
@@ -66,8 +93,9 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
     'GET /api/today': op('today.view', () => ({})),
     'GET /api/actions': op('actions.list', (q) => fromQuery(q, ['project', 'status', 'kind'])),
     'GET /api/actions/detect': op('actions.detect', (q) => ({ text: q.get('text') ?? '' })),
-    'POST /api/actions': op('actions.add', (_q, b) => pick(b, ['text', 'kind', 'project', 'who', 'due'])),
-    'POST /api/action/update': op('actions.update', (_q, b) => pick(b, ['id', 'status', 'text', 'who', 'due'])),
+    'POST /api/actions': op('actions.add', (_q, b) => withWork(pick(b, ['text', 'kind', 'project', 'who', 'due', 'workRef', 'importance', 'pinned']))),
+    'POST /api/action/update': op('actions.update', (_q, b) => withWork(pick(b, ['id', 'status', 'text', 'who', 'due', 'importance', 'pinned', 'workRef']))),
+    'POST /api/action/delete': op('actions.delete', (_q, b) => pick(b, ['id'])),
     'GET /api/entries': op('journal.list', (q) => ({ ...fromQuery(q, ['project', 'day']), ...(q.get('limit') ? { limit: Number(q.get('limit')) } : {}) })),
     'POST /api/entries': op('journal.add', (_q, b) => pick(b, ['text', 'kind', 'project'])),
     'GET /api/documents': op('documents.list', (q) => ({ ...fromQuery(q, ['project', 'query']), ...(q.get('limit') ? { limit: Number(q.get('limit')) } : {}) })),

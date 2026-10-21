@@ -32,9 +32,10 @@ Un projet se désigne par son titre, son identifiant (`P-1a2b3c`) ou, pour un
 ticket, sa référence (`ABC-231`).
 
 Les tickets ont le même aperçu dans Aujourd’hui, Projets et la page de leur repo :
-référence et titre, état court, puis suite ou blocage. Leur fiche spécialisée
-contient le brief, les états indépendants, les tentatives, le journal et les
-éléments du projet associé. Les anciennes adresses de projet d’un ticket
+référence et vrai titre, état court, puis prochaine étape ou blocage. Leur fiche
+([reprendre un ticket](reprendre-un-ticket.md)) se modifie à la main et contient
+le problème, ce qui est fait, les todos, les notes liées, le parcours, les
+critères, les tentatives, le journal et les documents du projet associé. Les anciennes adresses de projet d’un ticket
 ouvrent cette fiche ; aucune donnée ni correction humaine n’est supprimée.
 
 Depuis une fiche, les trois liens d’aide préparent une question contextualisée
@@ -110,8 +111,8 @@ L'écran **Aujourd'hui** (ou `okb today`) répond à six questions :
 
 | Question | Ce que tu vois |
 |---|---|
-| Je reprends quoi ? | tes projets en cours, celui que tu as quitté en dernier d'abord, avec « Où j'en étais » |
-| J'ai quoi à faire ? | tes actions ouvertes, les retards d'abord |
+| Je reprends quoi ? | trois cartes : tes tickets épinglés, puis ceux qui viennent d'être débloqués, puis les plus récents ; au-delà de trois, cinq lignes et des filtres (en cours, en attente, bloqués) |
+| J'ai quoi à faire ? | tes actions ouvertes, les retards puis les plus importantes d'abord ; chacune dit son ticket ou « personnelle » |
 | J'attends quoi ? | ce que tu attends de quelqu'un |
 | Qu'est-ce qui s'est passé ? | le journal d'aujourd'hui et d'hier |
 | Qu'est-ce que j'ai appris ? | les notes entrées dans ta mémoire cette semaine |

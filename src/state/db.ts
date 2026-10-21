@@ -24,7 +24,7 @@ export type Db = {
 };
 
 /** Each entry upgrades the file by one version; never edit one that shipped, add the next. */
-const MIGRATIONS: readonly string[] = [
+export const MIGRATIONS: readonly string[] = [
   `CREATE TABLE projects (
      id TEXT PRIMARY KEY,
      module TEXT NOT NULL DEFAULT 'core',
@@ -111,6 +111,19 @@ const MIGRATIONS: readonly string[] = [
    CREATE INDEX ticket_attempts_ref ON ticket_attempts(ref, at);
    CREATE TABLE ticket_reuses (id TEXT PRIMARY KEY, ref TEXT NOT NULL REFERENCES tickets(ref) ON DELETE CASCADE, path TEXT NOT NULL, title TEXT NOT NULL, sha256 TEXT NOT NULL, why TEXT NOT NULL DEFAULT '', at TEXT NOT NULL);
    CREATE INDEX ticket_reuses_ref ON ticket_reuses(ref, at);`,
+  // 8 (F2.4-08..14, D70): one sheet per ticket. Each field keeps its origin and whether the
+  // person wrote it; links and flags also exist for a ticket documented but not followed.
+  // The 7 columns (goal, last_action, next_step) stay readable: nothing is dropped.
+  `CREATE TABLE ticket_fields (ref TEXT NOT NULL REFERENCES tickets(ref) ON DELETE CASCADE, field TEXT NOT NULL, value TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL, url TEXT, at TEXT NOT NULL, manual INTEGER NOT NULL DEFAULT 0, na_reason TEXT, PRIMARY KEY(ref, field));
+   CREATE TABLE ticket_field_conflicts (ref TEXT NOT NULL REFERENCES tickets(ref) ON DELETE CASCADE, field TEXT NOT NULL, value TEXT NOT NULL, origin TEXT NOT NULL, url TEXT, at TEXT NOT NULL, PRIMARY KEY(ref, field, origin));
+   CREATE TABLE ticket_links (ref TEXT NOT NULL, path TEXT NOT NULL, note_id TEXT, state TEXT NOT NULL, origin TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY(ref, path));
+   CREATE TABLE ticket_requests (id TEXT PRIMARY KEY, ref TEXT NOT NULL REFERENCES tickets(ref) ON DELETE CASCADE, fields TEXT NOT NULL, state TEXT NOT NULL, created_at TEXT NOT NULL, closed_at TEXT, report TEXT);
+   CREATE INDEX ticket_requests_open ON ticket_requests(state, ref);
+   CREATE TABLE ticket_flags (ref TEXT PRIMARY KEY, pinned INTEGER NOT NULL DEFAULT 0, unfollowed_at TEXT, snapshot TEXT);
+   ALTER TABLE actions ADD COLUMN ticket_ref TEXT;
+   ALTER TABLE actions ADD COLUMN importance TEXT NOT NULL DEFAULT 'medium';
+   ALTER TABLE actions ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
+   CREATE INDEX actions_ticket ON actions(ticket_ref, status);`,
 ];
 
 /** Node still calls its SQLite experimental; the warning has no place in a person's terminal. */
@@ -130,7 +143,14 @@ function loadSqlite(): typeof import('node:sqlite') {
 
 const open = new Map<string, { db: Db; raw: DatabaseSync }>();
 
-function migrate(raw: DatabaseSync): void {
+/** Before upgrading a file that already holds state, keep a whole copy of it next to the backups (D70). */
+function migrate(raw: DatabaseSync, backups: string): void {
+  const before = (raw.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
+  if (before > 0 && before < MIGRATIONS.length) {
+    mkdirSync(backups, { recursive: true });
+    const target = resolve(backups, `state-v${before}-${new Date().toISOString().replace(/[:.]/g, '-')}.db`);
+    raw.exec(`VACUUM INTO '${target.replace(/'/g, "''")}'`);
+  }
   raw.exec('BEGIN IMMEDIATE');
   try {
     const version = (raw.prepare('PRAGMA user_version').get() as { user_version: number }).user_version;
@@ -157,7 +177,7 @@ export function openDb(config: OkbConfig): Db {
   raw.exec('PRAGMA busy_timeout = 5000');
   raw.exec('PRAGMA journal_mode = WAL');
   raw.exec('PRAGMA foreign_keys = ON');
-  migrate(raw);
+  migrate(raw, statePaths(config).backups);
   let depth = 0;
   const db: Db = {
     run: (sql, ...params) => { raw.prepare(sql).run(...params); },

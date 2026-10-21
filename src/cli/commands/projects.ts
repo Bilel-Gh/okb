@@ -1,3 +1,4 @@
+import { ticketId } from '../../work/tickets.js';
 import { invoke } from '../../engine/registry.js';
 import { t } from '../../i18n/index.js';
 import type { Project } from '../../projects/projects.js';
@@ -82,6 +83,13 @@ export async function cmdProject(ctx: Ctx): Promise<number> {
   }
 }
 
+/** --ticket, --importance and --pin: the work an action belongs to, normalised where the modules meet (F2.4-13). */
+function work(ctx: Ctx): { workRef?: string; importance?: 'low' | 'medium' | 'high'; pinned?: boolean } {
+  const ref = flagString(ctx.args, 'ticket');
+  const importance = flagString(ctx.args, 'importance');
+  return { ...(ref ? { workRef: ticketId(ref.replace(/^#/, '')) } : {}), ...(importance ? { importance: importance as 'low' } : {}), ...(flagBool(ctx.args, 'pin') ? { pinned: true } : {}) };
+}
+
 export async function cmdAction(ctx: Ctx): Promise<number> {
   const c = await context(ctx);
   const [sub = 'list', ...rest] = ctx.args.positionals;
@@ -103,6 +111,7 @@ export async function cmdAction(ctx: Ctx): Promise<number> {
         ...(flagString(ctx.args, 'due') ?? spotted?.due ? { due: flagString(ctx.args, 'due') ?? spotted!.due } : {}),
         ...(flagString(ctx.args, 'who') ?? spotted?.who ? { who: flagString(ctx.args, 'who') ?? spotted!.who } : {}),
         ...(project ? { project } : {}),
+        ...work(ctx),
       }, c);
       if (ctx.mode === 'json') ctx.out.json({ ok: true, action: added }); else ctx.out.ok(`${added.text}${added.due ? ` · ${added.due}` : ''}  ${paint.dim(added.id)}`);
       return 0;
@@ -113,8 +122,18 @@ export async function cmdAction(ctx: Ctx): Promise<number> {
       if (ctx.mode === 'json') ctx.out.json({ ok: true, action: changed }); else ctx.out.ok(`${changed.text} · ${changed.status}`);
       return 0;
     }
+    case 'edit': {
+      const changed = await invoke('actions.update', { id: rest[0] ?? '', ...(flagString(ctx.args, 'text') ? { text: flagString(ctx.args, 'text') } : {}), ...work(ctx), ...(flagBool(ctx.args, 'unpin') ? { pinned: false } : {}) }, c);
+      if (ctx.mode === 'json') ctx.out.json({ ok: true, action: changed }); else ctx.out.ok(`${changed.text} · ${changed.importance}${changed.pinned ? ' · 📌' : ''}`);
+      return 0;
+    }
+    case 'delete': case 'rm': {
+      await invoke('actions.delete', { id: rest[0] ?? '' }, c);
+      if (ctx.mode === 'json') ctx.out.json({ ok: true }); else ctx.out.ok(t('action.deleted'));
+      return 0;
+    }
     default:
-      throw new OkbError('E_INVALID', `unknown action command "${sub}"`, { hint: 'okb action [list|add "<texte>"|done <id>|drop <id>]' });
+      throw new OkbError('E_INVALID', `unknown action command "${sub}"`, { hint: 'okb action [list|add "<texte>"|edit <id>|done <id>|drop <id>|delete <id>]' });
   }
 }
 

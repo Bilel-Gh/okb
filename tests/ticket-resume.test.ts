@@ -35,6 +35,8 @@ describe('one ticket gesture reconciles local state and authorized knowledge', (
     expect(first.ticket.ref).toBe('ORD-42');
     expect(first.proposal?.id).toBeTruthy();
     const proposed = await loadProposal(config, first.proposal!.id);
+    // D70: the proposed note declares its ticket, so it is linked wherever it is filed.
+    expect(proposed.changes[0]!.replaceDocument?.content ?? proposed.changes[0]!.createDocument?.content).toMatch(/tickets:\s*\n\s*- ORD-42/);
     expect((await guardApply(config, proposed, proposed.changes)).ok).toBe(true);
     const planned = new Map([...groupChangesByPath(proposed.changes)].map(([path, changes]) => [path, { before: null, after: materializeFile(path, null, changes) }]));
     await expect(validatePlannedFiles(config, planned)).resolves.toBeUndefined();

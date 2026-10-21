@@ -1,6 +1,8 @@
 import type { OkbConfig } from '../config/schema.js';
 import type { EntryKind } from '../projects/journal.js';
-import type { ModuleEvent, ModuleWork, ProjectSeed, ProjectSource } from '../projects/sources.js';
+import type { ModuleEvent, ModuleWork, PendingRequest, ProjectSeed, ProjectSource, WorkCard } from '../projects/sources.js';
+import { ticketSheet } from './ticket-sheet.js';
+import { openRequests } from './ticket-requests.js';
 import { listRepos } from '../repo/registry.js';
 import { listTickets } from './tickets.js';
 import { openDb } from '../state/db.js';
@@ -59,8 +61,40 @@ async function work(config: OkbConfig, _env: NodeJS.ProcessEnv, selection?: { ki
   }));
 }
 
+/** Only what « No blocker » says: « Pas de réponse de Paul » is a blocker. */
+const NO_BLOCKER = /^\s*(aucun blocage|aucun|aucune|pas de blocage|rien ne bloque|none|no blocker|nothing blocks)\s*\.?\s*$/i;
+
+/** Today's card of each ticket, read from its sheet (D70). */
+async function cards(config: OkbConfig, _env: NodeJS.ProcessEnv, refs: readonly string[]): Promise<Map<string, WorkCard>> {
+  const out = new Map<string, WorkCard>();
+  for (const ref of refs) {
+    const sheet = await ticketSheet(config, ref, 'person', { links: false }).catch(() => null);
+    if (!sheet) continue;
+    const waiting = sheet.states.find((s) => s.dimension === 'waiting');
+    const blockerText = sheet.fields.blocker?.value ?? '';
+    const blocked = waiting?.status === 'blocked' || Boolean(blockerText && !NO_BLOCKER.test(blockerText));
+    const isWaiting = !blocked && waiting?.status === 'waiting';
+    const work = sheet.journey.find((j) => j.id === 'work');
+    const current = sheet.journey.findIndex((j) => j.state === 'now' || j.state === 'wait');
+    out.set(ref, {
+      ref: sheet.ref, title: sheet.title?.value ?? null, next: sheet.next?.text ?? null,
+      waitingFor: blocked || isWaiting ? (waiting?.detail || blockerText || null) : null,
+      status: sheet.fields.sourceStatus ? { kind: 'source', value: sheet.fields.sourceStatus.value } : blocked ? { kind: 'blocked', value: 'blocked' } : isWaiting ? { kind: 'waiting', value: 'waiting' } : { kind: 'work', value: work?.label ?? 'unknown' },
+      percent: sheet.completeness.percent, steps: sheet.journey.filter((j) => j.state === 'done').length, current: current >= 0 ? current : null,
+      pinned: sheet.pinned, unblockedAt: waiting?.status === 'none' && waiting.at ? waiting.at : null,
+      filter: blocked ? 'blocked' : isWaiting ? 'waiting' : 'progress',
+      updatedAt: sheet.history[0]?.at ?? '',
+    });
+  }
+  return out;
+}
+
+async function pendingRequests(config: OkbConfig): Promise<PendingRequest[]> {
+  return openRequests(config).map((r) => ({ id: r.id, ref: r.ref, fields: r.fields, since: r.createdAt }));
+}
+
 export const devProjects: ProjectSource = {
-  seeds, events, work,
+  seeds, events, work, cards, pendingRequests,
   notesToRecheck: developerNotesToRecheck,
   privateNames: async (env) => (await listRepos(env)).map((r) => ({ name: r.name, kind: 'repository' })),
 };

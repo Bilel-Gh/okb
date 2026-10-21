@@ -10,7 +10,7 @@ import { indicatorsView } from './ops/indicators.js';
 import { sharedFind, sharedGlossary, sharedKeep, sharedMap, sharedRead, shareMark, sharePreviewOp, shareReceive, shareSend, shareSetup, shareStatus, shareUnmark } from './ops/share.js';
 import { kbStatus } from './ops/kb.js';
 import { notesFind, notesRead } from './ops/notes.js';
-import { actionsAdd, actionsDetect, actionsList, actionsUpdate, journalAdd, journalList } from './ops/actions.js';
+import { actionsAdd, actionsDelete, actionsDetect, actionsList, actionsUpdate, journalAdd, journalList } from './ops/actions.js';
 import { projectsCreate, projectsGet, projectsLeave, projectsList, projectsUpdate } from './ops/projects.js';
 import { suggestionsAdd, suggestionsList } from './ops/suggestions.js';
 import { todayViewOp } from './ops/today.js';
@@ -18,7 +18,7 @@ import { assistantAction, assistantAsk, assistantCancel, assistantConfigure, ass
 import { exportSpace } from './ops/export.js';
 import { understandingReadOp, understandingKeepOp, understandingRecordOp, understandingOverviewOp, understandingMeetingOp, understandingReadinessOp, understandingLearningOp, understandingProgressOp, understandingObjectiveAddOp, understandingObjectiveDoneOp, understandingReviewOp } from './ops/understanding.js';
 import type { Operation, OpContext } from './operation.js';
-import { ticketsList, ticketsGet, ticketsStart, ticketsResume, ticketsBrief, ticketsState, ticketsCriterion, ticketsAttempt, ticketsReuse, ticketsClose, ticketsGithubConfig, ticketsGithubStatus, ticketsGithub, ticketsJira } from '../work/operations.js';
+import { ticketsList, ticketsGet, ticketsStart, ticketsResume, ticketsBrief, ticketsState, ticketsCriterion, ticketsAttempt, ticketsReuse, ticketsClose, ticketsGithubConfig, ticketsGithubStatus, ticketsGithub, ticketsJira, ticketsSheet, ticketsFieldSet, ticketsFieldClear, ticketsFieldNa, ticketsConflictResolve, ticketsRename, ticketsPin, ticketsSource, ticketsReposDetach, ticketsUnfollow, ticketsRestore, ticketsLinksList, ticketsLinksSet, ticketsLinksScan, ticketsRequestsCreate, ticketsRequestsList, ticketsRequestsClose, ticketsRequestsCancel, ticketsRequestsPrompt } from '../work/operations.js';
 
 export { jsonSchemaOf } from './schema.js';
 export type { Actor, Effect, OpContext, Operation } from './operation.js';
@@ -34,6 +34,25 @@ const OPS = {
   'tickets.criterion': ticketsCriterion,
   'tickets.attempt': ticketsAttempt,
   'tickets.reuse': ticketsReuse,
+  'tickets.sheet': ticketsSheet,
+  'tickets.field.set': ticketsFieldSet,
+  'tickets.field.clear': ticketsFieldClear,
+  'tickets.field.na': ticketsFieldNa,
+  'tickets.conflict.resolve': ticketsConflictResolve,
+  'tickets.rename': ticketsRename,
+  'tickets.pin': ticketsPin,
+  'tickets.source': ticketsSource,
+  'tickets.repos.detach': ticketsReposDetach,
+  'tickets.unfollow': ticketsUnfollow,
+  'tickets.restore': ticketsRestore,
+  'tickets.links.list': ticketsLinksList,
+  'tickets.links.set': ticketsLinksSet,
+  'tickets.links.scan': ticketsLinksScan,
+  'tickets.requests.create': ticketsRequestsCreate,
+  'tickets.requests.list': ticketsRequestsList,
+  'tickets.requests.close': ticketsRequestsClose,
+  'tickets.requests.cancel': ticketsRequestsCancel,
+  'tickets.requests.prompt': ticketsRequestsPrompt,
   'tickets.close': ticketsClose,
   'tickets.github.configure': ticketsGithubConfig,
   'tickets.github.status': ticketsGithubStatus,
@@ -73,6 +92,7 @@ const OPS = {
   'actions.add': actionsAdd,
   'actions.list': actionsList,
   'actions.update': actionsUpdate,
+  'actions.delete': actionsDelete,
   'actions.detect': actionsDetect,
   'journal.add': journalAdd,
   'journal.list': journalList,

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, BadgeCheck, CalendarCheck, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, FileDiff, GraduationCap, HeartPulse, Hourglass, Inbox, Layers, ListTodo, NotebookPen, Pencil, Play, Plus, ShieldAlert, ShieldCheck, Sparkles, Sun, Target, Trash2, X } from 'lucide-react';
+import { ArrowRight, BadgeCheck, CalendarCheck, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, FileDiff, GraduationCap, HeartPulse, Hourglass, Inbox, Layers, ListTodo, NotebookPen, Pencil, Plus, ShieldAlert, ShieldCheck, Sparkles, Sun, Target, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { get, post } from '../app/api';
 import { tn, useT } from '../app/i18n';
@@ -13,9 +13,8 @@ import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { TypeMark } from '../ui/TypeMark';
 import { NotesToRecheck, type NoteToRecheck } from '../ui/NotesToRecheck';
 import { ActionList, JournalList, type Action, type Entry } from './day-parts';
-import { KindMark, type Project } from './Projects';
-import { ProjectPreview, shortAction, workHref } from '../ui/WorkPreview';
-import type { TicketRecord } from '../app/tickets';
+import type { Project } from './Projects';
+import { Requests, ResumeWork, TodoBoard, type PendingRequest, type ResumeCards, type TodoAction } from './today-work';
 
 export type Suggestion = {
   id: string; type: string; title: string; why: string; breadcrumb: string; status: string; recommendation: 'create' | 'complete' | 'link' | 'nothing';
@@ -134,7 +133,9 @@ function Hello({ todo, waiting, due, backup }: { todo: number | null; waiting: n
 type TodayData = {
   day: string;
   resume: Project[];
-  todo: Action[];
+  resumeCards: ResumeCards;
+  requests: PendingRequest[];
+  todo: TodoAction[];
   waiting: Action[];
   done: Entry[];
   learned: { path: string; title: string; at: string }[];
@@ -145,34 +146,6 @@ type TodayData = {
   notesToRecheck?: NoteToRecheck[];
   recheckUnavailable?: string[];
 };
-
-/** The projects to pick up, each with where the person was. */
-function Resume({ projects }: { projects: Project[] }) {
-  const t = useT();
-  const tickets = useQuery({ queryKey: ['tickets'], queryFn: () => get<{ tickets: TicketRecord[] }>('/api/tickets'), enabled: projects.some((p) => p.kind === 'ticket') });
-  const work = projects.filter((p) => p.kind !== 'repo');
-  if (!work.length) return <Empty title={t('app.today.resumeNone')} action={<a className="btn sm" href={hrefFor({ name: 'projects' })}>{t('app.today.openProjects')}<ArrowRight size={14} aria-hidden="true" /></a>}>{t('app.today.resumeNoneText')}</Empty>;
-  const [first, ...rest] = work;
-  return (
-    <div className="resume">
-      {first!.kind === 'ticket' ? <ul className="rows"><ProjectPreview project={first!} ticket={tickets.data?.tickets?.find((t) => t.ref === first!.ref)} /></ul> : <><a className="resume-main" href={workHref(first!)}>
-        <KindMark kind={first!.kind} />
-        <span className="grow"><span className="title">{first!.title}</span><span className="meta">{shortAction(first!.where) || t('app.projects.noWhere')}</span></span>
-        <span className="btn primary sm"><Play size={14} aria-hidden="true" />{t('app.today.resumeGo')}</span>
-      </a>
-      {first!.leftOff ? (
-        <dl className="resume-left">
-          {(['waiting', 'resume'] as const).filter((f) => first!.leftOff![f]).map((f) => <div key={f}><dt>{t(`app.leftOff.${f}`)}</dt><dd>{shortAction(first!.leftOff![f])}</dd></div>)}
-        </dl>
-      ) : first!.next ? <p className="resume-next"><ArrowRight size={15} aria-hidden="true" /><span>{shortAction(first!.next)}</span></p> : null}</>}
-      {rest.length ? (
-        <ul className="rows tight">
-          {rest.map((p) => <ProjectPreview key={p.id} project={p} ticket={tickets.data?.tickets?.find((t) => t.ref === p.ref)} />)}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
 
 function TodayTab() {
   const t = useT();
@@ -199,11 +172,11 @@ function TodayTab() {
       <div className="grid-2">
         <div className="stack lg">
           <Panel title={t('app.today.resume')} link={{ href: hrefFor({ name: 'projects' }), label: t('app.today.allProjects') }} flush>
-            {d ? <Resume projects={d.resume} /> : <div style={{ padding: '0 20px 12px' }}><SkeletonRows rows={3} /></div>}
+            {d ? <ResumeWork cards={d.resumeCards} /> : <div style={{ padding: '0 20px 12px' }}><SkeletonRows rows={3} /></div>}
           </Panel>
           <section className="panel" id="todo" aria-labelledby="todo-h">
             <div className="panel-head"><h2 id="todo-h">{t('app.actions.todo')}</h2></div>
-            <div className="panel-body flush"><ActionList kind="todo" showProject actions={d?.todo ?? []} placeholder={t('app.actions.todoPlaceholder')} empty={t('app.actions.todoEmpty')} /></div>
+            <div className="panel-body flush">{d ? <TodoBoard todos={d.todo} /> : <SkeletonRows rows={3} />}</div>
           </section>
           <section className="panel" id="waiting" aria-labelledby="waiting-h">
             <div className="panel-head"><h2 id="waiting-h">{t('app.actions.waiting')}</h2></div>
@@ -212,6 +185,7 @@ function TodayTab() {
           <Panel title={t('app.waiting.title')} link={{ href: hrefFor({ name: 'inbox' }), label: t('app.waiting.all') }} flush><Waiting limit={3} /></Panel>
         </div>
         <div className="stack lg">
+          {d?.requests?.length ? <Requests requests={d.requests} /> : null}
           <UnderstandingToday />
           <NotesToRecheck notes={d?.notesToRecheck} unavailable={d?.recheckUnavailable} />
           <Panel title={t('app.today.review')}>

@@ -1388,3 +1388,38 @@ des dépendances ; CLI, compilation et runtime embarqué sont documentés sépar
 Les mesures locales ne déclarent ni économie facturée, ni vérité garantie,
 ni qualité d’usage ou marché acquis. Voir le
 [bilan d’acceptation](VALIDATION-USAGE-2026-10-13.md).
+
+## D70 — Un ticket, une seule fiche (19 octobre 2026)
+
+Un ticket a une fiche unique, lue par l’accueil, la liste, le terminal,
+l’assistant et le brief de session (F2.4-08). La prochaine étape n’est plus un
+champ : c’est la première todo ouverte du ticket — épinglée, sinon la plus
+importante, puis la plus ancienne (F2.4-13). Les colonnes 2.0 (objectif,
+dernière action, prochaine étape) restent lisibles et ne sont plus écrites.
+
+Chaque valeur garde son origine (personne, agent, Jira, ServiceNow, wiki,
+GitHub, autre), sa date et son lien. Une valeur écrite par la personne n’est
+jamais remplacée : une autre source devient un écart qu’elle arbitre (F2.4-09).
+Une valeur vide, « inconnu » ou la référence seule est refusée ; rien n’est
+inventé pour remplir. Depuis le terminal, la personne écrit en son nom quel que
+soit `--origin` ; seul un agent conserve l’origine d’une source.
+
+OKB ne contacte ni Jira, ni ServiceNow, ni un wiki. La personne demande à son
+agent de compléter une fiche ; une seule demande ouverte par ticket ; l’agent la
+voit au début de session, lit ce que ses outils permettent, écrit avec origine
+et lien, et rend compte de ce qu’il n’a pas pu lire (F2.4-10).
+
+Une note se lie à un ticket par ses métadonnées (`tickets:`), par la note
+qu’OKB a écrite pour lui, par son rangement sous le ticket ou à la main. Une
+simple mention n’est qu’une suggestion ; une suggestion écartée ne revient pas
+(F2.4-11). La complétude mesure ce qu’on sait pour reprendre, jamais
+l’avancement : dix rubriques de même poids, « non applicable » sorti du compte
+(F2.4-12).
+
+Les tickets 2.0 sont repris une fois, après une copie de la base. Une valeur
+qui ne fait que répéter la référence ou le dernier commit reste non définie.
+2.0 ne gardait pas trace d’une correction à la main : les valeurs reprises sont
+attribuées à l’agent, et une valeur remplacée reste dans le journal du ticket.
+Arrêter de suivre garde une copie 30 jours. Les changements de champ restent
+dans l’historique du ticket, pas dans le journal du jour.
+

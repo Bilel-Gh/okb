@@ -1390,6 +1390,7 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'project.none': 'Aucun projet en cours.',
   'project.created': 'Projet créé : {title}',
   'project.left': '« Où j’en étais » est prêt.',
+  'action.deleted': 'Action supprimée.',
   'action.none': 'Rien à faire pour l’instant.',
   'today.resume': 'Reprendre',
   'today.todo': 'À faire',

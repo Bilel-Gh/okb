@@ -1396,6 +1396,7 @@ export const EN_V1 = {
   'project.none': 'No project in progress.',
   'project.created': 'Project created: {title}',
   'project.left': '“Where I was” is ready.',
+  'action.deleted': 'Action deleted.',
   'action.none': 'Nothing to do for now.',
   'today.resume': 'Pick up',
   'today.todo': 'To do',

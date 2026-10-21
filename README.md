@@ -49,6 +49,12 @@ Details: [release notes 2.0.0](docs/releases/RELEASE-2.0.0.md) · guides (FR):
 
 ## Development preview: 2.1 through 3.0
 
+The [19 October ticket sheet](docs/releases/RELEASE-USAGE-2026-10-19.md) gives
+each ticket one sheet read everywhere: every field editable by hand with its
+origin, the next step taken from the todos, notes linked wherever they are
+filed, requests the user's own agent completes from the sources its tools can
+read, and a completeness ring ([guide](docs/guide/reprendre-un-ticket.md)).
+
 The [13 October usage fixes](docs/releases/RELEASE-USAGE-2026-10-13.md) add
 ticket reconciliation, diagnosable Claude hooks, work-context Assistant actions,
 progressive architecture exploration and traceable long-transcript windows.

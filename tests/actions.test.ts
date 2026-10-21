@@ -71,3 +71,42 @@ describe('spotting an action in a line the person keeps (F2.0-06)', () => {
     expect(detectAction('', now)).toBeNull();
   });
 });
+
+describe('actions carry importance and a work reference (F2.4-13)', () => {
+  it('defaults to medium, changes text, importance and pin, and pins one per work', async () => {
+    const { addAction, updateAction, getAction } = await import('../src/projects/actions.js');
+    const { config } = await demoBrain();
+    const a = addAction(config, { text: 'Vérifier la page de confirmation', workRef: 'DEMO-4211' });
+    expect(a).toMatchObject({ importance: 'medium', pinned: false, workRef: 'DEMO-4211' });
+    const b = addAction(config, { text: 'Ouvrir la PR', workRef: 'DEMO-4211', importance: 'high' });
+    expect(updateAction(config, a.id, { text: 'Vérifier la confirmation', importance: 'low', pinned: true })).toMatchObject({ text: 'Vérifier la confirmation', importance: 'low', pinned: true });
+    updateAction(config, b.id, { pinned: true });
+    expect(getAction(config, a.id).pinned).toBe(false);
+    expect(getAction(config, b.id).pinned).toBe(true);
+    expect(updateAction(config, b.id, { workRef: null }).workRef).toBeNull();
+  });
+
+  it('deletes an action', async () => {
+    const { addAction, deleteAction, getAction } = await import('../src/projects/actions.js');
+    const { config } = await demoBrain();
+    const a = addAction(config, { text: 'À supprimer' });
+    deleteAction(config, a.id);
+    expect(() => getAction(config, a.id)).toThrow();
+  });
+
+  it('lists the late first, then by importance', async () => {
+    const { addAction, listActions } = await import('../src/projects/actions.js');
+    const { config, env } = await demoBrain();
+    const low = addAction(config, { text: 'basse', importance: 'low' });
+    const high = addAction(config, { text: 'haute', importance: 'high' });
+    const mid = addAction(config, { text: 'moyenne' });
+    const late = addAction(config, { text: 'en retard', importance: 'low', due: '2020-01-01' });
+    expect((await listActions(config, env)).map((x) => x.id)).toEqual([late.id, high.id, mid.id, low.id]);
+  });
+
+  it('refuses an unknown importance', async () => {
+    const { addAction } = await import('../src/projects/actions.js');
+    const { config } = await demoBrain();
+    expect(() => addAction(config, { text: 'x', importance: 'urgent' as never })).toThrow();
+  });
+});

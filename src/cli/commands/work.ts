@@ -378,6 +378,7 @@ export async function cmdTicket(ctx: Ctx): Promise<number> {
     case 'list': case 'ls': return ticketList(ctx);
     case 'commit': return ticketCommit(ctx);
     case 'brief': case 'state': case 'criterion': case 'attempt': case 'reuse': case 'close': case 'github': case 'jira': return ticketOperational(ctx, sub);
+    case 'sheet': case 'set': case 'na': case 'rename': case 'pin': case 'unpin': case 'unfollow': case 'restore': case 'links': case 'requests': case 'source': return ticketSheetCmd(ctx, sub);
     default: {
       if (/^[A-Za-z][A-Za-z0-9]{0,15}-\d{1,7}$/.test(sub)) return ticketShow({ ...ctx, args: { ...ctx.args, positionals: ['status', sub] } });
       throw new OkbError('E_INVALID', `unknown subcommand "${sub}"`, { key: 'unknownSub', params: { sub, usage: 'okb ticket [start|note|done|list]' } });
@@ -474,6 +475,60 @@ async function ticketOperational(ctx: Ctx, sub: string): Promise<number> {
   }
   if (ctx.mode === 'json') ctx.out.json({ ok: true, ...result }); else printTicketDetail(ctx, result);
   return 0;
+}
+
+/** The ticket sheet from the terminal (F2.4-08..14): the same operations as the app and MCP. */
+async function ticketSheetCmd(ctx: Ctx, sub: string): Promise<number> {
+  const a = ctx.args;
+  const show = (result: unknown) => { if (ctx.mode === 'json') ctx.out.json({ ok: true, ...(result as object) }); else printSheet(ctx, result as Record<string, unknown>); return 0; };
+  if (sub === 'requests' || sub === 'links' && a.positionals[1] === 'scan') {
+    const action = a.positionals[1] ?? 'list';
+    const needsTicket = action === 'add' || (action === 'list' && a.positionals[2]);
+    const { config } = needsTicket ? await pickTicket(ctx, a.positionals[2]) : await effective(a);
+    const c = { config, env: process.env, actor: actorOf() };
+    if (sub === 'links') return show(await invoke('tickets.links.scan', {}, c));
+    switch (action) {
+      case 'list': return show(await invoke('tickets.requests.list', a.positionals[2] ? { ref: a.positionals[2] } : {}, c));
+      case 'add': return show(await invoke('tickets.requests.create', { ref: ticketId(a.positionals[2] ?? ''), fields: flagList(a, 'fields') }, c));
+      case 'close': return show(await invoke('tickets.requests.close', { id: a.positionals[2] ?? '', found: flagList(a, 'found'), missing: flagList(a, 'missing'), read: flagList(a, 'read'), unavailable: flagList(a, 'unavailable'), note: flagString(a, 'note') ?? '' }, c));
+      case 'cancel': return show(await invoke('tickets.requests.cancel', { id: a.positionals[2] ?? '' }, c));
+      case 'prompt': { const r = await invoke('tickets.requests.prompt', { id: a.positionals[2] ?? '', lang: flagString(a, 'lang') === 'en' ? 'en' : 'fr' }, c); if (ctx.mode === 'json') ctx.out.json({ ok: true, ...r }); else ctx.out.line(r.prompt); return 0; }
+      default: throw new OkbError('E_INVALID', 'okb ticket requests [list|add <ref> --fields a,b|close <id> --found … --missing … --read … --unavailable …|cancel <id>|prompt <id>]');
+    }
+  }
+  if (sub === 'restore') {
+    const { config } = await effective(a);
+    return show(await invoke('tickets.restore', { ref: a.positionals[1] ?? '' }, { config, env: process.env, actor: actorOf() }));
+  }
+  const { config, record } = await pickTicket(ctx, a.positionals[1]);
+  const c = { config, env: process.env, actor: actorOf() };
+  const ref = record.ref;
+  switch (sub) {
+    case 'sheet': return show(await invoke('tickets.sheet', { ref }, c));
+    case 'set': return show((await invoke('tickets.field.set', { ref, field: flagString(a, 'field') as never, value: flagString(a, 'value') ?? '', ...(flagString(a, 'origin') ? { origin: flagString(a, 'origin') as never } : {}), ...(flagString(a, 'url') ? { url: flagString(a, 'url') } : {}) }, c)).sheet);
+    case 'na': return show(await invoke('tickets.field.na', { ref, field: flagString(a, 'field') as never, reason: flagString(a, 'reason') ?? '' }, c));
+    case 'rename': return show(await invoke('tickets.rename', { ref, title: a.positionals.slice(2).join(' ') }, c));
+    case 'pin': case 'unpin': return show(await invoke('tickets.pin', { ref, pinned: sub === 'pin' }, c));
+    case 'unfollow': return show(await invoke('tickets.unfollow', { ref }, c));
+    case 'links': {
+      const action = a.positionals[2];
+      if (action === 'add' || action === 'dismiss') return show(await invoke('tickets.links.set', { ref, path: a.positionals.slice(3).join(' '), state: action === 'add' ? 'confirmed' : 'dismissed' }, c));
+      return show(await invoke('tickets.links.list', { ref }, c));
+    }
+    case 'source': return show(await invoke('tickets.source', { ref, provider: (flagString(a, 'provider') ?? 'jira') as never, url: a.positionals[2] ?? flagString(a, 'url') ?? '' }, c));
+    default: throw new OkbError('E_INVALID', 'unknown ticket action');
+  }
+}
+
+function printSheet(ctx: Ctx, r: Record<string, unknown>): void {
+  const sheet = r as { ref?: string; title?: { value: string } | null; fields?: Record<string, { value: string; origin: string }>; next?: { text: string } | null; completeness?: { percent: number; missing: string[] }; links?: { path: string; state: string }[]; requests?: { id: string; ref: string; fields: string[] }[] };
+  if (sheet.requests && !sheet.fields) { for (const q of sheet.requests) ctx.out.line(`${q.id} · ${q.ref} · ${q.fields.join(', ')}`); return; }
+  if (sheet.links && !sheet.fields) { for (const l of sheet.links) ctx.out.line(`${l.state} · ${l.path}`); return; }
+  if (!sheet.fields) { ctx.out.ok(JSON.stringify(r)); return; }
+  ctx.out.line(`🎫 ${paint.bold(sheet.ref ?? '')} ${sheet.title?.value ?? paint.dim(t('ticket.sheet.noTitle'))}`);
+  for (const [field, v] of Object.entries(sheet.fields)) if (field !== 'title') ctx.out.line(`   ${field} : ${v.value} ${paint.dim(`(${v.origin})`)}`);
+  ctx.out.line(`   ${t('ticket.resume.next')} : ${sheet.next?.text ?? paint.dim('—')}`);
+  if (sheet.completeness) ctx.out.line(`   ${t('ticket.sheet.completeness', { n: String(sheet.completeness.percent) })}${sheet.completeness.missing.length ? paint.dim(` · ${sheet.completeness.missing.join(', ')}`) : ''}`);
 }
 
 function printTicket(ctx: Ctx, record: TicketRecord, progress: readonly { id: string; branch: string | null; commits: number; merged: boolean; gone: boolean }[], note: string | null): void {

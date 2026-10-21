@@ -8,6 +8,9 @@ import { openDb, type Db } from '../state/db.js';
 import { OkbError } from '../util/errors.js';
 import { asBundlePath } from '../util/paths.js';
 import { assertTicketCriteria, loadTicket, mutateTicket, type TicketRecord } from './tickets.js';
+import { readFields, setField, type Origin } from './ticket-fields.js';
+import { nextStep } from './ticket-next.js';
+import { addAction, updateAction } from '../projects/actions.js';
 
 /** Local observations, never a promise that a merge was delivered. */
 export const TICKET_STATES = {
@@ -20,7 +23,8 @@ export const TICKET_STATES = {
 export type Dimension = keyof typeof TICKET_STATES;
 export type ObservationSource = 'person' | 'agent' | 'github' | 'jira';
 export type TicketState = { dimension: Dimension; environment: string | null; status: string; source: ObservationSource; at: string | null; detail: string; url: string | null };
-export const safeUrl = z.string().url().max(1500).refine((s) => { const u = new URL(s); return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash; }, 'Use an HTTPS address without credentials or query parameters.');
+export { safeUrl } from './safe-url.js';
+import { safeUrl } from './safe-url.js';
 const line = (n: number) => z.string().trim().max(n);
 export const briefSchema = z.object({ goal: line(1000).optional(), lastAction: line(1000).optional(), next: line(600).optional() }).strict();
 export const stateSchema = z.object({ dimension: z.enum(['work', 'pr', 'checks', 'waiting', 'delivery']), environment: z.string().trim().min(1).max(60).regex(/^[\p{L}\p{N} _.-]+$/u).optional(), status: line(40).min(1), detail: line(1000).optional(), url: safeUrl.optional() }).strict().superRefine((v, c) => {
@@ -82,21 +86,30 @@ export async function ticketDetail(config: OkbConfig, ref: string) {
     const attempts = db.all<AttemptRow>('SELECT id, approach, conditions, result, next_step, at FROM ticket_attempts WHERE ref = ? ORDER BY at DESC, id', ticket.ref).map(({ next_step, ...r }) => ({ ...r, next: next_step }));
     const reuses = db.all<Reuse>('SELECT id, path, title, sha256, why, at FROM ticket_reuses WHERE ref = ? ORDER BY at DESC, id', ticket.ref);
     const missing = criteria.filter((c) => c.required && !['met', 'waived'].includes(c.status)).map((c) => c.text);
-    const brief = { goal: saved.goal || ticket.title, lastAction: saved.last_action || ticket.journal.filter((j) => j.text).at(-1)?.text || '', next: saved.next_step, failed: attempts.slice(0, 5) };
-    return { ticket, detail: { goal: saved.goal, lastAction: saved.last_action, next: saved.next_step, states, criteria, attempts, reuses, external: saved.external ? JSON.parse(saved.external) as Record<string, unknown> : null, close: { allowed: missing.length === 0, missing } }, brief };
+    // D70: the sheet is the truth. No fallback on the title or the last commit; the next step is the first open todo.
+    const { fields } = readFields(config, ticket.ref, db);
+    const goal = fields.summary?.value ?? '', lastAction = fields.done?.value ?? '', next = nextStep(config, ticket.ref)?.text ?? '';
+    const brief = { goal, lastAction, next, failed: attempts.slice(0, 5) };
+    return { ticket, detail: { goal, lastAction, next, states, criteria, attempts, reuses, external: saved.external ? JSON.parse(saved.external) as Record<string, unknown> : null, close: { allowed: missing.length === 0, missing } }, brief };
   });
 }
 
-export async function updateTicketBrief(config: OkbConfig, ref: string, patch: z.infer<typeof briefSchema>): Promise<void> {
+/**
+ * The 2.0 brief gesture, kept for its callers (D70): the goal is the sheet's
+ * summary, the last action what is done, the next step its pinned todo.
+ */
+export async function updateTicketBrief(config: OkbConfig, ref: string, patch: z.infer<typeof briefSchema>, origin: Origin = 'person'): Promise<void> {
   const p = checked(briefSchema, patch);
   const r = await known(config, ref);
+  if (p.goal) await setField(config, r.ref, { field: p.goal.length <= 600 ? 'summary' : 'description', value: p.goal, origin });
+  if (p.lastAction) await setField(config, r.ref, { field: 'done', value: p.lastAction, origin });
+  if (p.next) {
+    const current = nextStep(config, r.ref);
+    if (current?.pinned) updateAction(config, current.id, { text: p.next });
+    else addAction(config, { text: p.next, workRef: r.ref, pinned: true, source: origin === 'person' ? 'person' : 'ai' });
+  }
   const db = openDb(config);
-  db.tx(() => {
-    init(db, r);
-    const before = db.get<DetailRow>('SELECT goal, last_action, next_step FROM ticket_details WHERE ref = ?', r.ref)!;
-    db.run('UPDATE ticket_details SET goal = ?, last_action = ?, next_step = ? WHERE ref = ?', p.goal ?? before.goal, p.lastAction ?? before.last_action, p.next ?? before.next_step, r.ref);
-    touch(db, r.ref, new Date().toISOString());
-  });
+  db.tx(() => { init(db, r); touch(db, r.ref, new Date().toISOString()); });
 }
 
 export async function setTicketState(config: OkbConfig, ref: string, input: z.infer<typeof stateSchema>, source: ObservationSource): Promise<void> {

@@ -58,6 +58,21 @@ describe('repository KB merge preserves SQLite tickets', () => {
     expect(resumed.detail.states.find((s) => s.dimension === 'delivery' && s.environment === 'staging')?.status).toBe('deployed');
   });
 
+  it('carries the sheet with the ticket: fields, todos and links (D70)', async () => {
+    const { setField, readFields } = await import('../src/work/ticket-fields.js');
+    const { addAction, listActions } = await import('../src/projects/actions.js');
+    const { source, target, repo } = await profiles();
+    await startTicket(source, { ref: 'ORD-50', title: 'Exporter', repo });
+    await setField(source, 'ORD-50', { field: 'team', value: 'Équipe Export', origin: 'person' });
+    addAction(source, { text: 'Tester le keyset', workRef: 'ORD-50', importance: 'high', pinned: true });
+    openDb(source).run("INSERT INTO ticket_links (ref, path, state, origin, at) VALUES ('ORD-50', 'pagination.md', 'confirmed', 'person', '2026-10-19T00:00:00Z')");
+    await finishMerge(source, target, repo);
+    closeDbs();
+    expect(readFields(target, 'ORD-50').fields.team).toMatchObject({ value: 'Équipe Export', manual: true });
+    expect((await listActions(target, process.env)).filter((a) => a.workRef === 'ORD-50').map((a) => [a.text, a.importance, a.pinned])).toEqual([['Tester le keyset', 'high', true]]);
+    expect(openDb(target).get<{ path: string }>("SELECT path FROM ticket_links WHERE ref = 'ORD-50'")!.path).toBe('repos/orders/pagination.md');
+  });
+
   it('refuses a conflicting target reference before importing any ticket, without replacing the target', async () => {
     const { source, target, repo } = await profiles();
     await startTicket(source, { ref: 'ORD-42', title: 'Source', repo });

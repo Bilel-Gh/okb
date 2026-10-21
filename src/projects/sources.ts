@@ -17,7 +17,33 @@ export type ModuleEvent = { readonly kind: string; readonly ref: string; readonl
 export type ModuleWork = { readonly kind: string; readonly ref: string; readonly title: string; readonly status: 'active' | 'done'; readonly areas: readonly string[]; readonly startedAt: string; readonly updatedAt: string; readonly doneAt: string | null; /** Bounded operational facts for a contextual assistant; never a note's content. */ readonly context?: { readonly goal: string; readonly lastAction: string; readonly next: string; readonly states: readonly { dimension: string; environment: string | null; status: string; detail: string; at: string | null }[]; readonly omittedStates: number; readonly shortenedFields: number } };
 /** A module's dated reason to recheck a note; « doubtful » is not a claim that it is false. */
 export type NoteToRecheck = { readonly path: string; readonly title: string; readonly scope: string; readonly verdict: 'changed' | 'stale'; readonly files: readonly string[]; readonly at: string; readonly next: string };
+/**
+ * What Today shows of a module's work (F2.4-13, D70): its real title or none,
+ * its next step or what it waits for, a status, how much is known, how far the
+ * journey went. The core does not read it: it orders and passes it on.
+ */
+export type WorkCard = {
+  readonly ref: string;
+  readonly title: string | null;
+  readonly next: string | null;
+  readonly waitingFor: string | null;
+  readonly status: { readonly kind: 'source' | 'waiting' | 'blocked' | 'work'; readonly value: string };
+  readonly percent: number | null;
+  /** Steps done of the work's journey (0 to 5). */
+  readonly steps: number;
+  readonly current: number | null;
+  readonly pinned: boolean;
+  readonly unblockedAt: string | null;
+  readonly filter: 'progress' | 'waiting' | 'blocked';
+  readonly updatedAt: string;
+};
+/** A question asked to the person's agent about a piece of work, still open. */
+export type PendingRequest = { readonly ref: string; readonly fields: readonly string[]; readonly since: string; readonly id: string };
+
 export type ProjectSource = {
+  /** Today's cards for these works, by reference. */
+  readonly cards?: (config: OkbConfig, env: NodeJS.ProcessEnv, refs: readonly string[]) => Promise<ReadonlyMap<string, WorkCard>>;
+  readonly pendingRequests?: (config: OkbConfig, env: NodeJS.ProcessEnv) => Promise<readonly PendingRequest[]>;
   readonly seeds: (config: OkbConfig, env: NodeJS.ProcessEnv) => Promise<readonly ProjectSeed[]>;
   readonly events?: (config: OkbConfig, env: NodeJS.ProcessEnv) => Promise<readonly ModuleEvent[]>;
   readonly work?: (config: OkbConfig, env: NodeJS.ProcessEnv, selection?: { kind: string; ref: string }) => Promise<readonly ModuleWork[]>;
@@ -116,4 +142,23 @@ export async function syncProjects(config: OkbConfig, env: NodeJS.ProcessEnv, no
       if (row.title !== seed.title || row.status !== status) db.run('UPDATE projects SET title = ?, status = ?, updated_at = ? WHERE id = ?', seed.title, status, now.toISOString(), row.id);
     }
   });
+}
+
+/** Today's cards from the modules in use, keyed by `kind:ref`. */
+export async function moduleCards(config: OkbConfig, env: NodeJS.ProcessEnv, projects: readonly Project[]): Promise<Map<string, WorkCard>> {
+  const out = new Map<string, WorkCard>();
+  for (const [module, source] of await sources(env)) {
+    if (!source.cards) continue;
+    const refs = projects.filter((p) => p.module === module && p.ref).map((p) => p.ref!);
+    if (!refs.length) continue;
+    const cards = await source.cards(config, env, refs).catch(() => new Map<string, WorkCard>());
+    for (const p of projects) if (p.module === module && p.ref && cards.has(p.ref)) out.set(p.id, cards.get(p.ref)!);
+  }
+  return out;
+}
+
+export async function modulePendingRequests(config: OkbConfig, env: NodeJS.ProcessEnv): Promise<PendingRequest[]> {
+  const out: PendingRequest[] = [];
+  for (const [, source] of await sources(env)) if (source.pendingRequests) out.push(...(await source.pendingRequests(config, env).catch(() => [])));
+  return out;
 }

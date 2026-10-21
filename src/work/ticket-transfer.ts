@@ -16,7 +16,16 @@ const TABLES = {
   ticket_criteria: ['id', 'ref', 'kind', 'text', 'required', 'status', 'at'],
   ticket_attempts: ['id', 'ref', 'approach', 'conditions', 'result', 'next_step', 'at'],
   ticket_reuses: ['id', 'ref', 'path', 'title', 'sha256', 'why', 'at'],
+  // D70: the sheet travels with its ticket.
+  ticket_fields: ['ref', 'field', 'value', 'origin', 'url', 'at', 'manual', 'na_reason'],
+  ticket_field_conflicts: ['ref', 'field', 'value', 'origin', 'url', 'at'],
+  ticket_requests: ['id', 'ref', 'fields', 'state', 'created_at', 'closed_at', 'report'],
+  ticket_links: ['ref', 'path', 'note_id', 'state', 'origin', 'at'],
+  ticket_flags: ['ref', 'pinned', 'unfollowed_at', 'snapshot'],
+  // A ticket's todos: keyed by ticket_ref, not ref; their project is the target's own.
+  actions: ['id', 'text', 'kind', 'who', 'due', 'status', 'source', 'created_at', 'done_at', 'ticket_ref', 'importance', 'pinned'],
 } as const;
+const REF_COLUMN: Partial<Record<keyof typeof TABLES, string>> = { actions: 'ticket_ref' };
 type Row = Record<string, SQLInputValue>;
 
 /** After the note proposal was applied: transfer current tickets, retaining the source as-is. */
@@ -33,7 +42,7 @@ export async function transferTickets(source: OkbConfig, target: OkbConfig, repo
         record: { ...record, textFile: record.textFile === null ? null : resolve(ticketsDir(target), `${record.ref}.md`) },
         sourceText: record.textFile,
         tables: Object.entries(TABLES).map(([table, columns]) => ({ table, columns,
-          rows: from.all<Row>(`SELECT ${columns.join(', ')} FROM ${table} WHERE ref = ?`, record.ref).map((row) => table === 'ticket_reuses'
+          rows: from.all<Row>(`SELECT ${columns.join(', ')} FROM ${table} WHERE ${REF_COLUMN[table as keyof typeof TABLES] ?? 'ref'} = ?`, record.ref).map((row) => table === 'ticket_reuses' || table === 'ticket_links'
             ? { ...row, path: asBundlePath(`${asBundlePath(noteBase)}/${asBundlePath(String(row.path))}`) } : row),
         })),
       })));
@@ -46,7 +55,7 @@ export async function transferTickets(source: OkbConfig, target: OkbConfig, repo
         for (const { table, columns, rows } of tables) {
           if (!columns.some((c) => c === 'id')) continue;
           for (const row of rows) {
-            const used = to.get<{ ref: string }>(`SELECT ref FROM ${table} WHERE id = ?`, row.id!);
+            const used = to.get<{ ref: string }>(`SELECT ${REF_COLUMN[table as keyof typeof TABLES] ?? 'ref'} AS ref FROM ${table} WHERE id = ?`, row.id!);
             if (used && used.ref !== record.ref) conflict(record.ref);
           }
         }

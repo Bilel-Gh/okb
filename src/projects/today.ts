@@ -12,7 +12,7 @@ import { listEntries, type Entry } from './journal.js';
 import { listProjects, type Project } from './projects.js';
 import { backupStatus } from '../brain/backup.js';
 import { eveningView } from '../evening/evening.js';
-import { moduleNotesToRecheck, type NoteToRecheck } from './sources.js';
+import { moduleCards, moduleNotesToRecheck, modulePendingRequests, type NoteToRecheck, type PendingRequest, type WorkCard } from './sources.js';
 
 /**
  * Today (F2.0-04) answers six questions: what do I pick up, what did I do,
@@ -20,11 +20,17 @@ import { moduleNotesToRecheck, type NoteToRecheck } from './sources.js';
  * understand. Read from the projects, the actions, the journal, the receipts
  * and the review cards; nothing is computed by an AI.
  */
-export type TodayAction = Action & { readonly late: boolean; readonly project: { readonly id: string; readonly title: string } | null };
+export type TodayAction = Action & { readonly late: boolean; readonly project: { readonly id: string; readonly title: string } | null; /** The visible work it belongs to (a ticket), else none. */ readonly work: { readonly ref: string; readonly title: string } | null };
+export type ResumeCard = Project & { readonly card: WorkCard | null };
+export type ResumeCards = { readonly first: readonly ResumeCard[]; readonly more: readonly ResumeCard[]; /** Up to 50, in the same order, for the filters. */ readonly pool: readonly ResumeCard[]; readonly total: number; readonly counts: { readonly progress: number; readonly waiting: number; readonly blocked: number } };
 export type TodayView = {
   readonly day: string;
   /** The projects to pick up: those the person left last, with where they were. */
   readonly resume: readonly Project[];
+  /** Up to 3 cards to pick up first, then 5 lines, and how many are in progress (F2.4-13). */
+  readonly resumeCards: ResumeCards;
+  /** What the person asked their agent to find and is still open. */
+  readonly requests: readonly PendingRequest[];
   readonly todo: readonly TodayAction[];
   readonly waiting: readonly TodayAction[];
   /** What happened today and yesterday. */
@@ -64,14 +70,26 @@ export async function todayView(config: OkbConfig, env: NodeJS.ProcessEnv, bundl
   const projects = await listProjects(config, env);
   const byId = new Map(projects.map((p) => [p.id, p]));
   const open = await listActions(config, env);
+  const byRef = new Map(projects.filter((p) => p.ref).map((p) => [p.ref!, p]));
   const shape = (a: Action): TodayAction => {
     const p = a.projectId ? byId.get(a.projectId) : undefined;
-    return { ...a, late: Boolean(a.due && a.due < day), project: p ? { id: p.id, title: p.title } : null };
+    const w = a.workRef ? byRef.get(a.workRef) : undefined;
+    return { ...a, late: Boolean(a.due && a.due < day), project: p ? { id: p.id, title: p.title } : null, work: w && a.workRef ? { ref: a.workRef, title: w.title } : null };
   };
-  // What was left last comes first; then the projects touched last.
-  const resume = [...projects.filter((p) => p.status === 'active')]
-    .sort((a, b) => (b.leftOff?.at ?? '').localeCompare(a.leftOff?.at ?? '') || b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, 3);
+  // Pinned first, then just unblocked (three days), then what was left or touched last.
+  // A repository is a place to work in, not work to pick up (the app never showed it here).
+  const active = projects.filter((p) => p.status === 'active' && p.kind !== 'repo');
+  const cards = await moduleCards(config, env, active);
+  const recent = (p: Project) => [p.leftOff?.at ?? '', cards.get(p.id)?.updatedAt ?? '', p.updatedAt].sort().at(-1)!;
+  const fresh = (c: WorkCard | undefined) => Boolean(c?.unblockedAt && now.getTime() - Date.parse(c.unblockedAt) < 3 * DAY);
+  const ordered: ResumeCard[] = [...active]
+    .sort((a, b) => Number(Boolean(cards.get(b.id)?.pinned)) - Number(Boolean(cards.get(a.id)?.pinned)) || Number(fresh(cards.get(b.id))) - Number(fresh(cards.get(a.id))) || recent(b).localeCompare(recent(a)))
+    .map((p) => ({ ...p, card: cards.get(p.id) ?? null }));
+  const resume: Project[] = ordered.slice(0, 3).map(({ card: _card, ...p }) => p);
+  const resumeCards: ResumeCards = {
+    first: ordered.slice(0, 3), more: ordered.slice(3, 8), pool: ordered.slice(0, 50), total: ordered.length,
+    counts: { progress: ordered.filter((r) => (r.card?.filter ?? 'progress') === 'progress').length, waiting: ordered.filter((r) => r.card?.filter === 'waiting').length, blocked: ordered.filter((r) => r.card?.filter === 'blocked').length },
+  };
   const entries = await listEntries(config, env, { since: startOfDay(shiftDay(now, -1)), limit: 60 });
   const receipts = await readReceipts(config).catch(() => []);
   const weekAgo = new Date(now.getTime() - 7 * DAY).toISOString();
@@ -88,6 +106,8 @@ export async function todayView(config: OkbConfig, env: NodeJS.ProcessEnv, bundl
   return {
     day,
     resume,
+    resumeCards,
+    requests: await modulePendingRequests(config, env),
     todo: open.filter((a) => a.kind === 'todo' || a.kind === 'asked').slice(0, 12).map(shape),
     waiting: open.filter((a) => a.kind === 'waiting').slice(0, 12).map(shape),
     done: entries.filter((e) => e.kind !== 'resume').slice(0, 12),

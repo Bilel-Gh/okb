@@ -34,9 +34,11 @@ describe('short work resumption, contextual assistant and repository context', (
   it('opens the same ticket from Today, Projects and its repository; keeps complete facts and prepares local help without AI', async () => {
     app = await openApp(browser); const { page, url } = app; const { repo, project } = await seed();
     await page.reload();
-    const todayCard = page.locator('.work-preview').filter({ hasText: 'DEMO-42' });
-    await todayCard.waitFor(); expect((await todayCard.textContent())!.length).toBeLessThan(300);
-    expect(await todayCard.getByRole('link').getAttribute('href')).toBe('#/ticket/DEMO-42');
+    // D70: Today's card reads the sheet — real title, its next step, short.
+    const todayCard = page.locator('.tk-tcard').filter({ hasText: 'DEMO-42' });
+    await todayCard.waitFor(); expect((await todayCard.textContent())!.length).toBeLessThan(400);
+    expect(await todayCard.getAttribute('href')).toBe('#/ticket/DEMO-42');
+    await todayCard.getByText('Retry sans double effet').waitFor();
     await page.screenshot({ path: resolve(tmpdir(), 'okb-work-today-light.png'), fullPage: true });
     await page.goto(`${url}/#/projects`);
     await page.locator('.work-preview').filter({ hasText: 'DEMO-42' }).waitFor();
@@ -44,8 +46,8 @@ describe('short work resumption, contextual assistant and repository context', (
     await page.screenshot({ path: resolve(tmpdir(), 'okb-work-projects-light.png'), fullPage: true });
     const ticketLink = page.locator('.work-preview').filter({ hasText: 'DEMO-42' }).getByRole('link');
     await ticketLink.focus(); expect(await ticketLink.evaluate((e) => e === document.activeElement)).toBe(true);
-    await page.keyboard.press('Enter'); await page.getByRole('heading', { name: 'Reprendre en une minute' }).waitFor();
-    await page.getByText('Reprise, actions et documents associés', { exact: true }).click();
+    await page.keyboard.press('Enter'); await page.getByRole('heading', { name: 'En 30 secondes' }).waitFor();
+    await page.getByText(/^Plus de détails/).click();
     await page.getByText(/CORRECTION-FINALE-DE-REPRISE/).waitFor();
     await page.screenshot({ path: resolve(tmpdir(), 'okb-work-ticket-light.png'), fullPage: true });
     const sent: string[] = []; page.on('request', (r) => { if (/\/api\/assistant\/(ask|start)$/.test(new URL(r.url()).pathname)) sent.push(r.url()); });
@@ -57,7 +59,7 @@ describe('short work resumption, contextual assistant and repository context', (
     await page.screenshot({ path: resolve(tmpdir(), 'okb-work-assistant-light.png'), fullPage: true });
     await page.getByRole('link', { name: 'Chercher dans mes notes sans IA' }).click();
     expect(page.url()).toContain('#/ask?q=');
-    await page.goto(`${url}/#/project/${project.id}`); await page.getByRole('heading', { name: 'Reprendre en une minute' }).waitFor(); expect(page.url()).toContain('#/ticket/DEMO-42');
+    await page.goto(`${url}/#/project/${project.id}`); await page.getByRole('heading', { name: 'En 30 secondes' }).waitFor(); expect(page.url()).toContain('#/ticket/DEMO-42');
     await page.goto(`${url}/#/repo/${repo.id}`);
     await page.locator('.work-preview').filter({ hasText: 'DEMO-42' }).waitFor();
     await page.getByText('/okb-dev:ticket', { exact: true }).waitFor();
@@ -70,7 +72,7 @@ describe('short work resumption, contextual assistant and repository context', (
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.evaluate((m) => { localStorage.setItem('okb-theme', m); }, mode);
       await page.reload();
-      await page.goto(`${url}/#/ticket/DEMO-42`); await page.getByRole('heading', { name: 'Reprendre en une minute' }).waitFor();
+      await page.goto(`${url}/#/ticket/DEMO-42`); await page.getByRole('heading', { name: 'En 30 secondes' }).waitFor();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await page.screenshot({ path: resolve(tmpdir(), `okb-work-ticket-mobile-${mode}.png`), fullPage: true, animations: 'disabled' });
       await page.screenshot({ path: resolve(tmpdir(), `okb-work-ticket-mobile-${mode}-viewport.png`), animations: 'disabled' });

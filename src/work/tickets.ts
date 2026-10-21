@@ -1,5 +1,6 @@
 import { readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import type { SQLInputValue } from 'node:sqlite';
 import { z } from 'zod';
 import type { OkbConfig } from '../config/schema.js';
 import type { Bundle } from '../kb/bundle.js';
@@ -13,6 +14,9 @@ import { OkbError } from '../util/errors.js';
 import { withStateLock } from '../util/state-lock.js';
 import { ensureDir, readJsonIfExists, readTextIfExists, writeTextAtomic } from '../util/fsx.js';
 import { assertInsideRoot } from '../util/paths.js';
+import { migrateTicketFields } from './ticket-migrate.js';
+import { isMeaningful, readFields, setField } from './ticket-fields.js';
+import { safeUrl } from './safe-url.js';
 
 /**
  * A ticket followed by OKB, without AI: where it started in each repository
@@ -30,7 +34,8 @@ export type TicketRepo = {
   readonly baseRef: string | null;
 };
 
-export type JournalKind = 'start' | 'note' | 'decision' | 'trap' | 'question' | 'commit' | 'repo' | 'done' | 'reopen';
+/** `field`: a change on the sheet (D70) — kept in the ticket's history, not in the day's journal. */
+export type JournalKind = 'start' | 'note' | 'decision' | 'trap' | 'question' | 'commit' | 'repo' | 'done' | 'reopen' | 'field';
 export const NOTE_KINDS = ['note', 'decision', 'trap', 'question'] as const;
 
 export type JournalEntry = {
@@ -84,13 +89,13 @@ const recordSchema = z.object({
   version: z.literal(1), ref: z.string().regex(/^[A-Z0-9][A-Za-z0-9_-]{0,60}$/), title: z.string(),
   repos: z.array(z.object({ id: z.string(), branch: z.string().nullable(), base: z.string().nullable(), baseRef: z.string().nullable() }).passthrough()),
   status: z.enum(['active', 'done']), startedAt: z.string(), updatedAt: z.string(), doneAt: z.string().nullable(), auto: z.boolean(), textFile: z.string().nullable(),
-  journal: z.array(z.object({ at: z.string(), kind: z.enum(['start', 'note', 'decision', 'trap', 'question', 'commit', 'repo', 'done', 'reopen']), text: z.string(), repo: z.string().optional(), sha: z.string().optional() }).passthrough()),
+  journal: z.array(z.object({ at: z.string(), kind: z.enum(['start', 'note', 'decision', 'trap', 'question', 'commit', 'repo', 'done', 'reopen', 'field']), text: z.string(), repo: z.string().optional(), sha: z.string().optional() }).passthrough()),
 }).passthrough();
 
 /** Import all valid legacy records in one transaction; never edit or remove the originals. */
 export async function migrateTickets(config: OkbConfig): Promise<void> {
   const db = openDb(config);
-  if (db.get('SELECT value FROM meta WHERE key = ?', 'tickets.json.v1')) return;
+  if (db.get('SELECT value FROM meta WHERE key = ?', 'tickets.json.v1')) { await migrateTicketFields(config); return; }
   const names = await readdir(ticketsDir(config)).catch((e: NodeJS.ErrnoException) => { if (e.code === 'ENOENT') return []; throw e; });
   const records: TicketRecord[] = [];
   for (const name of names.filter((n) => n.endsWith('.json')).sort()) {
@@ -105,6 +110,7 @@ export async function migrateTickets(config: OkbConfig): Promise<void> {
     for (const r of records) db.run('INSERT OR IGNORE INTO tickets (ref, payload, updated_at) VALUES (?, ?, ?)', r.ref, JSON.stringify(r), r.updatedAt);
     db.run('INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)', 'tickets.json.v1', new Date().toISOString());
   });
+  await migrateTicketFields(config);
 }
 
 export async function loadTicket(config: OkbConfig, ref: string): Promise<TicketRecord | null> {
@@ -145,6 +151,8 @@ export type StartInput = {
   readonly base?: string;
   /** Started by itself (a branch named after the ticket), not by the person. */
   readonly auto?: boolean;
+  /** Who gave the title: a title the person typed is theirs (D70). */
+  readonly origin?: 'person' | 'agent';
 };
 
 /**
@@ -164,7 +172,10 @@ export async function startTicket(config: OkbConfig, input: StartInput): Promise
   const title = input.title?.trim() || (input.text ? titleFrom(input.text, ref) : null) || undefined;
   if (input.text) assertNoSecrets({ text: input.text }, 'ticket text');
   if (input.title) assertNoSecrets({ title: input.title }, 'ticket title');
-  return withStateLock(fileOf(config, ref), () => startTicketNow(config, input, ref, title));
+  const started = await withStateLock(fileOf(config, ref), () => startTicketNow(config, input, ref, title));
+  // D70: a title given at start fills the sheet's title, unless the sheet already has one.
+  if (title && isMeaningful(title, ref) && !readFields(config, ref).fields.title) await setField(config, ref, { field: 'title', value: title.slice(0, 200), origin: input.origin ?? 'agent' });
+  return started;
 }
 
 async function startTicketNow(config: OkbConfig, input: StartInput, ref: string, title: string | undefined): Promise<{ record: TicketRecord; created: boolean; attached: boolean }> {
@@ -365,4 +376,114 @@ export function ticketNoteIn(bundle: Bundle, record: TicketRecord, place: RepoPl
     if (hit) return hit.path;
   }
   return null;
+}
+
+/* ------------------------------------------------ gestures on the sheet (F2.4-09, D70) */
+
+const DAY = 86_400_000;
+const KEEP_DAYS = 30;
+
+/** The person names the ticket: the title becomes theirs, and the record follows. */
+export async function renameTicket(config: OkbConfig, ref: string, title: string): Promise<void> {
+  const id = ticketId(ref);
+  await setField(config, id, { field: 'title', value: title, origin: 'person' });
+  await mutateTicket(config, id, (record) => ({ ...record, title: title.trim() }));
+}
+
+/** Pinned tickets come first in Today's « Pick up ». */
+export async function pinTicket(config: OkbConfig, ref: string, pinned: boolean): Promise<void> {
+  const id = ticketId(ref);
+  if (!(await loadTicket(config, id))) throw new OkbError('E_NOT_FOUND', `no ticket ${ref}`, { key: 'ticketUnknown', params: { ref } });
+  openDb(config).run('INSERT INTO ticket_flags (ref, pinned) VALUES (?, ?) ON CONFLICT(ref) DO UPDATE SET pinned = excluded.pinned', id, pinned ? 1 : 0);
+}
+
+export function isPinned(config: OkbConfig, ref: string): boolean {
+  return Boolean(openDb(config).get<{ pinned: number }>('SELECT pinned FROM ticket_flags WHERE ref = ?', ticketId(ref))?.pinned);
+}
+
+const OWN_TABLES = ['ticket_details', 'ticket_fields', 'ticket_field_conflicts', 'ticket_states', 'ticket_criteria', 'ticket_attempts', 'ticket_reuses', 'ticket_requests', 'ticket_links'] as const;
+type Snapshot = { ticket: { ref: string; payload: string; updated_at: string }; rows: Record<string, Record<string, SQLInputValue>[]>; actions: Record<string, SQLInputValue>[]; project?: Record<string, SQLInputValue> | null; journal?: string[]; understanding?: string[]; projectActions?: string[]; pinned?: number };
+
+/**
+ * Stop following a ticket: its sheet, todos, requests and links go, after the
+ * person confirmed. Its notes stay in the KB. A copy is kept 30 days to undo.
+ */
+export async function unfollowTicket(config: OkbConfig, ref: string, now = new Date()): Promise<void> {
+  const id = ticketId(ref);
+  await withStateLock(fileOf(config, id), async () => {
+    const db = openDb(config);
+    db.tx(() => {
+      const ticket = db.get<Snapshot['ticket']>('SELECT ref, payload, updated_at FROM tickets WHERE ref = ?', id);
+      if (!ticket) throw new OkbError('E_NOT_FOUND', `no ticket ${ref}`, { key: 'ticketUnknown', params: { ref } });
+      const rows: Snapshot['rows'] = {};
+      for (const table of OWN_TABLES) rows[table] = db.all<Record<string, SQLInputValue>>(`SELECT * FROM ${table} WHERE ref = ?`, id);
+      const actions = db.all<Record<string, SQLInputValue>>('SELECT * FROM actions WHERE ticket_ref = ?', id);
+      // Its project (the end-of-session resumption) and what hangs on it come back with « restore ».
+      const project = db.get<Record<string, SQLInputValue>>("SELECT * FROM projects WHERE kind = 'ticket' AND ref = ?", id) ?? null;
+      const pid = project?.id as string | undefined;
+      const ids = (sql: string) => (pid ? db.all<{ id: string }>(sql, pid).map((r) => r.id) : []);
+      const snapshot: Snapshot = {
+        ticket, rows, actions, project,
+        journal: ids('SELECT id FROM journal WHERE project_id = ?'),
+        understanding: ids('SELECT id FROM understanding_events WHERE project_id = ?'),
+        projectActions: ids('SELECT id FROM actions WHERE project_id = ? AND ticket_ref IS NULL'),
+        pinned: db.get<{ pinned: number }>('SELECT pinned FROM ticket_flags WHERE ref = ?', id)?.pinned ?? 0,
+      };
+      db.run('INSERT INTO ticket_flags (ref, pinned, unfollowed_at, snapshot) VALUES (?, 0, ?, ?) ON CONFLICT(ref) DO UPDATE SET pinned = 0, unfollowed_at = excluded.unfollowed_at, snapshot = excluded.snapshot', id, now.toISOString(), JSON.stringify(snapshot));
+      db.run('DELETE FROM actions WHERE ticket_ref = ?', id);
+      db.run('DELETE FROM ticket_links WHERE ref = ?', id);
+      db.run("DELETE FROM projects WHERE kind = 'ticket' AND ref = ?", id);
+      db.run('DELETE FROM tickets WHERE ref = ?', id);
+    });
+  });
+}
+
+/** Undo « stop following » within 30 days. */
+export async function restoreTicket(config: OkbConfig, ref: string, now = new Date()): Promise<void> {
+  const id = ticketId(ref);
+  await withStateLock(fileOf(config, id), async () => {
+    const db = openDb(config);
+    db.tx(() => {
+      const flag = db.get<{ unfollowed_at: string | null; snapshot: string | null }>('SELECT unfollowed_at, snapshot FROM ticket_flags WHERE ref = ?', id);
+      if (!flag?.snapshot || !flag.unfollowed_at || now.getTime() - Date.parse(flag.unfollowed_at) > KEEP_DAYS * DAY) throw new OkbError('E_NOT_FOUND', `nothing to restore for ${ref}`, { key: 'ticketNothingToRestore', params: { ref } });
+      if (db.get('SELECT ref FROM tickets WHERE ref = ?', id)) throw new OkbError('E_CONFLICT', `${ref} is followed again`, { key: 'ticketFollowedAgain', params: { ref } });
+      const snap = JSON.parse(flag.snapshot) as Snapshot;
+      const insert = (table: string, row: Record<string, SQLInputValue>) => { const cols = Object.keys(row); db.run(`INSERT OR IGNORE INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, ...cols.map((c) => row[c]!)); };
+      insert('tickets', snap.ticket);
+      const project = snap.project && !db.get('SELECT id FROM projects WHERE id = ?', snap.project.id!) ? snap.project : null;
+      if (project) insert('projects', project);
+      const pid = project?.id ?? null;
+      for (const table of OWN_TABLES) for (const row of snap.rows[table] ?? []) insert(table, row);
+      for (const row of snap.actions) insert('actions', { ...row, project_id: pid && row.project_id === pid ? pid : null });
+      if (pid) {
+        for (const e of snap.journal ?? []) db.run('UPDATE journal SET project_id = ? WHERE id = ? AND project_id IS NULL', pid, e);
+        for (const e of snap.understanding ?? []) db.run('UPDATE understanding_events SET project_id = ? WHERE id = ? AND project_id IS NULL', pid, e);
+        for (const a of snap.projectActions ?? []) db.run('UPDATE actions SET project_id = ? WHERE id = ? AND project_id IS NULL', pid, a);
+      }
+      db.run('UPDATE ticket_flags SET unfollowed_at = NULL, snapshot = NULL, pinned = ? WHERE ref = ?', snap.pinned ?? 0, id);
+    });
+  });
+}
+
+const sourceInput = z.object({ provider: z.enum(['jira', 'servicenow', 'other']), url: safeUrl }).strict();
+
+/** Point the ticket to its source (a Jira or ServiceNow page); OKB never contacts it. */
+export async function setSourceLink(config: OkbConfig, ref: string, input: z.input<typeof sourceInput>): Promise<void> {
+  const p = sourceInput.safeParse(input);
+  if (!p.success) throw new OkbError('E_INVALID', p.error.issues[0]?.message ?? 'invalid source link', { key: 'ticketSourceInvalid' });
+  await mutateTicket(config, ref, (record, db) => {
+    const at = new Date().toISOString();
+    db.run('INSERT OR IGNORE INTO ticket_details (ref) VALUES (?)', record.ref);
+    db.run('UPDATE ticket_details SET external = ? WHERE ref = ?', JSON.stringify({ provider: p.data.provider, declared: true, url: p.data.url, observedAt: at }), record.ref);
+    return { ...record, journal: [...record.journal, { at, kind: 'field', text: `source : ${p.data.url}` }] };
+  });
+}
+
+/** Take a repository off a ticket; a ticket keeps at least one. */
+export async function detachRepo(config: OkbConfig, ref: string, repoId: string): Promise<void> {
+  await mutateTicket(config, ref, (record) => {
+    if (!record.repos.some((r) => r.id === repoId)) throw new OkbError('E_NOT_FOUND', `${repoId} is not on ${ref}`, { key: 'ticketRepoUnknown' });
+    if (record.repos.length === 1) throw new OkbError('E_INVALID', 'a ticket keeps at least one repository', { key: 'ticketLastRepo' });
+    return { ...record, repos: record.repos.filter((r) => r.id !== repoId), journal: [...record.journal, { at: new Date().toISOString(), kind: 'field', text: `repo retiré : ${repoId}` }] };
+  });
 }

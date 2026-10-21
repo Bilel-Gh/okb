@@ -284,3 +284,17 @@ de débordement de page, l’expansion et l’accès clavier aux preuves. Les ca
 se placent dans le dossier temporaire de la machine, avec le préfixe
 `okb-architecture-`. Ces fixtures fictives ne reproduisent pas le graphe réel de
 la personne et ne valident pas tous les frameworks ou tous les navigateurs.
+
+## La fiche d’un ticket (D70)
+
+`src/work/ticket-sheet.ts` assemble la fiche à partir de l’état SQLite :
+`ticket-fields.ts` (champs, origine, écarts, non applicable),
+`ticket-next.ts` (prochaine étape = première todo, `actions.ticket_ref`),
+`ticket-completeness.ts` (calcul pur), `ticket-links.ts` (métadonnée `tickets`,
+note du ticket, liens à la main, mentions suggérées), `ticket-requests.ts`
+(demandes à l’agent et prompt) et `ticket-migrate.ts` (reprise unique des
+tickets 2.0 après la copie `state-v<N>-…db`). Les opérations `tickets.sheet`,
+`tickets.field.*`, `tickets.links.*`, `tickets.requests.*`, `actions.delete`
+servent le web, la CLI et MCP. L’accueil reçoit les cartes par le contrat
+`ProjectSource.cards` / `pendingRequests` : le cœur ne connaît pas les tickets.
+
