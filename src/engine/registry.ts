@@ -1,5 +1,6 @@
 import { enabledModules, moduleDef } from '../modules/catalog.js';
 import { reposList } from '../repo/operations.js';
+import { archConflictResolve, archLinkAdd, archLinkConfirm, archLinkExclude, archLinkReset, archLinkRetarget, archMap, archUrlClassify } from '../arch/operations.js';
 import { OkbError } from '../util/errors.js';
 import { backupStatusOp } from './ops/backup.js';
 import { baggageDraftOp, baggageKeep } from './ops/baggage.js';
@@ -25,6 +26,14 @@ export type { Actor, Effect, OpContext, Operation } from './operation.js';
 
 /** Every operation of the engine, the core's then each module's. */
 const OPS = {
+  'arch.map': archMap,
+  'arch.link.confirm': archLinkConfirm,
+  'arch.link.exclude': archLinkExclude,
+  'arch.link.retarget': archLinkRetarget,
+  'arch.link.add': archLinkAdd,
+  'arch.link.reset': archLinkReset,
+  'arch.url.classify': archUrlClassify,
+  'arch.conflict.resolve': archConflictResolve,
   'tickets.list': ticketsList,
   'tickets.get': ticketsGet,
   'tickets.start': ticketsStart,

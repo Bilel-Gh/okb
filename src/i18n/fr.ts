@@ -2,12 +2,14 @@ import type { EN } from './en.js';
 import { FR_V1 } from './v1.fr.js';
 import { FR_SHARE } from './share.fr.js';
 import { FR_TICKETS } from './tickets.fr.js';
+import { FR_LANDSCAPE } from './landscape.fr.js';
 
 /** Catalogue français de l'interface. Le compilateur exige chaque clé de l'anglais. */
 export const FR: Record<keyof typeof EN, string> = {
   ...FR_V1,
   ...FR_SHARE,
   ...FR_TICKETS,
+  ...FR_LANDSCAPE,
   // ---------- général ----------
   'ui.yes': 'Oui',
   'ui.no': 'Non',

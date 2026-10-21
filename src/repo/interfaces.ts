@@ -4,6 +4,7 @@ import YAML from 'yaml';
 import type { Inventory, InventoryFile } from './inventory.js';
 import { evidenceAt, evidenceFor, filesOf, parseJson, textOf } from './detect.js';
 import type { Entity, EnvVar, Environment, Evidence, Iface, IfaceKind } from './types.js';
+import { classifyUrl, type UrlRole } from './url-kinds.js';
 
 /**
  * Who the repository talks to, and who can talk to it. Each finding is a
@@ -17,12 +18,13 @@ const isCode = (f: InventoryFile) => (f.kind === 'source' || f.kind === 'entry' 
 
 class IfaceSet {
   private readonly items = new Map<string, Iface>();
-  add(kind: IfaceKind, name: string, evidence: Evidence, detail?: string): void {
+  add(kind: IfaceKind, name: string, evidence: Evidence, detail?: string, role?: UrlRole): void {
     // An HTTP call is also told apart by its base: GET /health on two services is two calls (F2.0-34).
-    const key = `${kind}\u0000${name}${kind === 'http-call' ? `\u0000${detail ?? ''}` : ''}`;
+    // An address is told apart by its role: the same host in a comment and in a call is two findings (F2.4-15).
+    const key = `${kind}\u0000${name}${kind === 'http-call' ? `\u0000${detail ?? ''}` : ''}${role ? `\u0000${role}` : ''}`;
     const found = this.items.get(key);
     if (found) { this.items.set(key, { ...found, count: (found.count ?? 1) + 1 }); return; }
-    this.items.set(key, { kind, name, evidence, ...(detail ? { detail } : {}) });
+    this.items.set(key, { kind, name, evidence, ...(detail ? { detail } : {}), ...(role ? { role } : {}) });
   }
   list(): Iface[] { return [...this.items.values()]; }
 }
@@ -61,10 +63,13 @@ export function detectProvides(inv: Inventory): Iface[] {
     }
     if (/\.(java|kt)$/.test(f.path)) {
       const base = /@RequestMapping\(\s*(?:value\s*=\s*|path\s*=\s*)?"([^"]*)"/.exec(text)?.[1] ?? '';
-      for (const m of text.matchAll(/@(Get|Post|Put|Patch|Delete)Mapping\(\s*(?:value\s*=\s*|path\s*=\s*)?(?:"([^"]*)")?/g)) {
+      // `@PostMapping` alone maps the class path (F2.4-15).
+      for (const m of text.matchAll(/@(Get|Post|Put|Patch|Delete)Mapping\b(?:\(\s*(?:value\s*=\s*|path\s*=\s*)?(?:"([^"]*)")?)?/g)) {
         out.add('http-route', `${m[1]!.toUpperCase()} ${`/${base}/${m[2] ?? ''}`.replace(/\/+/g, '/').replace(/(.)\/$/, '$1')}`, evidenceAt(f.path, text, m.index));
       }
-      for (const m of text.matchAll(/@KafkaListener\([^)]*topics\s*=\s*\{?\s*"([^"]+)"/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'consumed topic');
+      // Published from Java: Spring Kafka's template and @SendTo (F2.4-15). A listener consumes: see detectConsumes.
+      for (const m of text.matchAll(/\b\w*[Kk]afka[Tt]emplate\.send\(\s*"([\w./:-]+)"/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'published');
+      for (const m of text.matchAll(/@SendTo\(\s*"([\w./:-]+)"/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'published');
     }
     if (/\.py$/.test(f.path)) {
       for (const m of text.matchAll(/@(?:app|router|bp|blueprint|api)\.(get|post|put|patch|delete|route)\(\s*['"]([^'"]+)['"]/g)) {
@@ -249,6 +254,7 @@ export function detectConsumes(inv: Inventory): Iface[] {
     for (const m of text.matchAll(/(?:messaging|broker)\.on\(\s*['"]([\w./:-]+)['"]/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'subscribed');
     for (const m of text.matchAll(/\.subscribe\(\s*\{\s*topics?\s*:\s*\[?\s*['"]([\w./:-]+)['"]/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'subscribed');
     for (const m of text.matchAll(/\.consume\(\s*['"]([\w./:-]+)['"]/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'subscribed');
+    for (const m of text.matchAll(/@KafkaListener\([^)]*topics\s*=\s*\{?\s*"([^"]+)"/g)) out.add('event', m[1]!, evidenceAt(f.path, text, m.index), 'subscribed');
     for (const call of httpCalls(f.path, text)) out.add('http-call', call.name, evidenceAt(f.path, text, call.index), call.base ? `base ${call.base}` : undefined);
   }
   // Literal URLs in code and configuration: hosts only.
@@ -261,7 +267,8 @@ export function detectConsumes(inv: Inventory): Iface[] {
       if (DOC_HOSTS.test(host)) continue;
       const before = text.slice(Math.max(0, m.index - 12), m.index);
       if (/xmlns[:=\w]*"?$/.test(before)) continue;
-      out.add('url', host === 'localhost' || host === '127.0.0.1' ? `${host}${m[2] ?? ''}` : host, evidenceAt(f.path, text, m.index), host === 'localhost' || host === '127.0.0.1' ? 'local' : undefined);
+      const local = host === 'localhost' || host === '127.0.0.1';
+      out.add('url', local ? `${host}${m[2] ?? ''}` : host, evidenceAt(f.path, text, m.index), local ? 'local' : undefined, local ? undefined : classifyUrl({ file: f.path, text, index: m.index, host }));
     }
   }
   // Containers and services started next to the application.

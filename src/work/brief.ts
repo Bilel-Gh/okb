@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import type { OkbConfig } from '../config/schema.js';
 import { loadBundleFor, type Bundle } from '../kb/bundle.js';
 import { landscapeEdges, type Edge } from '../repo/generated.js';
+import { correctedModel } from '../arch/system.js';
+import { overridesStamp } from '../arch/overrides.js';
 import { repoNotes } from '../repo/notes.js';
 import { READING_ORDER, type RepoPlace } from '../repo/pack.js';
 import { repoPlace } from '../brain/products.js';
@@ -73,7 +75,8 @@ type EdgeCache = { key: string; edges: Edge[] };
 export async function kbEdges(config: OkbConfig, repos?: readonly RepoEntry[]): Promise<Edge[]> {
   const list = (repos ?? (await listRepos())).filter((r) => r.kb === config.profile.id);
   const stamps = await Promise.all(list.map(async (r) => `${r.id}:${await stat(repoPaths(config, r.id).map).then((s) => s.mtimeMs, () => 0)}`));
-  const key = stamps.join('|');
+  // The person's corrections change the edges too (F2.4-17).
+  const key = `${stamps.join('|')}#${overridesStamp(config)}`;
   const cacheFile = resolve(statePaths(config).root, 'repos', 'edges.json');
   const cached = await readJsonIfExists<EdgeCache>(cacheFile).catch(() => null);
   if (cached && cached.key === key) return cached.edges;
@@ -82,7 +85,7 @@ export async function kbEdges(config: OkbConfig, repos?: readonly RepoEntry[]): 
     const map = await loadMap(repoPaths(config, r.id)).catch(() => null);
     if (map) maps.push(map);
   }
-  const edges = maps.length > 1 ? landscapeEdges(maps).edges.map((e) => ({ ...e, evidence: e.evidence.slice(0, 2) })) : [];
+  const edges = maps.length > 1 ? landscapeEdges(maps, correctedModel(config, maps)).edges.map((e) => ({ ...e, evidence: e.evidence.slice(0, 2) })) : [];
   await writeJsonAtomic(cacheFile, { key, edges }).catch(() => {});
   return edges;
 }
@@ -102,7 +105,7 @@ export async function workspaceEdges(ws: Workspace): Promise<Edge[]> {
   if (!home) return [];
   const located = (await Promise.all(repos.map(async (r) => ({ r, cfg: await configOf(r.kb) })))).filter((x): x is { r: RepoEntry; cfg: OkbConfig } => x.cfg !== null);
   const stamps = await Promise.all(located.map(async ({ r, cfg }) => `${r.kb}/${r.id}:${await stat(repoPaths(cfg, r.id).map).then((s) => s.mtimeMs, () => 0)}`));
-  const key = stamps.join('|');
+  const key = `${stamps.join('|')}#${overridesStamp(home)}`;
   const cacheFile = resolve(statePaths(home).root, 'repos', `edges-${ws.id}.json`);
   const cached = await readJsonIfExists<EdgeCache>(cacheFile).catch(() => null);
   if (cached && cached.key === key) return cached.edges;
@@ -111,7 +114,7 @@ export async function workspaceEdges(ws: Workspace): Promise<Edge[]> {
     const map = await loadMap(repoPaths(cfg, r.id)).catch(() => null);
     if (map) maps.push(map);
   }
-  const edges = maps.length > 1 ? landscapeEdges(maps).edges.map((e) => ({ ...e, evidence: e.evidence.slice(0, 2) })) : [];
+  const edges = maps.length > 1 ? landscapeEdges(maps, correctedModel(home, maps)).edges.map((e) => ({ ...e, evidence: e.evidence.slice(0, 2) })) : [];
   await writeJsonAtomic(cacheFile, { key, edges }).catch(() => {});
   return edges;
 }

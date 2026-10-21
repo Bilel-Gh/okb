@@ -57,7 +57,9 @@ describe('after a ticket, and across repositories', () => {
     git(libDir, 'init', '-q');
     const lib = await scanRepository({ id: 'pricing-rules', name: 'pricing-rules', path: libDir });
     const { edges } = landscapeEdges([orders, lib]);
-    expect(edges).toEqual([{ from: 'orders-service', to: 'pricing-rules', label: 'npm @acme/pricing-rules', evidence: ['orders-service:package.json:11'] }]);
+    // One engine (F2.4-15): the proofs of both sides, the dependency and the published package.
+    expect(edges).toEqual([{ from: 'orders-service', to: 'pricing-rules', label: 'npm @acme/pricing-rules', evidence: expect.arrayContaining(['orders-service:package.json:11']) }]);
+    expect(edges[0]!.evidence.some((e) => e.startsWith('pricing-rules:'))).toBe(true);
     expect(askWho(orders, ['mta.yaml'], 'fr')).toContain('@acme/platform-team (CODEOWNERS)');
   });
 });

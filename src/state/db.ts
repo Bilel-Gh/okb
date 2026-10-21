@@ -124,6 +124,17 @@ export const MIGRATIONS: readonly string[] = [
    ALTER TABLE actions ADD COLUMN importance TEXT NOT NULL DEFAULT 'medium';
    ALTER TABLE actions ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
    CREATE INDEX actions_ticket ON actions(ticket_ref, status);`,
+  // F2.4-15..20 (D72, D73): the person's corrections of the system map, what an address is, and
+  // fields of a repository or a product (the team responsible) with their origin, conflicts and requests.
+  // Self-contained: if another migration lands first, this entry simply moves one place down.
+  `CREATE TABLE arch_overrides (key TEXT PRIMARY KEY, action TEXT NOT NULL, target TEXT, kind TEXT, what TEXT, reason TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL, at TEXT NOT NULL);
+   CREATE TABLE arch_conflicts (key TEXT PRIMARY KEY, action TEXT NOT NULL, target TEXT, kind TEXT, what TEXT, reason TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL, at TEXT NOT NULL);
+   CREATE TABLE arch_url_rules (host TEXT PRIMARY KEY, role TEXT NOT NULL, origin TEXT NOT NULL, at TEXT NOT NULL);
+   CREATE TABLE subject_fields (kind TEXT NOT NULL, subject TEXT NOT NULL, field TEXT NOT NULL, value TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL, url TEXT, at TEXT NOT NULL, manual INTEGER NOT NULL DEFAULT 0, na_reason TEXT, PRIMARY KEY(kind, subject, field));
+   CREATE TABLE subject_field_conflicts (kind TEXT NOT NULL, subject TEXT NOT NULL, field TEXT NOT NULL, value TEXT NOT NULL, origin TEXT NOT NULL, url TEXT, at TEXT NOT NULL, PRIMARY KEY(kind, subject, field, origin));
+   CREATE TABLE subject_dismissed (kind TEXT NOT NULL, subject TEXT NOT NULL, field TEXT NOT NULL, value TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY(kind, subject, field, value));
+   CREATE TABLE subject_requests (id TEXT PRIMARY KEY, kind TEXT NOT NULL, subject TEXT NOT NULL, fields TEXT NOT NULL, state TEXT NOT NULL, created_at TEXT NOT NULL, closed_at TEXT, report TEXT);
+   CREATE INDEX subject_requests_open ON subject_requests(state, kind, subject);`,
 ];
 
 /** Node still calls its SQLite experimental; the warning has no place in a person's terminal. */

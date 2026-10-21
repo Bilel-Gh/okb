@@ -17,7 +17,8 @@ import { QUESTIONS, THEMES } from './questions.js';
 import { listRepos, type RepoEntry } from './registry.js';
 import { coverageOf, repoStatus } from './status.js';
 import { loadMap, loadProgress, repoPaths } from './state.js';
-import type { Iface, RepoMap, Risk } from './types.js';
+import type { RepoMap, Risk } from './types.js';
+import { buildModel, type SystemModel } from '../arch/model.js';
 
 const isFr = (lang: string) => lang.toLowerCase().startsWith('fr');
 
@@ -173,49 +174,33 @@ function stripGenerated(text: string): string {
 
 export type Edge = { readonly from: string; readonly to: string; readonly label: string; readonly evidence: readonly string[] };
 
-const norm = (s: string) => s.toLowerCase().replace(/service$/i, '').replace(/[^a-z0-9]+/g, '');
-
 /**
- * How the repositories of one KB relate: an API one declares and another
- * consumes, a library one publishes and another depends on, an event one emits
- * and another listens to. Only matches between declarations; never inferred
- * from names alone beyond that.
+ * How the repositories of one KB relate (F2.4-15): a view of the one system
+ * model (src/arch/model.ts), so the landscape note, the Repos page, the brief
+ * and the map never disagree. `external` lists, per repository, the outside
+ * resources and data technologies drawn on the map — never a registry, the Git
+ * host or a documentation link. A model with the person's corrections applied
+ * may be passed in (F2.4-17).
  */
-export function landscapeEdges(maps: readonly RepoMap[]): { edges: Edge[]; external: Map<string, Set<string>> } {
+export function landscapeEdges(maps: readonly RepoMap[], model: SystemModel = buildModel(maps)): { edges: Edge[]; external: Map<string, Set<string>> } {
+  const idOf = new Map(maps.map((m) => [`repo:${m.repo.name}`, m.repo.id]));
   const edges: Edge[] = [];
   const external = new Map<string, Set<string>>();
-  const where = (m: RepoMap, i: Iface) => `${m.repo.name}:${i.evidence.file}:${i.evidence.line}`;
-  for (const a of maps) {
-    for (const c of a.consumes) {
-      if (c.kind === 'url' && c.detail === 'local') continue;
-      let matched = false;
-      for (const b of maps) {
-        if (b === a) continue;
-        if (c.kind === 'package' && (b.published ?? []).some((p) => p.name === c.name)) {
-          edges.push({ from: a.repo.id, to: b.repo.id, label: `npm ${c.name}`, evidence: [where(a, c)] });
-          matched = true;
-          continue;
-        }
-        if (c.kind === 'event') {
-          const p = b.provides.find((x) => x.kind === 'event' && x.name === c.name);
-          if (p) { edges.push({ from: b.repo.id, to: a.repo.id, label: `event ${c.name}`, evidence: [where(b, p), where(a, c)] }); matched = true; }
-          continue;
-        }
-        const target = b.provides.find((p) => (['cds-service', 'service-binding', 'ui-app', 'odata', 'openapi', 'grpc'].includes(p.kind) && (norm(p.name) === norm(c.name) || (p.detail?.startsWith('path ') && c.kind === 'odata' && c.name.replace(/\/$/, '').endsWith(p.detail.slice(5).replace(/\/$/, ''))))));
-        if (target && ['external-service', 'destination', 'odata', 'service-binding'].includes(c.kind)) {
-          edges.push({ from: a.repo.id, to: b.repo.id, label: `${c.kind} ${c.name}`, evidence: [where(a, c), where(b, target)] });
-          matched = true;
-        }
-      }
-      if (!matched && ['external-service', 'destination', 'url', 'database', 'messaging'].includes(c.kind)) {
-        const set = external.get(a.repo.id) ?? new Set<string>();
-        set.add(`${c.kind} ${c.name}`);
-        external.set(a.repo.id, set);
-      }
+  const name = (id: string) => model.nodes.find((n) => n.id === id)?.name ?? id;
+  for (const l of model.links) {
+    const from = idOf.get(l.from);
+    if (!from) continue;
+    const to = idOf.get(l.to);
+    if (to) {
+      const what = l.calls.map((c) => c.what).slice(0, 2).join(', ') || l.verb;
+      edges.push({ from, to, label: `${l.kind === 'package' ? 'npm' : l.kind} ${what}`.trim(), evidence: l.evidence.map((e) => `${e.repo}:${e.file}:${e.line}`) });
+      continue;
     }
+    const set = external.get(from) ?? new Set<string>();
+    set.add(l.kind === 'data' ? `database ${name(l.to)}` : `external ${name(l.to)}`);
+    external.set(from, set);
   }
-  const seen = new Set<string>();
-  return { edges: edges.filter((e) => { const k = `${e.from}>${e.to}>${e.label}`; if (seen.has(k)) return false; seen.add(k); return true; }), external };
+  return { edges, external };
 }
 
 export async function landscapeNote(config: OkbConfig): Promise<{ path: BundlePath; content: string; repos: RepoEntry[]; edges: Edge[] } | null> {
@@ -237,7 +222,9 @@ export async function landscapeNote(config: OkbConfig): Promise<{ path: BundlePa
     : asBundlePath(`${REPOS_FOLDER}/${fr ? 'paysage.md' : 'landscape.md'}`);
   const places = new Map<string, Awaited<ReturnType<typeof repoPlace>>>();
   for (const m of maps) places.set(m.repo.id, await repoPlace(config, repos.find((r) => r.id === m.repo.id) ?? { id: m.repo.id, name: m.repo.name }));
-  const { edges, external } = landscapeEdges(maps);
+  // The person's corrections apply to the note too (F2.4-17).
+  const { correctedModel } = await import('../arch/system.js');
+  const { edges, external } = landscapeEdges(maps, correctedModel(config, maps, fr ? 'fr' : 'en'));
   const id = (s: string) => s.replace(/[^A-Za-z0-9_]/g, '_');
   const mermaid = ['flowchart LR'];
   for (const m of maps) mermaid.push(`  ${id(m.repo.id)}["${m.repo.name.replace(/"/g, "'")}"]`);
