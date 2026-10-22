@@ -25,7 +25,7 @@ async function kb() {
   await writeSetting(config.profile.id, 'changes.agentWrites', 'review-later', s.env);
   const c = (await loadConfig({ env: s.env, profileId: config.profile.id })).config;
   await writeOwner(c.kb.root, c.profile.id);
-  const keep = async (files: Record<string, string | null>) => { const p = proposeFiles(c, await loadBundleFor(c), new Map(Object.entries(files)), 'agent'); await saveProposal(c, p); return keepProposal(c, p.id, 'agent', s.env); };
+  const keep = async (files: Record<string, string | null>) => { const p = proposeFiles(c, await loadBundleFor(c), new Map(Object.entries(files)), 'agent'); await saveProposal(c, p); return keepProposal(c, p.id, s.env); };
   const person = { config: c, env: s.env, actor: 'person' as const };
   const agent = { ...person, actor: 'agent' as const };
   return { config: c, keep, person, agent, file: (p: string) => resolve(c.kb.root, p) };
@@ -81,11 +81,31 @@ describe('the person sorts what the agent filed (F2.0-55, D71)', () => {
     expect(reviewOf(config, 'f/cible.md')?.state).toBe('pending');
   });
 
-  it('says yes to all but some', async () => {
+  it('« Non » twice: first the agent’s change goes, then the note it created (I3)', async () => {
+    const { config, keep, person, file } = await kb();
+    await keep({ 'h/n.md': note('N', 'Premier jet.') });
+    await keep({ 'h/n.md': note('N', 'Changé ensuite.') });
+    expect(await rejectNote(config, 'h/n.md', person.env)).toBe('restored');
+    expect(await rejectNote(config, 'h/n.md', person.env)).toBe('removed');
+    expect(existsSync(file('h/n.md'))).toBe(false);
+  });
+
+  it('« Non » after a move still restores the earlier text, never deletes a note the agent only changed (I3)', async () => {
+    const { config, keep, person, file } = await kb();
+    await keep({ 'i/n.md': note('N', 'Premier jet.') });
+    await keep({ 'i/n.md': note('N', 'Changé ensuite.') });
+    const to = await moveNote(config, 'i/n.md', 'j', person.env);
+    expect(await rejectNote(config, to, person.env)).toBe('restored');
+    expect(await readFile(file('j/n.md'), 'utf8')).toContain('Premier jet.');
+  });
+
+  it('says yes to what the person saw, and only that (I2)', async () => {
     const { config, keep, person } = await kb();
     await keep({ 'g/a.md': note('A'), 'g/b.md': note('B'), 'g/c.md': note('C') });
-    await yesToAll(config, { notes: ['g/b.md'], changes: [] }, person.env);
-    expect(['g/a.md', 'g/b.md', 'g/c.md'].map((p) => reviewOf(config, p)?.state)).toEqual(['validated', 'pending', 'validated']);
+    const shown = { notes: ['g/a.md', 'g/c.md', 'g/gone.md'], changes: ['p-unknown'] };
+    await keep({ 'g/d.md': note('D') }); // filed while the screen was open
+    expect(await yesToAll(config, shown, person.env)).toEqual({ notes: 2, changes: 0 });
+    expect(['g/a.md', 'g/b.md', 'g/c.md', 'g/d.md'].map((p) => reviewOf(config, p)?.state)).toEqual(['validated', 'pending', 'validated', 'pending']);
   });
 
   it('asks the agent for a check and lists it', async () => {

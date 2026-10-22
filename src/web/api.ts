@@ -28,7 +28,7 @@ import { resolveSelection } from '../proposal/model.js';
 import type { Proposal } from '../proposal/model.js';
 import { readableLabel } from '../proposal/labels.js';
 import { loadProposal, saveProposal, updateProposalStatus } from '../proposal/store.js';
-import { readSettings, writeSetting } from '../settings/settings.js';
+import { readSettings, writeSetting, PERSON_ONLY } from '../settings/settings.js';
 import { sayYes } from '../evening/evening.js';
 import { spaceOf } from '../spaces/space.js';
 import { draftSkill, writeSkillDraft } from '../skillify/skillify.js';
@@ -58,8 +58,10 @@ export type ApiContext = {
   /** Null before the first KB exists: only the setup wizard works then. */
   readonly defaultConfig: OkbConfig | null;
   readonly token: string;
-  /** D71: the request comes from the browser OKB opened itself (its session key cookie): the person is there. */
+  /** D71: the request comes from the page OKB opened itself (its session key header): the person is there. */
   readonly present?: boolean;
+  /** D71: trades the one-time link of the opened page for the session key (null: unknown, used or expired). */
+  readonly claim?: (k: string) => string | null;
   /** The build this server started with, and the build on disk now: they differ after an update. */
   readonly build?: { readonly boot: string; readonly now: () => string };
   /** Stops this server (a newer `okb serve` asks for it). */
@@ -492,8 +494,14 @@ export const ROUTES: Record<string, Handler> = {
     setLanguage(resolveLanguage(ctx.env));
     return { ok: true, ...created, steps };
   },
+  'POST /api/presence/claim': async (ctx, _q, b) => ({ key: typeof b.k === 'string' && ctx.claim ? ctx.claim(b.k) : null }),
   'POST /api/settings': async (ctx, _q, b) => {
     const key = str(b.key, 'key', 80);
+    if (PERSON_ONLY.has(key)) {
+      // D71: how the agent files notes is the person's own choice, made with them present (C1).
+      const presence = ctx.present ? 'confirmed' : await confirmPresence(t('web.presence.setting', { key: t(`settings.label.${key}`) }), { approve: t('web.presence.approve'), cancel: t('web.presence.cancel'), title: 'OKB' });
+      if (presence !== 'confirmed') return { ok: false, presence };
+    }
     if (key === 'ui.language') {
       const { setUiLanguage } = await import('../kb/registry.js');
       const { resolveLanguage, setLanguage } = await import('../i18n/index.js');
@@ -569,7 +577,7 @@ export const ROUTES: Record<string, Handler> = {
   'POST /api/review/move': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.move'), async (config) => ({ path: await (await import('../review/gestures.js')).moveNote(config, str(b.path, 'path', 1000), str(b.folder, 'folder', 500), ctx.env) })),
   'POST /api/review/change/approve': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.change'), async (config) => ({ applied: await (await import('../review/gestures.js')).approveChange(config, str(b.proposal, 'proposal', 100), ctx.env) })),
   'POST /api/review/change/reject': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.keep'), async (config) => { await (await import('../review/gestures.js')).rejectChange(config, str(b.proposal, 'proposal', 100)); return {}; }),
-  'POST /api/review/yes-to-all': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.all'), async (config) => (await import('../review/gestures.js')).yesToAll(config, { notes: list(b.exceptNotes), changes: list(b.exceptChanges) }, ctx.env)),
+  'POST /api/review/yes-to-all': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.all'), async (config) => (await import('../review/gestures.js')).yesToAll(config, { notes: list(b.notes), changes: list(b.changes) }, ctx.env)),
   'POST /api/proposal/apply': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);
     const proposal = await loadProposal(config, str(b.id, 'id', 80));

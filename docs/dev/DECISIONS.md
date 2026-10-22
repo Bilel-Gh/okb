@@ -1449,15 +1449,22 @@ Faire relire, Oui à tout (F2.0-55). Ces gestes ne sont pas des opérations du
 moteur : un agent ne peut ni valider, ni retirer, ni appliquer une modification
 en attente, ni changer le réglage (refusé aussi par le hook `guard-approval`).
 
-`okb serve` ouvre le navigateur avec un lien à usage unique qui dépose une clé
-de session dans un cookie `HttpOnly`, `SameSite=Strict`. Avec ce cookie, les
-gestes et l’approbation se font sans fenêtre système ni terminal ; sans lui,
-l’app retombe sur la confirmation de D25 (F2.0-56). La clé n’est jamais écrite
+`okb serve` ouvre le navigateur avec un lien à usage unique (valable une
+minute, un seul à la fois) que la page échange contre une clé de session. La
+page la garde dans son onglet (`sessionStorage`, propre au port) et l’envoie en
+en-tête ; jamais en cookie, qu’un navigateur enverrait à tous les ports de
+127.0.0.1. Avec cette clé, les gestes, l’approbation et le réglage d’écriture se
+font sans fenêtre système ni terminal ; sans elle, l’app retombe sur la
+confirmation de D25 (F2.0-56). La clé n’est jamais écrite
 sur disque ni affichée. Limite honnête : elle passe en argument de la commande
 système qui ouvre le navigateur, et ne protège pas d’un logiciel qui pilote la
 souris de la personne.
 
 La part des notes validées est un indicateur de la santé de la KB : une ligne
 discrète sur l’accueil, la barre d’état et le cinquième indicateur (F2.0-57).
+`okb keep` ne valide jamais, quel que soit celui qui le lance ; il ne supprime
+jamais une note ; il ne touche pas une note à relire que la personne a modifiée
+depuis l’écriture de l’agent (empreinte différente). « Oui à tout » n’agit que
+sur ce que la personne voyait à l’écran.
 Une demande de note par la personne vaut accord : pas de carte de suggestion ;
 une note que l’agent propose de lui-même garde sa carte.

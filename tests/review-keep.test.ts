@@ -30,7 +30,7 @@ describe('the agent files new notes at once, to review (F2.0-54, D71)', () => {
   it('applies a new note, marks it to review with its reason, and records who', async () => {
     const { config, propose } = await kb();
     const id = await propose({ 'cas/remises.md': note('Remises') });
-    const r = await keepProposal(config, id, 'agent');
+    const r = await keepProposal(config, id);
     expect(r).toMatchObject({ applied: ['cas/remises.md'], waiting: null });
     expect(await readFile(resolve(config.kb.root, 'cas/remises.md'), 'utf8')).toContain('Remises');
     expect(reviewOf(config, 'cas/remises.md')).toMatchObject({ state: 'pending', by: 'agent' });
@@ -46,7 +46,7 @@ describe('the agent files new notes at once, to review (F2.0-54, D71)', () => {
     setReview(config, 'a/a-relire.md', 'pending', 'agent');
     setReview(config, 'a/validee.md', 'validated', 'human:test');
     const id = await propose({ 'a/a-relire.md': note('À relire', 'Complété.'), 'a/validee.md': note('Validée', 'Changé par l’agent.'), 'a/nouvelle.md': note('Nouvelle') });
-    const r = await keepProposal(config, id, 'agent');
+    const r = await keepProposal(config, id);
     expect(r.applied.sort()).toEqual(['a/a-relire.md', 'a/nouvelle.md']);
     expect(await readFile(resolve(config.kb.root, 'a/validee.md'), 'utf8')).toContain('Texte.');
     expect(r.waiting).toBeTruthy();
@@ -59,22 +59,51 @@ describe('the agent files new notes at once, to review (F2.0-54, D71)', () => {
   it('applies nothing in « nothing enters without my yes »', async () => {
     const { config, propose } = await kb('proposal');
     const id = await propose({ 'b/n.md': note('N') });
-    expect(await keepProposal(config, id, 'agent')).toMatchObject({ applied: [], waiting: id });
+    expect(await keepProposal(config, id)).toMatchObject({ applied: [], waiting: id });
     expect((await loadProposal(config, id)).status).toBe('prepared');
   });
 
   it('applies nothing when a guard refuses', async () => {
     const { config, propose } = await kb();
     const id = await propose({ '.okb/n.md': note('Interdit') });
-    await expect(keepProposal(config, id, 'agent')).rejects.toBeTruthy();
+    await expect(keepProposal(config, id)).rejects.toBeTruthy();
     expect(reviewOf(config, '.okb/n.md')).toBeNull();
   });
 
-  it('a person keeping a note validates it', async () => {
+  it('whoever runs okb keep, the note is to review: only the app validates (I4)', async () => {
     const { config, propose } = await kb();
     const id = await propose({ 'c/n.md': note('N') });
-    await keepProposal(config, id, 'person');
-    expect(reviewOf(config, 'c/n.md')?.state).toBe('validated');
+    await keepProposal(config, id);
+    expect(reviewOf(config, 'c/n.md')).toMatchObject({ state: 'pending', by: 'agent' });
+  });
+
+  it('never deletes a note without the person, even one to review', async () => {
+    const { config, propose } = await kb();
+    await keepProposal(config, await propose({ 'c/x.md': note('X') }));
+    const id = await propose({ 'c/x.md': null });
+    expect(await keepProposal(config, id)).toMatchObject({ applied: [], waiting: id });
+    expect(reviewOf(config, 'c/x.md')?.state).toBe('pending');
+  });
+
+  it('a note to review the person edited outside OKB is theirs now: the agent’s change waits (I5)', async () => {
+    const { config, propose, put } = await kb();
+    await keepProposal(config, await propose({ 'c/y.md': note('Y', 'Agent.') }));
+    await put('c/y.md', note('Y', 'Réécrit par la personne dans Obsidian.'));
+    const id = await propose({ 'c/y.md': note('Y', 'Agent encore.') });
+    expect(await keepProposal(config, id)).toMatchObject({ applied: [], waiting: id });
+    expect(await readFile(resolve(config.kb.root, 'c/y.md'), 'utf8')).toContain('Obsidian');
+  });
+
+  it('forgets the review of a note gone from the KB, so a new file there starts afresh (I5)', async () => {
+    const { config, propose, put } = await kb();
+    await keepProposal(config, await propose({ 'c/z.md': note('Z') }));
+    const { rm } = await import('node:fs/promises');
+    await rm(resolve(config.kb.root, 'c/z.md'));
+    await classifyNotes(config, await loadBundleFor(config));
+    expect(reviewOf(config, 'c/z.md')).toBeNull();
+    await put('c/z.md', '---\ntype: Guide\ntitle: "Z"\ndescription: Le mien.\nstatus: draft\n---\n\n# Z\n\nÉcrit par moi.\n');
+    await classifyNotes(config, await loadBundleFor(config));
+    expect(reviewOf(config, 'c/z.md')?.state).toBe('validated');
   });
 });
 

@@ -1,7 +1,10 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { OkbConfig } from '../config/schema.js';
 import type { Bundle, KbEntry } from '../kb/bundle.js';
 import { trustTier } from '../okf/types.js';
 import { openDb } from '../state/db.js';
+import { sha256 } from '../util/hash.js';
 import { asBundlePath } from '../util/paths.js';
 import { readReceipts } from '../weekly/weekly.js';
 
@@ -12,17 +15,20 @@ import { readReceipts } from '../weekly/weekly.js';
  * rewrites a note. « Verified » is not a state here: it is OKF's `verified`.
  */
 export type ReviewState = 'pending' | 'validated';
-export type NoteReview = { readonly path: string; readonly noteId: string | null; readonly state: ReviewState; readonly by: string; readonly at: string; readonly sha256: string | null; readonly reason: string | null; readonly receiptId: string | null };
-type Row = { path: string; note_id: string | null; state: ReviewState; by: string; at: string; sha256: string | null; reason: string | null; receipt_id: string | null };
-const fromRow = (r: Row): NoteReview => ({ path: r.path, noteId: r.note_id, state: r.state, by: r.by, at: r.at, sha256: r.sha256, reason: r.reason, receiptId: r.receipt_id });
+export type NoteReview = { readonly path: string; readonly noteId: string | null; readonly state: ReviewState; readonly by: string; readonly at: string; readonly sha256: string | null; readonly reason: string | null; readonly receiptId: string | null; /** The path its receipt knows it by (it may have moved since). */ readonly originPath: string | null };
+type Row = { path: string; note_id: string | null; state: ReviewState; by: string; at: string; sha256: string | null; reason: string | null; receipt_id: string | null; origin_path: string | null };
+const fromRow = (r: Row): NoteReview => ({ path: r.path, noteId: r.note_id, state: r.state, by: r.by, at: r.at, sha256: r.sha256, reason: r.reason, receiptId: r.receipt_id, originPath: r.origin_path });
 const idOf = (e: KbEntry | undefined) => { const id = (e?.ext as { id?: unknown } | undefined)?.id; return typeof id === 'string' ? id : null; };
 
 /** Give every note without a review its first one: approved by a human or written by the person → validated; generated without a trace → to review. */
 export async function classifyNotes(config: OkbConfig, bundle: Bundle): Promise<number> {
   const db = openDb(config);
-  const known = new Set(db.all<{ path: string }>('SELECT path FROM note_reviews').map((r) => r.path));
+  const rows = db.all<{ path: string }>('SELECT path FROM note_reviews').map((r) => r.path);
+  const known = new Set(rows);
   const todo = bundle.entries.filter((e) => !e.reserved && !known.has(e.path));
-  if (!todo.length) return 0;
+  // A review whose note is gone from the disk (and not found by its id) is dropped, so a new file there starts afresh (I5).
+  const gone = rows.filter((p) => !bundle.byPath.has(asBundlePath(p)) && !existsSync(resolve(config.kb.root, p)));
+  if (!todo.length && !gone.length) return 0;
   const approved = new Set<string>();
   for (const r of await readReceipts(config).catch(() => [])) {
     if (!r.approval?.approvedBy?.startsWith('human:') || r.rolledBack) continue;
@@ -42,6 +48,7 @@ export async function classifyNotes(config: OkbConfig, bundle: Bundle): Promise<
         e.path, id, state, approved.has(e.path) ? 'receipt' : generated ? 'migration' : 'person', at, e.sha256);
       added++;
     }
+    for (const p of gone) if (!existsSync(resolve(config.kb.root, p))) db.run('DELETE FROM note_reviews WHERE path = ?', p);
   });
   return added;
 }
@@ -59,15 +66,30 @@ export function reviewOf(config: OkbConfig, path: string, bundle?: Bundle): Note
   return fromRow({ ...moved, path });
 }
 
-export function setReview(config: OkbConfig, path: string, state: ReviewState, by: string, extra: { reason?: string | null; at?: string; receiptId?: string | null; noteId?: string | null; sha256?: string | null } = {}): void {
+/** Record a review. A field left out keeps its value; `receiptId` and `originPath` given (even null) replace it. */
+export function setReview(config: OkbConfig, path: string, state: ReviewState, by: string, extra: { reason?: string | null; at?: string; receiptId?: string | null; noteId?: string | null; sha256?: string | null; originPath?: string | null } = {}): void {
+  const receiptGiven = 'receiptId' in extra ? 1 : 0;
   openDb(config).run(
-    `INSERT INTO note_reviews (path, note_id, state, by, at, sha256, reason, receipt_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO note_reviews (path, note_id, state, by, at, sha256, reason, receipt_id, origin_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(path) DO UPDATE SET state = excluded.state, by = excluded.by, at = excluded.at,
        note_id = COALESCE(excluded.note_id, note_reviews.note_id), sha256 = COALESCE(excluded.sha256, note_reviews.sha256),
        reason = CASE WHEN excluded.reason IS NULL THEN note_reviews.reason ELSE excluded.reason END,
-       receipt_id = COALESCE(excluded.receipt_id, note_reviews.receipt_id)`,
-    path, extra.noteId ?? null, state, by, extra.at ?? new Date().toISOString(), extra.sha256 ?? null, extra.reason ?? null, extra.receiptId ?? null,
+       receipt_id = CASE WHEN ${receiptGiven} THEN excluded.receipt_id ELSE note_reviews.receipt_id END,
+       origin_path = CASE WHEN ${receiptGiven} THEN excluded.origin_path ELSE note_reviews.origin_path END`,
+    path, extra.noteId ?? null, state, by, extra.at ?? new Date().toISOString(), extra.sha256 ?? null, extra.reason ?? null, extra.receiptId ?? null, (extra.originPath ?? extra.receiptId) ? (extra.originPath ?? path) : null,
   );
+}
+
+/**
+ * Whether the agent's change may go in without the person (D71): it creates a note
+ * not there yet, or rewrites a note still to review that nobody touched since the
+ * agent's last write. Never a deletion; never a validated note.
+ */
+export function mayGoInDirectly(config: OkbConfig, kind: string, path: string, current: string | null): boolean {
+  if (kind === 'create-document') return current === null;
+  if (kind === 'delete-document' || current === null) return false;
+  const review = reviewOf(config, path);
+  return review?.state === 'pending' && (review.sha256 === null || review.sha256 === sha256(current));
 }
 
 export function forgetReview(config: OkbConfig, path: string): void {

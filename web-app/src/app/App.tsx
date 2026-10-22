@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { currentSession, get, setSession, type Session } from './api';
+import { claimPresence, currentSession, get, setSession, type Session } from './api';
 import { I18n, makeT, type Messages, type Translate } from './i18n';
 import { titleKey } from './nav';
 import { useRoute, type Route } from './router';
@@ -86,6 +86,7 @@ export function App() {
       let saved: string | null = null;
       try { saved = localStorage.getItem('okb-kb'); } catch { /* private window */ }
       setSession(session, session.kbs.some((k) => k.id === saved) ? saved : session.active);
+      await claimPresence();
       const i18n = await get<{ lang: 'fr' | 'en'; messages: Messages }>('/api/i18n');
       document.documentElement.lang = i18n.lang;
       setState({ t: makeT(i18n.messages, i18n.lang) });

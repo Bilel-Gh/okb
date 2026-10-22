@@ -128,7 +128,8 @@ export function parseSettingValue(def: SettingDef, raw: unknown): unknown {
 
 /** Change one setting, keeping the file's comments, then check the profile still loads. */
 /** What the agent may write is the person's call (D71): an agent cannot change these settings. */
-const PERSON_ONLY = new Set(['changes.agentWrites', 'review.offer', 'review.auto']);
+/** Settings only the person changes (D71): an agent is refused, the app asks for their presence. */
+export const PERSON_ONLY: ReadonlySet<string> = new Set(['changes.agentWrites', 'review.offer', 'review.auto']);
 export function assertPersonSetting(key: string, actor: 'person' | 'agent'): void {
   if (actor !== 'person' && PERSON_ONLY.has(key)) throw new OkbError('E_NOT_APPROVED', `${key} is the person's own setting`, { key: 'settingPersonOnly', params: { key } });
 }

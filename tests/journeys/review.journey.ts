@@ -24,8 +24,9 @@ describe('sorting what the agent filed (F2.0-55/56/57, D71)', () => {
     await writeSetting(app.config.profile.id, 'changes.agentWrites', 'review-later', env);
     const config = (await loadConfig({ env, profileId: app.config.profile.id })).config;
     const p = proposeFiles(config, await loadBundleFor(config), new Map([['Cas/remises.md', note('Les remises disparaissent')], ['Cas/doublon.md', note('Un doublon')], ['Cas/deplacer.md', note('À déplacer')]]), 'agent');
-    await saveProposal(config, p); await keepProposal(config, p.id, 'agent', env);
+    await saveProposal(config, p); await keepProposal(config, p.id, env);
     await page.goto(app.openUrl());
+    await page.waitForFunction(() => sessionStorage.getItem('okb-presence'));
     await page.goto(`${app.url}/#/a-relire`);
     await page.locator('.rv-list').getByText('Les remises disparaissent').click();
     await page.getByRole('button', { name: 'Oui, je la garde' }).click();
@@ -47,11 +48,12 @@ describe('sorting what the agent filed (F2.0-55/56/57, D71)', () => {
     await writeSetting(app.config.profile.id, 'changes.agentWrites', 'review-later', env);
     const config = (await loadConfig({ env, profileId: app.config.profile.id })).config;
     const first = proposeFiles(config, await loadBundleFor(config), new Map([['Cas/v.md', note('Validée', 'Version validée.')]]), 'agent');
-    await saveProposal(config, first); await keepProposal(config, first.id, 'agent', env);
+    await saveProposal(config, first); await keepProposal(config, first.id, env);
     setReview(config, 'Cas/v.md', 'validated', config.profile.humanActor);
     const change = proposeFiles(config, await loadBundleFor(config), new Map([['Cas/v.md', note('Validée', 'Complétée par l’agent.')]]), 'agent');
-    await saveProposal(config, change); await keepProposal(config, change.id, 'agent', env);
+    await saveProposal(config, change); await keepProposal(config, change.id, env);
     await page.goto(app.openUrl());
+    await page.waitForFunction(() => sessionStorage.getItem('okb-presence'));
     await page.goto(`${app.url}/#/a-relire`);
     await page.getByRole('button', { name: /^Modifications/ }).click();
     await page.getByRole('button', { name: 'Oui, appliquer' }).click();

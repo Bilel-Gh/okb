@@ -1522,6 +1522,7 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'baggage.removed': 'Retiré : {list}',
   'baggage.nothingRemoved': 'Rien à retirer.',
   'help.cmd.baggage': '« Garder dans mon bagage » : une note de travail sans aucun détail du travail, proposée à ton bagage',
+  'web.presence.setting': 'Changer « {key} » ?',
   'web.presence.lot': 'Approuver {n} changement(s) ({files} fichier(s)) dans « {kb} » ? {titles}',
   'app.inbox.tab.all': 'Tout',
   'app.evening.intro': 'Tout ce qu’un assistant a préparé pour toi et qui attend ton oui. Décoche ce que tu ne veux pas, puis dis oui au reste en une fois.',

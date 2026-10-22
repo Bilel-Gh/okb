@@ -42,10 +42,9 @@ const hashOf = (text: string | null) => text === null ? null : sha256(text);
  */
 async function reviewLaterApproval(config: OkbConfig, proposal: Proposal, accepted: readonly string[]): Promise<Approval> {
   if (config.changes.agentWrites !== 'review-later') throw new OkbError('E_NOT_APPROVED', 'this KB asks for the person\'s yes before any note enters', { key: 'reviewLaterOff' });
-  const { reviewOf } = await import('../review/state.js');
+  const { mayGoInDirectly } = await import('../review/state.js');
   for (const c of proposal.changes.filter((x) => accepted.includes(x.id))) {
-    const exists = (await readTextIfExists(await safeTarget(config, c.path))) !== null;
-    const ok = c.kind === 'create-document' ? !exists : exists && reviewOf(config, c.path)?.state === 'pending';
+    const ok = mayGoInDirectly(config, c.kind, c.path, await readTextIfExists(await safeTarget(config, c.path)));
     if (!ok) throw new OkbError('E_NOT_APPROVED', `${c.path} is validated: only the person changes it`, { key: 'reviewLaterValidated', params: { path: c.path } });
   }
   return { approvedBy: 'policy:review-later', approvedAt: new Date().toISOString(), mac: '' } as Approval;

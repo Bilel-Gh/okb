@@ -25,7 +25,7 @@ const APPROVE = /\breview\b[\s\S]*?--approve(?:\s|=|$)/;
 const PTY_WRAP = /(^|[;&|(]\s*|\$\(\s*)(script|expect|unbuffer|socat)\s[^;&|]*\bokb\s+(review|undo|kb|init|new|settings|update)\b/;
 // The local web app approves only with a person's confirmation on screen; never drive it from a tool call.
 // Any HTTP client aimed at the local web app's approval endpoints (/api/proposal/approve, …).
-const WEB_APPROVE = /\b(curl|wget|http|https|xh|fetch|nc|node|python3?|osascript)\b[\s\S]*(127\.0\.0\.1|localhost|\[::1\])[\s\S]*\/api\/[\w/-]*(approve|presence|review)/;
+const WEB_APPROVE = /\b(curl|wget|http|https|xh|fetch|nc|node|python3?|osascript)\b[\s\S]*(127\.0\.0\.1|localhost|\[::1\])[\s\S]*\/api\/[\w/-]*(approve|presence|review|settings)/;
 // Clicking OKB's native approval dialog from a script is approving for the person.
 const DIALOG_CLICK = /\bosascript\b[\s\S]*\b(System Events|click button)\b[\s\S]*\b(OKB|Approuver|Approve)\b/i;
 const ENV_ESCAPE = /OKB_APPLY_MODE\s*=\s*allow-direct/;
@@ -50,6 +50,9 @@ process.stdin.on('end', () => {
   }
 
   const command = String(payload?.tool_input?.command ?? '');
+  // D71: an Edit or Write of a profile that sets how notes are filed is the person's own change (C1).
+  const file = String(payload?.tool_input?.file_path ?? payload?.tool_input?.notebook_path ?? '');
+  const written = ['content', 'new_string', 'edits'].map((k) => JSON.stringify(payload?.tool_input?.[k] ?? '')).join(' ');
   const deny = (reason) => {
     process.stdout.write(
       JSON.stringify({
@@ -63,6 +66,9 @@ process.stdin.on('end', () => {
     );
   };
 
+  if (/profile\.ya?ml$/.test(file) && (AGENT_WRITES.test(written) || /\boffer\s*:|\bauto\s*:/.test(written))) {
+    return deny('Whether the agent files notes directly is the user\'s own setting. Ask them to change it in OKB\'s settings.');
+  }
   if (OKB.test(command) && APPROVE.test(command)) {
     return deny(
       'Approving an okb proposal is the user\'s decision. Show them the diff and the exact ' +

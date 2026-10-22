@@ -5,22 +5,21 @@ import { computeProposalHash, resolveSelection, type Proposal } from '../proposa
 import { loadProposal, saveProposal, updateProposalStatus } from '../proposal/store.js';
 import { readTextIfExists } from '../util/fsx.js';
 import { resolve } from 'node:path';
-import { reviewOf, setReview } from './state.js';
+import { forgetReview, mayGoInDirectly, setReview } from './state.js';
 
 /**
  * Keep what the agent prepared (F2.0-54, D71). In a KB set to `review-later`,
  * new notes and notes still to review go in at once, marked to review; a change
  * to a validated note waits for the person, as its own proposal. In a KB that
- * asks for the person's yes, nothing is applied. When the person keeps a note
- * themselves, it is validated.
+ * asks for the person's yes, nothing is applied. Whoever runs it, what goes in is
+ * to review: a note is validated only by the person's gesture in the app (I4).
  */
-export async function keepProposal(config: OkbConfig, proposalId: string, actor: 'person' | 'agent', env: NodeJS.ProcessEnv = process.env): Promise<{ applied: string[]; waiting: string | null; receipt: Receipt | null }> {
+export async function keepProposal(config: OkbConfig, proposalId: string, env: NodeJS.ProcessEnv = process.env): Promise<{ applied: string[]; waiting: string | null; receipt: Receipt | null }> {
   const proposal = await loadProposal(config, proposalId);
   if (config.changes.agentWrites !== 'review-later' || proposal.status !== 'prepared') return { applied: [], waiting: proposal.status === 'prepared' ? proposal.id : null, receipt: null };
   const direct: string[] = [];
   for (const c of proposal.changes) {
-    const exists = (await readTextIfExists(resolve(config.kb.root, c.path))) !== null;
-    if (c.kind === 'create-document' ? !exists : exists && reviewOf(config, c.path)?.state === 'pending') direct.push(c.id);
+    if (mayGoInDirectly(config, c.kind, c.path, await readTextIfExists(resolve(config.kb.root, c.path)))) direct.push(c.id);
   }
   const { accepted } = resolveSelection(proposal, direct);
   const rest = proposal.changes.filter((c) => !accepted.includes(c.id));
@@ -48,8 +47,8 @@ export async function keepProposal(config: OkbConfig, proposalId: string, actor:
   for (const r of receipt.results) {
     if (r.action === 'skipped') continue;
     applied.push(r.path);
-    if (r.action === 'deleted') continue;
-    setReview(config, r.path, actor === 'person' ? 'validated' : 'pending', actor === 'person' ? config.profile.humanActor : 'agent', { reason: byId.get(r.path)?.rationale ?? null, receiptId: receipt.id, sha256: r.sha256 });
+    if (r.action === 'deleted') { forgetReview(config, r.path); continue; }
+    setReview(config, r.path, 'pending', 'agent', { reason: byId.get(r.path)?.rationale ?? null, receiptId: receipt.id, originPath: r.path, sha256: r.sha256 });
   }
   return { applied, waiting, receipt };
 }

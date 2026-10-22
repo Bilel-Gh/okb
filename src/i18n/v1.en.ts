@@ -1528,6 +1528,7 @@ export const EN_V1 = {
   'baggage.removed': 'Taken out: {list}',
   'baggage.nothingRemoved': 'Nothing to take out.',
   'help.cmd.baggage': '“Keep in my baggage”: a work note with no detail of the workplace, offered to your baggage',
+  'web.presence.setting': 'Change “{key}”?',
   'web.presence.lot': 'Approve {n} change(s) ({files} file(s)) in “{kb}”? {titles}',
   'app.inbox.tab.all': 'All',
   'app.evening.intro': 'Everything an assistant prepared for you that waits for your yes. Untick what you do not want, then say yes to the rest at once.',

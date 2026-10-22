@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { statSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
@@ -82,9 +82,15 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   let origin = '';
   // D71: the browser OKB opens gets a session key, through a link usable once; never written or printed.
   const presenceKey = randomBytes(24).toString('hex');
-  const oneTime = new Set<string>();
-  const openUrl = (): string => { const k = randomBytes(16).toString('hex'); oneTime.add(k); return `${origin}/?k=${k}`; };
-  const present = (req: IncomingMessage) => String(req.headers.cookie ?? '').split(/;\s*/).includes(`okb_presence=${presenceKey}`);
+  // D71: the page OKB opens trades a one-time link (valid one minute, one at a time) for the key and keeps it in
+  // its tab (sessionStorage, per port). Never a cookie: a browser sends cookies to every port of 127.0.0.1.
+  let oneTime: { k: string; until: number } | null = null;
+  const openUrl = (): string => { const k = randomBytes(16).toString('hex'); oneTime = { k, until: Date.now() + 60_000 }; return `${origin}/?k=${k}`; };
+  const claim = (k: string): string | null => {
+    const live = oneTime; oneTime = null;
+    return live && Date.now() <= live.until && k.length === live.k.length && timingSafeEqual(Buffer.from(k), Buffer.from(live.k)) ? presenceKey : null;
+  };
+  const present = (req: IncomingMessage) => { const h = String(req.headers['x-okb-presence'] ?? ''); return h.length === presenceKey.length && timingSafeEqual(Buffer.from(h), Buffer.from(presenceKey)); };
   let stopping = false;
   const jobs = new Set<Promise<void>>();
   const readingBodies = new Set<IncomingMessage>();
@@ -159,18 +165,12 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
         }
         // A body read interrupted by shutdown never starts an operation.
         if (stopping) { json({ error: 'The app is stopping.' }, 503); return; }
-        const result = await handler({ ...ctx, present: present(req) }, url.searchParams, body);
+        const result = await handler({ ...ctx, present: present(req), claim }, url.searchParams, body);
         if (req.method === 'POST' && url.pathname === '/api/onboarding') scheduleSoon();
         json(result);
         return;
       }
       if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); json({ error: 'GET only.' }, 405); return; }
-      if (url.pathname === '/' && url.searchParams.has('k')) {
-        const k = url.searchParams.get('k') ?? '';
-        const headers: Record<string, string> = { Location: '/' };
-        if (oneTime.delete(k)) headers['Set-Cookie'] = `okb_presence=${presenceKey}; HttpOnly; SameSite=Strict; Path=/`;
-        res.writeHead(302, headers); res.end(); return;
-      }
       if (url.pathname === '/vendor/mermaid.js' && mermaid) {
         res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'max-age=86400' });
         res.end(await readFile(mermaid));

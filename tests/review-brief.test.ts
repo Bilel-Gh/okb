@@ -31,7 +31,7 @@ describe('the session brief tells the agent how notes are filed (F2.0-54, F2.0-5
     const c = (await loadConfig({ env: s.env, profileId: config.profile.id })).config;
     await writeOwner(c.kb.root, c.profile.id);
     const p = proposeFiles(c, await loadBundleFor(c), new Map([['Cas/a.md', note('A')]]), 'agent');
-    await saveProposal(c, p); await keepProposal(c, p.id, 'agent', s.env);
+    await saveProposal(c, p); await keepProposal(c, p.id, s.env);
     const id = requestCheck(c, 'Cas/a.md');
     const text = await sessionBrief(c, layoutOf(c) ?? { preset: 'work', lang: 'fr' }, await loadBundleFor(c));
     expect(text).toContain('okb keep');

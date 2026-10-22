@@ -15,6 +15,19 @@ let session: Session | null = null;
 let kb: string | null = null;
 
 export function setSession(s: Session, chosen: string | null): void { session = s; kb = chosen; }
+
+/** D71: the key of the page OKB opened, kept in this tab only (sessionStorage is per port). */
+let presence: string | null = null;
+try { presence = sessionStorage.getItem('okb-presence'); } catch { /* storage blocked */ }
+export async function claimPresence(): Promise<void> {
+  const k = new URLSearchParams(location.search).get('k');
+  if (!k) return;
+  history.replaceState(null, '', location.pathname + location.hash);
+  try {
+    const r = await post<{ key: string | null }>('/api/presence/claim', { k });
+    if (r.key) { presence = r.key; try { sessionStorage.setItem('okb-presence', r.key); } catch { /* kept in memory */ } }
+  } catch { /* the app falls back to the confirmation on screen */ }
+}
 export function currentKb(): string | null { return kb; }
 export function currentSession(): Session | null { return session; }
 
@@ -41,7 +54,7 @@ export async function post<T>(path: string, body: Record<string, unknown> = {}):
   try {
     const r = await fetch(path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-OKB-Token': session?.token ?? '' },
+      headers: { 'Content-Type': 'application/json', 'X-OKB-Token': session?.token ?? '', ...(presence ? { 'X-OKB-Presence': presence } : {}) },
       body: JSON.stringify({ kb, ...body }),
     });
     return (await read(r)) as T;

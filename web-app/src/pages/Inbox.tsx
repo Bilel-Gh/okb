@@ -295,8 +295,8 @@ export default function InboxPage({ route, setTitle }: { route: Extract<Route, {
   const captures = c.data?.items.filter((x) => x.status === 'open').length ?? 0;
   const r = useQuery({ queryKey: ['review'], queryFn: () => get<{ notes: unknown[]; changes: unknown[] }>('/api/review') });
   const toReview = r.data?.notes.length ?? 0;
-  // Without a tab: everything that waits, to say yes to at once.
-  const tab = route.tab ?? (route.id ? 'proposals' : toReview ? 'toreview' : 'all');
+  // Without a tab: what waits for a yes comes first; the notes to review are sorted when calm (D71).
+  const tab = route.tab ?? (route.id ? 'proposals' : waiting + prepared === 0 && toReview ? 'toreview' : 'all');
   if (route.id) return <div className="page"><ProposalView id={route.id} setTitle={setTitle} /></div>;
   return (
     <div className="page">

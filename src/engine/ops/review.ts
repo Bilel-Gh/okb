@@ -11,7 +11,7 @@ export const notesKeep = defineOperation({
   summary: 'Keep a prepared note proposal. In a KB set to « the agent files, I review later », new notes and notes still to review go in at once, marked to review; a change to a validated note waits for the person. Otherwise nothing is applied.',
   input: z.object({ proposal }).strict(),
   async run({ config, env, actor }, input) {
-    const r = await keepProposal(config, input.proposal, actor, env);
+    const r = await keepProposal(config, input.proposal, env);
     return { applied: r.applied, waiting: r.waiting, receipt: r.receipt?.id ?? null };
   },
 });

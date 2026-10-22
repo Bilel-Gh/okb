@@ -185,7 +185,7 @@ export function ReviewTab() {
       })}</ul>
       <section className="panel rv-detail" aria-live="polite">{current ? current.kind === 'note' ? <NoteDetail key={current.key} note={current.note} next={next} /> : <ChangeDetail key={current.key} change={current.change} next={next} /> : null}</section>
     </div>
-    <ConfirmDialog open={all} onOpenChange={setAll} title={w('Dire oui à tout ce qui reste ?', 'Say yes to everything left?')} confirm={w('Oui à tout', 'Yes to all')} onConfirm={async () => { if (await gesture('/api/review/yes-to-all', { exceptNotes: [], exceptChanges: [] }, w)) { toast(w('Tout est validé.', 'All validated.')); refresh(); } }}>
+    <ConfirmDialog open={all} onOpenChange={setAll} title={w('Dire oui à tout ce qui reste ?', 'Say yes to everything left?')} confirm={w('Oui à tout', 'Yes to all')} onConfirm={async () => { if (await gesture('/api/review/yes-to-all', { notes: q.data!.notes.map((n) => n.path), changes: q.data!.changes.map((c) => c.id) }, w)) { toast(w('Tout est validé.', 'All validated.')); refresh(); } }}>
       <p>{w(`${q.data.notes.length} notes seront validées et ${q.data.changes.length} modifications appliquées. Pour en garder une de côté, traite-la d’abord une par une.`, `${q.data.notes.length} notes will be validated and ${q.data.changes.length} changes applied. To set one aside, handle it first one by one.`)}</p>
     </ConfirmDialog>
   </div>;

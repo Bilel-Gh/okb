@@ -1,3 +1,5 @@
+import { sha256 } from '../util/hash.js';
+import { readReceipts } from '../weekly/weekly.js';
 import { randomBytes } from 'node:crypto';
 import { basename, resolve } from 'node:path';
 import type { OkbConfig } from '../config/schema.js';
@@ -59,17 +61,22 @@ export async function rejectNote(config: OkbConfig, path: string, env: NodeJS.Pr
   if (!review || review.state !== 'pending') throw new OkbError('E_CONFLICT', `${path} is not to review`, { key: 'reviewNotPending' });
   const bundle = await loadBundleFor(config);
   const receipt = review.receiptId ? await loadReceipt(config, review.receiptId).catch(() => null) : null;
-  const result = receipt?.results.find((r) => r.path === path);
+  const known = review.originPath ?? path;
+  const result = receipt?.results.find((r) => r.path === known);
   if (!result || result.action === 'created') {
     await personApply(config, proposeFiles(config, bundle, new Map([[path, null]]), `remove ${path} (« Non » in To review)`), env);
     forgetReview(config, path);
     return 'removed';
   }
-  const backup = receipt!.backups[path];
+  const backup = receipt!.backups[known];
   const before = backup ? await readTextIfExists(resolve(statePaths(config).backups, receipt!.proposalId, backup)) : null;
   if (before === null) throw new OkbError('E_NOT_FOUND', `no earlier text kept for ${path}`, { key: 'reviewNoBackup' });
   await personApply(config, proposeFiles(config, bundle, new Map([[path, before]]), `restore ${path} (« Non » in To review)`), env);
-  setReview(config, path, 'pending', review.by, { receiptId: null });
+  // The text now is the one before that receipt: the earlier agent write that made it, if any (I3).
+  const earlier = (await readReceipts(config)).filter((r) => r.appliedAt < receipt!.appliedAt && r.approval.approvedBy === 'policy:review-later' && r.results.some((x) => x.path === known && x.action !== 'deleted' && x.action !== 'skipped'))
+    .sort((a, b) => b.appliedAt.localeCompare(a.appliedAt))[0];
+  const now = await readTextIfExists(resolve(config.kb.root, path));
+  setReview(config, path, 'pending', review.by, { receiptId: earlier?.id ?? null, originPath: earlier ? known : null, ...(now !== null ? { sha256: sha256(now) } : {}) });
   return 'restored';
 }
 
@@ -105,15 +112,21 @@ export async function moveNote(config: OkbConfig, path: string, folder: string, 
   desired.set(plan.from, null);
   const review = reviewOf(config, path);
   await personApply(config, proposeFiles(config, bundle, desired, `move ${plan.from} to ${plan.to}`, true), env);
-  if (review) { forgetReview(config, path); setReview(config, plan.to, review.state, review.by, { reason: review.reason, at: review.at, noteId: review.noteId }); }
+  if (review) {
+    // The review follows the note, with what « Non » needs: its receipt, the path that receipt knows, its text (I3).
+    const moved = await readTextIfExists(resolve(config.kb.root, plan.to));
+    forgetReview(config, path);
+    setReview(config, plan.to, review.state, review.by, { reason: review.reason, at: review.at, noteId: review.noteId, receiptId: review.receiptId, originPath: review.originPath ?? (review.receiptId ? path : null), ...(moved !== null ? { sha256: sha256(moved) } : {}) });
+  }
   return plan.to;
 }
 
-export async function yesToAll(config: OkbConfig, except: { notes: readonly string[]; changes: readonly string[] }, env: NodeJS.ProcessEnv): Promise<{ notes: number; changes: number }> {
+/** « Oui à tout »: only what the person saw on their screen and is still waiting — never what arrived since (I2). */
+export async function yesToAll(config: OkbConfig, shown: { notes: readonly string[]; changes: readonly string[] }, env: NodeJS.ProcessEnv): Promise<{ notes: number; changes: number }> {
   const list = await reviewList(config);
-  const notes = validateNotes(config, list.notes.map((n) => n.path).filter((p) => !except.notes.includes(p)));
+  const notes = validateNotes(config, list.notes.map((n) => n.path).filter((p) => shown.notes.includes(p)));
   let changes = 0;
-  for (const c of list.changes.filter((x) => !except.changes.includes(x.id))) { await approveChange(config, c.id, env); changes++; }
+  for (const c of list.changes.filter((x) => shown.changes.includes(x.id))) { await approveChange(config, c.id, env); changes++; }
   return { notes, changes };
 }
 
