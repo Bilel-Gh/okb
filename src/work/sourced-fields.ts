@@ -3,7 +3,7 @@ import type { OkbConfig } from '../config/schema.js';
 import { assertNoSecrets } from '../security/guard.js';
 import { openDb, type Db } from '../state/db.js';
 import { OkbError } from '../util/errors.js';
-import { safeUrl } from '../work/safe-url.js';
+import { safeUrl } from './safe-url.js';
 
 /**
  * Fields of a repository or a product that keep where each value came from

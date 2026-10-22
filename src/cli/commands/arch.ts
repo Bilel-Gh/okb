@@ -142,6 +142,7 @@ async function corrections(ctx: Ctx, config: Awaited<ReturnType<typeof effective
       ctx.out.line(paint.bold(t('arch.links.title', { name: map.system })));
       for (const l of map.links) ctx.out.line(`  ${l.key}  ${paint.dim(`· ${l.certainty ? t(`arch.cert.${l.certainty}`) : ''}${l.basis ? ` — ${l.basis}` : ''}`)}`);
       if (map.excluded.length) { ctx.out.line(); ctx.out.line(paint.bold(t('arch.links.excluded'))); for (const x of map.excluded) ctx.out.line(`  ${x.key}  ${paint.dim(x.reason)}`); }
+      if (map.conflicts.length) { ctx.out.line(); for (const x of map.conflicts) ctx.out.warn(`${x.key} — ${x.origin}: ${x.action}${x.target ? ` → ${x.target}` : ''}${x.reason ? ` (${x.reason})` : ''}`); }
       if (map.stale.length) { ctx.out.line(); ctx.out.line(paint.bold(t('arch.links.stale'))); for (const x of map.stale) ctx.out.line(`  ${x.key}  ${paint.dim(`${x.action} · ${x.at.slice(0, 10)}`)}`); }
       return 0;
     }

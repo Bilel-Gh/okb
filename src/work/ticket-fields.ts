@@ -4,7 +4,7 @@ import { assertNoSecrets } from '../security/guard.js';
 import { openDb, type Db } from '../state/db.js';
 import { OkbError } from '../util/errors.js';
 import { safeUrl } from './safe-url.js';
-import { isPlaceholder, ORIGINS, type Origin } from '../fields/sourced.js';
+import { isPlaceholder, ORIGINS, type Origin } from './sourced-fields.js';
 import { mutateTicket, ticketId, type TicketRecord } from './tickets.js';
 
 /**
@@ -17,7 +17,7 @@ import { mutateTicket, ticketId, type TicketRecord } from './tickets.js';
 export const FIELDS = ['title', 'summary', 'description', 'sourceStatus', 'team', 'product', 'done', 'blocker'] as const;
 export type FieldName = (typeof FIELDS)[number];
 // One set of origins and of refused placeholders for every sourced field (F2.4-19, D73).
-export { ORIGINS, type Origin } from '../fields/sourced.js';
+export { ORIGINS, type Origin } from './sourced-fields.js';
 /** What can be declared not applicable: any field but the blocker (« no blocker » is a value), and the criteria. */
 export type NaTarget = Exclude<FieldName, 'blocker'> | 'criteria';
 

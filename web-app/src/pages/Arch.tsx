@@ -17,7 +17,7 @@ import { flowView, renderMap } from '../../../src/arch/views';
 type Node = { id: string; kind: 'repo' | 'datastore' | 'external' | 'system'; name: string; tech: string; repo?: string };
 type Evidence = { repo: string; file: string; line: number };
 type Certainty = 'proved' | 'declared' | 'supposed' | 'confirmed';
-type Link = { id: string; from: string; to: string; kind: 'http' | 'event' | 'package' | 'service' | 'data' | 'external'; confidence: 'sure' | 'probable' | 'to-confirm'; calls: { what: string; line: number }[]; evidence: Evidence[]; verb: string; certainty?: Certainty; basis?: string; origin?: 'scan' | 'agent' | 'person' };
+type Link = { id: string; from: string; to: string; kind: 'http' | 'event' | 'package' | 'service' | 'data' | 'external'; confidence: 'sure' | 'probable' | 'to-confirm'; calls: { what: string; line: number }[]; evidence: Evidence[]; verb: string; certainty?: Certainty; basis?: string; origin?: 'scan' | 'agent' | 'person'; key?: string };
 type OffMap = { repo: string; host: string; role: 'call' | 'endpoint' | 'registry' | 'source-host' | 'doc' | 'asset' | 'platform' | 'unknown'; evidence: Evidence };
 type Conflict = { key: string; action: string; target: string | null; reason: string; origin: string; at: string };
 type Finding = { code: string; target: string; penalty: number };
@@ -39,7 +39,7 @@ const QUIET = new Set<Link['kind']>(['package', 'data']);
 const CONFIDENCE_TONE: Readonly<Record<Link['confidence'], string>> = { sure: 'ok', probable: 'warn', 'to-confirm': 'warn' };
 const CERTAINTY_TONE: Readonly<Record<Certainty, string>> = { proved: 'ok', declared: 'info', supposed: 'warn', confirmed: 'accent' };
 /** The key of a link for the person's corrections: its kind and its two ends, never a line (F2.4-17). */
-export const keyOf = (l: Pick<Link, 'kind' | 'from' | 'to'>) => `${l.kind}|${l.from}|${l.to}`;
+export const keyOf = (l: Pick<Link, 'kind' | 'from' | 'to' | 'key'>) => l.key ?? `${l.kind}|${l.from}|${l.to}`;
 const uncertain = (l: Link) => (l.certainty ? l.certainty === 'supposed' : l.confidence !== 'sure');
 
 /** The certainty pill: lot D's words when the model has them, else the older confidence. */
@@ -409,7 +409,8 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
     if (!raw?.model || (showSupposed && showExternal)) return raw;
     const keep = (l: Link) => (showSupposed || !uncertain(l)) && (showExternal || l.kind !== 'external');
     const nodes = raw.model.nodes.filter((n) => showExternal || n.kind !== 'external');
-    const views = raw.views ? { ...raw.views, containers: { ...raw.views.containers, boxes: raw.views.containers.boxes.filter((n) => showExternal || n.kind !== 'external'), arrows: raw.views.containers.arrows.filter(keep) } } : raw.views;
+    const trim = <V extends { boxes: Node[]; arrows: Link[] }>(v: V): V => ({ ...v, boxes: v.boxes.filter((n) => showExternal || n.kind !== 'external'), arrows: v.arrows.filter(keep) });
+    const views = raw.views ? { ...raw.views, containers: trim(raw.views.containers), context: trim(raw.views.context) } : raw.views;
     return { ...raw, model: { ...raw.model, nodes, links: raw.model.links.filter(keep) }, ...(views ? { views } : {}) };
   }, [raw, showSupposed, showExternal]);
   const act = async (path: string, body: Record<string, unknown>) => {

@@ -1636,6 +1636,7 @@ export const FR: Record<keyof typeof EN, string> = {
   "web.graph.themeByTag": "Nommé d’après le tag #{tag}, que portent presque toutes ses notes",
   "help.cmd.workspace": "tes espaces de travail : le dossier de repos d'une équipe, documenté dans une KB",
   "help.cmd.scope": "le périmètre : le repo (et le ticket) sur lequel OKB se concentre",
+  "help.cmd.team": "l’équipe responsable d’un repo ou d’un produit : la lire, l’écrire avec son origine, la demander à l’agent",
   "help.cmd.ticket": "suivre un ticket : branche, commits, journal des décisions et pièges",
   "ask.scope": "Périmètre : {repo} d'abord, puis les notes communes liées (--everywhere pour toute la KB)",
   "ws.none": "Aucun espace de travail pour l'instant.",

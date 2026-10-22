@@ -22,7 +22,7 @@ import { listTickets, syncTicket, ticketNoteIn, type JournalEntry, type RepoProg
 import { noteRepo, tiedNotes } from './rank.js';
 import { ticketDetail, type TicketState, type Attempt } from './ticket-state.js';
 import { openRequests } from './ticket-requests.js';
-import { openTeamRequests, teamOf } from '../team/team.js';
+import { openTeamRequests, teamOf } from './team.js';
 
 /**
  * The brief: what Claude needs to work in a scope, small enough to read at

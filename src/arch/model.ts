@@ -54,6 +54,8 @@ export type ArchLink = {
   /** Why OKB draws it, in one sentence: « same path POST /orders on both sides ». */
   readonly basis?: string;
   readonly origin?: LinkOrigin;
+  /** The key of the person's correction this link carries, when it moved (a retarget): put back or excluded by it. */
+  readonly key?: string;
 };
 /** An address found in a repository that is not a relation (F2.4-15): a registry, the Git host, a wiki link… */
 export type OffMap = { readonly repo: string; readonly host: string; readonly role: UrlRole; readonly evidence: Evidence };
@@ -111,7 +113,9 @@ function roleOf(i: Iface, rules: ReadonlyMap<string, UrlRole> | undefined): UrlR
   if (i.role) return i.role;
   const text = i.evidence.text ?? '';
   const at = text.toLowerCase().indexOf(`://${i.name.toLowerCase()}`);
-  return classifyUrl({ file: i.evidence.file, text, index: Math.max(0, at - 5), host: i.name });
+  // The evidence line was cut before the address: before lot D it was on the map; keep it, supposed.
+  if (at < 0) return 'endpoint';
+  return classifyUrl({ file: i.evidence.file, text, index: Math.max(0, text.toLowerCase().lastIndexOf('http', at)), host: i.name });
 }
 
 const GENERIC = new Set(['www', 'apps', 'app', 'cfapps', 'prod', 'dev', 'test', 'qa', 'int', 'internal', 'corp', 'srv', 'dest', 'destination', 'odata', 'v1', 'v2', 'v3', 'eu10', 'us10', 'hana', 'ondemand', 'cloud']);
@@ -149,8 +153,10 @@ export function buildModel(maps: readonly RepoMap[], options: { lang?: 'fr' | 'e
       // outside resource, a call in the code outweighs an address in a configuration (F2.4-16).
       if (l.certainty && same.certainty) {
         const stronger = RANK[l.certainty] > RANK[same.certainty];
-        if (l.kind === 'external' ? stronger : !stronger && l.certainty !== same.certainty) Object.assign(merged, { certainty: l.certainty, basis: l.basis, ...(l.kind === 'external' ? { confidence: l.confidence } : {}) });
+        if (l.kind === 'external' ? stronger : !stronger && l.certainty !== same.certainty) Object.assign(merged, { certainty: l.certainty, basis: l.basis });
       }
+      // Towards an outside resource, confidence follows the final certainty, whatever the order of the findings.
+      if (l.kind === 'external' && merged.certainty) Object.assign(merged, { confidence: merged.certainty === 'supposed' ? 'probable' : 'sure' });
       links[links.indexOf(same)] = merged;
     } else links.push({ origin: 'scan', ...l, id: `${l.kind}:${l.from}>${l.to}` });
   };
@@ -253,7 +259,8 @@ export function buildModel(maps: readonly RepoMap[], options: { lang?: 'fr' | 'e
         if (!offMap.some((o) => o.repo === a.repo.name && o.host === c.name && o.role === role)) offMap.push({ repo: a.repo.name, host: c.name, role, evidence: ev(a, c) });
         continue;
       }
-      const twin = resembles(maps, a, firstLabel(c.name));
+      // The person's rule for this address wins over a name that looks like a repository (D72).
+      const twin = options.urlRules?.has(c.name.toLowerCase()) ? null : resembles(maps, a, firstLabel(c.name));
       if (twin) { named.push({ ...c, kind: 'destination', detail: `url ${c.name}` }); continue; }
       const id = `ext:${c.name}`;
       addNode({ id, kind: 'external', name: c.name, tech: c.name });

@@ -53,7 +53,7 @@ export function applyOverrides(model: SystemModel, overrides: readonly Override[
     nodes.push({ id, kind: id.startsWith('ext:') ? 'external' : 'repo', name: host, tech: host });
   };
   const confirmed = (l: ArchLink, o: Override, to = l.to): ArchLink => ({
-    ...l, to, id: `${l.kind}:${l.from}>${to}`, confidence: 'sure', certainty: 'confirmed', origin: o.origin,
+    ...l, to, id: `${l.kind}:${l.from}>${to}`, confidence: 'sure', certainty: 'confirmed', origin: o.origin, ...(to !== l.to ? { key: o.key } : {}),
     basis: `${fr ? 'confirmée par' : 'confirmed by'} ${who(o)} · ${day(o.at)}${o.reason ? ` — ${o.reason}` : ''}`,
   });
   for (const l of model.links) {
@@ -120,11 +120,24 @@ export function writeOverride(config: OkbConfig, o: Omit<Override, 'at'> & { at?
   const row: Override = { ...o, at: o.at ?? new Date().toISOString() };
   return db.tx(() => {
     const before = db.get<Row>('SELECT key, action, target, kind, what, reason, origin, at FROM arch_overrides WHERE key = ?', o.key);
-    if (before?.origin === 'person' && o.origin !== 'person') {
-      if (before.action === o.action && before.target === o.target) return { changed: false, conflict: false };
+    const conflict = () => {
       db.run('INSERT INTO arch_conflicts (key, action, target, kind, what, reason, origin, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET action = excluded.action, target = excluded.target, kind = excluded.kind, what = excluded.what, reason = excluded.reason, origin = excluded.origin, at = excluded.at',
         row.key, row.action, row.target, row.kind, row.what, row.reason, row.origin, row.at);
       return { changed: false, conflict: true };
+    };
+    if (o.origin !== 'person') {
+      // An agent never brings back, under another kind or through a retarget, a pair the person excluded (D72).
+      const from = parseKey(o.key)?.from;
+      const to = o.action === 'add' || o.action === 'retarget' ? o.target : parseKey(o.key)?.to;
+      const excluded = db.all<Row>("SELECT key, action, target, kind, what, reason, origin, at FROM arch_overrides WHERE origin = 'person' AND action = 'exclude'")
+        .some((x) => { const k = parseKey(x.key); return k?.from === from && k?.to === to; });
+      if (excluded && o.action !== 'exclude') return conflict();
+    }
+    if (before?.origin === 'person' && o.origin !== 'person') {
+      if (before.action === o.action && before.target === o.target) return { changed: false, conflict: false };
+      // Confirming what the person already decided (added, confirmed or retargeted) is agreement, not a conflict.
+      if (o.action === 'confirm' && before.action !== 'exclude') return { changed: false, conflict: false };
+      return conflict();
     }
     db.run('INSERT INTO arch_overrides (key, action, target, kind, what, reason, origin, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET action = excluded.action, target = excluded.target, kind = excluded.kind, what = excluded.what, reason = excluded.reason, origin = excluded.origin, at = excluded.at',
       row.key, row.action, row.target, row.kind, row.what, row.reason, row.origin, row.at);

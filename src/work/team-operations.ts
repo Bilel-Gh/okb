@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineOperation, type OpContext } from '../engine/operation.js';
-import { clearSubjectField, dismissSuggestion, markSubjectNotApplicable, ORIGINS, resolveSubjectConflict, setSubjectField, SUBJECT_KINDS, type Origin, type SubjectKind } from '../fields/sourced.js';
+import { clearSubjectField, dismissSuggestion, markSubjectNotApplicable, ORIGINS, resolveSubjectConflict, setSubjectField, SUBJECT_KINDS, type Origin, type SubjectKind } from './sourced-fields.js';
 import { OkbError } from '../util/errors.js';
 import { cancelTeamRequest, closeTeamRequest, openTeamRequests, requestTeam, teamOf, teamProduct, teamPrompt, teamRepo } from './team.js';
 

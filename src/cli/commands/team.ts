@@ -1,5 +1,5 @@
 import { invoke } from '../../engine/registry.js';
-import type { Team } from '../../team/team.js';
+import type { Team } from '../../work/team.js';
 import { t } from '../../i18n/index.js';
 import { OkbError } from '../../util/errors.js';
 import { flagList, flagString } from '../args.js';

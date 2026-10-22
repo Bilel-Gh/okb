@@ -25,9 +25,11 @@ const PLATFORM_HOST = label('eureka|consul|config-?server|zipkin|jaeger|promethe
 const REGISTRY_FILES = /^(\.npmrc|\.yarnrc|\.yarnrc\.ya?ml|settings\.xml|pip\.conf|pip\.ini|\.pypirc|nuget\.config|\.condarc)$/i;
 
 /** A call expression right before the address: `fetch('`, `axios.post(\``, `restTemplate.getForObject("`… */
-const CALL = /(\bfetch|\baxios(?:\.\w+)?|\bgot(?:\.\w+)?|\bky(?:\.\w+)?|\bsuperagent\.\w+|\b(?:requests|httpx|session|client|http|https|urllib\.request)\.\w+|\b\w*[Rr]est[Tt]emplate\.\w+|\.uri|\bWebClient\.create|\bURI\.create|\bnew\s+URL|\burlopen|\bHttpGet|\bHttpPost|\$http\.\w+|this\.http\.\w+|\bopen)\s*\(\s*[fr]?[`'"]?\s*$|\b(curl|wget)\b[^|;&]*$/;
+const CALL = /(\bfetch|\w*client\.\w+|\$\.(?:get|post|ajax|getJSON)|\brequest|\.baseUrl|\baxios(?:\.\w+)?|\bgot(?:\.\w+)?|\bky(?:\.\w+)?|\bsuperagent\.\w+|\b(?:requests|httpx|session|client|http|https|urllib\.request)\.\w+|\b\w*[Rr]est[Tt]emplate\.\w+|\.uri|\bWebClient\.create|\bURI\.create|\bnew\s+URL|\burlopen|\bHttpGet|\bHttpPost|\$http\.\w+|this\.http\.\w+|\bopen)\s*\(\s*[fr]?[`'"]?\s*$|\b(curl|wget)\b[^|;&]*$/i;
 /** A key that names an address: `base-url: `, `"paymentsUrl": "`, `URL: `, `ENDPOINT=`. */
-const ENDPOINT_KEY = /([\w.-]*(url|uri|endpoint|host|address|server|webhook|callback|target)[\w.-]*)["']?\s*[:=]\s*[`'"]?\s*$/i;
+const ENDPOINT_KEY = /([\w.-]*(url|uri|endpoint|host|address|server|webhook|callback|target|base)[\w.-]*)["']?\s*[:=]\s*[`'"]?\s*$|name=["'][^"']*(url|uri|endpoint|address|host)[^"']*["']\s+value=["']$/i;
+/** Files where `<!--` opens a comment. */
+const MARKUP = /\.(xml|xsd|wsdl|html?|vue|svelte|jsp|xhtml|md)$/i;
 const DOC_KEY = /\b(homepage|documentation|docs|help|license|see|@see|@link|wiki)\b["']?\s*[:=]?\s*[`'"]?\s*$/i;
 
 /** The part of the line before the address, with complete quoted strings removed. */
@@ -76,7 +78,7 @@ export function classifyUrl(input: { readonly file: string; readonly text: strin
   const host = input.host.toLowerCase();
   const base = posix.basename(file).toLowerCase();
   const before = lineBefore(text, index);
-  if (inComment(before) || inXmlComment(text, index)) return 'doc';
+  if (inComment(before) || (MARKUP.test(base) && inXmlComment(text, index))) return 'doc';
   // Where the build downloads from or publishes to.
   if (REGISTRY_FILES.test(base) || /^\s*@?[\w-]*:?registry\s*[=:]/i.test(before)) return 'registry';
   if (base === 'pom.xml' && insideXml(text, index, 'repositories|pluginRepositories|distributionManagement|mirrors|snapshotRepository')) return 'registry';
@@ -86,6 +88,11 @@ export function classifyUrl(input: { readonly file: string; readonly text: strin
   if (base === 'pom.xml' && insideXml(text, index, 'scm')) return 'source-host';
   if (base === 'package.json' && (insideBlock(text, index, /"repository"\s*:\s*\{/) || /"(repository|bugs)"\s*:\s*"$/.test(before) || insideBlock(text, index, /"bugs"\s*:\s*\{/))) return 'source-host';
   if (CALL.test(before)) return 'call';
+  // A key that names an address wins over a host that merely looks like a registry or a Git host
+  // (`schema.registry.url`, `baseUrl: https://api.github…`); documentation, assets and platform keep their host.
+  // On a Git host only an API address counts (`api.github…`, `/api/…`): `url: https://github…/team/repo.git` is the code's home.
+  const apiLike = /^api[.-]/.test(host) || /^https?:\/\/[^/\s'"`]+\/(api|v\d+)\b/i.test(text.slice(index, index + 300));
+  if (ENDPOINT_KEY.test(before) && !DOC_HOST.test(host) && !ASSET_HOST.test(host) && !PLATFORM_HOST.test(host) && (!SOURCE_HOST.test(host) || apiLike)) return 'endpoint';
   if (REGISTRY_HOST.test(host)) return 'registry';
   if (SOURCE_HOST.test(host)) return 'source-host';
   if (DOC_KEY.test(before) || DOC_HOST.test(host)) return 'doc';

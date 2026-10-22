@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { OkbConfig } from '../config/schema.js';
 import { listProducts, productOfRepo } from '../brain/products.js';
-import { isDismissed, readSubjectFields, type SourcedConflict, type SourcedValue, type SubjectKind } from '../fields/sourced.js';
+import { isDismissed, readSubjectFields, type SourcedConflict, type SourcedValue, type SubjectKind } from './sourced-fields.js';
 import { newId } from '../projects/projects.js';
 import { findRepo, listRepos, type RepoEntry } from '../repo/registry.js';
 import { loadMap, repoPaths } from '../repo/state.js';
@@ -126,10 +126,13 @@ export function cancelTeamRequest(config: OkbConfig, id: string): void {
   openDb(config).run("UPDATE subject_requests SET state = 'cancelled', closed_at = ? WHERE id = ? AND state = 'pending'", new Date().toISOString(), id);
 }
 
+/** A name the agent pastes into a command stays one argument: single quotes, never interpreted. */
+const shellQuote = (s: string) => (/^[\w.@/-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`);
+
 /** A prompt to paste in an agent session: where to look, how to write, what to report. */
 export function teamPrompt(req: SubjectRequest, lang: 'fr' | 'en'): string {
   const what = req.kind === 'repo' ? (lang === 'fr' ? `du repo ${req.subject}` : `of repository ${req.subject}`) : (lang === 'fr' ? `du produit « ${req.subject} »` : `of product "${req.subject}"`);
-  const set = `okb team set ${req.kind} ${req.kind === 'product' ? `"${req.subject}"` : req.subject} --value "<…>" --origin <servicenow|jira|wiki|other> --url <…>`;
+  const set = `okb team set ${req.kind} ${shellQuote(req.subject)} --value "<…>" --origin <servicenow|jira|wiki|other> --url <…>`;
   return lang === 'fr'
     ? `Trouve l’équipe responsable ${what} dans OKB. Cherche avec tes outils : groupe d’affectation du service dans ServiceNow, équipe ou composant du projet dans Jira, page « Équipe » du wiki. Écris-la avec \`${set}\`, puis rends compte avec \`okb team requests close ${req.id} --found … --missing … --read … --unavailable …\`. N’invente rien ; dis ce que tu n’as pas pu lire.`
     : `Find the team responsible ${what} in OKB. Look with your tools: the service's assignment group in ServiceNow, the project's team or component in Jira, the wiki's team page. Write it with \`${set}\`, then report with \`okb team requests close ${req.id} --found … --missing … --read … --unavailable …\`. Do not invent anything; say what you could not read.`;

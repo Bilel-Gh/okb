@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, ArrowUpRight, BookOpen, Building2, CheckCircle2, ChevronRight, Circle, CircleHelp, Clock, FileQuestion, FolderGit2, GitBranch, Link2, Mail, Map as MapIcon,
-  Network, Play, Plug, RefreshCw, Rocket, Search, Sparkles, Target, Terminal, Ticket, TriangleAlert,
+  Play, Plug, RefreshCw, Rocket, Search, Sparkles, Target, Terminal, Ticket, TriangleAlert,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { get, post } from '../app/api';

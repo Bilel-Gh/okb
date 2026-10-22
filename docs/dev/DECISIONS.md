@@ -1423,3 +1423,40 @@ attribuées à l’agent, et une valeur remplacée reste dans le journal du tick
 Arrêter de suivre garde une copie 30 jours. Les changements de champ restent
 dans l’historique du ticket, pas dans le journal du jour.
 
+
+## D72 — Une carte qui dit vrai, que la personne peut corriger (22 octobre 2026)
+
+Une URL écrite dans un repo n'est pas une relation (F2.4-15). Chaque adresse
+reçoit un rôle d'après son contexte (`src/repo/url-kinds.ts`) : appel, adresse
+sous une clé de configuration, registre de paquets, hébergement du code, lien
+de documentation, ressource de page, plateforme, ou inconnu. Seuls l'appel et
+l'adresse en configuration deviennent une ressource externe sur la carte ; le
+reste est rangé dans « Pas sur la carte », jamais perdu. Une adresse inconnue
+n'est pas dessinée : la personne la classe une fois, pour tous les repos.
+
+Un seul moteur de relations (`buildModel`) sert la carte, la note Paysage, la
+page Repos, le brief et MCP. Chaque relation dit sa certitude (prouvée,
+déclarée, supposée, confirmée) et sa raison en une phrase (F2.4-16) ; une
+ressemblance de nom ou d'hôte avec un autre repo donne une relation supposée,
+jamais prouvée.
+
+La personne confirme, exclut, recible ou ajoute une relation (F2.4-17). La
+correction est liée au type et aux deux extrémités de la relation, jamais à un
+numéro de ligne, et le scan suivant la respecte ; une correction devenue sans
+effet est signalée. Ce que la personne décide n'est jamais remplacé : un agent
+peut confirmer, recibler ou ajouter, et ce qu'il dit d'autre devient un écart.
+Exclure, remettre, classer une adresse et trancher restent ses gestes. Les
+corrections sont de l'état local (SQLite), pas des notes : pas de proposition.
+
+## D73 — L'équipe responsable d'un repo ou d'un produit (22 octobre 2026)
+
+Un repo et un produit ont un champ « équipe responsable » aux règles des champs
+du ticket (D70) : origine, lien, date, valeur de la personne jamais remplacée,
+écart à trancher, rien d'inventé, « non applicable » avec une raison (F2.4-19).
+Un repo sans équipe montre celle de son produit, marquée comme héritée.
+CODEOWNERS qui cite une équipe ne donne qu'une suggestion : qui relit le code
+n'est pas toujours l'équipe responsable. La personne peut demander à son agent
+de la trouver (F2.4-20) : une demande ouverte par sujet, un prompt qui dit où
+chercher (groupe ServiceNow, équipe Jira, page wiki) ; OKB ne contacte aucune
+source. Les règles communes (valeurs refusées, origines) vivent dans
+`src/work/sourced-fields.ts`, partagé avec la fiche ticket.

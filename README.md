@@ -49,6 +49,13 @@ Details: [release notes 2.0.0](docs/releases/RELEASE-2.0.0.md) · guides (FR):
 
 ## Development preview: 2.1 through 3.0
 
+The [22 October map and team](docs/releases/RELEASE-USAGE-2026-10-22-lot-d.md)
+keep registries, the Git host, documentation links and assets off the system
+map, give every relation its certainty and reason, keep the person's
+corrections across scans, and add the team responsible for a repository or a
+product, with its origin and a request the user's own agent can answer
+([guide](docs/guide/repos.md)).
+
 The [19 October ticket sheet](docs/releases/RELEASE-USAGE-2026-10-19.md) gives
 each ticket one sheet read everywhere: every field editable by hand with its
 origin, the next step taken from the todos, notes linked wherever they are

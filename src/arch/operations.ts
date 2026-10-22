@@ -33,7 +33,7 @@ export const archMap = defineOperation({
     const { model, name } = sys;
     return {
       system: name,
-      links: model.links.map((l) => ({ key: linkKey(l.kind, l.from, l.to), from: l.from, to: l.to, kind: l.kind, certainty: l.certainty ?? null, basis: l.basis ?? null, origin: l.origin ?? 'scan', calls: l.calls.map((c) => c.what), evidence: l.evidence })),
+      links: model.links.map((l) => ({ key: l.key ?? linkKey(l.kind, l.from, l.to), from: l.from, to: l.to, kind: l.kind, certainty: l.certainty ?? null, basis: l.basis ?? null, origin: l.origin ?? 'scan', calls: l.calls.map((c) => c.what), evidence: l.evidence })),
       offMap: model.offMap ?? [], excluded: (model.excluded ?? []).map((l) => ({ key: linkKey(l.kind, l.from, l.to), reason: l.reason, at: l.at })),
       stale: model.stale ?? [], conflicts: model.conflicts ?? [], questions: model.questions,
     };

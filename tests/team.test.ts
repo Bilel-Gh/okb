@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { invoke } from '../src/engine/registry.js';
-import { setSubjectField } from '../src/fields/sourced.js';
+import { setSubjectField } from '../src/work/sourced-fields.js';
 import { addRepo } from '../src/repo/registry.js';
 import { scanAndStore } from '../src/repo/scan.js';
 import { renderBrief, type Brief } from '../src/work/brief.js';
