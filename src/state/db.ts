@@ -124,6 +124,12 @@ export const MIGRATIONS: readonly string[] = [
    ALTER TABLE actions ADD COLUMN importance TEXT NOT NULL DEFAULT 'medium';
    ALTER TABLE actions ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
    CREATE INDEX actions_ticket ON actions(ticket_ref, status);`,
+  // 9 (F2.0-53/55, D71): where each note stands with the person — to review or validated —
+  // kept here so that no note is rewritten to record it; and the checks asked of the agent.
+  `CREATE TABLE note_reviews (path TEXT PRIMARY KEY, note_id TEXT, state TEXT NOT NULL, by TEXT NOT NULL, at TEXT NOT NULL, sha256 TEXT, reason TEXT, receipt_id TEXT);
+   CREATE INDEX note_reviews_id ON note_reviews(note_id);
+   CREATE INDEX note_reviews_state ON note_reviews(state, at);
+   CREATE TABLE note_requests (id TEXT PRIMARY KEY, path TEXT NOT NULL, kind TEXT NOT NULL, state TEXT NOT NULL, created_at TEXT NOT NULL, closed_at TEXT, report TEXT);`,
 ];
 
 /** Node still calls its SQLite experimental; the warning has no place in a person's terminal. */

@@ -15,7 +15,7 @@ import { toast, useToasts } from './toast';
 
 type Modules = { modules: { id: string; enabled: boolean }[] };
 type Waiting = { suggestions: { status: string }[] };
-export type Status = { name: string; notes: number; concepts: number; writingLanguage?: string; toReview?: number; health?: { score: number }; categories?: { id: string; emoji: string; label: string; count: number }[] };
+export type Status = { name: string; notes: number; concepts: number; writingLanguage?: string; toReview?: number; review?: { pending: number; share: number | null }; health?: { score: number }; categories?: { id: string; emoji: string; label: string; count: number }[] };
 
 export function useStatus() {
   return useQuery({ queryKey: ['status'], queryFn: () => get<Status>('/api/status'), refetchInterval: 60_000 });
@@ -276,6 +276,8 @@ function StatusBar({ waiting }: { waiting: number }) {
       <span><span className="dot" aria-hidden="true" />{s.data.name}</span>
       <a href={hrefFor({ name: 'brain' })}>{t('app.status.notes', { n: s.data.notes })}</a>
       <a href={hrefFor({ name: 'inbox' })}>{t('app.status.waiting', { n: waiting })}</a>
+      {s.data.review?.pending ? <a href={hrefFor({ name: 'inbox', tab: 'toreview' })}><b>{s.data.review.pending} {t.lang === 'fr' ? 'à relire' : 'to review'}</b></a> : null}
+      {s.data.review?.share !== null && s.data.review?.share !== undefined ? <a href={hrefFor({ name: 'upkeep', tab: 'health' })}>{s.data.review.share} % {t.lang === 'fr' ? 'validées' : 'validated'}</a> : null}
       {s.data.health ? <a href={hrefFor({ name: 'upkeep', tab: 'health' })}>{t('app.status.health', { n: s.data.health.score })}</a> : null}
       <span className="spacer" />
       <span>{(s.data.writingLanguage ?? '').slice(0, 2)} · {t('app.status.local')}</span>

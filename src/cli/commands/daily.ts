@@ -319,6 +319,8 @@ export async function cmdProfile(ctx: Ctx): Promise<number> {
     focus: { path: focus.path, exists: focus.exists, ageDays: focus.ageDays, stale: focus.stale },
     // Model for evidence-gathering subagents (Agent tool `model`); null: the session's.
     agentModel,
+    // D71: how this KB files the agent's notes, read by the capture and ingest skills.
+    changes: { agentWrites: config.changes.agentWrites }, review: { offer: config.review.offer },
   };
   if (ctx.mode === 'json') { out.json({ ok: true, ...info }); return 0; }
   out.line(`📚 ${config.profile.id} → ${config.kb.root}${info.explicit ? `  ${paint.dim(t('profile.explicit'))}` : ''}`);

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
  * `#/assistant` and `#/progress` are their own addresses.
  */
 export type TodayTab = 'focus' | 'week';
-export type InboxTab = 'all' | 'suggestions' | 'proposals' | 'captures' | 'history';
+export type InboxTab = 'toreview' | 'all' | 'suggestions' | 'proposals' | 'captures' | 'history';
 export type LearnTab = 'understanding' | 'progress' | 'career';
 export type ToolsTab = 'source' | 'skills' | 'templates' | 'categories' | 'share';
 export type UpkeepTab = 'health' | 'doctor' | 'usage' | 'backup';
@@ -105,6 +105,8 @@ export function parseRoute(hash: string): Route {
       return { name: 'inbox', tab: 'captures', ...(q.new === '1' ? { compose: true } : {}), ...(q.all === '1' ? { all: true } : {}) };
     case 'history':
       return { name: 'inbox', tab: 'history' };
+    case 'a-relire':
+      return { name: 'inbox', tab: 'toreview' };
     case 'learn':
       return rest === 'progress' || rest === 'understanding' ? { name: 'learn', tab: rest } : { name: 'learn' };
     case 'progress':
@@ -185,6 +187,7 @@ export function hrefFor(route: Route): string {
       if (route.tab === 'proposals') return '#/changes';
       if (route.tab === 'captures') return withQuery('#/inbox', { new: route.compose ? '1' : undefined, all: route.all ? '1' : undefined });
       if (route.tab === 'history') return '#/history';
+      if (route.tab === 'toreview') return '#/a-relire';
       return '#/review';
     case 'learn': return route.tab === 'career' ? '#/career' : route.tab ? `#/learn/${route.tab}` : '#/learn';
     case 'ask': return route.q ? `#/ask?${new URLSearchParams({ q: route.q })}` : '#/ask';

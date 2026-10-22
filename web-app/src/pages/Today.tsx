@@ -1,3 +1,4 @@
+import '../styles/review.css';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, BadgeCheck, CalendarCheck, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, FileDiff, GraduationCap, HeartPulse, Hourglass, Inbox, Layers, ListTodo, NotebookPen, Pencil, Plus, ShieldAlert, ShieldCheck, Sparkles, Sun, Target, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -104,6 +105,17 @@ function Panel({ title, icon, link, children, flush = false }: { title: string; 
 
 /* ================================================================ today */
 
+/** D71: one discreet line — notes to review, and how much of the memory is validated. Nothing when there is no figure. */
+function MemoryLine({ review }: { review?: { pending: number; share: number | null } | undefined }) {
+  const t = useT();
+  if (!review || review.share === null) return null;
+  const fr = t.lang === 'fr';
+  return <div className="hello-line">
+    {review.pending ? <><a className="hl-review" href={hrefFor({ name: 'inbox', tab: 'toreview' })}><span className="dot" aria-hidden="true" />{fr ? `${review.pending} ${review.pending > 1 ? 'notes' : 'note'} à relire` : `${review.pending} ${review.pending > 1 ? 'notes' : 'note'} to review`}</a><span className="hl-sep" aria-hidden="true">·</span></> : null}
+    <a className="hl-quiet" href={hrefFor({ name: 'upkeep', tab: 'health' })}>{fr ? `mémoire validée à ${review.share} %` : `memory ${review.share} % validated`}</a>
+  </div>;
+}
+
 function Hello({ todo, waiting, due, backup }: { todo: number | null; waiting: number | null; due: number | null; backup?: { state: 'ok' | 'late' | 'never' | 'off'; date: string | null } | undefined }) {
   const t = useT();
   const status = useStatus();
@@ -120,6 +132,7 @@ function Hello({ todo, waiting, due, backup }: { todo: number | null; waiting: n
             {backup.state === 'ok' ? <ShieldCheck size={14} aria-hidden="true" /> : <ShieldAlert size={14} aria-hidden="true" />}{t(`app.today.backup.${backup.state}`)}
           </a>
         ) : null}
+        <MemoryLine review={s?.review} />
       </div>
       <div className="stats">
         <a className="stat" href="#todo"><b className="num">{todo ?? '–'}</b><span><ListTodo size={14} aria-hidden="true" />{t('app.today.stat.todo')}</span></a>

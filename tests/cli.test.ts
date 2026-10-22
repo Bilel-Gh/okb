@@ -175,9 +175,12 @@ describe('packaged CLI', () => {
   it('tells which profile and KB the commands use', async () => {
     const s = await makeSandbox({ profileId: 'alpha' });
     sandboxes.push(s);
-    const info = json<{ profile: string; kbRoot: string }>(await okb(['profile', '--json'], s.env));
+    const info = json<{ profile: string; kbRoot: string; changes: { agentWrites: string }; review: { offer: boolean } }>(await okb(['profile', '--json'], s.env));
     expect(info.profile).toBe('alpha');
     expect(info.kbRoot).toBe(s.vault);
+    // D71: the skills read how this KB files the agent's notes.
+    expect(info.changes.agentWrites).toBe('proposal');
+    expect(info.review.offer).toBe(true);
   });
 
   it('journals a session, then gives the focus and the next step to a new session', async () => {

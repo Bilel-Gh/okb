@@ -44,7 +44,7 @@ describe('the developer ticket stays factual (F2.4-01..07)', () => {
     expect((await loadTicket(config, 'ORD-42'))?.status).toBe('done');
     expect(await readFile(resolve(dir, 'ORD-42.json'), 'utf8')).toBe(bytes);
     expect(await readFile(textFile, 'utf8')).toBe('Objectif donné par Alice.\n');
-    expect(openDb(config).get<{ user_version: number }>('PRAGMA user_version')?.user_version).toBe(8);
+    expect(openDb(config).get<{ user_version: number }>('PRAGMA user_version')?.user_version).toBe(9);
   });
 
   it('does not infer checks, review or delivery from work being finished', async () => {

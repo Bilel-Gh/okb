@@ -23,7 +23,7 @@ export async function launchBrowser(): Promise<Browser> {
   throw new Error('No browser to run the journeys: install Playwright’s Chromium (npx playwright-core install chromium), or Chrome, or set OKB_JOURNEY_BROWSER.');
 }
 
-export type App = { readonly page: Page; readonly url: string; readonly kb: string; readonly dir: string; readonly config: OkbConfig; readonly env: NodeJS.ProcessEnv; readonly errors: string[]; close(): Promise<void> };
+export type App = { readonly page: Page; readonly url: string; /** D71: a one-time link that gives this browser the session key. */ readonly openUrl: () => string; readonly kb: string; readonly dir: string; readonly config: OkbConfig; readonly env: NodeJS.ProcessEnv; readonly errors: string[]; close(): Promise<void> };
 
 /** A fictitious work brain, served by the app as built, open in a fresh page. With `baggage`, the person also has their own space. */
 export async function openApp(browser: Browser, options: { baggage?: boolean; width?: number; height?: number } = {}): Promise<App> {
@@ -46,7 +46,7 @@ export async function openApp(browser: Browser, options: { baggage?: boolean; wi
   await page.locator('.tabbar, nav[aria-label="Écrans"]').first().waitFor({ state: 'attached' });
   await page.waitForFunction(() => document.title.includes('OKB') && document.title.length > 4);
   return {
-    page, url: started.url, kb: brain.kb, dir: brain.dir, config, env: brain.env, errors,
+    page, url: started.url, openUrl: started.openUrl, kb: brain.kb, dir: brain.dir, config, env: brain.env, errors,
     async close() { await context.close(); started.server.closeAllConnections(); started.server.close(); closeDbs(); },
   };
 }

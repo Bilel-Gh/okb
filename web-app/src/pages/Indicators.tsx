@@ -20,7 +20,7 @@ export function Indicators() {
   const r = useQuery({ queryKey: ['indicators'], queryFn: () => get<{ indicators: Indicator[] }>('/api/indicators') });
   if (r.isLoading) return <section className="panel"><SkeletonRows rows={4} /></section>;
   if (r.error || !r.data) return <section className="panel"><div className="panel-body"><ErrorState error={r.error} retry={() => void r.refetch()} /></div></section>;
-  const href = (g: Gap) => (g.action.kind === 'note' ? hrefFor({ name: 'brain', path: g.action.to }) : g.action.to === 'learn' ? hrefFor({ name: 'learn' }) : null);
+  const href = (g: Gap) => (g.action.kind === 'note' ? hrefFor({ name: 'brain', path: g.action.to }) : g.action.to === 'learn' ? hrefFor({ name: 'learn' }) : g.action.to === 'review' ? hrefFor({ name: 'inbox', tab: 'toreview' }) : null);
   return (
     <section className="panel" aria-labelledby="indicators-h">
       <div className="panel-head"><h2 id="indicators-h">{t('app.indicators.title')}</h2></div>

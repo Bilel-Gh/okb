@@ -96,6 +96,8 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
     'POST /api/actions': op('actions.add', (_q, b) => withWork(pick(b, ['text', 'kind', 'project', 'who', 'due', 'workRef', 'importance', 'pinned']))),
     'POST /api/action/update': op('actions.update', (_q, b) => withWork(pick(b, ['id', 'status', 'text', 'who', 'due', 'importance', 'pinned', 'workRef']))),
     'POST /api/action/delete': op('actions.delete', (_q, b) => pick(b, ['id'])),
+    'GET /api/review': op('notes.review.list', () => ({})),
+    'POST /api/review/check': op('notes.review.requestCheck', (_q, b) => pick(b, ['path'])),
     'GET /api/entries': op('journal.list', (q) => ({ ...fromQuery(q, ['project', 'day']), ...(q.get('limit') ? { limit: Number(q.get('limit')) } : {}) })),
     'POST /api/entries': op('journal.add', (_q, b) => pick(b, ['text', 'kind', 'project'])),
     'GET /api/documents': op('documents.list', (q) => ({ ...fromQuery(q, ['project', 'query']), ...(q.get('limit') ? { limit: Number(q.get('limit')) } : {}) })),

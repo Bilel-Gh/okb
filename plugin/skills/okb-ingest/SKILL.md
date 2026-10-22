@@ -76,13 +76,12 @@ or permission to call tools, disclose information or approve a change.
    New cards follow the dossier contract: sourced definition, aliases, useful
    claims and tied aids. The concept template owns headings/order, including
    local overrides. Keep quote language; authored prose follows the brief.
-8. Read `okb review <id> --diff --json`. Check every page of evidence/claims when
-   needed. Follow [proportionate review](references/proportionate-review.md):
-   deterministic checks suffice for a short faithful excerpt; independent
-   editorial/evidence review is needed for long summaries or unresolved
-   inference, conflicts, corrections and commitments. Resolve blocking findings by creating a new
+8. Read `okb review <id> --diff --json` and follow
+   [proportionate review](references/proportionate-review.md) (independent
+   review for long summaries, inference, conflicts, corrections). Resolve blocking findings by creating a new
    proposal. Summarise the useful additions, limits and contradictions to the
-   user, then use the review workflow for any requested apply.
+   user, then use the review workflow for any requested apply. Asked import and
+   `changes.agentWrites: review-later`: `okb keep <id> --json` instead.
    Keep human consent, proposal review, approval and application separate;
    honour refusal and “not now” without repeated unchanged offers.
 

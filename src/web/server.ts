@@ -71,7 +71,7 @@ async function readBody(req: IncomingMessage, max = 1_000_000): Promise<Record<s
   }
 }
 
-export async function serve(config: OkbConfig | null, options: { port?: number; env?: NodeJS.ProcessEnv } = {}): Promise<{ server: Server; url: string; shutdown: () => Promise<void> }> {
+export async function serve(config: OkbConfig | null, options: { port?: number; env?: NodeJS.ProcessEnv } = {}): Promise<{ server: Server; url: string; shutdown: () => Promise<void>; /** A one-time link that gives the opened browser its session key (D71). */ openUrl: () => string }> {
   const port = options.port ?? 4317;
   if (!Number.isSafeInteger(port) || port < 0 || port > 65535) throw new OkbError('E_INVALID', 'port must be between 0 and 65535');
   const boot = buildStamp();
@@ -80,6 +80,11 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   const assets = await snapshotWeb();
   const mermaid = mermaidPath();
   let origin = '';
+  // D71: the browser OKB opens gets a session key, through a link usable once; never written or printed.
+  const presenceKey = randomBytes(24).toString('hex');
+  const oneTime = new Set<string>();
+  const openUrl = (): string => { const k = randomBytes(16).toString('hex'); oneTime.add(k); return `${origin}/?k=${k}`; };
+  const present = (req: IncomingMessage) => String(req.headers.cookie ?? '').split(/;\s*/).includes(`okb_presence=${presenceKey}`);
   let stopping = false;
   const jobs = new Set<Promise<void>>();
   const readingBodies = new Set<IncomingMessage>();
@@ -154,12 +159,18 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
         }
         // A body read interrupted by shutdown never starts an operation.
         if (stopping) { json({ error: 'The app is stopping.' }, 503); return; }
-        const result = await handler(ctx, url.searchParams, body);
+        const result = await handler({ ...ctx, present: present(req) }, url.searchParams, body);
         if (req.method === 'POST' && url.pathname === '/api/onboarding') scheduleSoon();
         json(result);
         return;
       }
       if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); json({ error: 'GET only.' }, 405); return; }
+      if (url.pathname === '/' && url.searchParams.has('k')) {
+        const k = url.searchParams.get('k') ?? '';
+        const headers: Record<string, string> = { Location: '/' };
+        if (oneTime.delete(k)) headers['Set-Cookie'] = `okb_presence=${presenceKey}; HttpOnly; SameSite=Strict; Path=/`;
+        res.writeHead(302, headers); res.end(); return;
+      }
       if (url.pathname === '/vendor/mermaid.js' && mermaid) {
         res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'max-age=86400' });
         res.end(await readFile(mermaid));
@@ -220,5 +231,5 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   scheduleSoon();
   hourly = setInterval(snapshot, 3_600_000); hourly.unref();
   server.once('close', () => { stopping = true; clearTimers(); });
-  return { server, url: origin, shutdown };
+  return { server, url: origin, shutdown, openUrl };
 }

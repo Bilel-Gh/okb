@@ -1423,3 +1423,41 @@ attribuées à l’agent, et une valeur remplacée reste dans le journal du tick
 Arrêter de suivre garde une copie 30 jours. Les changements de champ restent
 dans l’historique du ticket, pas dans le journal du jour.
 
+
+## D71 — Valider en un geste (22 octobre 2026)
+
+Amende D25 (approbation par présence humaine) et la règle « aucune écriture
+dans la KB sans le oui de la personne ».
+
+Chaque KB a un réglage que seule la personne change :
+`changes.agentWrites: proposal | review-later`, `proposal` par défaut (F2.0-52).
+Avec `proposal`, rien ne change. Avec `review-later`, l’agent prépare toujours
+une proposition ; `okb keep` (opération `notes.keep`) applique tout de suite ce
+qui crée une note ou modifie une note encore « à relire », avec l’approbation
+`policy:review-later`, et laisse en attente ce qui touche une note validée. Une
+proposition mixte est séparée. Les gardes (chemins, secrets, confidentialité,
+nombre de fichiers) ne changent pas (F2.0-54).
+
+L’état de relecture vit dans l’état SQLite (`note_reviews`, migration 9), pas
+dans les notes : aucune réécriture en masse. Une note existante est validée si un
+reçu approuvé par un humain la contient ou si elle n’a pas de champ `generated` ;
+sinon elle est à relire. Le déplacement suit l’`id` OKF (F2.0-53).
+
+La personne trie au calme dans « À relire » : Oui, Non (cette seule note est
+retirée, le reçu et la copie restent), Changer l’emplacement (liens réparés),
+Faire relire, Oui à tout (F2.0-55). Ces gestes ne sont pas des opérations du
+moteur : un agent ne peut ni valider, ni retirer, ni appliquer une modification
+en attente, ni changer le réglage (refusé aussi par le hook `guard-approval`).
+
+`okb serve` ouvre le navigateur avec un lien à usage unique qui dépose une clé
+de session dans un cookie `HttpOnly`, `SameSite=Strict`. Avec ce cookie, les
+gestes et l’approbation se font sans fenêtre système ni terminal ; sans lui,
+l’app retombe sur la confirmation de D25 (F2.0-56). La clé n’est jamais écrite
+sur disque ni affichée. Limite honnête : elle passe en argument de la commande
+système qui ouvre le navigateur, et ne protège pas d’un logiciel qui pilote la
+souris de la personne.
+
+La part des notes validées est un indicateur de la santé de la KB : une ligne
+discrète sur l’accueil, la barre d’état et le cinquième indicateur (F2.0-57).
+Une demande de note par la personne vaut accord : pas de carte de suggestion ;
+une note que l’agent propose de lui-même garde sa carte.

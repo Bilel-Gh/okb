@@ -58,6 +58,8 @@ export type ApiContext = {
   /** Null before the first KB exists: only the setup wizard works then. */
   readonly defaultConfig: OkbConfig | null;
   readonly token: string;
+  /** D71: the request comes from the browser OKB opened itself (its session key cookie): the person is there. */
+  readonly present?: boolean;
   /** The build this server started with, and the build on disk now: they differ after an update. */
   readonly build?: { readonly boot: string; readonly now: () => string };
   /** Stops this server (a newer `okb serve` asks for it). */
@@ -331,6 +333,8 @@ export const ROUTES: Record<string, Handler> = {
       html: await renderMarkdown(doc.raw, path), raw: doc.raw,
       backlinks: incoming.map(pickNode).slice(0, 60), outlinks: outgoing.map(pickNode).slice(0, 60),
       obsidian: obsidianUrl(resolve(config.kb.root, path)),
+      // D71: where the note stands with the person, for the reader's line and badge.
+      review: await (async () => { const { classifyNotes, reviewOf } = await import('../review/state.js'); await classifyNotes(config, bundle); const r = reviewOf(config, path, bundle); return r ? { state: r.state, by: r.by, at: r.at, reason: r.reason } : null; })(),
     };
   },
   /** Whether the local sources of a note changed since they were read; asked for, never on every opening. */
@@ -539,7 +543,7 @@ export const ROUTES: Record<string, Handler> = {
     const { accepted } = resolveSelection(proposal, requested);
     if (!accepted.length) throw new OkbError('E_INVALID', 'empty selection');
     const files = new Set(proposal.changes.filter((c) => accepted.includes(c.id)).map((c) => c.path)).size;
-    const presence = await confirmPresence(t('web.presence.message', { title: proposalTitle(proposal), files, kb: config.profile.displayName || config.profile.id }), { approve: t('web.presence.approve'), cancel: t('web.presence.cancel'), title: 'OKB' });
+    const presence = ctx.present ? 'confirmed' as const : await confirmPresence(t('web.presence.message', { title: proposalTitle(proposal), files, kb: config.profile.displayName || config.profile.id }), { approve: t('web.presence.approve'), cancel: t('web.presence.cancel'), title: 'OKB' });
     if (presence !== 'confirmed') return { ok: false, presence };
     await grantApproval(config, proposal, accepted, config.profile.humanActor);
     if (b.apply === false) return { ok: true, presence, applied: false };
@@ -553,8 +557,19 @@ export const ROUTES: Record<string, Handler> = {
   'POST /api/evening/yes': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);
     return sayYes(config, ctx.env, { changes: list(b.changes), cards: list(b.cards) }, (lot) =>
-      confirmPresence(t('web.presence.lot', { n: lot.changes, files: lot.files, kb: config.profile.displayName || config.profile.id, titles: lot.titles.slice(0, 4).join(' · ') }), { approve: t('web.presence.approve'), cancel: t('web.presence.cancel'), title: 'OKB' }));
+      ctx.present ? Promise.resolve('confirmed' as const) : confirmPresence(t('web.presence.lot', { n: lot.changes, files: lot.files, kb: config.profile.displayName || config.profile.id, titles: lot.titles.slice(0, 4).join(' · ') }), { approve: t('web.presence.approve'), cancel: t('web.presence.cancel'), title: 'OKB' }));
   },
+  /**
+   * « À relire » (F2.0-55, D71): the person's gestures on what the agent filed. Never
+   * engine operations (F2.0-17): only the app, with the browser's session key or the
+   * person's confirmation.
+   */
+  'POST /api/review/validate': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.validate'), async (config) => ({ validated: (await import('../review/gestures.js')).validateNotes(config, list(b.paths)) })),
+  'POST /api/review/reject': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.reject'), async (config) => ({ result: await (await import('../review/gestures.js')).rejectNote(config, str(b.path, 'path', 1000), ctx.env) })),
+  'POST /api/review/move': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.move'), async (config) => ({ path: await (await import('../review/gestures.js')).moveNote(config, str(b.path, 'path', 1000), str(b.folder, 'folder', 500), ctx.env) })),
+  'POST /api/review/change/approve': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.change'), async (config) => ({ applied: await (await import('../review/gestures.js')).approveChange(config, str(b.proposal, 'proposal', 100), ctx.env) })),
+  'POST /api/review/change/reject': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.keep'), async (config) => { await (await import('../review/gestures.js')).rejectChange(config, str(b.proposal, 'proposal', 100)); return {}; }),
+  'POST /api/review/yes-to-all': (ctx, _q, b) => reviewGesture(ctx, b, t('web.review.confirm.all'), async (config) => (await import('../review/gestures.js')).yesToAll(config, { notes: list(b.exceptNotes), changes: list(b.exceptChanges) }, ctx.env)),
   'POST /api/proposal/apply': async (ctx, _q, b) => {
     const config = await kbConfig(ctx, b.kb);
     const proposal = await loadProposal(config, str(b.id, 'id', 80));
@@ -726,6 +741,15 @@ async function bulkProposal(config: OkbConfig, raw: unknown[], make: (path: stri
   const proposal = made.length === 1 ? made[0]! : combineProposals(config, made);
   await saveProposal(config, proposal);
   return { ok: true, proposalId: proposal.id, notes: made.length, skipped };
+}
+
+
+/** A gesture of the person on what the agent filed: the browser's session key, or their confirmation on screen. */
+async function reviewGesture(ctx: ApiContext, b: Record<string, unknown>, message: string, run: (config: OkbConfig) => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> {
+  const config = await kbConfig(ctx, b.kb);
+  const presence = ctx.present ? 'confirmed' : await confirmPresence(message, { approve: t('web.presence.approve'), cancel: t('web.presence.cancel'), title: 'OKB' });
+  if (presence !== 'confirmed') return { ok: false, presence };
+  return { ok: true, presence, ...(await run(config)) };
 }
 
 export const MUTATING = new Set([...Object.keys(ROUTES), ...Object.keys(BRAIN), ...Object.keys(NEXT), ...Object.keys(ENGINE)].filter((k) => k.startsWith('POST ')));

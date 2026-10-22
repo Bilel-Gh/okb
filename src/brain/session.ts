@@ -30,6 +30,15 @@ export async function sessionBrief(config: OkbConfig, layout: BrainLayout, bundl
   }
   const now = renderNow(await nowView(config, bundle), layout.lang);
   lines.push('', `« ${layout.lang === 'fr' ? 'Maintenant' : 'Now'} »:`, now);
-  lines.push('', 'Notes: never write one without the person\'s yes. Before writing, show a suggestion card (type, exact place from `okb where <type> --title … --product … --repo …`, why, notes that already cover it from `okb ask`, estimated cost) and wait. Read the context of a subject with `okb brain context <folder or note>` (parents\' 5-minute pages, children, linked concept cards). Facts go to the lowest level that holds them; lessons rise to the highest level where they stay true.');
+  if (config.changes.agentWrites === 'review-later') {
+    // D71: the person chose « the agent files, I review later ».
+    const { validatedShare } = await import('../review/state.js');
+    const { openDb } = await import('../state/db.js');
+    const share = await validatedShare(config, bundle).catch(() => null);
+    const checks = openDb(config).all<{ id: string; path: string }>("SELECT id, path FROM note_requests WHERE kind = 'check' AND state = 'pending' ORDER BY created_at");
+    lines.push('', `Notes to review by the person: ${share?.pending ?? 0}${share?.share !== null && share?.share !== undefined ? ` (memory ${share.share} % validated)` : ''}.${checks.length ? ` Checks asked: ${checks.map((c) => `${c.path} [${c.id}]`).join(', ')} — confront each with its sources, then propose the fixes.` : ''}`);
+    lines.push('Notes: this KB files the agent\'s notes at once, « to review »; a note the person asked for is their yes: no suggestion card; prepare it as usual, then `okb keep <proposal> --json` and say in one line « Note rangée, déjà utilisable : <title> · <place> · Ouvrir dans OKB »' + (config.review.offer ? ', then offer a check against the sources in one line' : '') + '. A change to a validated note waits for their yes. You never validate, reject or approve a note, and never change this setting. A note you would add on your own still gets a suggestion card first.');
+  } else lines.push('', 'Notes: never write one without the person\'s yes. Before writing, show a suggestion card (type, exact place from `okb where <type> --title … --product … --repo …`, why, notes that already cover it from `okb ask`, estimated cost) and wait.');
+  lines.push('Read the context of a subject with `okb brain context <folder or note>` (parents\' 5-minute pages, children, linked concept cards). Facts go to the lowest level that holds them; lessons rise to the highest level where they stay true.');
   return lines.join('\n');
 }

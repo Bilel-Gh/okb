@@ -79,6 +79,7 @@ const HANDLERS: Record<string, Handler> = {
   // The person's day, through the engine: projects, actions, today.
   project: (c) => import('./commands/projects.js').then((m) => m.cmdProject(c)),
   action: (c) => import('./commands/projects.js').then((m) => m.cmdAction(c)),
+  keep: (c) => import('./commands/keep.js').then((m) => m.cmdKeep(c)),
   today: (c) => import('./commands/projects.js').then((m) => m.cmdToday(c)),
   doc: (c) => import('./commands/projects.js').then((m) => m.cmdDoc(c)),
   baggage: (c) => import('./commands/projects.js').then((m) => m.cmdBaggage(c)),
@@ -200,7 +201,7 @@ async function cmdServe(ctx: Ctx): Promise<number> {
     ctx.out.ok(t('serve.ready', { url: paint.bold(url) }));
     ctx.out.line(paint.dim(`  ${t('serve.stop')}`));
   }
-  if (open) await openExternal(url);
+  if (open) await openExternal(started.openUrl());
   const { shutdownAssistant } = await import('../assistant/assistant.js');
   await new Promise<void>((done, reject) => {
     const stop = () => { void Promise.all([shutdown(), shutdownAssistant()]).then(() => done(), reject); };

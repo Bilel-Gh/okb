@@ -7,6 +7,7 @@ import { isStale } from '../okf/types.js';
 import { scoresFor } from '../scores/cached.js';
 import { conceptGaps } from '../suggest/gaps.js';
 import { glossary } from '../brain/views.js';
+import { pendingList, validatedShare } from '../review/state.js';
 
 /**
  * Honest indicators (F2.0-24). Four of them, never blended into one figure
@@ -20,13 +21,14 @@ import { glossary } from '../brain/views.js';
 export type GapAction = { readonly kind: 'note' | 'route' | 'command'; readonly to: string };
 export type IndicatorGap = { readonly id: string; readonly count: number; readonly examples: readonly { readonly title: string; readonly path?: string }[]; readonly action: GapAction };
 export type Indicator = {
-  readonly id: 'coverage' | 'freshness' | 'quality' | 'understanding';
+  readonly id: 'coverage' | 'freshness' | 'quality' | 'understanding' | 'validated';
   /** 0–100, or null when there is nothing to measure yet. */
   readonly value: number | null;
   /** What the value is made of: `have` out of `total`. */
   readonly of: { readonly have: number; readonly total: number };
   readonly gaps: readonly IndicatorGap[];
 };
+
 
 const pct = (have: number, total: number) => (total ? Math.round((have / total) * 100) : null);
 const LOCAL = /^urn:sha256:[a-f0-9]{64}$/i;
@@ -86,5 +88,12 @@ export async function indicators(config: OkbConfig, bundle: Bundle, _env: NodeJS
       ...(levels.fresh ? [{ id: 'never-studied', count: levels.fresh, examples: study.slice(0, 3).map((c) => ({ title: c.title, path: c.path })), action: { kind: 'route' as const, to: 'learn' } }] : []),
     ],
   };
-  return [coverage, freshness, quality, understanding];
+  // Upkeep (F2.0-57, D71): the notes the person validated; the ones the agent filed and nobody read are the gap.
+  const review = await validatedShare(config, bundle);
+  const pendingNotes = pendingList(config, bundle);
+  const validated: Indicator = {
+    id: 'validated', value: review.share, of: { have: review.validated, total: review.total },
+    gaps: review.pending ? [{ id: 'to-review', count: review.pending, examples: pendingNotes.slice(0, 5).map((n) => ({ title: n.title, path: n.path })), action: { kind: 'route', to: 'review' } }] : [],
+  };
+  return [coverage, freshness, quality, understanding, validated];
 }

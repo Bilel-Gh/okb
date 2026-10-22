@@ -62,7 +62,13 @@ and estimated cost. Show it as is, then the buttons
      under 80 (twice at most);
   4. follow the `okb-ingest` workflow with `--create <place>` (or `--append <note>
      --heading "…"`), `--suggestion <id>` and `--quality <justness>`;
-  5. hand over to `okb-review`. The note arrives with its quality score.
+  5. hand over to `okb-review`. The note arrives with its quality score —
+     unless the KB files at once:
+- **KB filing at once** (`okb profile --json`: `changes.agentWrites:
+  review-later`): a note the person **asked for** is their yes, no card. After
+  drafting, `okb keep <proposal> --json`, then one line « Note rangée, déjà
+  utilisable : <titre> · <place> · Ouvrir dans OKB » (+ a check offer if
+  `review.offer`). Never validate or reject.
 - **« Plus tard »** `okb suggest later <id>`; **« Non »** `okb suggest decline <id>`.
   « Plus tard » is remembered: the card waits in the app and is not offered
   again in a conversation for a week.

@@ -1,5 +1,6 @@
+import { actorOf } from './common.js';
 import { languageName, t, has } from '../../i18n/index.js';
-import { readSettings, SETTINGS, writeSetting, type SettingDef, type SettingGroup, type SettingValue } from '../../settings/settings.js';
+import { readSettings, SETTINGS, writeSetting, type SettingDef, type SettingGroup, type SettingValue, assertPersonSetting } from '../../settings/settings.js';
 import { OkbError } from '../../util/errors.js';
 import { flagBool } from '../args.js';
 import { choose, confirm, input } from '../ui/prompt.js';
@@ -90,6 +91,7 @@ export async function cmdSettings(ctx: Ctx): Promise<number> {
       const eq = pair.indexOf('=');
       if (eq < 1) throw new OkbError('E_INVALID', `expected key=value, got "${pair}"`, { key: 'settingPair', params: { pair } });
       const key = pair.slice(0, eq);
+      assertPersonSetting(key, actorOf());
       changed.push({ key, value: await writeSetting(id, key, pair.slice(eq + 1)) });
     }
     if (ctx.mode === 'json') { out.json({ ok: true, kb: id, changed }); return 0; }
@@ -112,6 +114,7 @@ export async function cmdSettings(ctx: Ctx): Promise<number> {
     if (key === 'back') continue;
     const sv = values.find((v) => v.def.key === key)!;
     if (has(`settings.explain.${key}`)) out.line(paint.dim(`  ${t(`settings.explain.${key}`)}`));
+    assertPersonSetting(key, actorOf());
     const value = await writeSetting(id, key, await editOne(id, sv));
     out.ok(t('settings.changed', { label: t(`settings.label.${key}`), value: displayValue(sv.def, value) }));
   }

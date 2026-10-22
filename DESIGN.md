@@ -159,6 +159,18 @@ icons 14 / 16 / 18. Labels are small capitals in ink-3; the important line
 (objective, next step) is bold; meaning in colour always comes with a word.
 Actions shown on hover are also shown on keyboard focus.
 
+### To review (D71)
+
+`pages/review/ReviewTab.tsx` is the « À relire » tab of the inbox (`#/a-relire`):
+a list grouped by day (sticky, scrolls on its own), the detail on the right
+(the note rendered, its place and reason, Oui · Non · Faire relire, or the
+before/after diff of a waiting change), `FolderPicker` (the memory's tree with
+search) and « Oui à tout ». Keyboard: O, N, arrows. `ReviewBadge` is always a dot
+plus a word: À relire (orange), Validée (green), Validée et vérifiée (solid
+green), Modification en attente (blue). `ReaderReviewLine` is the reader's slim
+line. Today shows a single muted line under the date; the status bar carries
+« N à relire · X % validées ». Styles in `styles/review.css`, Atelier tokens.
+
 ## Do's and don'ts
 
 The October usage fixes keep the same five destinations and Atelier tokens.

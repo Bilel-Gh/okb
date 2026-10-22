@@ -13,6 +13,7 @@ import { listProjects, type Project } from './projects.js';
 import { backupStatus } from '../brain/backup.js';
 import { eveningView } from '../evening/evening.js';
 import { moduleCards, moduleNotesToRecheck, modulePendingRequests, type NoteToRecheck, type PendingRequest, type WorkCard } from './sources.js';
+import { validatedShare } from '../review/state.js';
 
 /**
  * Today (F2.0-04) answers six questions: what do I pick up, what did I do,
@@ -31,6 +32,8 @@ export type TodayView = {
   readonly resumeCards: ResumeCards;
   /** What the person asked their agent to find and is still open. */
   readonly requests: readonly PendingRequest[];
+  /** D71: notes to review and the validated share (null for an empty memory), for one discreet line. */
+  readonly memory: { readonly pending: number; readonly share: number | null };
   readonly todo: readonly TodayAction[];
   readonly waiting: readonly TodayAction[];
   /** What happened today and yesterday. */
@@ -108,6 +111,7 @@ export async function todayView(config: OkbConfig, env: NodeJS.ProcessEnv, bundl
     resume,
     resumeCards,
     requests: await modulePendingRequests(config, env),
+    memory: await validatedShare(config, bundle).then((r) => ({ pending: r.pending, share: r.share }), () => ({ pending: 0, share: null })),
     todo: open.filter((a) => a.kind === 'todo' || a.kind === 'asked').slice(0, 12).map(shape),
     waiting: open.filter((a) => a.kind === 'waiting').slice(0, 12).map(shape),
     done: entries.filter((e) => e.kind !== 'resume').slice(0, 12),

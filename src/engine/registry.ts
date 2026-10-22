@@ -14,6 +14,7 @@ import { actionsAdd, actionsDelete, actionsDetect, actionsList, actionsUpdate, j
 import { projectsCreate, projectsGet, projectsLeave, projectsList, projectsUpdate } from './ops/projects.js';
 import { suggestionsAdd, suggestionsList } from './ops/suggestions.js';
 import { todayViewOp } from './ops/today.js';
+import { notesKeep, notesReviewList, notesReviewRequestCheck } from './ops/review.js';
 import { assistantAction, assistantAsk, assistantCancel, assistantConfigure, assistantConversation, assistantConversations, assistantEnd, assistantStart, assistantStatus } from './ops/assistant.js';
 import { exportSpace } from './ops/export.js';
 import { understandingReadOp, understandingKeepOp, understandingRecordOp, understandingOverviewOp, understandingMeetingOp, understandingReadinessOp, understandingLearningOp, understandingProgressOp, understandingObjectiveAddOp, understandingObjectiveDoneOp, understandingReviewOp } from './ops/understanding.js';
@@ -93,6 +94,9 @@ const OPS = {
   'actions.list': actionsList,
   'actions.update': actionsUpdate,
   'actions.delete': actionsDelete,
+  'notes.keep': notesKeep,
+  'notes.review.list': notesReviewList,
+  'notes.review.requestCheck': notesReviewRequestCheck,
   'actions.detect': actionsDetect,
   'journal.add': journalAdd,
   'journal.list': journalList,

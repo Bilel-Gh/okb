@@ -8,6 +8,9 @@ belong outside this repository. Use fictitious fixtures for development.
 - Gate changes with `npm run release:check`.
 - Validate Claude metadata with `claude plugin validate ./plugin --strict`.
 - Every KB mutation, including maintenance, goes through a proposal and apply.
+  With `changes.agentWrites: review-later` (D71, set by the person only), `okb
+  keep` applies new notes and changes to notes still to review at once; a change
+  to a validated note still waits for the person's yes.
   The one direct write is a document the person keeps (`_Documents/`, D61): their
   own file, copied as it is, never by an agent.
 - Never approve on behalf of a user, read the approval key, bypass policy or edit

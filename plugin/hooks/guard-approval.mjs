@@ -25,10 +25,13 @@ const APPROVE = /\breview\b[\s\S]*?--approve(?:\s|=|$)/;
 const PTY_WRAP = /(^|[;&|(]\s*|\$\(\s*)(script|expect|unbuffer|socat)\s[^;&|]*\bokb\s+(review|undo|kb|init|new|settings|update)\b/;
 // The local web app approves only with a person's confirmation on screen; never drive it from a tool call.
 // Any HTTP client aimed at the local web app's approval endpoints (/api/proposal/approve, …).
-const WEB_APPROVE = /\b(curl|wget|http|https|xh|fetch|nc|node|python3?|osascript)\b[\s\S]*(127\.0\.0\.1|localhost|\[::1\])[\s\S]*\/api\/[\w/-]*(approve|presence)/;
+const WEB_APPROVE = /\b(curl|wget|http|https|xh|fetch|nc|node|python3?|osascript)\b[\s\S]*(127\.0\.0\.1|localhost|\[::1\])[\s\S]*\/api\/[\w/-]*(approve|presence|review)/;
 // Clicking OKB's native approval dialog from a script is approving for the person.
 const DIALOG_CLICK = /\bosascript\b[\s\S]*\b(System Events|click button)\b[\s\S]*\b(OKB|Approuver|Approve)\b/i;
 const ENV_ESCAPE = /OKB_APPLY_MODE\s*=\s*allow-direct/;
+// D71: whether the agent files notes directly is the person's setting, never a tool's.
+const AGENT_WRITES = /\b(agentWrites|review\.(auto|offer))\b/;
+const PROFILE_TOUCH = /(profile\.ya?ml|\bsettings\s+set\b)/;
 const KEY_READ = /(cat|less|more|head|tail|xxd|od|strings|cp|mv)\b[^;&|]*approval\.key/;
 // The person's yes to a suggestion is recorded by OKB's hooks from what they did, never by a tool call.
 const CONSENT = /\bsuggest\s+consent\b|consent\.jsonl|\bsecret\s+allow\b|unlocked\.json/;
@@ -74,6 +77,9 @@ process.stdin.on('end', () => {
   }
   if (DIALOG_CLICK.test(command)) {
     return deny('The OKB approval dialog is answered by the person, not by a script.');
+  }
+  if (AGENT_WRITES.test(command) && PROFILE_TOUCH.test(command)) {
+    return deny('Whether the agent files notes directly is the user\'s own setting. Ask them to change it in OKB\'s settings.');
   }
   if (ENV_ESCAPE.test(command)) {
     return deny('OKB_APPLY_MODE=allow-direct bypasses the review step. Ask the user to change it in their profile if they want it.');

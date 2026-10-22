@@ -31,9 +31,25 @@ export type Receipt = {
   /** Who applied it (src/identity/person.ts): a stable id and a declared job, never a name. */
   readonly person?: { readonly id: string; readonly role: string };
 };
-export type ApplyOptions = { readonly only?: readonly string[]; readonly resume?: boolean; readonly dryRun?: boolean; readonly actor?: string; /** The OKB home in use (the person who applies is read there). */ readonly env?: NodeJS.ProcessEnv };
+export type ApplyOptions = { readonly only?: readonly string[]; readonly resume?: boolean; readonly dryRun?: boolean; readonly actor?: string; /** D71: the agent's new notes and notes still to review, in a KB set to `review-later` (src/review/keep.ts). */ readonly policy?: 'review-later'; /** The OKB home in use (the person who applies is read there). */ readonly env?: NodeJS.ProcessEnv };
 const receiptPath = (config: OkbConfig, id: string) => resolve(statePaths(config).receipts, `${assertId(id, 'receipt id')}.json`);
 const hashOf = (text: string | null) => text === null ? null : sha256(text);
+
+/**
+ * D71: in a KB set to `review-later`, a change goes in without the person only if
+ * it creates a note that does not exist yet, or changes a note still to review.
+ * A validated note never changes this way: checked here, whoever asks.
+ */
+async function reviewLaterApproval(config: OkbConfig, proposal: Proposal, accepted: readonly string[]): Promise<Approval> {
+  if (config.changes.agentWrites !== 'review-later') throw new OkbError('E_NOT_APPROVED', 'this KB asks for the person\'s yes before any note enters', { key: 'reviewLaterOff' });
+  const { reviewOf } = await import('../review/state.js');
+  for (const c of proposal.changes.filter((x) => accepted.includes(x.id))) {
+    const exists = (await readTextIfExists(await safeTarget(config, c.path))) !== null;
+    const ok = c.kind === 'create-document' ? !exists : exists && reviewOf(config, c.path)?.state === 'pending';
+    if (!ok) throw new OkbError('E_NOT_APPROVED', `${c.path} is validated: only the person changes it`, { key: 'reviewLaterValidated', params: { path: c.path } });
+  }
+  return { approvedBy: 'policy:review-later', approvedAt: new Date().toISOString(), mac: '' } as Approval;
+}
 
 export async function applyProposal(config: OkbConfig, proposal: Proposal, options: ApplyOptions = {}): Promise<Receipt> {
   assertProposal(proposal);
@@ -49,7 +65,9 @@ export async function applyProposal(config: OkbConfig, proposal: Proposal, optio
     if (!accepted.length) throw new OkbError('E_INVALID', 'the selection is empty after dependency resolution', { detail: { dropped } });
     const approval = config.changes.apply === 'allow-direct' && config.policy.allowDirectApply
       ? { approvedBy: 'policy:allow-direct', approvedAt: new Date().toISOString(), mac: '' }
-      : requireApproval(await verifyApproval(config, proposal, accepted));
+      : options.policy === 'review-later'
+        ? await reviewLaterApproval(config, proposal, accepted)
+        : requireApproval(await verifyApproval(config, proposal, accepted));
     const changes = proposal.changes.filter(c => accepted.includes(c.id));
     const state = statePaths(config);
     const id = `rcpt-${proposal.id}`;

@@ -285,6 +285,8 @@ const changesSchema = z
   .object({
     prepare: z.enum(['proposal-only', 'proposal-and-preview']).default('proposal-only'),
     apply: z.enum(['require-approval', 'allow-direct']).default('require-approval'),
+    /** D71: `review-later` lets the agent file new notes at once, marked to review; only the person sets it. */
+    agentWrites: z.enum(['proposal', 'review-later']).default('proposal'),
     diff: z.enum(['unified', 'summary']).default('unified'),
     keepBackups: z.boolean().default(true),
   })
@@ -368,6 +370,14 @@ export const policySchema = z
   })
   .strict();
 
+/** D71: the evidence check is offered after a note, or run for risky ones. */
+const reviewSchema = z
+  .object({
+    offer: z.boolean().default(true),
+    auto: z.enum(['never', 'risky']).default('never'),
+  })
+  .strict();
+
 /** Subagents that gather located evidence; writing and the reviewer keep the session's model. */
 const agentsSchema = z
   .object({
@@ -393,6 +403,7 @@ export const configSchema = z
     focus: focusSchema.default({}),
     routing: routingSchema.default({}),
     policy: policySchema.default({}),
+    review: reviewSchema.default({}),
     agents: agentsSchema.default({}),
     /** Root of operational state: proposals, runs, caches, logs. Never inside the KB. */
     stateHome: z.string().default(''),

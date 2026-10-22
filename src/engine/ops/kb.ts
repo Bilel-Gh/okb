@@ -16,6 +16,9 @@ export const kbStatus = defineOperation({
       loadQueue(config).catch(() => []),
       dueCount(config).catch(() => 0),
     ]);
-    return { ...status, suggestions: queue.filter((q) => q.status === 'pending' || q.status === 'later').length, due };
+    const { loadBundleFor } = await import('../../kb/bundle.js');
+    const { validatedShare } = await import('../../review/state.js');
+    const review = await validatedShare(config, await loadBundleFor(config)).then((r) => ({ pending: r.pending, share: r.share }), () => ({ pending: 0, share: null }));
+    return { ...status, review, suggestions: queue.filter((q) => q.status === 'pending' || q.status === 'later').length, due };
   },
 });

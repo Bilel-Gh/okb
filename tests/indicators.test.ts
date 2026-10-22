@@ -21,7 +21,7 @@ describe('honest indicators: four of them, apart, each with what to do (F2.0-24)
   it('gives coverage, freshness, quality and understanding separately, each with what it is made of', async () => {
     const { config, env } = await demoBrain();
     const list = await indicators(config, await loadBundleFor(config), env, NOW);
-    expect(list.map((i) => i.id)).toEqual(['coverage', 'freshness', 'quality', 'understanding']);
+    expect(list.map((i) => i.id)).toEqual(['coverage', 'freshness', 'quality', 'understanding', 'validated']);
     for (const i of list) {
       if (i.value !== null) { expect(i.value).toBeGreaterThanOrEqual(0); expect(i.value).toBeLessThanOrEqual(100); expect(i.of.total).toBeGreaterThan(0); }
       for (const gap of i.gaps) { expect(gap.count).toBeGreaterThan(0); expect(gap.action.to).toBeTruthy(); }
@@ -79,7 +79,7 @@ describe('honest indicators: four of them, apart, each with what to do (F2.0-24)
   it('the same for the terminal, the app and an assistant', async () => {
     const { config, env, dir } = await demoBrain();
     const viaEngine = await invoke('indicators.view', {}, { config, env, actor: 'agent' });
-    expect(viaEngine.indicators.map((i) => i.id)).toEqual(['coverage', 'freshness', 'quality', 'understanding']);
+    expect(viaEngine.indicators.map((i) => i.id)).toEqual(['coverage', 'freshness', 'quality', 'understanding', 'validated']);
     closeDbs();
     const { json } = await import('./helpers/team.js');
     const viaCli = await json(['indicators'], env, dir);

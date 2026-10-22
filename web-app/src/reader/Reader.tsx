@@ -1,3 +1,4 @@
+import { ReaderReviewLine, type ReviewState } from '../pages/review/ReviewTab';
 import * as Popover from '@radix-ui/react-popover';
 import { useQuery } from '@tanstack/react-query';
 import { Backpack, Check, ChevronDown, Copy, ExternalLink, History, Lock, MoreHorizontal, Pin, PinOff, Share2, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
@@ -29,6 +30,7 @@ export type NoteView = {
   html: string;
   backlinks: { path: string; title: string; category: string }[];
   outlinks: { path: string; title: string; category: string }[];
+  review?: ReviewState;
 };
 
 function Links({ title, items }: { title: string; items: NoteView['backlinks'] }) {
@@ -149,6 +151,7 @@ export function Reader({ path, anchor, understand = false, setTitle }: { path: s
     <div className="reader-wrap">
       <article className="reader-main">
         <Breadcrumb stops={stops} label={t('app.note.line')} />
+        <ReaderReviewLine path={n.path} review={n.review ?? null} />
         <h1 className="note-title">{n.title}</h1>
         {n.description && !/^Page du sujet|^Topic page/i.test(n.description) ? <p className="note-lead">{n.description}</p> : null}
         <div className="note-meta">

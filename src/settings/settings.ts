@@ -47,6 +47,9 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: 'focus.journal', group: 'memory', type: 'text', scope: 'profile', path: ['focus', 'journal'], fallback: '' },
   { key: 'focus.sessionStart', group: 'memory', type: 'bool', scope: 'profile', path: ['focus', 'sessionStart'], recommended: true, fallback: true },
   { key: 'focus.staleDays', group: 'memory', type: 'number', scope: 'profile', path: ['focus', 'staleDays'], recommended: 14, fallback: 14 },
+  { key: 'changes.agentWrites', group: 'history', type: 'choice', scope: 'profile', path: ['changes', 'agentWrites'], options: ['proposal', 'review-later'], recommended: 'proposal', fallback: 'proposal' },
+  { key: 'review.offer', group: 'history', type: 'bool', scope: 'profile', path: ['review', 'offer'], recommended: true, fallback: true },
+  { key: 'review.auto', group: 'history', type: 'choice', scope: 'profile', path: ['review', 'auto'], options: ['never', 'risky'], recommended: 'never', fallback: 'never' },
   { key: 'kb.space', group: 'history', type: 'choice', scope: 'profile', path: ['kb', 'space'], options: ['baggage', 'work'], fallback: 'work' },
   { key: 'kb.confidential', group: 'history', type: 'bool', scope: 'profile', path: ['kb', 'confidential'], fallback: false },
   { key: 'routing.suggest', group: 'assistant', type: 'bool', scope: 'profile', path: ['routing', 'suggest'], recommended: true, fallback: true },
@@ -124,6 +127,12 @@ export function parseSettingValue(def: SettingDef, raw: unknown): unknown {
 }
 
 /** Change one setting, keeping the file's comments, then check the profile still loads. */
+/** What the agent may write is the person's call (D71): an agent cannot change these settings. */
+const PERSON_ONLY = new Set(['changes.agentWrites', 'review.offer', 'review.auto']);
+export function assertPersonSetting(key: string, actor: 'person' | 'agent'): void {
+  if (actor !== 'person' && PERSON_ONLY.has(key)) throw new OkbError('E_NOT_APPROVED', `${key} is the person's own setting`, { key: 'settingPersonOnly', params: { key } });
+}
+
 export async function writeSetting(profileId: string, key: string, raw: unknown, env: NodeJS.ProcessEnv = process.env): Promise<unknown> {
   const def = settingDef(key);
   const value = parseSettingValue(def, raw);

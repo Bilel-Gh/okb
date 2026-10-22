@@ -49,6 +49,12 @@ Details: [release notes 2.0.0](docs/releases/RELEASE-2.0.0.md) · guides (FR):
 
 ## Development preview: 2.1 through 3.0
 
+The [22 October « validate in one gesture »](docs/releases/RELEASE-USAGE-2026-10-22.md)
+lets the agent file the notes the person asks for at once, « to review », and
+the person sort them later in one screen, without a system dialog or a command;
+a validated note changes only with their yes, and the share of validated notes
+measures upkeep ([guide](docs/guide/valider-les-notes.md)).
+
 The [19 October ticket sheet](docs/releases/RELEASE-USAGE-2026-10-19.md) gives
 each ticket one sheet read everywhere: every field editable by hand with its
 origin, the next step taken from the todos, notes linked wherever they are
