@@ -32,6 +32,15 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
   const op = (id: string, input: (q: URLSearchParams, b: Body) => unknown): Handler => async (ctx, q, b) =>
     invoke(id, input(q, b), { config: await kbConfig(ctx, q.get('kb') ?? b.kb), env: ctx.env, actor: 'person' });
   return {
+    // The person's corrections of the system map (F2.4-17, D72).
+    'GET /api/arch/map': op('arch.map', () => ({})),
+    'POST /api/arch/link/confirm': op('arch.link.confirm', (_q, b) => pick(b, ['key', 'reason'])),
+    'POST /api/arch/link/exclude': op('arch.link.exclude', (_q, b) => pick(b, ['key', 'reason'])),
+    'POST /api/arch/link/retarget': op('arch.link.retarget', (_q, b) => pick(b, ['key', 'target', 'reason'])),
+    'POST /api/arch/link/add': op('arch.link.add', (_q, b) => pick(b, ['from', 'to', 'kind', 'what', 'reason'])),
+    'POST /api/arch/link/reset': op('arch.link.reset', (_q, b) => pick(b, ['key'])),
+    'POST /api/arch/url/classify': op('arch.url.classify', (_q, b) => ({ host: b.host, role: b.role ?? null })),
+    'POST /api/arch/conflict': op('arch.conflict.resolve', (_q, b) => pick(b, ['key', 'keep'])),
     'GET /api/tickets': op('tickets.list', () => ({})),
     'GET /api/ticket': op('tickets.get', (q) => fromQuery(q, ['ref'])),
     'POST /api/tickets/resume': op('tickets.resume', (_q, b) => pick(b, ['ref', 'repo', 'title', 'text', 'goal', 'lastAction', 'next', 'note', 'suggestion', 'context', 'decisions', 'attempts', 'criteria', 'sources', 'waiting'])),

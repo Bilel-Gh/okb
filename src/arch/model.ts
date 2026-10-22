@@ -257,9 +257,10 @@ export function buildModel(maps: readonly RepoMap[], options: { lang?: 'fr' | 'e
       if (twin) { named.push({ ...c, kind: 'destination', detail: `url ${c.name}` }); continue; }
       const id = `ext:${c.name}`;
       addNode({ id, kind: 'external', name: c.name, tech: c.name });
-      addLink({ from: repoId(a), to: id, kind: 'external', confidence: role === 'call' ? 'sure' : 'probable', calls: [{ what: c.name, line: c.evidence.line }], evidence: [ev(a, c)], verb: lang === 'fr' ? 'appelle' : 'calls',
-        certainty: role === 'call' ? 'declared' : 'supposed',
-        basis: role === 'call' ? (fr ? `appelé dans le code (${c.evidence.file})` : `called in the code (${c.evidence.file})`) : (fr ? `adresse sous une clé de configuration (${c.evidence.file}), sans appel lu` : `address under a configuration key (${c.evidence.file}), no call read`) });
+      addLink({ from: repoId(a), to: id, kind: 'external', confidence: role === 'call' || options.urlRules?.has(c.name.toLowerCase()) ? 'sure' : 'probable', calls: [{ what: c.name, line: c.evidence.line }], evidence: [ev(a, c)], verb: lang === 'fr' ? 'appelle' : 'calls',
+        ...(options.urlRules?.has(c.name.toLowerCase()) ? { certainty: 'confirmed' as const, origin: 'person' as const, basis: fr ? 'rangée à la main comme ressource externe' : 'filed by hand as an outside resource' } : {
+        certainty: role === 'call' ? 'declared' as const : 'supposed' as const,
+        basis: role === 'call' ? (fr ? `appelé dans le code (${c.evidence.file})` : `called in the code (${c.evidence.file})`) : (fr ? `adresse sous une clé de configuration (${c.evidence.file}), sans appel lu` : `address under a configuration key (${c.evidence.file}), no call read`) }) });
     }
     // A named client, destination or address that resembles another repository that declares nothing of it: supposed.
     // Never a second line towards a repository already linked.

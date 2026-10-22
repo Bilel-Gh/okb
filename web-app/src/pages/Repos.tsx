@@ -9,10 +9,10 @@ import { useScheme } from '../app/data';
 import { tn, useT } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
-import { Prose } from '../reader/Prose';
 import { LevelBar, type Tier } from '../ui/LevelBar';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { ExamPanel } from './Exam';
+import { RepoRelations } from './RepoRelations';
 import { TicketPreview } from '../ui/WorkPreview';
 import { useShareWords } from '../app/sharing';
 
@@ -337,12 +337,7 @@ function LinkedDetail({ id, color, setTitle }: { id: string; color: string; setT
         </div>
       </div>
       <details className="panel repo-secondary"><summary>{w('Détails techniques et compréhension', 'Technical details and understanding')}</summary><div className="stack lg"><LevelPanel name={repo.name} level={d.data.level} color={color} /><Questions repoId={repo.id} questions={d.data.questions} /><ExamPanel repo={repo.id} color={color} />{map ? <CodeMap map={map} risks={d.data.risks} /> : null}</div></details>
-      {d.data.landscape ? (
-        <section className="panel">
-          <div className="panel-head"><h2><Network size={17} aria-hidden="true" />{t('web.repos.landscapeTitle')}</h2><a className="link" href={hrefFor({ name: 'repos', tab: 'architecture' })}>{t('app.repos.tab.arch')}</a></div>
-          <div className="panel-body"><Prose html={`<pre><code class="language-mermaid">${d.data.landscape.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</code></pre>`} /></div>
-        </section>
-      ) : null}
+      <RepoRelations repo={repo.name} />
     </div>
   );
 }

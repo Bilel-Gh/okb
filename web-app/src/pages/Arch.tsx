@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { Copy, Database, Globe, Maximize2, Minus, Plus, Terminal, X } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Ban, BookOpen, CircleHelp, Copy, Database, EyeOff, GitBranch, Globe, Image as ImageIcon, Lightbulb, Maximize2, Minus, Package, Plus, Server, Terminal, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import { get } from '../app/api';
+import { get, post } from '../app/api';
 import { useT } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
@@ -15,13 +15,16 @@ import { flowView, renderMap } from '../../../src/arch/views';
 
 type Node = { id: string; kind: 'repo' | 'datastore' | 'external' | 'system'; name: string; tech: string; repo?: string };
 type Evidence = { repo: string; file: string; line: number };
-type Link = { id: string; from: string; to: string; kind: 'http' | 'event' | 'package' | 'service' | 'data' | 'external'; confidence: 'sure' | 'probable' | 'to-confirm'; calls: { what: string; line: number }[]; evidence: Evidence[]; verb: string };
+type Certainty = 'proved' | 'declared' | 'supposed' | 'confirmed';
+type Link = { id: string; from: string; to: string; kind: 'http' | 'event' | 'package' | 'service' | 'data' | 'external'; confidence: 'sure' | 'probable' | 'to-confirm'; calls: { what: string; line: number }[]; evidence: Evidence[]; verb: string; certainty?: Certainty; basis?: string; origin?: 'scan' | 'agent' | 'person' };
+type OffMap = { repo: string; host: string; role: 'call' | 'endpoint' | 'registry' | 'source-host' | 'doc' | 'asset' | 'platform' | 'unknown'; evidence: Evidence };
+type Conflict = { key: string; action: string; target: string | null; reason: string; origin: string; at: string };
 type Finding = { code: string; target: string; penalty: number };
 type View = { kind: 'containers' | 'context' | 'flow'; boxes: Node[]; arrows: Link[]; mermaid: string; check: { score: number; findings: Finding[] }; groups?: { id: string; members: Node[] }[]; steps?: { from: string; to: string; what: string; verb: string }[] };
 type Question = { repo: string; what: string; evidence: Evidence; named?: string };
 type ArchData = {
   system: string | null;
-  model?: { nodes: Node[]; links: Link[]; questions: Question[] };
+  model?: { nodes: Node[]; links: Link[]; questions: Question[]; offMap?: OffMap[]; excluded?: (Link & { reason: string; at: string })[]; stale?: { key: string; action: string; at: string }[]; conflicts?: Conflict[] };
   entryPoints?: { repo: string; call: string }[];
   calls?: { from: string; call: string }[];
   views?: { containers: View; context: View; flow: View | null };
@@ -33,6 +36,17 @@ type Selection = { kind: 'link' | 'station'; id: string } | null;
 /** Lines whose shape already says what they carry get no text on the map (a library, a database). */
 const QUIET = new Set<Link['kind']>(['package', 'data']);
 const CONFIDENCE_TONE: Readonly<Record<Link['confidence'], string>> = { sure: 'ok', probable: 'warn', 'to-confirm': 'warn' };
+const CERTAINTY_TONE: Readonly<Record<Certainty, string>> = { proved: 'ok', declared: 'info', supposed: 'warn', confirmed: 'accent' };
+/** The key of a link for the person's corrections: its kind and its two ends, never a line (F2.4-17). */
+export const keyOf = (l: Pick<Link, 'kind' | 'from' | 'to'>) => `${l.kind}|${l.from}|${l.to}`;
+const uncertain = (l: Link) => (l.certainty ? l.certainty === 'supposed' : l.confidence !== 'sure');
+
+/** The certainty pill: lot D's words when the model has them, else the older confidence. */
+function Sure({ link }: { link: Link }) {
+  const t = useT();
+  const words = useArchWords();
+  return link.certainty ? <span className={`pill ${CERTAINTY_TONE[link.certainty]}`}>{words.cert[link.certainty]}</span> : <span className={`pill ${CONFIDENCE_TONE[link.confidence]}`}>{t(`arch.conf.${link.confidence}`)}</span>;
+}
 
 
 function useColours(data: ArchData) {
@@ -58,6 +72,7 @@ function SystemMap({ layout, links, nodes, selection, select, colour, label, sca
   layout: MapLayout; links: Map<string, Link>; nodes: Map<string, Node>; selection: Selection; select: (s: Selection) => void; colour: (n: Node) => string | undefined; label: string; scale: number | null;
 }) {
   const t = useT();
+  const words = useArchWords();
   const drawing = useRef<SVGSVGElement>(null);
   useEffect(() => {
     if (selection?.kind !== 'station') return;
@@ -84,12 +99,12 @@ function SystemMap({ layout, links, nodes, selection, select, colour, label, sca
         const to = nodes.get(e.to)?.name ?? e.to;
         const on = selection?.kind === 'link' && selection.id === e.id;
         return (
-          <g key={e.id} className={`arch-edge k-${e.kind}${on ? ' on' : ''}${lit(e.id) ? '' : ' dim'}${link.confidence === 'sure' ? '' : ' uncertain'}`} role="button" tabIndex={0}
-            aria-pressed={on} aria-label={t('app.arch.linkLabel', { from, verb: link.verb, to, confidence: t(`arch.conf.${link.confidence}`) })}
+          <g key={e.id} className={`arch-edge k-${e.kind}${on ? ' on' : ''}${lit(e.id) ? '' : ' dim'}${uncertain(link) ? ' uncertain' : ''}`} role="button" tabIndex={0}
+            aria-pressed={on} aria-label={t('app.arch.linkLabel', { from, verb: link.verb, to, confidence: link.certainty ? words.cert[link.certainty]! : t(`arch.conf.${link.confidence}`) })}
             onClick={() => select(on ? null : { kind: 'link', id: e.id })} onKeyDown={key(on ? null : { kind: 'link', id: e.id })}>
             <path className="arch-hit" d={e.d} />
             <path className="arch-line" d={e.d} markerEnd={e.kind === 'package' || e.kind === 'data' ? undefined : 'url(#arch-head)'} />
-            {link.confidence !== 'sure' ? <text className="arch-uncertainty" x={e.lx} y={e.ly - 8} textAnchor="middle">?</text> : null}
+            {uncertain(link) ? <text className="arch-uncertainty" x={e.lx} y={e.ly - 8} textAnchor="middle">?</text> : null}
             {on && !QUIET.has(e.kind) ? <text className="arch-verb" x={e.lx} y={e.ly - 8} textAnchor="middle">{link.verb}</text> : null}
           </g>
         );
@@ -181,23 +196,120 @@ function Proofs({ link }: { link: Link }) {
   );
 }
 
-function LinkDetail({ link, nodes, pages }: { link: Link; nodes: Map<string, Node>; pages: Record<string, string> }) {
+/** A link: what passes, how sure OKB is and why, its proofs, and the person's gestures (F2.4-16, F2.4-17). */
+function LinkDetail({ link, nodes, pages, conflicts, act }: { link: Link; nodes: Map<string, Node>; pages: Record<string, string>; conflicts: Conflict[]; act: (path: string, body: Record<string, unknown>) => Promise<void> }) {
   const t = useT();
+  const words = useArchWords();
+  const [form, setForm] = useState<'exclude' | 'retarget' | null>(null);
+  const [reason, setReason] = useState('');
+  const [target, setTarget] = useState('');
+  useEffect(() => { setForm(null); setReason(''); setTarget(''); }, [link.id]);
   const from = nodes.get(link.from);
   const to = nodes.get(link.to);
   const said = [...new Set(link.calls.map((c) => c.what))];
+  const key = keyOf(link);
+  const conflict = conflicts.find((c) => c.key === key);
+  const targets = [...nodes.values()].filter((n) => (n.kind === 'repo' || n.kind === 'external') && n.id !== link.from && n.id !== link.to);
+  const mine = link.certainty === 'confirmed' && link.origin === 'person';
   return (
     <div className="stack">
       <h2 className="arch-side-title">{from?.name ?? link.from} <span className="muted">→</span> {to?.name ?? link.to}</h2>
-      <p className="arch-side-verb">{link.verb} <span className={`pill ${CONFIDENCE_TONE[link.confidence]}`}>{t(`arch.conf.${link.confidence}`)}</span></p>
+      <p className="arch-side-verb">{link.verb} <Sure link={link} /></p>
+      {link.basis ? <p className="arch-basis small"><Lightbulb size={14} aria-hidden="true" /><span><strong>{words.why} : </strong>{link.basis}</span></p> : null}
       {said.length ? <><h3 className="small">{t('app.arch.passes')}</h3><ul className="arch-calls">{said.map((w) => <li key={w}><code>{w}</code></li>)}</ul></> : null}
       <h3 className="small">{t('app.arch.proof')}</h3>
       {link.evidence.length ? <Proofs link={link} /> : <p className="small muted">{t('app.arch.noProof')}</p>}
-      {link.confidence !== 'sure' ? <p className="notice warn small">{t('app.arch.probableWhy')}</p> : null}
+      {!link.certainty && link.confidence !== 'sure' ? <p className="notice warn small">{t('app.arch.probableWhy')}</p> : null}
+      {conflict ? (
+        <div className="arch-conflict small" role="group" aria-label={words.conflict(conflict.target ?? conflict.action)}>
+          <strong>{words.conflict(conflict.target ? nodes.get(conflict.target)?.name ?? conflict.target : conflict.action)}</strong>{conflict.reason ? <span className="muted"> — {conflict.reason}</span> : null}
+          <div className="arch-open"><button type="button" className="btn sm" onClick={() => void act('/api/arch/conflict', { key, keep: 'mine' })}>{words.keepMine}</button><button type="button" className="btn sm" onClick={() => void act('/api/arch/conflict', { key, keep: 'agent' })}>{words.takeAgent}</button></div>
+        </div>
+      ) : null}
+      <div className="arch-open">
+        {link.certainty !== 'confirmed' ? <button type="button" className="btn sm primary" onClick={() => void act('/api/arch/link/confirm', { key })}>{words.confirm}</button> : null}
+        <button type="button" className="btn sm" aria-expanded={form === 'retarget'} onClick={() => setForm(form === 'retarget' ? null : 'retarget')}>{words.retarget}</button>
+        <button type="button" className="btn sm ghost" aria-expanded={form === 'exclude'} onClick={() => setForm(form === 'exclude' ? null : 'exclude')}><EyeOff size={14} aria-hidden="true" />{words.exclude}</button>
+        {mine ? <button type="button" className="btn sm ghost" onClick={() => void act('/api/arch/link/reset', { key })}>{words.undo}</button> : null}
+      </div>
+      {form === 'retarget' ? (
+        <form className="arch-form stack" onSubmit={(e) => { e.preventDefault(); if (target) void act('/api/arch/link/retarget', { key, target, reason }).then(() => setForm(null)); }}>
+          <label className="small">{words.isActually}<select className="input" value={target} onChange={(e) => setTarget(e.target.value)}><option value="" />{targets.map((n) => <option key={n.id} value={n.id}>{n.name === n.tech ? n.name : `${n.name} · ${n.tech}`}</option>)}</select></label>
+          <label className="small">{words.reasonLabel}<input className="input" value={reason} placeholder={words.reasonHint} maxLength={300} onChange={(e) => setReason(e.target.value)} /></label>
+          <div className="arch-open"><button type="submit" className="btn sm primary" disabled={!target}>{words.save}</button><button type="button" className="btn sm ghost" onClick={() => setForm(null)}>{words.cancel}</button></div>
+        </form>
+      ) : null}
+      {form === 'exclude' ? (
+        <form className="arch-form stack" onSubmit={(e) => { e.preventDefault(); if (reason.trim()) void act('/api/arch/link/exclude', { key, reason }).then(() => setForm(null)); }}>
+          <label className="small">{words.reasonLabel}<input className="input" value={reason} placeholder={words.reasonHint} maxLength={300} required onChange={(e) => setReason(e.target.value)} /></label>
+          <div className="arch-open"><button type="submit" className="btn sm primary" disabled={!reason.trim()}>{words.excludeDo}</button><button type="button" className="btn sm ghost" onClick={() => setForm(null)}>{words.cancel}</button></div>
+        </form>
+      ) : null}
+      <p className="xs muted">{words.kept}</p>
       <div className="arch-open">
         {[from, to].filter((n): n is Node => Boolean(n && n.kind === 'repo' && pages[n.id])).map((n) => <a key={n.id} className="btn sm" href={hrefFor({ name: 'repos', id: pages[n.id]! })}>{t('app.arch.open', { name: n.name })}</a>)}
       </div>
     </div>
+  );
+}
+
+const ROLE_ICON: Readonly<Record<string, ReactNode>> = {
+  registry: <Package size={16} aria-hidden="true" />, 'source-host': <GitBranch size={16} aria-hidden="true" />, doc: <BookOpen size={16} aria-hidden="true" />,
+  asset: <ImageIcon size={16} aria-hidden="true" />, platform: <Server size={16} aria-hidden="true" />, unknown: <CircleHelp size={16} aria-hidden="true" />,
+};
+
+/** What the repositories write that is not a relation, by role; the excluded links; the corrections with no effect (F2.4-18). */
+function OffMapPanel({ model, nodes, act }: { model: NonNullable<ArchData['model']>; nodes: Map<string, Node>; act: (path: string, body: Record<string, unknown>) => Promise<void> }) {
+  const words = useArchWords();
+  const hosts = new Map<string, Map<string, OffMap[]>>();
+  for (const o of model.offMap ?? []) {
+    const byHost = hosts.get(o.role) ?? new Map<string, OffMap[]>();
+    byHost.set(o.host, [...(byHost.get(o.host) ?? []), o]);
+    hosts.set(o.role, byHost);
+  }
+  const roles = ['registry', 'source-host', 'doc', 'asset', 'platform', 'unknown'].filter((r) => hosts.has(r));
+  const excluded = model.excluded ?? [];
+  const stale = model.stale ?? [];
+  if (!roles.length && !excluded.length && !stale.length) return null;
+  const name = (id: string) => nodes.get(id)?.name ?? id;
+  return (
+    <section className="panel arch-off" aria-label={words.offTitle}>
+      <div className="panel-head"><h2><EyeOff size={17} aria-hidden="true" />{words.offTitle}</h2><span className="small muted">{words.offWhy}</span></div>
+      <div className="panel-body">
+        {roles.map((role) => {
+          const [title, why] = words.roles[role] ?? [role, ''];
+          const list = [...hosts.get(role)!.entries()];
+          return (
+            <details key={role} className="arch-off-group" open={role === 'unknown'}>
+              <summary>{ROLE_ICON[role]}<span className="grow"><span className="arch-off-title">{title}</span><span className="small muted">{why}</span></span><span className="pill sm num">{list.length}</span></summary>
+              <ul className="arch-off-hosts">
+                {list.map(([host, found]) => (
+                  <li key={host}>
+                    <code>{host}</code>
+                    <span className="xs muted">{[...new Set(found.map((f) => `${f.repo} · ${f.evidence.file}:${f.evidence.line}`))].slice(0, 3).join(' · ')}{found.length > 3 ? ` · ${words.inRepos(new Set(found.map((f) => f.repo)).size)}` : ''}</span>
+                    {role === 'unknown' ? (
+                      <span className="arch-classify">{Object.entries(words.classifyAs).map(([r, label]) => <button key={r} type="button" className="btn sm" aria-label={`${host} : ${label}`} onClick={() => void act('/api/arch/url/classify', { host, role: r })}>{label}</button>)}</span>
+                    ) : <button type="button" className="btn sm ghost" onClick={() => void act('/api/arch/url/classify', { host, role: 'call' })}>{words.isExternal}</button>}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          );
+        })}
+        {excluded.length ? (
+          <details className="arch-off-group" open>
+            <summary><Ban size={16} aria-hidden="true" /><span className="grow"><span className="arch-off-title">{words.excludedTitle}</span><span className="small muted">{words.excludedWhy}</span></span><span className="pill sm num">{excluded.length}</span></summary>
+            <ul className="arch-off-hosts">{excluded.map((l) => <li key={keyOf(l)}><span>{name(l.from)} → {name(l.to)}</span><span className="xs muted">« {l.reason} » · {l.at.slice(0, 10)}</span><button type="button" className="btn sm ghost" onClick={() => void act('/api/arch/link/reset', { key: keyOf(l) })}>{words.putBack}</button></li>)}</ul>
+          </details>
+        ) : null}
+        {stale.length ? (
+          <details className="arch-off-group" open>
+            <summary><CircleHelp size={16} aria-hidden="true" /><span className="grow"><span className="arch-off-title">{words.staleTitle}</span><span className="small muted">{words.staleWhy}</span></span><span className="pill sm num">{stale.length}</span></summary>
+            <ul className="arch-off-hosts">{stale.map((x) => <li key={x.key}><code>{x.key}</code><span className="xs muted">{x.action} · {x.at.slice(0, 10)}</span><button type="button" className="btn sm ghost" onClick={() => void act('/api/arch/link/reset', { key: x.key })}>{words.removeRule}</button></li>)}</ul>
+          </details>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -279,6 +391,9 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
   const [expanded, setExpanded] = useState<string[]>([]);
   const [allRelations, setAllRelations] = useState(false);
   const [flowLimit, setFlowLimit] = useState(12);
+  const [showSupposed, setShowSupposed] = useState(true);
+  const [showExternal, setShowExternal] = useState(true);
+  const qc = useQueryClient();
   const side = useRef<HTMLElement>(null);
   useEffect(() => { select(null); setAnyway(false); setFocus(''); setExpanded([]); setAllRelations(false); setFlowLimit(12); }, [which, route.from, route.call]);
   useEffect(() => {
@@ -286,7 +401,19 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-  const data = q.data;
+  const raw = q.data;
+  // The person's filters apply to the map and the list alike (F2.4-18).
+  const data = useMemo(() => {
+    if (!raw?.model || (showSupposed && showExternal)) return raw;
+    const keep = (l: Link) => (showSupposed || !uncertain(l)) && (showExternal || l.kind !== 'external');
+    const nodes = raw.model.nodes.filter((n) => showExternal || n.kind !== 'external');
+    const views = raw.views ? { ...raw.views, containers: { ...raw.views.containers, boxes: raw.views.containers.boxes.filter((n) => showExternal || n.kind !== 'external'), arrows: raw.views.containers.arrows.filter(keep) } } : raw.views;
+    return { ...raw, model: { ...raw.model, nodes, links: raw.model.links.filter(keep) }, ...(views ? { views } : {}) };
+  }, [raw, showSupposed, showExternal]);
+  const act = async (path: string, body: Record<string, unknown>) => {
+    try { await post(path, body); toast(words.kept); } catch (e) { toast((e as Error).message, 'err'); }
+    await qc.invalidateQueries({ queryKey: ['arch'] });
+  };
   const colour = useColours(data ?? { system: null });
   const view = data?.views ? (which === 'flow' ? data.views.flow : data.views[which]) : null;
   const complete = useMemo(() => {
@@ -352,6 +479,7 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
             </select>
           </label>
         ) : null}
+        {which !== 'flow' ? <><label className="small arch-filter"><input type="checkbox" checked={showSupposed} onChange={(e) => setShowSupposed(e.target.checked)} />{words.supposedOnly}</label><label className="small arch-filter"><input type="checkbox" checked={showExternal} onChange={(e) => setShowExternal(e.target.checked)} />{words.externalOnly}</label></> : null}
         <span className="spacer" />
         {view ? <span className={`pill num ${view.check.score >= 80 ? 'ok' : 'warn'}`} title={words.structureWhy}>{words.structure} {view.check.score}/100</span> : null}
         {view ? <button type="button" className="btn ghost sm" onClick={() => void copy()}><Copy size={14} aria-hidden="true" />{t('app.arch.copy')}</button> : null}
@@ -380,7 +508,7 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
         <aside ref={side} className="panel arch-side" aria-live="polite" tabIndex={-1}>
           <div className="panel-body stack">
             {selection ? <button type="button" className="btn ghost sm icon arch-clear" aria-label={t('app.arch.clear')} onClick={() => select(null)}><X size={16} aria-hidden="true" /></button> : null}
-            {selected ? <LinkDetail link={selected} nodes={nodes} pages={pages} />
+            {selected ? <LinkDetail link={selected} nodes={nodes} pages={pages} conflicts={model.conflicts ?? []} act={act} />
               : station ? <StationDetail node={station} links={model.links} nodes={nodes} pages={pages} select={choose} />
               : <><p className="small muted">{t('app.arch.hint')}</p><Questions questions={model.questions} /></>}
           </div>
@@ -406,11 +534,12 @@ export default function Arch({ route }: { route: Extract<Route, { name: 'repos' 
             return rows.length ? <ul className="arch-relation-list">{rows.map((l) => <li key={l.id}><button className="arch-relation-row" type="button" aria-pressed={selection?.kind === 'link' && selection.id === l.id} onClick={() => { choose({ kind: 'link', id: l.id }); side.current?.scrollIntoView({ block: 'nearest' }); side.current?.focus({ preventScroll: true }); }}>
               <span>{nodes.get(l.from)?.name ?? l.from} <span className="muted">→</span> {nodes.get(l.to)?.name ?? l.to}</span>
               <span className="small muted">{l.verb} · {l.calls.map((c) => c.what).join(' · ')}</span>
-              <span className={`pill ${CONFIDENCE_TONE[l.confidence]}`}>{t(`arch.conf.${l.confidence}`)}</span><span className="xs muted">{words.sourceCount(l.evidence.length)}</span>
+              <Sure link={l} /><span className="xs muted">{words.sourceCount(l.evidence.length)}</span>
             </button></li>)}</ul> : <p className="small muted">{words.noRelations}</p>;
           })()}
         </div>
       </section>
+      {which !== 'flow' ? <OffMapPanel model={raw?.model ?? model} nodes={nodes} act={act} /> : null}
     </div>
   );
 }
