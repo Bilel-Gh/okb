@@ -10,6 +10,7 @@ import { layoutMap, type MapLayout, type Station } from './arch-layout';
 import { lineOf } from './Repos';
 import { exploreMap, initialFocus } from './arch-exploration';
 import { useArchWords } from './arch-copy';
+import { TeamLine } from './RepoTeam';
 import '../styles/arch.css';
 import { flowView, renderMap } from '../../../src/arch/views';
 
@@ -327,6 +328,7 @@ function StationDetail({ node, links, nodes, pages, select }: { node: Node; link
       {out.length ? <><h3 className="small">{t('app.arch.out')}</h3><ul className="arch-link-rows">{out.map((l) => row(l, l.to, '→'))}</ul></> : null}
       {into.length ? <><h3 className="small">{t('app.arch.in')}</h3><ul className="arch-link-rows">{into.map((l) => row(l, l.from, '←'))}</ul></> : null}
       {!out.length && !into.length ? <p className="small muted">{t('app.arch.none')}</p> : null}
+      {node.kind === 'repo' && pages[node.id] ? <TeamLine kind="repo" subject={pages[node.id]!} /> : null}
       {pages[node.id] ? <span><a className="btn sm" href={hrefFor({ name: 'repos', id: pages[node.id]! })}>{t('app.arch.open', { name: node.name })}</a></span> : null}
     </div>
   );

@@ -13,6 +13,7 @@ import { LevelBar, type Tier } from '../ui/LevelBar';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { ExamPanel } from './Exam';
 import { RepoRelations } from './RepoRelations';
+import { RepoTeam } from './RepoTeam';
 import { TicketPreview } from '../ui/WorkPreview';
 import { useShareWords } from '../app/sharing';
 
@@ -361,7 +362,7 @@ function Detail({ data, id, setTitle }: { data: ReposData; id: string; setTitle?
   return (
     <div className="stack lg">
       <a className="btn ghost sm" style={{ alignSelf: 'flex-start' }} href={hrefFor({ name: 'repos' })}><ArrowLeft size={16} aria-hidden="true" />{t('app.repos.back')}</a>
-      {linked ? <LinkedDetail id={linked.id} color={color} setTitle={setTitle} /> : unlinked ? (
+      {linked ? <><RepoTeam repo={linked.id} product={linked.product || null} /><LinkedDetail id={linked.id} color={color} setTitle={setTitle} /></> : unlinked ? (
         <>
           <LevelPanel name={name} level={unlinked.level} color={color} />
           <ExamPanel repo={unlinked.name} color={color} />

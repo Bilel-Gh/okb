@@ -32,6 +32,16 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
   const op = (id: string, input: (q: URLSearchParams, b: Body) => unknown): Handler => async (ctx, q, b) =>
     invoke(id, input(q, b), { config: await kbConfig(ctx, q.get('kb') ?? b.kb), env: ctx.env, actor: 'person' });
   return {
+    // The team responsible for a repository or a product (F2.4-19, F2.4-20, D73).
+    'GET /api/team': op('team.get', (q) => fromQuery(q, ['kind', 'subject'])),
+    'POST /api/team': op('team.set', (_q, b) => pick(b, ['kind', 'subject', 'value', 'origin', 'url'])),
+    'POST /api/team/clear': op('team.clear', (_q, b) => pick(b, ['kind', 'subject'])),
+    'POST /api/team/na': op('team.na', (_q, b) => pick(b, ['kind', 'subject', 'reason'])),
+    'POST /api/team/conflict': op('team.conflict.resolve', (_q, b) => pick(b, ['kind', 'subject', 'keep'])),
+    'POST /api/team/dismiss': op('team.suggestion.dismiss', (_q, b) => pick(b, ['kind', 'subject', 'value'])),
+    'POST /api/team/ask': op('team.requests.create', (_q, b) => pick(b, ['kind', 'subject'])),
+    'POST /api/team/ask/cancel': op('team.requests.cancel', (_q, b) => pick(b, ['id'])),
+    'GET /api/team/prompt': op('team.requests.prompt', (q) => fromQuery(q, ['id', 'lang'])),
     // The person's corrections of the system map (F2.4-17, D72).
     'GET /api/arch/map': op('arch.map', () => ({})),
     'POST /api/arch/link/confirm': op('arch.link.confirm', (_q, b) => pick(b, ['key', 'reason'])),

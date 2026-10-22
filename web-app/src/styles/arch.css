@@ -55,3 +55,15 @@
 .repo-tools-row dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .repo-tools-row code { overflow-wrap: anywhere; }
 @media (max-width: 640px) { .repo-tools-row { grid-template-columns: 1fr; } }
+/* The team responsible (F2.4-19): discreet when unknown, its origin always said. */
+.team-line .row.wrap, .team-conflict .row.wrap { flex-wrap: wrap; gap: 6px 8px; }
+.team-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px 0 8px; border-radius: var(--r-pill); background: var(--sunk); font-weight: 600; }
+.team-pill.inherit { background: transparent; border: 1px solid var(--hair); font-weight: 500; color: var(--ink-2); }
+.team-slot { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border: 1px dashed var(--hair-strong); border-radius: var(--r-pill); color: var(--ink-3); background: transparent; font: inherit; font-size: 13px; cursor: pointer; }
+.team-slot:hover, .team-slot:focus-visible { border-color: var(--accent); color: var(--accent-text); background: var(--accent-soft); }
+.team-slot.asked { border-style: solid; border-color: var(--accent); color: var(--accent-text); background: var(--accent-soft); cursor: default; }
+.team-conflict { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); background: var(--warn-soft); }
+.team-conflict strong { display: inline-flex; gap: 6px; align-items: center; color: var(--warn); }
+.team-sugg { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px; border: 1px dashed var(--hair-strong); border-radius: 12px; }
+.team-prompt { white-space: pre-wrap; font-family: var(--mono); font-size: 12px; background: var(--sunk); border-radius: 10px; padding: 10px 12px; margin: 0; }
+.team-edit .input { min-width: 0; flex: 1 1 200px; }

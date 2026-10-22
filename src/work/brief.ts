@@ -22,6 +22,7 @@ import { listTickets, syncTicket, ticketNoteIn, type JournalEntry, type RepoProg
 import { noteRepo, tiedNotes } from './rank.js';
 import { ticketDetail, type TicketState, type Attempt } from './ticket-state.js';
 import { openRequests } from './ticket-requests.js';
+import { openTeamRequests, teamOf } from '../team/team.js';
 
 /**
  * The brief: what Claude needs to work in a scope, small enough to read at
@@ -65,6 +66,10 @@ export type Brief = {
   readonly landscape: string | null;
   /** What the person asked the agent to find (F2.4-10): open requests of this repository, or of the KB. */
   readonly requests: readonly { readonly id: string; readonly ref: string; readonly fields: readonly string[]; readonly since: string }[];
+  /** The team responsible for this repository (F2.4-19): its own, else its product's (`inherited` names the product). */
+  readonly team?: { readonly value: string; readonly origin: string; readonly inherited: string | null } | null;
+  /** Open requests to find a team (F2.4-20). */
+  readonly teamRequests?: readonly { readonly id: string; readonly kind: string; readonly subject: string; readonly since: string }[];
 };
 
 /* --------------------------------------------------------- neighbours */
@@ -150,7 +155,10 @@ export async function buildBrief(scope: Scope, options: { sync?: boolean; bundle
   const places = new Map<string, RepoPlace>();
   for (const r of allRepos) places.set(r.id, await repoPlace(config, r));
   const requests = openRequests(config, scope.repo ? { repo: scope.repo.id } : {}).map((q) => ({ id: q.id, ref: q.ref, fields: q.fields, since: q.createdAt }));
-  const base = { requests, workspace, kb, sharedKb, via: scope.via, landscape: landscapePath };
+  const teamRequests = openTeamRequests(config).map((q) => ({ id: q.id, kind: q.kind, subject: q.subject, since: q.createdAt }));
+  const owner = scope.repo ? await teamOf(config, 'repo', scope.repo.id).catch(() => null) : null;
+  const team = owner?.value ? { value: owner.value.value, origin: owner.value.origin, inherited: null } : owner?.inherited ? { value: owner.inherited.value.value, origin: owner.inherited.value.origin, inherited: owner.inherited.product } : null;
+  const base = { requests, teamRequests, team, workspace, kb, sharedKb, via: scope.via, landscape: landscapePath };
 
   let ticket: TicketBrief | null = null;
   if (scope.ticket) {
@@ -217,6 +225,12 @@ function journalLine(j: JournalEntry): string {
  * changes. The notes are the user's approved data; the last lines say how to
  * use OKB in this scope.
  */
+/** Open requests to find a team responsible (F2.4-20), with how to answer them. */
+function teamLines(brief: Brief, lines: string[]): void {
+  if (!brief.teamRequests?.length) return;
+  lines.push(`Open team requests: ${brief.teamRequests.map((q) => `${q.kind} ${q.subject} [${q.id}]`).join('; ')}. Find the team responsible with your own tools (ServiceNow assignment group, Jira team or component, wiki team page), write it with \`okb team set <repo|product> <name> --value … --origin … --url …\`, then report with \`okb team requests close <id>\`; never claim a source you could not read.`);
+}
+
 export function renderBrief(brief: Brief, options: { mentionedRef?: string | null } = {}): string {
   const root = brief.kb.root;
   const where = brief.workspace ? `workspace "${brief.workspace.name}", KB "${brief.kb.name}"` : `KB "${brief.kb.name}"`;
@@ -228,6 +242,7 @@ export function renderBrief(brief: Brief, options: { mentionedRef?: string | nul
     if (brief.activeTickets.length) lines.push(`Tickets in progress: ${brief.activeTickets.map((t) => `${t.ref} "${t.title}" (${t.repos.join(', ')})`).join('; ')}.`);
     if (brief.landscape) lines.push(`How the repositories connect: ${root}/${brief.landscape}`);
     if (brief.requests?.length) lines.push(`Open OKB requests: ${brief.requests.map((q) => `${q.ref} (${q.fields.join(', ')}) [${q.id}]`).join('; ')}. Fill them with /okb-dev:ticket once the user picks the repository; never claim a source you could not read.`);
+    teamLines(brief, lines);
     lines.push(
       'For a question across repositories, `okb ask "<question>" --json` searches the whole KB.',
       'If the user starts working without naming a repository or a ticket, ask in one short line which one; for work on one repository, opening Claude Code in its folder is the simplest (the scope follows by itself).',
@@ -251,6 +266,8 @@ export function renderBrief(brief: Brief, options: { mentionedRef?: string | nul
     else if (t.status === 'done' || t.repos.some((p) => p.merged)) lines.push(`This ticket looks finished and has no note yet: offer /okb-dev:ticket to write it (ask first).`);
   }
   if (brief.requests?.length) lines.push(`Open OKB requests: ${brief.requests.map((q) => `${q.ref} (${q.fields.join(', ')}) [${q.id}]`).join('; ')}. The person asked you to fill these with /okb-dev:ticket: read only what your tools allow (Jira, ServiceNow, wiki), record each value with \`okb ticket set\`, then report with \`okb ticket requests close <id>\`; never claim a source you could not read.`);
+  if (brief.team) lines.push(`Team responsible: ${brief.team.value} (${brief.team.inherited ? `from product ${brief.team.inherited}, ` : ''}${brief.team.origin}).`);
+  teamLines(brief, lines);
   if (brief.notes.length) lines.push('Read before exploring the code (approved notes, cite them):', ...list(root, brief.notes));
   else lines.push('This repository has no note yet: offer /okb-dev:onboard if the user is discovering it (ask first).');
   if (brief.recentTickets.length) lines.push('Recent tickets here:', ...list(root, brief.recentTickets));
