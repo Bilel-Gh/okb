@@ -42,3 +42,28 @@ describe('« Ce qui s’est passé »: the few facts that matter since yesterday
     expect(today.happened).toEqual([]);
   });
 });
+
+describe('review fixes of lot C (D75)', () => {
+  it('I5: a busy day of commits does not push the decisions out of the feed', async () => {
+    const { config, env } = await demoBrain();
+    const ctx = { config, env, actor: 'person' as const };
+    const p = await invoke('projects.create', { title: 'Gros chantier' }, ctx);
+    const t0 = Date.now();
+    addEntry(config, { text: 'On garde Kafka', kind: 'decision', project: p.id }, new Date(t0 - 100_000));
+    for (let i = 0; i < 80; i++) addEntry(config, { text: `commit ${i}`, kind: 'commit', project: p.id }, new Date(t0 - 50_000 + i));
+    const today = await invoke('today.view', {}, ctx);
+    expect(today.happened.map((h) => h.text)).toContain('On garde Kafka');
+  });
+
+  it('I6: a ticket todo the agent ticks shows in the feed with its ticket, credited to the agent', async () => {
+    const { config, env } = await demoBrain();
+    const person = { config, env, actor: 'person' as const }; const agent = { config, env, actor: 'agent' as const };
+    const { openDb } = await import('../src/state/db.js');
+    const now = new Date().toISOString();
+    openDb(config).run("INSERT INTO projects (id, module, kind, title, status, ref, created_at, updated_at) VALUES ('P-tk0001', 'dev', 'ticket', 'Le panier', 'active', 'DEMO-30', ?, ?)", now, now);
+    const a = await invoke('actions.add', { text: 'Tester le yen', workRef: 'DEMO-30' }, person);
+    await invoke('actions.update', { id: a.id, status: 'done' }, agent);
+    const entries = await invoke('journal.list', {}, person);
+    expect(entries.entries.find((e) => e.text === 'Tester le yen')).toMatchObject({ kind: 'done', source: 'ai', projectId: 'P-tk0001' });
+  });
+});

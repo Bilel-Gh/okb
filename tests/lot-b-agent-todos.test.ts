@@ -95,3 +95,61 @@ describe('migration (F2.4-21)', () => {
     expect(openDb(config).all<{ name: string }>('PRAGMA table_info(action_refusals)').map((c) => c.name)).toEqual(['work_ref', 'key', 'text', 'at']);
   });
 });
+
+describe('review fixes of lot B (D74)', () => {
+  it('C1: the agent cannot reopen its todo the person removed; only « Annuler » does', async () => {
+    const { person, agent } = await ctxs();
+    const a = await invoke('actions.add', { text: 'Tester le franc suisse', workRef: 'DEMO-20' }, agent);
+    await invoke('actions.delete', { id: a.id }, person);
+    expect((await failure(invoke('actions.update', { id: a.id, status: 'open' }, agent))).code).toBe('E_NOT_APPROVED');
+    expect((await failure(invoke('actions.update', { id: a.id, status: 'done' }, agent))).code).toBe('E_NOT_APPROVED');
+  });
+
+  it('I1: the agent reopens only what was done, never what the person dropped', async () => {
+    const { person, agent } = await ctxs();
+    const mine = await invoke('actions.add', { text: 'Appeler Inès', workRef: 'DEMO-21' }, person);
+    await invoke('actions.update', { id: mine.id, status: 'dropped' }, person);
+    expect((await failure(invoke('actions.update', { id: mine.id, status: 'open' }, agent))).code).toBe('E_NOT_APPROVED');
+    const other = await invoke('actions.add', { text: 'Relire la doc', workRef: 'DEMO-21' }, person);
+    await invoke('actions.update', { id: other.id, status: 'done' }, person);
+    await expect(invoke('actions.update', { id: other.id, status: 'open' }, agent)).resolves.toMatchObject({ status: 'open' });
+  });
+
+  it('I2: the person dropping an agent todo refuses it too', async () => {
+    const { person, agent } = await ctxs();
+    const a = await invoke('actions.add', { text: 'Tester le dollar canadien', workRef: 'DEMO-22' }, agent);
+    await invoke('actions.update', { id: a.id, status: 'dropped' }, person);
+    expect((await failure(invoke('actions.add', { text: 'Tester le dollar canadien', workRef: 'DEMO-22' }, agent))).code).toBe('E_CONFLICT');
+  });
+
+  it('I3: numbers and short texts are not taken for a refused todo', async () => {
+    const { person, agent } = await ctxs();
+    const a = await invoke('actions.add', { text: 'Relire la PR 42', workRef: 'DEMO-23' }, agent);
+    await invoke('actions.delete', { id: a.id }, person);
+    await expect(invoke('actions.add', { text: 'Relire la PR 57', workRef: 'DEMO-23' }, agent)).resolves.toBeTruthy();
+    expect((await failure(invoke('actions.add', { text: 'relire la PR 42 !', workRef: 'DEMO-23' }, agent))).code).toBe('E_CONFLICT');
+  });
+
+  it('I4: the agent cannot reach a refused todo by rewriting or moving another one', async () => {
+    const { person, agent } = await ctxs();
+    const a = await invoke('actions.add', { text: 'Tester la livre turque', workRef: 'DEMO-24' }, agent);
+    await invoke('actions.delete', { id: a.id }, person);
+    const b = await invoke('actions.add', { text: 'Autre chose', workRef: 'DEMO-24' }, agent);
+    expect((await failure(invoke('actions.update', { id: b.id, text: 'Tester la livre turque' }, agent))).code).toBe('E_CONFLICT');
+    const c = await invoke('actions.add', { text: 'Tester la livre turque', workRef: 'DEMO-25' }, agent);
+    expect((await failure(invoke('actions.update', { id: c.id, workRef: 'DEMO-24' }, agent))).code).toBe('E_CONFLICT');
+  });
+
+  it('M3: a ticket reference in another case does not get past a refusal', async () => {
+    const { person, agent } = await ctxs();
+    const a = await invoke('actions.add', { text: 'Tester le rand', workRef: 'DEMO-26' }, agent);
+    await invoke('actions.delete', { id: a.id }, person);
+    expect((await failure(invoke('actions.add', { text: 'Tester le rand', workRef: 'demo-26' }, agent))).code).toBe('E_CONFLICT');
+  });
+
+  it('restore only brings back a removed todo of the agent', async () => {
+    const { person } = await ctxs();
+    const mine = await invoke('actions.add', { text: 'Mon idée', workRef: 'DEMO-27' }, person);
+    expect((await failure(invoke('actions.restore', { id: mine.id }, person))).code).toBe('E_CONFLICT');
+  });
+});

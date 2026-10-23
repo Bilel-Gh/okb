@@ -108,7 +108,8 @@ export async function todayView(config: OkbConfig, env: NodeJS.ProcessEnv, bundl
     first: ordered.slice(0, 3), more: ordered.slice(3, 8), pool: ordered.slice(0, 50), total: ordered.length,
     counts: { progress: ordered.filter((r) => (r.card?.filter ?? 'progress') === 'progress').length, waiting: ordered.filter((r) => r.card?.filter === 'waiting').length, blocked: ordered.filter((r) => r.card?.filter === 'blocked').length },
   };
-  const entries = await listEntries(config, env, { since: startOfDay(shiftDay(now, -1)), limit: 60 });
+  // Enough lines that a day of commits does not push the decisions out (they are filtered below).
+  const entries = await listEntries(config, env, { since: startOfDay(shiftDay(now, -1)), limit: 500 });
   const receipts = await readReceipts(config).catch(() => []);
   const weekAgo = new Date(now.getTime() - 7 * DAY).toISOString();
   const learned = new Map<string, { path: string; title: string; at: string }>();

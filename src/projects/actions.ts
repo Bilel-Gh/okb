@@ -63,14 +63,27 @@ const STOP = new Set(['les', 'des', 'une', 'pour', 'avec', 'dans', 'sur', 'par',
 export function todoKey(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
-const words = (key: string) => new Set(key.split(' ').filter((w) => w.length > 2 && !STOP.has(w)));
-/** Two todos say the same thing when their meaningful words overlap by 80 % or more. */
+/** The words that carry the meaning: a number always counts (« PR 42 » is not « PR 57 »). */
+const words = (key: string) => new Set(key.split(' ').filter((w) => /\d/.test(w) || (w.length > 2 && !STOP.has(w))));
+/** Two todos say the same thing when their meaningful words overlap by 80 % or more; a short one must match exactly. */
 function alike(a: string, b: string): boolean {
   if (a === b) return true;
   const x = words(a), y = words(b);
-  if (!x.size || !y.size) return false;
+  if (x.size < 2 || y.size < 2) return false;
   const shared = [...x].filter((w) => y.has(w)).length;
   return shared / new Set([...x, ...y]).size >= 0.8;
+}
+type Db = ReturnType<typeof openDb>;
+/** The refusal a todo would hit on a ticket, whatever the case of its reference (D74). */
+function refusedOn(db: Db, workRef: string, text: string): { key: string; text: string } | undefined {
+  const key = todoKey(text);
+  return db.all<{ key: string; text: string }>('SELECT key, text FROM action_refusals WHERE upper(work_ref) = upper(?)', workRef).find((r) => alike(r.key, key));
+}
+function refusedError(refused: { text: string }, workRef: string): OkbError {
+  return new OkbError('E_CONFLICT', `the person removed « ${refused.text} » from ${workRef}: do not propose it again`, { key: 'actionRefused', params: { text: refused.text, ref: workRef } });
+}
+function refuse(db: Db, workRef: string, text: string, now: Date): void {
+  db.run('INSERT OR REPLACE INTO action_refusals (work_ref, key, text, at) VALUES (?, ?, ?, ?)', workRef, todoKey(text), text, now.toISOString());
 }
 
 export function addAction(config: OkbConfig, input: NewAction, now = new Date()): Action {
@@ -81,9 +94,9 @@ export function addAction(config: OkbConfig, input: NewAction, now = new Date())
   if (input.source === 'ai' && input.workRef) {
     // D74: the agent never brings back what the person removed, and never adds the same todo twice.
     const key = todoKey(input.text);
-    const refused = db.all<{ key: string; text: string }>('SELECT key, text FROM action_refusals WHERE work_ref = ?', input.workRef).find((r) => alike(r.key, key));
-    if (refused) throw new OkbError('E_CONFLICT', `the person removed « ${refused.text} » from ${input.workRef}: do not propose it again`, { key: 'actionRefused', params: { text: refused.text, ref: input.workRef } });
-    const same = db.all<Row>(`SELECT ${COLUMNS} FROM actions WHERE ticket_ref = ? AND status = 'open'`, input.workRef).find((r) => todoKey(r.text) === key);
+    const refused = refusedOn(db, input.workRef, input.text);
+    if (refused) throw refusedError(refused, input.workRef);
+    const same = db.all<Row>(`SELECT ${COLUMNS} FROM actions WHERE upper(ticket_ref) = upper(?) AND status = 'open'`, input.workRef).find((r) => todoKey(r.text) === key);
     if (same) return fromRow(same);
   }
   const id = newId('A');
@@ -118,8 +131,15 @@ export function updateAction(config: OkbConfig, id: string, patch: ActionPatch, 
   const db = openDb(config);
   return db.tx(() => {
     const before = getAction(config, id);
-    if (actor === 'agent' && before.source !== 'ai' && (patch.text !== undefined || patch.who !== undefined || patch.due !== undefined || patch.workRef !== undefined || patch.status === 'dropped'))
-      throw new OkbError('E_NOT_APPROVED', 'this todo is the person’s: the agent may tick it or set its importance, not rewrite or drop it', { key: 'actionPersonOwn' });
+    if (actor === 'agent') {
+      if (before.source !== 'ai' && (patch.text !== undefined || patch.who !== undefined || patch.due !== undefined || patch.workRef !== undefined || patch.status === 'dropped'))
+        throw new OkbError('E_NOT_APPROVED', 'this todo is the person’s: the agent may tick it or set its importance, not rewrite or drop it', { key: 'actionPersonOwn' });
+      // A removed or dropped todo comes back only by the person (« Annuler »); the agent reopens only what was done.
+      if (patch.status !== undefined && patch.status !== before.status && (before.status === 'dropped' || (patch.status === 'open' && before.status !== 'done')))
+        throw new OkbError('E_NOT_APPROVED', 'the person removed this todo: only they bring it back', { key: 'actionPersonOwn' });
+      const ref = patch.workRef === undefined ? before.workRef : patch.workRef;
+      if (ref && (patch.text !== undefined || patch.workRef !== undefined)) { const refused = refusedOn(db, ref, patch.text ?? before.text); if (refused) throw refusedError(refused, ref); }
+    }
     assertNoSecrets({ text: patch.text ?? '', who: patch.who ?? '' }, 'action');
     checkImportance(patch.importance);
     if (patch.text !== undefined && !patch.text.trim()) throw new OkbError('E_INVALID', 'an action needs a text', { key: 'actionEmpty' });
@@ -132,7 +152,13 @@ export function updateAction(config: OkbConfig, id: string, patch: ActionPatch, 
     const importanceBy = patch.importance !== undefined && patch.importance !== before.importance ? actor : before.importanceBy;
     db.run('UPDATE actions SET text = ?, who = ?, due = ?, status = ?, done_at = ?, importance = ?, pinned = ?, ticket_ref = ?, done_by = ?, importance_by = ? WHERE id = ?',
       patch.text ?? before.text, patch.who === undefined ? before.who : patch.who, patch.due === undefined ? before.due : patch.due, status, doneAt, patch.importance ?? before.importance, pinned ? 1 : 0, workRef, doneBy, importanceBy, id);
-    if (status === 'done' && before.status !== 'done') addEntry(config, { text: patch.text ?? before.text, kind: 'done', ...(before.projectId ? { project: before.projectId } : {}) }, now);
+    // The person dropping the agent's todo refuses it too, as removing it does (D74).
+    if (actor === 'person' && status === 'dropped' && before.status !== 'dropped' && before.source === 'ai' && workRef) refuse(db, workRef, before.text, now);
+    if (status === 'done' && before.status !== 'done') {
+      // Done leaves a line in the journal of its project, or of its ticket, credited to who did it.
+      const project = before.projectId ?? (workRef ? db.get<{ id: string }>('SELECT id FROM projects WHERE upper(ref) = upper(?) ORDER BY updated_at DESC', workRef)?.id ?? null : null);
+      addEntry(config, { text: patch.text ?? before.text, kind: 'done', source: actor === 'agent' ? 'ai' : 'person', ...(project ? { project } : {}) }, now);
+    }
     return getAction(config, id);
   });
 }
@@ -149,7 +175,7 @@ export function deleteAction(config: OkbConfig, id: string, actor: Actor = 'pers
   if (before.source !== 'ai') { db.run('DELETE FROM actions WHERE id = ?', id); return { dropped: false }; }
   db.tx(() => {
     db.run("UPDATE actions SET status = 'dropped', done_at = ?, done_by = ?, pinned = 0 WHERE id = ?", now.toISOString(), actor, id);
-    if (before.workRef) db.run('INSERT OR REPLACE INTO action_refusals (work_ref, key, text, at) VALUES (?, ?, ?, ?)', before.workRef, todoKey(before.text), before.text, now.toISOString());
+    if (before.workRef) refuse(db, before.workRef, before.text, now);
   });
   return { dropped: true };
 }
@@ -157,10 +183,11 @@ export function deleteAction(config: OkbConfig, id: string, actor: Actor = 'pers
 /** « Annuler »: a removed todo of the agent comes back, and the agent may propose it again (D74). */
 export function restoreAction(config: OkbConfig, id: string): Action {
   const before = getAction(config, id);
+  if (before.source !== 'ai' || before.status !== 'dropped') throw new OkbError('E_CONFLICT', 'only a removed todo of the agent comes back this way', { key: 'actionNotRemoved' });
   const db = openDb(config);
   db.tx(() => {
     db.run("UPDATE actions SET status = 'open', done_at = NULL, done_by = NULL WHERE id = ?", id);
-    if (before.workRef) db.run('DELETE FROM action_refusals WHERE work_ref = ? AND key = ?', before.workRef, todoKey(before.text));
+    if (before.workRef) db.run('DELETE FROM action_refusals WHERE upper(work_ref) = upper(?) AND key = ?', before.workRef, todoKey(before.text));
   });
   return getAction(config, id);
 }

@@ -1536,3 +1536,12 @@ cache un an (`immutable`), la page jamais ; `okb serve` lit la mémoire dès son
 démarrage ; l’app précharge les pages les plus visitées une fois la première
 affichée (F2.4-26). Une fiche d’équipe demandée pour un repo connu par ses notes
 mais non enregistré répond « pas d’équipe » au lieu d’une erreur.
+
+Relecture du 23 octobre (D74, D75) : une todo retirée ou abandonnée ne revient
+que par la personne (« Annuler ») ; l’agent ne rouvre que ce qui était fait ;
+abandonner une todo de l’agent la refuse aussi ; un nombre compte dans la
+comparaison et un texte court doit être identique ; réécrire ou déplacer une
+todo ne contourne pas un refus ; la casse de la référence du ticket ne compte
+pas ; une todo cochée laisse sa ligne dans le journal de son ticket, au nom de
+qui l’a cochée ; le fil lit assez de journal pour qu’une journée de commits n’en
+chasse pas les décisions.
