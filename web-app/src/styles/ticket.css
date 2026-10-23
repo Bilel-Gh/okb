@@ -170,3 +170,19 @@
 .tk-agent { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; color: var(--accent-text); font-weight: 600; }
 .tk-agent::before { content: '·'; color: var(--ink-3); font-weight: 400; margin-right: 2px; }
 .c > .tk-agent:first-child::before { content: none; }
+
+/* F2.4-25: « Ce qui s'est passé », five facts, or one quiet line */
+.happened .panel-head { display: flex; align-items: baseline; gap: 8px; }
+.hp-list { list-style: none; margin: 0; padding: 2px 0 4px; }
+.hp-list li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 7px 4px; border-radius: 10px; }
+.hp-ic { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: var(--sunk); color: var(--ink-2); }
+.hp-ic.ok { background: var(--ok-soft); color: var(--ok); }
+.hp-ic.info { background: var(--info-soft); color: var(--info); }
+.hp-ic.warn { background: var(--warn-soft); color: var(--warn); }
+.hp-ic.acc { background: var(--accent-soft); color: var(--accent-text); }
+.hp-t { font-size: 13.5px; line-height: 1.4; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.hp-t b { color: var(--ink); font-weight: 600; }
+.hp-c { font-size: 12px; color: var(--ink-3); }
+.hp-w { font-size: 12px; color: var(--ink-3); white-space: nowrap; padding-top: 4px; }
+.hp-more { display: inline-block; margin: 2px 4px 4px; font-size: 13px; }
+.hp-calm { display: flex; gap: 8px; align-items: center; margin: 0; padding: 4px 0; font-size: 13px; color: var(--ink-3); }

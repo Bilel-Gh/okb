@@ -49,6 +49,11 @@ Details: [release notes 2.0.0](docs/releases/RELEASE-2.0.0.md) · guides (FR):
 
 ## Development preview: 2.1 through 3.0
 
+The [23 October agent todos and Today](docs/releases/RELEASE-USAGE-2026-10-23.md)
+let the agent add todos to a ticket that never come back once removed, show
+« What happened » as five facts with their context, and make the app open and
+move between pages faster.
+
 The [22 October « validate in one gesture »](docs/releases/RELEASE-USAGE-2026-10-22.md)
 lets the agent file the notes the person asks for at once, « to review », and
 the person sort them later in one screen, without a system dialog or a command;

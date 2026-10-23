@@ -11,6 +11,7 @@ import { listKbs } from '../kb/registry.js';
 import { has, t } from '../i18n/index.js';
 import { OkbError } from '../util/errors.js';
 import { MUTATING, routeFor, type ApiContext } from './api.js';
+import { loadBundleFor } from '../kb/bundle.js';
 import { backupDue, runBackup } from '../brain/backup.js';
 
 /**
@@ -183,7 +184,10 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
       if (!file.startsWith(WEB_ROOT + sep) || rel.includes('\0')) { json({ error: 'Not found.' }, 404); return; }
       const content = assets ? assets.get(rel.split(sep).join('/')) ?? null : await readFile(file).catch(() => null);
       if (!content) { json({ error: 'Not found.' }, 404); return; }
-      res.writeHead(200, { 'Content-Type': `${TYPES[extname(file)] ?? 'application/octet-stream'}; charset=utf-8` });
+      // F2.4-26: a versioned file of the app (its name changes with its content) stays in the browser, compiled;
+      // the page itself is always asked again, so an update is seen at once.
+      const versioned = /^app\/assets\/[^/]+-[\w-]{6,}\.[a-z0-9]+$/.test(rel.split(sep).join('/'));
+      res.writeHead(200, { 'Content-Type': `${TYPES[extname(file)] ?? 'application/octet-stream'}; charset=utf-8`, ...(versioned ? { 'Cache-Control': 'public, max-age=31536000, immutable' } : {}) });
       res.end(content);
     } catch (error) {
       // Never leak a stack or a private path to the page: code, and a message for people.
@@ -229,6 +233,8 @@ export async function serve(config: OkbConfig | null, options: { port?: number; 
   stopServer = () => { void shutdown().catch(() => undefined); };
   // The app alone must be enough: it takes the day's snapshot too (F2.0-14), a little after it opens, then checks every hour.
   scheduleSoon();
+  // F2.4-26: read the memory once now, so the first page the person opens does not wait for it.
+  if (config) track(loadBundleFor(config).then(() => undefined));
   hourly = setInterval(snapshot, 3_600_000); hourly.unref();
   server.once('close', () => { stopping = true; clearTimers(); });
   return { server, url: origin, shutdown, openUrl };

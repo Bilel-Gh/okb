@@ -70,6 +70,18 @@ for (const tickets of sizes) {
     const warm = [];
     for (let i = 0; i < 20; i++) warm.push((await timed(() => api(`/api/find?kb=perf&q=${encodeURIComponent(QUERIES[i % QUERIES.length])}`))).ms);
     const home = await timed(() => Promise.all(['/api/status', '/api/brain', '/api/proposals', '/api/suggestions', '/api/learn', '/api/progress'].map(p => api(`${p}?kb=perf`))));
+    // F2.4-26: every page's own requests, cold (first open) then warm (coming back), slowest first.
+    const ROUTES = ['/api/today', '/api/status', '/api/review', '/api/notes', '/api/brain', '/api/brain/graph', '/api/categories', '/api/tickets', '/api/projects', '/api/actions', '/api/repos', '/api/arch/map', '/api/evening', '/api/inbox', '/api/indicators', '/api/health', '/api/journal', '/api/day', '/api/weekly', '/api/understanding/overview', '/api/learn', '/api/progress', '/api/documents', '/api/settings'];
+    const pages = [];
+    for (const path of ROUTES) {
+      const sep = '?kb=perf';
+      try {
+        const c = await timed(() => api(path + sep));
+        const w = await timed(() => api(path + sep));
+        pages.push({ path, coldMs: c.ms, warmMs: w.ms });
+      } catch (e) { pages.push({ path, error: String(e.message ?? e).slice(0, 80) }); }
+    }
+    pages.sort((x, y) => (y.coldMs ?? 0) - (x.coldMs ?? 0));
     // One note changes (as after an approval): the next search reads it again and updates the index.
     const edited = (await loadBundleFor(config)).entries.find(e => !e.reserved && e.path.includes('/'));
     const file = resolve(kb, edited.path);
@@ -84,6 +96,7 @@ for (const tickets of sizes) {
       findWarmP95Ms: pct(warm, 95),
       homeSixRequestsMs: home.ms,
       findAfterEditMs: afterEdit.ms,
+      pages,
     };
     rows.push(row);
     console.log(JSON.stringify(row));

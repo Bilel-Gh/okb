@@ -41,6 +41,7 @@ export async function openApp(browser: Browser, options: { baggage?: boolean; wi
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(`page: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+  page.on('response', (r) => { if (r.status() === 404) errors.push(`404: ${new URL(r.url()).pathname}${new URL(r.url()).search.replace(/kb=[^&]*&?/, "")}`); });
   await page.goto(started.url);
   // The app is there when its screens are: a key pressed before that would go nowhere.
   await page.locator('.tabbar, nav[aria-label="Écrans"]').first().waitFor({ state: 'attached' });

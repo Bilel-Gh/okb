@@ -38,6 +38,8 @@ export type TodayView = {
   readonly waiting: readonly TodayAction[];
   /** What happened today and yesterday. */
   readonly done: readonly Entry[];
+  /** « Ce qui s’est passé » (F2.4-25): the five facts that matter since yesterday, newest first, with their context. */
+  readonly happened: readonly Happened[];
   /** The notes that entered the memory in the last seven days. */
   readonly learned: readonly { readonly path: string; readonly title: string; readonly at: string }[];
   readonly review: { readonly due: number };
@@ -51,6 +53,19 @@ export type TodayView = {
   /** One thing to understand: a concept the notes use and the person never opened. */
   readonly understand: { readonly path: string; readonly title: string; readonly usedBy: number } | null;
 };
+
+export type Happened = {
+  readonly kind: Entry['kind'] | 'filed';
+  readonly text: string;
+  readonly at: string;
+  /** The project or ticket it belongs to, for a link. */
+  readonly project: { readonly id: string; readonly title: string; readonly ref: string | null; readonly kind: string } | null;
+  /** A note filed in the memory, and where it stands with the person (D71). */
+  readonly path?: string;
+  readonly review?: 'pending' | 'validated' | null;
+};
+/** Technical lines (commits, the agent's own notes, « resume » marks) stay in the journal, not on Today. */
+const NOT_HAPPENED = new Set<string>(['commit', 'ai', 'resume']);
 
 const DAY = 86_400_000;
 
@@ -104,6 +119,19 @@ export async function todayView(config: OkbConfig, env: NodeJS.ProcessEnv, bundl
       if (entry && !entry.reserved && !learned.has(res.path)) learned.set(res.path, { path: res.path, title: entry.title, at: r.appliedAt });
     }
   }
+  const since = startOfDay(shiftDay(now, -1));
+  const allProjects = new Map((await listProjects(config, env, { status: 'all' })).map((p) => [p.id, p]));
+  const { reviewOf } = await import('../review/state.js');
+  const happened: Happened[] = [
+    ...entries.filter((e) => !NOT_HAPPENED.has(e.kind)).map((e): Happened => {
+      const p = e.projectId ? allProjects.get(e.projectId) : undefined;
+      return { kind: e.kind, text: e.text, at: e.at, project: p ? { id: p.id, title: p.title, ref: p.ref, kind: p.kind } : null };
+    }),
+    ...receipts.filter((r) => r.appliedAt >= since).flatMap((r) => r.results.filter((x) => x.action === 'created').map((x): Happened | null => {
+      const entry = bundle.byPath.get(x.path);
+      return entry && !entry.reserved ? { kind: 'filed', text: entry.title, at: r.appliedAt, project: null, path: x.path, review: reviewOf(config, x.path)?.state ?? null } : null;
+    })).filter((h): h is Happened => h !== null),
+  ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5);
   const scores = await scoresFor(config, bundle);
   const recheck = await moduleNotesToRecheck(config, env, bundle);
   return {
@@ -115,6 +143,7 @@ export async function todayView(config: OkbConfig, env: NodeJS.ProcessEnv, bundl
     todo: open.filter((a) => a.kind === 'todo' || a.kind === 'asked').slice(0, 12).map(shape),
     waiting: open.filter((a) => a.kind === 'waiting').slice(0, 12).map(shape),
     done: entries.filter((e) => e.kind !== 'resume').slice(0, 12),
+    happened,
     learned: [...learned.values()].slice(0, 8),
     review: { due: await dueCount(config, now).catch(() => 0) },
     backup: await backupStatus(config, env, now).then((b) => ({ state: b.state, date: b.last?.date ?? null }), () => ({ state: 'never' as const, date: null })),

@@ -7,7 +7,7 @@ import { toast } from '../app/toast';
 
 type Value = { value: string; origin: string; url: string | null; at: string; manual: boolean };
 type Team = {
-  kind: 'repo' | 'product'; subject: string; value: Value | null; inherited: { product: string; value: Value } | null; notApplicable: string | null;
+  kind: 'repo' | 'product'; subject: string; registered?: boolean; value: Value | null; inherited: { product: string; value: Value } | null; notApplicable: string | null;
   conflicts: { value: string; origin: string; url: string | null; at: string }[]; suggestion: { value: string; origin: string; file: string; line: number } | null;
   request: { id: string; createdAt: string } | null;
 };
@@ -28,7 +28,7 @@ export function TeamLine({ kind, subject, label }: { kind: 'repo' | 'product'; s
   const [value, setValue] = useState('');
   const team = q.data;
   const prompt = useQuery({ queryKey: ['team', 'prompt', team?.request?.id ?? ''], enabled: Boolean(team?.request), queryFn: () => get<{ prompt: string }>('/api/team/prompt', { id: team!.request!.id, lang: t.lang }) });
-  if (!team || !Array.isArray(team.conflicts)) return null;
+  if (!team || !Array.isArray(team.conflicts) || team.registered === false) return null;
   const act = async (path: string, body: Record<string, unknown>) => {
     try { await post(path, { kind, subject, ...body }); } catch (e) { toast((e as Error).message, 'err'); }
     await qc.invalidateQueries({ queryKey: ['team'] });

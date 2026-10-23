@@ -16,6 +16,7 @@ import { NotesToRecheck, type NoteToRecheck } from '../ui/NotesToRecheck';
 import { ActionList, JournalList, type Action, type Entry } from './day-parts';
 import type { Project } from './Projects';
 import { Requests, ResumeWork, TodoBoard, type PendingRequest, type ResumeCards, type TodoAction } from './today-work';
+import { HappenedFeed, type Happened } from './today-happened';
 
 export type Suggestion = {
   id: string; type: string; title: string; why: string; breadcrumb: string; status: string; recommendation: 'create' | 'complete' | 'link' | 'nothing';
@@ -151,6 +152,7 @@ type TodayData = {
   todo: TodoAction[];
   waiting: Action[];
   done: Entry[];
+  happened: Happened[];
   learned: { path: string; title: string; at: string }[];
   review: { due: number };
   toValidate: number;
@@ -201,15 +203,13 @@ function TodayTab() {
           {d?.requests?.length ? <Requests requests={d.requests} /> : null}
           <UnderstandingToday />
           <NotesToRecheck notes={d?.notesToRecheck} unavailable={d?.recheckUnavailable} />
-          <Panel title={t('app.today.review')}>
+          {d?.review.due ? <Panel title={t('app.today.review')}>
             <div className="row" style={{ gap: 12 }}>
-              <p className="grow">{d ? (d.review.due ? tn(t, 'app.today.cards', d.review.due) : t('app.today.noCards')) : <span className="skeleton" style={{ width: 160, display: 'inline-block' }} />}</p>
-              {d?.review.due ? <a className="btn sm" href={hrefFor({ name: 'learn' })}><Layers size={14} aria-hidden="true" />{t('app.today.review')}</a> : null}
+              <p className="grow">{tn(t, 'app.today.cards', d.review.due)}</p>
+              <a className="btn sm" href={hrefFor({ name: 'learn' })}><Layers size={14} aria-hidden="true" />{t('app.today.review')}</a>
             </div>
-          </Panel>
-          <Panel title={t('app.today.done')}>
-            <JournalList entries={d?.done ?? []} showProject empty={t('app.today.doneEmpty')} />
-          </Panel>
+          </Panel> : null}
+          <HappenedFeed items={d?.happened ?? []} />
           {d?.learned.length ? (
             <Panel title={t('app.today.learned')} flush>
               <ul className="rows tight">

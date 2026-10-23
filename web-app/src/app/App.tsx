@@ -90,6 +90,9 @@ export function App() {
       const i18n = await get<{ lang: 'fr' | 'en'; messages: Messages }>('/api/i18n');
       document.documentElement.lang = i18n.lang;
       setState({ t: makeT(i18n.messages, i18n.lang) });
+      // F2.4-26: once the first page is shown, fetch the pages people go to most, so moving to them never waits.
+      const warm = () => { for (const load of [() => import('../pages/Today'), () => import('../pages/Brain'), () => import('../pages/Inbox'), () => import('../pages/Tickets'), () => import('../pages/Projects'), () => import('../pages/Repos')]) void load().catch(() => undefined); };
+      if ('requestIdleCallback' in window) window.requestIdleCallback(warm, { timeout: 3000 }); else setTimeout(warm, 1500);
     } catch (error) {
       setState({ error });
     }

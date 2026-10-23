@@ -1520,3 +1520,19 @@ seulement) la rouvre et lève le refus. Une todo de la personne se supprime comm
 avant (F2.4-23). Le brief de session et le skill donnent la règle : trois todos
 au plus par session, chacune annoncée en une ligne, davantage sur demande — une
 conduite de l’agent, pas une limite du moteur (F2.4-24).
+
+## D75 — « Ce qui s’est passé » et une app plus fluide (23 octobre 2026)
+
+Sur l’accueil, « Ce qui s’est passé » devient un fil de cinq faits marquants
+depuis hier (todo faite, décision, réunion, essai, question, piège, note rangée),
+chacun avec son mot, son heure et un lien vers son contexte ; les lignes
+techniques (commits, notes internes de l’agent, reprises) restent dans le
+journal ; le formulaire « Noter » quitte l’accueil, aucune donnée n’est
+supprimée ; une journée calme tient en une ligne (F2.4-25).
+
+Mesuré sur 1 215 notes, le serveur répond en moins de 80 ms par page : la
+lenteur venait du navigateur. Les fichiers versionnés de l’app sont gardés en
+cache un an (`immutable`), la page jamais ; `okb serve` lit la mémoire dès son
+démarrage ; l’app précharge les pages les plus visitées une fois la première
+affichée (F2.4-26). Une fiche d’équipe demandée pour un repo connu par ses notes
+mais non enregistré répond « pas d’équipe » au lieu d’une erreur.

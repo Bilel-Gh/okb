@@ -79,6 +79,11 @@ describe('F2.4-19 · the team responsible for a repository (D73)', () => {
     await expect(invoke('team.set', { kind: 'repo', subject: 'nowhere', value: 'Équipe X' }, person)).rejects.toMatchObject({ code: 'E_NOT_FOUND' });
     await expect(invoke('team.set', { kind: 'product', subject: 'Nulle part', value: 'Équipe X' }, person)).rejects.toMatchObject({ code: 'E_NOT_FOUND' });
   });
+
+  it('reads « no team » for a repository the map knows from its notes but nobody registered (no 404 in the app)', async () => {
+    const { person } = await setup();
+    await expect(invoke('team.get', { kind: 'repo', subject: 'nowhere' }, person)).resolves.toMatchObject({ subject: 'nowhere', value: null, registered: false });
+  });
 });
 
 describe('F2.4-20 · asking the agent for the team', () => {

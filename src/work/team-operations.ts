@@ -22,7 +22,12 @@ const originOf = (ctx: OpContext, o?: Origin): Origin => (ctx.actor === 'person'
 
 export const teamGet = defineOperation({
   id: 'team.get', module: 'dev', effect: 'read', summary: 'The team responsible for a repository or a product: value with origin, link and date, the product’s team a repository inherits, conflicts, the CODEOWNERS suggestion and the open request.',
-  input: target, run: async (ctx, i) => teamOf(ctx.config, i.kind, i.subject, ctx.env),
+  input: target, run: async (ctx, i) => {
+    // A repository the map knows from its notes but nobody registered has no team to show: say so, not an error.
+    if (i.kind === 'repo' && !(await teamRepo(ctx.config, i.subject, ctx.env).then(() => true, () => false)))
+      return { kind: i.kind, subject: i.subject, value: null, inherited: null, notApplicable: null, conflicts: [], suggestion: null, request: null, registered: false };
+    return { ...(await teamOf(ctx.config, i.kind, i.subject, ctx.env)), registered: true };
+  },
 });
 export const teamSet = defineOperation({
   id: 'team.set', module: 'dev', effect: 'state', summary: 'Write the team responsible with its origin and link. A team the person wrote is never replaced: a different one is kept as a conflict. Never invent a team.',
