@@ -222,12 +222,56 @@ Montre comment les repos d'une même KB se relient, d'après leurs déclarations
 
 `--propose` en fait une note avec un schéma.
 
+### Une carte qui dit vrai
+
+Une adresse écrite dans le code n'est pas forcément une relation. OKB range
+chaque adresse selon l'endroit où elle est écrite :
+
+- **sur la carte** : un appel dans le code (ressource externe *déclarée*), une
+  adresse sous une clé de configuration (*supposée*) ;
+- **pas sur la carte** : un registre de paquets (Nexus, jcenter…),
+  l'hébergement du code (GitHub interne), un lien de documentation (wiki, Jira,
+  un commentaire), une police ou un CDN, la plateforme (Eureka, Sonar…), et les
+  adresses qu'OKB ne sait pas classer.
+
+Chaque relation dit sa **certitude** — prouvée, déclarée, supposée ou confirmée
+— et **pourquoi** OKB la dessine. Si c'est faux, corrige-la : dans l'onglet
+Architecture (Confirmer, Corriger la cible, Exclure) ou dans le terminal.
+Les prochains scans respectent ta correction.
+
+```bash
+okb arch link list
+okb arch link exclude "service|repo:facturation|repo:commandes" --reason "ancien flux"
+okb arch link retarget "service|repo:facturation|repo:commandes" repo:stocks
+okb arch url nexus.example.test registry
+```
+
+### L'équipe responsable
+
+Chaque repo et chaque produit peut avoir son **équipe responsable**, avec
+d'où vient l'information (toi, l'agent, Jira, ServiceNow, le wiki…) et quand.
+Un repo sans équipe montre celle de son produit. Si `CODEOWNERS` cite une
+équipe, OKB te la propose sans la remplir. Ta valeur n'est jamais écrasée : si
+une source dit autre chose, tu choisis.
+
+```bash
+okb team repo commandes
+okb team set product Commerce --value "Équipe Commerce"
+okb team ask repo commandes
+```
+
+`okb team ask` crée une demande que ton agent voit au début de sa session : il
+cherche avec ses propres outils (ServiceNow, Jira, wiki) et dit ce qu'il n'a
+pas pu lire. OKB ne contacte aucune source lui-même.
+
 ## Les commandes
 
 | Commande | Ce qu'elle fait |
 |---|---|
 | `okb repo add` | enregistre le repo du dossier courant dans une KB (demande laquelle) et le cartographie |
 | `okb repo scan` | refait la carte |
+| `okb arch link …` | confirme, exclut, recible ou ajoute une relation de la carte |
+| `okb team …` | l'équipe responsable d'un repo ou d'un produit |
 | `okb repo status` | notes, couverture, questions, fraîcheur, prochaine étape |
 | `okb repo plan` | le plan de lecture, zone par zone |
 | `okb repo questions` · `answer` · `interview` | les questions d'onboarding et leurs réponses |

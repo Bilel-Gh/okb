@@ -1,12 +1,14 @@
 import { EN_V1 } from './v1.en.js';
 import { EN_SHARE } from './share.en.js';
 import { EN_TICKETS } from './tickets.en.js';
+import { EN_LANDSCAPE } from './landscape.en.js';
 
 /** English interface catalogue. `{name}` placeholders; `.one` / `.other` plurals. */
 export const EN = {
   ...EN_V1,
   ...EN_SHARE,
   ...EN_TICKETS,
+  ...EN_LANDSCAPE,
   // ---------- generic ----------
   'ui.yes': 'Yes',
   'ui.no': 'No',
@@ -1633,6 +1635,7 @@ export const EN = {
   "web.graph.themeByTag": "Named after the tag #{tag}, carried by nearly all its notes",
   "help.cmd.workspace": "your workspaces: a team's folder of repositories, documented in one KB",
   "help.cmd.scope": "the scope: the repository (and ticket) OKB narrows to",
+  "help.cmd.team": "the team responsible for a repository or a product: read, write with its origin, ask the agent",
   "help.cmd.ticket": "follow a ticket: branch, commits, journal of decisions and traps",
   "ask.scope": "Scope: {repo} first, then the shared notes tied to it (--everywhere for the whole KB)",
   "ws.none": "No workspace yet.",

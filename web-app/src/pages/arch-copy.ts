@@ -13,6 +13,22 @@ const words = {
     modelWhy: 'Scan statique : les chemins et méthodes trouvés sont des indices, à vérifier dans les fichiers cités. Les relations incertaines portent un point d’interrogation.',
     flowWhy: 'Parcours des dépendances possibles depuis cet appel. Le scan ne prouve pas leur ordre d’exécution ni qu’une route déclenche tous ces appels.',
     noRelations: 'Aucune relation trouvée dans ce contexte.',
+    // Lot D (F2.4-16..18)
+    cert: { proved: 'prouvée', declared: 'déclarée', supposed: 'supposée', confirmed: 'confirmée' } as Record<string, string>,
+    why: 'Pourquoi OKB le dessine', supposedOnly: 'Supposées', externalOnly: 'Ressources externes',
+    confirm: 'Confirmer', retarget: 'Corriger la cible', exclude: 'Exclure', excludeDo: 'Exclure la relation', reasonLabel: 'Pourquoi', reasonHint: 'une phrase, pour t’en souvenir',
+    isActually: 'C’est en fait', save: 'Enregistrer', cancel: 'Annuler', undo: 'Annuler ma correction', kept: 'Gardé : les prochains scans le respectent.',
+    keptBy: (who: string) => `Confirmée par ${who}`, you: 'toi', agent: 'l’agent',
+    conflict: (target: string) => `L’agent dit : ${target}`, keepMine: 'Garder la mienne', takeAgent: 'Prendre celle de l’agent',
+    offTitle: 'Pas sur la carte', offWhy: 'Trouvé dans le code, mais ce ne sont pas des relations entre systèmes.',
+    roles: {
+      registry: ['Registres de paquets', 'd’où viennent les dépendances au build'], 'source-host': ['Hébergement du code', 'sert à reconnaître un repo, pas à relier'],
+      doc: ['Liens de documentation', 'wiki, tickets, @see, homepage'], asset: ['Ressources de page', 'polices, CDN'], platform: ['Plateforme', 'découverte de services, supervision, CI'],
+      unknown: ['Adresses à classer', 'dis une fois ce que c’est : la règle vaut pour tous les repos'],
+    } as Record<string, [string, string]>,
+    classifyAs: { call: 'ressource externe', registry: 'registre', doc: 'documentation', platform: 'plateforme' } as Record<string, string>,
+    isExternal: 'C’est une ressource externe', excludedTitle: 'Relations exclues', excludedWhy: 'par toi, gardées pour pouvoir revenir', putBack: 'Remettre',
+    staleTitle: 'Corrections sans effet', staleWhy: 'elles ne correspondent plus à rien depuis les derniers scans', removeRule: 'Retirer la règle', thisRepo: 'ce repo', toolsTitle: 'Outils et liens', toolsWhy: 'trouvés dans le code, ce ne sont pas des relations', inRepos: (n: number) => `${n} repo${n > 1 ? 's' : ''}`,
   },
   en: {
     intro: (name: string) => `The map of ${name}, computed from code without AI. Choose a repository or a relation to see its context and code evidence.`,
@@ -27,6 +43,22 @@ const words = {
     modelWhy: 'Static scan: detected paths and methods are clues to check in the cited files. Uncertain relations carry a question mark.',
     flowWhy: 'Possible dependencies reachable from this call. The scan does not prove their runtime order or that a route triggers every one of these calls.',
     noRelations: 'No relation found in this context.',
+    // Lot D (F2.4-16..18)
+    cert: { proved: 'proved', declared: 'declared', supposed: 'supposed', confirmed: 'confirmed' } as Record<string, string>,
+    why: 'Why OKB draws it', supposedOnly: 'Supposed', externalOnly: 'Outside resources',
+    confirm: 'Confirm', retarget: 'Correct the target', exclude: 'Exclude', excludeDo: 'Exclude the link', reasonLabel: 'Why', reasonHint: 'one sentence, to remember',
+    isActually: 'It actually goes to', save: 'Save', cancel: 'Cancel', undo: 'Undo my correction', kept: 'Kept: the next scans respect it.',
+    keptBy: (who: string) => `Confirmed by ${who}`, you: 'you', agent: 'the agent',
+    conflict: (target: string) => `The agent says: ${target}`, keepMine: 'Keep mine', takeAgent: 'Take the agent’s',
+    offTitle: 'Not on the map', offWhy: 'Found in the code, but these are not relations between systems.',
+    roles: {
+      registry: ['Package registries', 'where the build downloads dependencies from'], 'source-host': ['Code hosting', 'identifies a repository, links nothing'],
+      doc: ['Documentation links', 'wiki, tickets, @see, homepage'], asset: ['Page assets', 'fonts, CDN'], platform: ['Platform', 'service discovery, monitoring, CI'],
+      unknown: ['Addresses to classify', 'say once what it is: the rule applies to every repository'],
+    } as Record<string, [string, string]>,
+    classifyAs: { call: 'outside resource', registry: 'registry', doc: 'documentation', platform: 'platform' } as Record<string, string>,
+    isExternal: 'It is an outside resource', excludedTitle: 'Excluded links', excludedWhy: 'by you, kept to be put back', putBack: 'Put back',
+    staleTitle: 'Corrections with no effect', staleWhy: 'they no longer match anything since the last scans', removeRule: 'Remove the rule', thisRepo: 'this repository', toolsTitle: 'Tools and links', toolsWhy: 'found in the code, these are not relations', inRepos: (n: number) => `${n} repositor${n > 1 ? 'ies' : 'y'}`,
   },
 };
 export function useArchWords() { return words[useT().lang]; }

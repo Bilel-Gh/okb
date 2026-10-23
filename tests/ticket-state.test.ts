@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadBundleFor } from '../src/kb/bundle.js';
-import { closeDbs, openDb } from '../src/state/db.js';
+import { closeDbs, MIGRATIONS, openDb } from '../src/state/db.js';
 import { finishTicket, loadTicket, startTicket, ticketsDir } from '../src/work/tickets.js';
 import { addAttempt, addCriterion, recordReuse, setCriterion, setTicketState, ticketDetail, updateTicketBrief } from '../src/work/ticket-state.js';
 import { readGithubPr, importJiraSnapshot, type GithubRunner } from '../src/work/ticket-external.js';
@@ -44,7 +44,7 @@ describe('the developer ticket stays factual (F2.4-01..07)', () => {
     expect((await loadTicket(config, 'ORD-42'))?.status).toBe('done');
     expect(await readFile(resolve(dir, 'ORD-42.json'), 'utf8')).toBe(bytes);
     expect(await readFile(textFile, 'utf8')).toBe('Objectif donné par Alice.\n');
-    expect(openDb(config).get<{ user_version: number }>('PRAGMA user_version')?.user_version).toBe(9);
+    expect(openDb(config).get<{ user_version: number }>('PRAGMA user_version')?.user_version).toBe(MIGRATIONS.length);
   });
 
   it('does not infer checks, review or delivery from work being finished', async () => {

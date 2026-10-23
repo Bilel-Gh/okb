@@ -55,6 +55,13 @@ the person sort them later in one screen, without a system dialog or a command;
 a validated note changes only with their yes, and the share of validated notes
 measures upkeep ([guide](docs/guide/valider-les-notes.md)).
 
+The [22 October map and team](docs/releases/RELEASE-USAGE-2026-10-22-lot-d.md)
+keep registries, the Git host, documentation links and assets off the system
+map, give every relation its certainty and reason, keep the person's
+corrections across scans, and add the team responsible for a repository or a
+product, with its origin and a request the user's own agent can answer
+([guide](docs/guide/repos.md)).
+
 The [19 October ticket sheet](docs/releases/RELEASE-USAGE-2026-10-19.md) gives
 each ticket one sheet read everywhere: every field editable by hand with its
 origin, the next step taken from the todos, notes linked wherever they are

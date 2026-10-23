@@ -51,9 +51,18 @@ With the user's « oui », `okb suggest accept <id> --json`.
    sides; explain and name them, do not add arrows it does not have — its
    `questions` stay questions. Save that output and have
    `okb-dev:okb-architecture-reviewer` grade the draft; below 80, fix it first.
-4. Business words get a concept card (`okb suggest concepts --json` lists terms
+   Each link says its `certainty` (proved, declared, supposed, confirmed) and
+   its `basis`: write a supposed link as supposed. Registries, the Git host and
+   documentation links are off the map (`okb arch link list --json`, `offMap`):
+   never draw them. The person corrects the map (exclude, put back, classify an
+   address); you may confirm or retarget a link only with evidence, and a
+   different answer from theirs becomes a conflict they settle.
+5. **The team responsible** comes from `okb team product "<name>" --json` (and
+   `repo <id>`): quote it with its origin; if it is missing, offer
+   `okb team ask …` — never guess it from CODEOWNERS.
+6. Business words get a concept card (`okb suggest concepts --json` lists terms
    used without one); suggest them, do not write them unasked.
-5. Have `okb:okb-quality-reviewer` grade the draft, then follow `okb-ingest`
+7. Have `okb:okb-quality-reviewer` grade the draft, then follow `okb-ingest`
    with `--create <place from the card>`, `--suggestion <id>` and `--quality <justness>`.
 
 ## 4. Present

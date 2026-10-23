@@ -1,3 +1,4 @@
+import type { UrlRole } from './url-kinds.js';
 import type { FileKind, Tier } from './inventory.js';
 
 /**
@@ -32,7 +33,8 @@ export type IfaceKind =
   | 'database' | 'messaging' | 'auth' | 'service-binding' | 'package' | 'ui-app' | 'env-endpoint' | 'container' | 'external-service'
   /** An outgoing HTTP call: `POST /orders`, with its base variable in `detail` (`base ORDERS_URL`). */
   | 'http-call';
-export type Iface = { readonly kind: IfaceKind; readonly name: string; readonly detail?: string; readonly evidence: Evidence; readonly count?: number };
+/** `role`: for a `url`, what the address is (src/repo/url-kinds.ts, F2.4-15); absent in maps scanned before lot D. */
+export type Iface = { readonly kind: IfaceKind; readonly name: string; readonly detail?: string; readonly evidence: Evidence; readonly count?: number; readonly role?: UrlRole };
 
 export type EnvVar = { readonly name: string; readonly evidence: readonly Evidence[]; readonly defaulted: boolean; readonly sensitive: boolean };
 export type Environment = { readonly name: string; readonly evidence: readonly Evidence[] };

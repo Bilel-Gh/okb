@@ -4,6 +4,7 @@ import { assertNoSecrets } from '../security/guard.js';
 import { openDb, type Db } from '../state/db.js';
 import { OkbError } from '../util/errors.js';
 import { safeUrl } from './safe-url.js';
+import { isPlaceholder, ORIGINS, type Origin } from './sourced-fields.js';
 import { mutateTicket, ticketId, type TicketRecord } from './tickets.js';
 
 /**
@@ -15,8 +16,8 @@ import { mutateTicket, ticketId, type TicketRecord } from './tickets.js';
  */
 export const FIELDS = ['title', 'summary', 'description', 'sourceStatus', 'team', 'product', 'done', 'blocker'] as const;
 export type FieldName = (typeof FIELDS)[number];
-export const ORIGINS = ['person', 'agent', 'jira', 'servicenow', 'wiki', 'github', 'other'] as const;
-export type Origin = (typeof ORIGINS)[number];
+// One set of origins and of refused placeholders for every sourced field (F2.4-19, D73).
+export { ORIGINS, type Origin } from './sourced-fields.js';
 /** What can be declared not applicable: any field but the blocker (« no blocker » is a value), and the criteria. */
 export type NaTarget = Exclude<FieldName, 'blocker'> | 'criteria';
 
@@ -24,13 +25,10 @@ export type FieldValue = { readonly field: FieldName; readonly value: string; re
 export type FieldConflict = { readonly field: FieldName; readonly value: string; readonly origin: Origin; readonly url: string | null; readonly at: string };
 
 const LIMITS: Record<FieldName, number> = { title: 200, summary: 600, description: 8000, sourceStatus: 80, team: 120, product: 120, done: 1000, blocker: 600 };
-const EMPTY = new Set(['inconnu', 'inconnue', 'unknown', 'tbd', 'a definir', 'n/a', 'todo']);
-const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase().replace(/\s+/g, ' ');
 
 /** A value worth keeping: not empty, not a placeholder, not the reference itself. */
 export function isMeaningful(value: string, ref: string): boolean {
-  const v = fold(value);
-  if (!v || EMPTY.has(v)) return false;
+  if (isPlaceholder(value)) return false;
   return value.trim().toUpperCase().replace(/_/g, '-') !== ticketId(ref);
 }
 

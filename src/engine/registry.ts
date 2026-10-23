@@ -1,5 +1,7 @@
 import { enabledModules, moduleDef } from '../modules/catalog.js';
 import { reposList } from '../repo/operations.js';
+import { teamClear, teamConflictResolve, teamGet, teamNa, teamRequestsCancel, teamRequestsClose, teamRequestsCreate, teamRequestsList, teamRequestsPrompt, teamSet, teamSuggestionDismiss } from '../work/team-operations.js';
+import { archConflictResolve, archLinkAdd, archLinkConfirm, archLinkExclude, archLinkReset, archLinkRetarget, archMap, archUrlClassify } from '../arch/operations.js';
 import { OkbError } from '../util/errors.js';
 import { backupStatusOp } from './ops/backup.js';
 import { baggageDraftOp, baggageKeep } from './ops/baggage.js';
@@ -26,6 +28,25 @@ export type { Actor, Effect, OpContext, Operation } from './operation.js';
 
 /** Every operation of the engine, the core's then each module's. */
 const OPS = {
+  'team.get': teamGet,
+  'team.set': teamSet,
+  'team.clear': teamClear,
+  'team.na': teamNa,
+  'team.conflict.resolve': teamConflictResolve,
+  'team.suggestion.dismiss': teamSuggestionDismiss,
+  'team.requests.create': teamRequestsCreate,
+  'team.requests.list': teamRequestsList,
+  'team.requests.close': teamRequestsClose,
+  'team.requests.cancel': teamRequestsCancel,
+  'team.requests.prompt': teamRequestsPrompt,
+  'arch.map': archMap,
+  'arch.link.confirm': archLinkConfirm,
+  'arch.link.exclude': archLinkExclude,
+  'arch.link.retarget': archLinkRetarget,
+  'arch.link.add': archLinkAdd,
+  'arch.link.reset': archLinkReset,
+  'arch.url.classify': archUrlClassify,
+  'arch.conflict.resolve': archConflictResolve,
   'tickets.list': ticketsList,
   'tickets.get': ticketsGet,
   'tickets.start': ticketsStart,

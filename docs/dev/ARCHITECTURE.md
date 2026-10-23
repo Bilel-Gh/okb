@@ -298,3 +298,19 @@ tickets 2.0 après la copie `state-v<N>-…db`). Les opérations `tickets.sheet`
 servent le web, la CLI et MCP. L’accueil reçoit les cartes par le contrat
 `ProjectSource.cards` / `pendingRequests` : le cœur ne connaît pas les tickets.
 
+## La carte qui dit vrai et l’équipe responsable (D72, D73)
+
+`src/repo/url-kinds.ts` donne un rôle à chaque URL trouvée par le scan
+(`Iface.role`) ; une carte plus ancienne est classée au calcul depuis sa ligne de
+preuve. `src/arch/model.ts` (`buildModel`) ne dessine en ressource externe que
+les appels et les adresses en configuration, range le reste dans `offMap`, et
+porte sur chaque lien `certainty`, `basis` et `origin`. `src/arch/overrides.ts`
+applique les corrections de la personne (`arch_overrides`, `arch_conflicts`,
+`arch_url_rules`) ; `correctedModel` (`src/arch/system.ts`) est le passage
+obligé de la carte, de la note Paysage (`landscapeEdges` en est une vue), du
+brief et de `arch.map`. Les gestes sont des opérations `arch.*`
+(`src/arch/operations.ts`). L’équipe responsable est un champ sourcé
+(`src/work/sourced-fields.ts`, tables `subject_*`) lu par `src/work/team.ts` (héritage
+du produit, suggestion CODEOWNERS, demandes à l’agent) et servi par les
+opérations `team.*`. Les deux ajoutent une seule entrée à `MIGRATIONS`.
+

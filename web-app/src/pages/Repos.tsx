@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, ArrowUpRight, BookOpen, Building2, CheckCircle2, ChevronRight, Circle, CircleHelp, Clock, FileQuestion, FolderGit2, GitBranch, Link2, Mail, Map as MapIcon,
-  Network, Play, Plug, RefreshCw, Rocket, Search, Sparkles, Target, Terminal, Ticket, TriangleAlert,
+  Play, Plug, RefreshCw, Rocket, Search, Sparkles, Target, Terminal, Ticket, TriangleAlert,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { get, post } from '../app/api';
@@ -9,10 +9,11 @@ import { useScheme } from '../app/data';
 import { tn, useT } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
-import { Prose } from '../reader/Prose';
 import { LevelBar, type Tier } from '../ui/LevelBar';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { ExamPanel } from './Exam';
+import { RepoRelations } from './RepoRelations';
+import { RepoTeam } from './RepoTeam';
 import { TicketPreview } from '../ui/WorkPreview';
 import { useShareWords } from '../app/sharing';
 
@@ -337,12 +338,7 @@ function LinkedDetail({ id, color, setTitle }: { id: string; color: string; setT
         </div>
       </div>
       <details className="panel repo-secondary"><summary>{w('Détails techniques et compréhension', 'Technical details and understanding')}</summary><div className="stack lg"><LevelPanel name={repo.name} level={d.data.level} color={color} /><Questions repoId={repo.id} questions={d.data.questions} /><ExamPanel repo={repo.id} color={color} />{map ? <CodeMap map={map} risks={d.data.risks} /> : null}</div></details>
-      {d.data.landscape ? (
-        <section className="panel">
-          <div className="panel-head"><h2><Network size={17} aria-hidden="true" />{t('web.repos.landscapeTitle')}</h2><a className="link" href={hrefFor({ name: 'repos', tab: 'architecture' })}>{t('app.repos.tab.arch')}</a></div>
-          <div className="panel-body"><Prose html={`<pre><code class="language-mermaid">${d.data.landscape.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</code></pre>`} /></div>
-        </section>
-      ) : null}
+      <RepoRelations repo={repo.name} />
     </div>
   );
 }
@@ -366,7 +362,7 @@ function Detail({ data, id, setTitle }: { data: ReposData; id: string; setTitle?
   return (
     <div className="stack lg">
       <a className="btn ghost sm" style={{ alignSelf: 'flex-start' }} href={hrefFor({ name: 'repos' })}><ArrowLeft size={16} aria-hidden="true" />{t('app.repos.back')}</a>
-      {linked ? <LinkedDetail id={linked.id} color={color} setTitle={setTitle} /> : unlinked ? (
+      {linked ? <><RepoTeam repo={linked.id} product={linked.product || null} /><LinkedDetail id={linked.id} color={color} setTitle={setTitle} /></> : unlinked ? (
         <>
           <LevelPanel name={name} level={unlinked.level} color={color} />
           <ExamPanel repo={unlinked.name} color={color} />

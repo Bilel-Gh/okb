@@ -171,6 +171,20 @@ green), Modification en attente (blue). `ReaderReviewLine` is the reader's slim
 line. Today shows a single muted line under the date; the status bar carries
 « N à relire · X % validées ». Styles in `styles/review.css`, Atelier tokens.
 
+### The system map and the team responsible (D72, D73)
+
+`pages/Arch.tsx` keeps the metro map and adds: two filters (supposed links,
+outside resources), the certainty pill (proved ok, declared info, supposed
+warn, confirmed accent — always with its word), the reason in a sunk box, the
+person's gestures (Confirm, Correct the target, Exclude) as small inline forms,
+a warn-soft box for an agent's conflict, and below the map « Not on the map »:
+one collapsible group per role with its count, classification buttons for an
+unknown address, excluded links with « Put back ». A repository's page shows
+`RepoTeam` (the team as a pill with its origin, or a dashed slot « Team · Fill
+in » and ✦ ask the agent; a conflict in warn-soft; the CODEOWNERS suggestion
+in a dashed box) and `RepoRelations` (one line per relation, then « Tools and
+links »). Styles are in `styles/arch.css`, Atelier tokens only.
+
 ## Do's and don'ts
 
 The October usage fixes keep the same five destinations and Atelier tokens.
