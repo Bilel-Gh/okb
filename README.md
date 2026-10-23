@@ -1,4 +1,4 @@
-# OKB — Open Knowledge Brain · 2.0.0
+# OKB — Open Knowledge Brain · 2.4.0
 
 **A local second brain for Claude Code and Obsidian, where nothing enters your
 notes without your approval.**
@@ -13,6 +13,29 @@ General explanations and unknowns are distinguished; quotation checks do not cer
 **En français :** [démarrer](DEMARRER.md) · [guide d’utilisation](docs/guide/README.md).
 
 ![The OKB web app: home](docs/images/web-home.png)
+
+## Version 2.4: everyday developer work
+
+Built from a week of real use at work.
+
+- **One sheet per ticket**: its real title, what is done, what remains, what
+  blocks; everything editable by hand, each value with its origin; your own
+  agent fills the sheet from Jira, ServiceNow or the wiki it can read.
+- **Validate in one gesture**: the agent files the note you ask for at once,
+  usable and « to review »; you sort them in the evening in one screen, with no
+  system dialog or command; the share of validated notes measures upkeep.
+- **A system map that tells the truth, and the team responsible**: only real
+  systems on the map, each relation with its certainty and a correction that
+  survives scans; a team for each repository and product.
+- **The agent's todos**: it adds them to the ticket, ticks them and sets their
+  importance; a todo you remove never comes back.
+- **Today tells the day**: the five facts that matter since yesterday; the app
+  opens and moves between pages faster.
+
+Coming from 2.0: your notes are never rewritten; the local state is copied
+before it is updated. Details: [release notes 2.4.0](docs/releases/RELEASE-2.4.0.md)
+· guides (FR): [reprendre un ticket](docs/guide/reprendre-un-ticket.md),
+[valider les notes](docs/guide/valider-les-notes.md), [les repos](docs/guide/repos.md).
 
 ## Version 2.0: a second brain you can trust with your work
 
@@ -47,7 +70,7 @@ Details: [release notes 2.0.0](docs/releases/RELEASE-2.0.0.md) · guides (FR):
 [les documents](docs/guide/documents.md), [les espaces](docs/guide/espaces.md),
 [brancher un assistant (MCP)](docs/guide/assistants-mcp.md).
 
-## Development preview: 2.1 through 3.0
+## How 2.4 came together, and what is still a preview
 
 The [23 October agent todos and Today](docs/releases/RELEASE-USAGE-2026-10-23.md)
 let the agent add todos to a ticket that never come back once removed, show
@@ -94,7 +117,7 @@ The Atelier interface and the five screens remain the foundation.
   No managed AI subscription is introduced. [Specification](docs/dev/specs/2026-10-11-2.3-assistant.md).
 - **2.4, developer work:** a resume brief, independent work/review/CI/delivery
   states, exit criteria, failed approaches and actual note reuse.
-- **3.0, desktop:** an Electron wrapper around this same application, short
+- **3.0, desktop (preview):** an Electron wrapper around this same application, short
   first launch, native folder choice, diagnostics and full export.
   [Desktop guide](docs/guide/application-desktop.md).
 
