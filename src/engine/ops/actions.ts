@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ACTION_KINDS, addAction, deleteAction, IMPORTANCES, listActions, updateAction } from '../../projects/actions.js';
+import { ACTION_KINDS, addAction, deleteAction, IMPORTANCES, listActions, restoreAction, updateAction } from '../../projects/actions.js';
 import { detectAction } from '../../projects/detect.js';
 import { addEntry, ENTRY_KINDS, listEntries } from '../../projects/journal.js';
 import { defineOperation } from '../operation.js';
@@ -24,6 +24,7 @@ export const actionsAdd = defineOperation({
     workRef: workRef.optional(),
     importance: z.enum(IMPORTANCES).optional(),
     pinned: z.boolean().optional(),
+    why: z.string().trim().min(1).max(120).optional().describe('Why the agent adds it, in a few words (« d’après les critères Jira »).'),
   }).strict(),
   async run({ config, actor }, input) {
     return addAction(config, { ...input, source: actor === 'agent' ? 'ai' : 'person' });
@@ -56,9 +57,9 @@ export const actionsUpdate = defineOperation({
     pinned: z.boolean().optional(),
     workRef: workRef.nullable().optional(),
   }).strict(),
-  async run({ config }, input) {
+  async run({ config, actor }, input) {
     const { id, ...patch } = input;
-    return updateAction(config, id, patch);
+    return updateAction(config, id, patch, new Date(), actor === 'agent' ? 'agent' : 'person');
   },
 });
 
@@ -66,12 +67,22 @@ export const actionsDelete = defineOperation({
   id: 'actions.delete',
   module: 'core',
   effect: 'state',
+  summary: 'Remove an action. The person’s own goes for good; one the agent added is dropped and never proposed again on its ticket. An agent removes only its own.',
+  input: z.object({ id: z.string().regex(/^A-[a-z0-9]{6}$/) }).strict(),
+  async run({ config, actor }, input) {
+    return { ok: true, ...deleteAction(config, input.id, actor === 'agent' ? 'agent' : 'person') };
+  },
+});
+
+export const actionsRestore = defineOperation({
+  id: 'actions.restore',
+  module: 'core',
+  effect: 'state',
   agents: false,
-  summary: 'Delete an action for good.',
+  summary: 'Bring back a todo of the agent the person removed (« Annuler »).',
   input: z.object({ id: z.string().regex(/^A-[a-z0-9]{6}$/) }).strict(),
   async run({ config }, input) {
-    deleteAction(config, input.id);
-    return { ok: true };
+    return restoreAction(config, input.id);
   },
 });
 

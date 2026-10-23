@@ -43,6 +43,20 @@ prend sa place. L'importance se lit en une à trois barres (basse, moyenne par
 défaut, haute) ; un clic la change. Dans le champ d'ajout, `!` en tête donne
 l'importance haute ; sur l'accueil, `#ABC-123` rattache la todo au ticket.
 
+## Les todos de l'agent
+
+Quand Claude lit ton ticket ou termine une session, il peut ajouter jusqu'à trois
+todos, chacune annoncée en une ligne. Elles entrent directement dans la liste,
+avec « ✦ ajoutée par l'agent » et la raison (« d'après les critères Jira »).
+
+- L'agent peut cocher n'importe quelle todo et régler son importance : la ligne
+  le dit (« cochée par l'agent », « importance réglée par l'agent »).
+- Il ne réécrit et ne supprime jamais tes todos, seulement les siennes.
+- Si tu retires une de ses todos, il ne la proposera plus sur ce ticket, même
+  formulée autrement. « Annuler » la remet tout de suite.
+
+Tu peux toujours lui en demander davantage : « ajoute une todo pour… ».
+
 ## Demander à l'agent
 
 OKB ne se connecte ni à Jira, ni à ServiceNow, ni à un wiki. Ton agent (Claude

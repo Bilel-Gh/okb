@@ -1505,3 +1505,18 @@ de la trouver (F2.4-20) : une demande ouverte par sujet, un prompt qui dit où
 chercher (groupe ServiceNow, équipe Jira, page wiki) ; OKB ne contacte aucune
 source. Les règles communes (valeurs refusées, origines) vivent dans
 `src/work/sourced-fields.ts`, partagé avec la fiche ticket.
+
+## D74 — Les todos de l’agent (23 octobre 2026)
+
+Une todo que l’agent ajoute à un ticket entre directement dans la liste et
+compte tout de suite ; elle porte « ajoutée par l’agent » et sa raison (`why`)
+(F2.4-21). L’agent coche, rouvre, épingle et règle l’importance de toute todo,
+ce qui reste écrit sur la ligne (`done_by`, `importance_by`) ; il ne réécrit et
+ne retire que les siennes (F2.4-22). Retirer une todo de l’agent la passe à
+« retirée » et inscrit son texte normalisé dans `action_refusals` : l’agent ne
+peut plus l’ajouter sur ce ticket, même formulée un peu autrement (mots
+significatifs communs à 80 %) ; « Annuler » (`actions.restore`, personne
+seulement) la rouvre et lève le refus. Une todo de la personne se supprime comme
+avant (F2.4-23). Le brief de session et le skill donnent la règle : trois todos
+au plus par session, chacune annoncée en une ligne, davantage sur demande — une
+conduite de l’agent, pas une limite du moteur (F2.4-24).

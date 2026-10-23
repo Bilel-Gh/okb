@@ -26,7 +26,7 @@ the workspace's). Not registered → offer `/okb-dev:onboard` and stop.
    `--last-action`, `--next` and `--note <KB path>`. With no reference, a single
    reference in the current branch is enough. **Do not run `start` first**:
    `resume` searches operational SQLite state and authorized KB notes before
-   creating anything. The existing `start` command uses this same reconciliation.
+   creating anything.
 3. An ambiguity returns its candidates. Ask only for the indispensable reference,
    repo, profile (`--kb`) or note (`--note`), then retry. Never pick the first
    candidate. A reference can span explicitly named repos; profiles stay isolated.
@@ -38,9 +38,7 @@ the workspace's). Not registered → offer `/okb-dev:onboard` and stop.
    or repeatedly offer a refusal. No Markdown file is written directly.
 5. Use available facts only: objective, useful context, last action, decisions
    **and reasons**, failed attempts **and conditions**, waiting/blocker, next step,
-   sources and exit criteria. Missing facts remain unknown. The common engine
-   `tickets.resume` accepts these structured fields (`decisions`, `attempts`,
-   `criteria`, `sources`, `waiting`) for MCP/API callers; in the CLI use `brief`,
+   sources and exit criteria. Missing facts remain unknown. In the CLI use `brief`,
    `note`, `attempt`, `criterion` and `state` for explicit additions. `brief`
    intentionally corrects a field; automatic reconciliation only fills an empty one.
 6. Run the returned scoped `ask` command, read relevant passages, and give a short
@@ -57,6 +55,9 @@ the workspace's). Not registered → offer `/okb-dev:onboard` and stop.
 **While working**, each time a decision is taken, a trap found or a question
 left open, record one line with its *why*:
 `okb ticket note "<what and why>" --kind decision|trap|question`.
+
+**Todos** (D74): follow the brief's rule (≤ 3, `--why`, one line each); an
+`actionRefused` todo was removed by the person: drop it.
 
 ## After a ticket
 

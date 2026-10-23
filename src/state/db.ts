@@ -141,6 +141,12 @@ export const MIGRATIONS: readonly string[] = [
    CREATE TABLE subject_dismissed (kind TEXT NOT NULL, subject TEXT NOT NULL, field TEXT NOT NULL, value TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY(kind, subject, field, value));
    CREATE TABLE subject_requests (id TEXT PRIMARY KEY, kind TEXT NOT NULL, subject TEXT NOT NULL, fields TEXT NOT NULL, state TEXT NOT NULL, created_at TEXT NOT NULL, closed_at TEXT, report TEXT);
    CREATE INDEX subject_requests_open ON subject_requests(state, kind, subject);`,
+  // F2.4-21..23 (D74): who ticked a todo and set its importance, the agent's reason, and the todos the
+  // person removed, which the agent never proposes again on that ticket.
+  `ALTER TABLE actions ADD COLUMN done_by TEXT;
+   ALTER TABLE actions ADD COLUMN importance_by TEXT;
+   ALTER TABLE actions ADD COLUMN why TEXT;
+   CREATE TABLE action_refusals (work_ref TEXT NOT NULL, key TEXT NOT NULL, text TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY(work_ref, key));`,
 ];
 
 /** Node still calls its SQLite experimental; the warning has no place in a person's terminal. */

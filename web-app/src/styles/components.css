@@ -572,3 +572,4 @@ textarea.input.project-line { height: auto; min-height: 60px; padding: 8px var(-
 .day-title { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 18px; }
 .day-title svg { color: var(--accent-text); }
 .day-rows .meta { width: 44px; flex: none; }
+.toast-action { margin-left: 10px; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 650; text-decoration: underline; cursor: pointer; padding: 0; }

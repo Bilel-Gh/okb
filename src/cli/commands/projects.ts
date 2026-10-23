@@ -111,6 +111,7 @@ export async function cmdAction(ctx: Ctx): Promise<number> {
         ...(flagString(ctx.args, 'due') ?? spotted?.due ? { due: flagString(ctx.args, 'due') ?? spotted!.due } : {}),
         ...(flagString(ctx.args, 'who') ?? spotted?.who ? { who: flagString(ctx.args, 'who') ?? spotted!.who } : {}),
         ...(project ? { project } : {}),
+        ...(flagString(ctx.args, 'why') ? { why: flagString(ctx.args, 'why') } : {}),
         ...work(ctx),
       }, c);
       if (ctx.mode === 'json') ctx.out.json({ ok: true, action: added }); else ctx.out.ok(`${added.text}${added.due ? ` · ${added.due}` : ''}  ${paint.dim(added.id)}`);
@@ -123,7 +124,8 @@ export async function cmdAction(ctx: Ctx): Promise<number> {
       return 0;
     }
     case 'edit': {
-      const changed = await invoke('actions.update', { id: rest[0] ?? '', ...(flagString(ctx.args, 'text') ? { text: flagString(ctx.args, 'text') } : {}), ...work(ctx), ...(flagBool(ctx.args, 'unpin') ? { pinned: false } : {}) }, c);
+      const { workRef, ...rest2 } = work(ctx);
+      const changed = await invoke('actions.update', { id: rest[0] ?? '', ...(flagString(ctx.args, 'text') ? { text: flagString(ctx.args, 'text') } : {}), ...(workRef ? { workRef } : {}), ...rest2, ...(flagBool(ctx.args, 'unpin') ? { pinned: false } : {}) }, c);
       if (ctx.mode === 'json') ctx.out.json({ ok: true, action: changed }); else ctx.out.ok(`${changed.text} · ${changed.importance}${changed.pinned ? ' · 📌' : ''}`);
       return 0;
     }

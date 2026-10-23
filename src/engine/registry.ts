@@ -12,7 +12,7 @@ import { indicatorsView } from './ops/indicators.js';
 import { sharedFind, sharedGlossary, sharedKeep, sharedMap, sharedRead, shareMark, sharePreviewOp, shareReceive, shareSend, shareSetup, shareStatus, shareUnmark } from './ops/share.js';
 import { kbStatus } from './ops/kb.js';
 import { notesFind, notesRead } from './ops/notes.js';
-import { actionsAdd, actionsDelete, actionsDetect, actionsList, actionsUpdate, journalAdd, journalList } from './ops/actions.js';
+import { actionsAdd, actionsDelete, actionsDetect, actionsList, actionsRestore, actionsUpdate, journalAdd, journalList } from './ops/actions.js';
 import { projectsCreate, projectsGet, projectsLeave, projectsList, projectsUpdate } from './ops/projects.js';
 import { suggestionsAdd, suggestionsList } from './ops/suggestions.js';
 import { todayViewOp } from './ops/today.js';
@@ -115,6 +115,7 @@ const OPS = {
   'actions.list': actionsList,
   'actions.update': actionsUpdate,
   'actions.delete': actionsDelete,
+  'actions.restore': actionsRestore,
   'notes.keep': notesKeep,
   'notes.review.list': notesReviewList,
   'notes.review.requestCheck': notesReviewRequestCheck,

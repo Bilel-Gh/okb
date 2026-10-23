@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, GitCompareArrows, Hourglass, Link as LinkIcon, Pencil, Pin, PinOff, Plus, Sparkles, Trash2, Unlink } from 'lucide-react';
 import { useState } from 'react';
 import { get } from '../../app/api';
@@ -6,7 +7,7 @@ import { hrefFor } from '../../app/router';
 import { useShareWords } from '../../app/sharing';
 import { ORIGIN_WORDS, RUBRIC_WORDS, STATE_WORDS, type FieldName, type Origin, type Importance, type SheetAction, type TicketSheet } from '../../app/tickets';
 import { toast } from '../../app/toast';
-import { Editable, FieldLine, ImportanceBars, Prov, Slot, useSheetWrite } from './parts';
+import { AgentMarks, Editable, FieldLine, ImportanceBars, Prov, removeTodo, Slot, useSheetWrite } from './parts';
 
 const LIMIT: Record<FieldName, number> = { title: 200, summary: 600, description: 8000, sourceStatus: 80, team: 120, product: 120, done: 1000, blocker: 600 };
 
@@ -49,16 +50,17 @@ export function Brief30({ sheet }: { sheet: TicketSheet }) {
 
 function TodoRow({ todo, refId }: { todo: SheetAction; refId: string }) {
   const w = useShareWords(); const write = useSheetWrite(refId); const [editing, setEditing] = useState(false);
+  const qc = useQueryClient(); const refresh = () => { void qc.invalidateQueries(); };
   const update = (body: Record<string, unknown>) => write.mutate({ path: '/api/action/update', body: { id: todo.id, ...body } });
   const done = todo.status !== 'open';
   return <li className={done ? 'done' : ''}>
     <input type="checkbox" checked={done} onChange={() => update({ status: done ? 'open' : 'done' })} aria-label={done ? `${w('Rouvrir', 'Reopen')} : ${todo.text}` : `${w('Terminer', 'Finish')} : ${todo.text}`} />
     <ImportanceBars value={todo.importance} {...(done ? {} : { onChange: (v: Importance) => update({ importance: v }) })} />
-    <div>{editing ? <Editable value={todo.text} label={w('Texte de la todo', 'Todo text')} maxLength={300} startOpen onClose={() => setEditing(false)} onSave={(text) => { update({ text }); }} /> : <><div className="t">{todo.text}</div><div className="c">{done ? `${w('faite', 'done')} · ${new Date(todo.doneAt ?? todo.createdAt).toLocaleDateString()}` : `${todo.source === 'ai' ? w('ajoutée par l’agent', 'added by the agent') : w('ajoutée par toi', 'added by you')} · ${new Date(todo.createdAt).toLocaleDateString()}`}</div></>}</div>
+    <div>{editing ? <Editable value={todo.text} label={w('Texte de la todo', 'Todo text')} maxLength={300} startOpen onClose={() => setEditing(false)} onSave={(text) => { update({ text }); }} /> : <><div className="t">{todo.text}</div><div className="c">{done ? `${w('faite', 'done')} · ${new Date(todo.doneAt ?? todo.createdAt).toLocaleDateString()}` : `${todo.source === 'ai' ? '' : `${w('ajoutée par toi', 'added by you')} · `}${new Date(todo.createdAt).toLocaleDateString()}`}<AgentMarks todo={todo} /></div></>}</div>
     <div className="tk-tools">
       {done ? null : <button type="button" className="tk-ib" onClick={() => update({ pinned: !todo.pinned })} aria-label={todo.pinned ? w('Désépingler', 'Unpin') : w('Épingler comme prochaine étape', 'Pin as next step')}>{todo.pinned ? <PinOff size={16} aria-hidden="true" /> : <Pin size={16} aria-hidden="true" />}</button>}
       {done ? null : <button type="button" className="tk-ib" onClick={() => setEditing(true)} aria-label={`${w('Modifier', 'Edit')} : ${todo.text}`}><Pencil size={16} aria-hidden="true" /></button>}
-      <button type="button" className="tk-ib" onClick={() => write.mutate({ path: '/api/action/delete', body: { id: todo.id } })} aria-label={`${w('Supprimer', 'Delete')} : ${todo.text}`}><Trash2 size={16} aria-hidden="true" /></button>
+      <button type="button" className="tk-ib" onClick={() => void removeTodo(todo, w, refresh)} aria-label={`${w('Supprimer', 'Delete')} : ${todo.text}`}><Trash2 size={16} aria-hidden="true" /></button>
     </div>
   </li>;
 }

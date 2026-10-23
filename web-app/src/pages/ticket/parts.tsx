@@ -81,3 +81,24 @@ export function ImportanceBars({ value, onChange }: { value: Importance; onChang
   const word = value === 'high' ? w('haute', 'high') : value === 'low' ? w('basse', 'low') : w('moyenne', 'medium');
   return <button type="button" className={`tk-imp ${value}`} onClick={() => onChange?.(NEXT[value])} title={`${w('Importance', 'Importance')} : ${word}`} aria-label={`${w('Importance', 'Importance')} : ${word}${onChange ? ` — ${w('changer', 'change')}` : ''}`} disabled={!onChange}><i /><i /><i /></button>;
 }
+
+
+/** D74: what the agent did on a todo, always in words: added it (and why), ticked it, set its importance. */
+export function AgentMarks({ todo }: { todo: { source: 'person' | 'ai'; why?: string | null; doneBy?: 'person' | 'agent' | null; importanceBy?: 'person' | 'agent' | null; status?: string } }) {
+  const w = useShareWords();
+  const marks: string[] = [];
+  if (todo.source === 'ai') marks.push(todo.why ? `${w('ajoutée par l’agent', 'added by the agent')} · ${todo.why}` : w('ajoutée par l’agent', 'added by the agent'));
+  if (todo.source !== 'ai' && todo.doneBy === 'agent' && todo.status === 'done') marks.push(w('cochée par l’agent', 'ticked by the agent'));
+  if (todo.source !== 'ai' && todo.importanceBy === 'agent') marks.push(w('importance réglée par l’agent', 'importance set by the agent'));
+  return <>{marks.map((m) => <span key={m} className="tk-agent"><Sparkles size={12} aria-hidden="true" />{m}</span>)}</>;
+}
+
+/** Remove a todo; one the agent added can be brought back, and the agent will not propose it again (D74). */
+export async function removeTodo(todo: { id: string; text: string; source: 'person' | 'ai' }, w: ReturnType<typeof useShareWords>, refresh: () => void): Promise<void> {
+  try {
+    await post('/api/action/delete', { id: todo.id });
+    refresh();
+    if (todo.source === 'ai') toast(w(`Todo retirée : « ${todo.text} ». L’agent ne la reproposera plus sur ce ticket.`, `Todo removed: “${todo.text}”. The agent will not propose it again on this ticket.`), 'info',
+      { label: w('Annuler', 'Undo'), run: () => { void post('/api/action/restore', { id: todo.id }).then(refresh, (e: unknown) => toast((e as Error).message, 'err')); } });
+  } catch (e) { toast((e as Error).message, 'err'); }
+}

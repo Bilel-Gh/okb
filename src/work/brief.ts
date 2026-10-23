@@ -262,6 +262,8 @@ export function renderBrief(brief: Brief, options: { mentionedRef?: string | nul
     }
     if (t.states?.length) lines.push(`Independent observations: ${t.states.map((s) => `${s.dimension}${s.environment ? `/${s.environment}` : ''}=${s.status}${s.at ? ` (${s.source}, ${s.at.slice(0, 10)})` : ''}`).join('; ')}. Work finished or merged never means delivered.`);
     if (t.missingCriteria?.length) lines.push(`Before closing the work: ${t.missingCriteria.join('; ')}.`);
+    // D74: the agent's todos go straight in, a few at a time, and never come back once removed.
+    lines.push(`Todos: when you read the ticket and at the end of the session, add at most 3 with \`okb action add "<text>" --ticket ${t.ref} --why "<a few words: from the Jira criteria, failing test…>" [--importance high]\`, and announce each in one line (« ✦ OKB 1 todo ajoutée à ${t.ref} : … »); more only when the person asks. You may tick any todo (\`okb action done <id>\`) and set its importance, never rewrite or remove the person's todos. A todo the person removed is refused if you add it again: do not insist.`);
     if (t.note) lines.push(`Its note: ${root}/${t.note}`);
     else if (t.status === 'done' || t.repos.some((p) => p.merged)) lines.push(`This ticket looks finished and has no note yet: offer /okb-dev:ticket to write it (ask first).`);
   }

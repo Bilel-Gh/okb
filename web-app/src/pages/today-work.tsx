@@ -12,7 +12,7 @@ import { workHref } from '../ui/WorkPreview';
 import '../styles/ticket.css';
 import type { Action } from './day-parts';
 import type { Project } from './Projects';
-import { Editable, ImportanceBars, TkRing } from './ticket/parts';
+import { AgentMarks, Editable, ImportanceBars, removeTodo, TkRing } from './ticket/parts';
 
 /** What Today shows of a ticket (F2.4-13, D70): read from its sheet by the developer module. */
 export type WorkCard = {
@@ -23,7 +23,7 @@ export type WorkCard = {
 export type ResumeCard = Project & { card: WorkCard | null };
 export type ResumeCards = { first: ResumeCard[]; more: ResumeCard[]; pool: ResumeCard[]; total: number; counts: { progress: number; waiting: number; blocked: number } };
 export type PendingRequest = { id: string; ref: string; fields: string[]; since: string };
-export type TodoAction = Action & { workRef?: string | null; importance?: Importance; pinned?: boolean; work?: { ref: string; title: string } | null };
+export type TodoAction = Action & { workRef?: string | null; importance?: Importance; pinned?: boolean; work?: { ref: string; title: string } | null; doneBy?: 'person' | 'agent' | null; importanceBy?: 'person' | 'agent' | null; why?: string | null };
 
 type Filter = 'all' | 'progress' | 'waiting' | 'blocked';
 
@@ -126,8 +126,8 @@ export function TodoBoard({ todos }: { todos: TodoAction[] }) {
       <ul className="tk-todos">{sorted.filter((a) => !group || (a.work?.ref ?? '') === key).map((a) => <li key={a.id}>
         <input type="checkbox" onChange={() => update.mutate({ id: a.id, status: 'done' })} aria-label={`${w('Terminer', 'Finish')} : ${a.text}`} />
         <ImportanceBars value={a.importance ?? 'medium'} onChange={(v) => update.mutate({ id: a.id, importance: v })} />
-        <div>{editing === a.id ? <Editable value={a.text} label={w('Texte de la todo', 'Todo text')} maxLength={300} startOpen onClose={() => setEditing(null)} onSave={(v) => { update.mutate({ id: a.id, text: v }); }} /> : <><div className="t">{a.text}</div><div className="c">{a.work ? <a className="link" href={hrefFor({ name: 'tickets', ref: a.work.ref })}>{a.work.ref}</a> : a.project ? a.project.title : w('personnelle', 'personal')}{a.due ? ` · ${new Date(a.due).toLocaleDateString(lang, { weekday: 'long' })}` : ''}{a.source === 'ai' ? ` · ${w('par l’agent', 'by the agent')}` : ''}</div></>}</div>
-        <div className="tk-tools"><button type="button" className="tk-ib" onClick={() => setEditing(a.id)} aria-label={`${w('Modifier', 'Edit')} : ${a.text}`}><Pencil size={16} aria-hidden="true" /></button><button type="button" className="tk-ib" onClick={() => remove.mutate(a.id)} aria-label={`${w('Supprimer', 'Delete')} : ${a.text}`}><Trash2 size={16} aria-hidden="true" /></button></div>
+        <div>{editing === a.id ? <Editable value={a.text} label={w('Texte de la todo', 'Todo text')} maxLength={300} startOpen onClose={() => setEditing(null)} onSave={(v) => { update.mutate({ id: a.id, text: v }); }} /> : <><div className="t">{a.text}</div><div className="c">{a.work ? <a className="link" href={hrefFor({ name: 'tickets', ref: a.work.ref })}>{a.work.ref}</a> : a.project ? a.project.title : w('personnelle', 'personal')}{a.due ? ` · ${new Date(a.due).toLocaleDateString(lang, { weekday: 'long' })}` : ''}{' '}<AgentMarks todo={a} /></div></>}</div>
+        <div className="tk-tools"><button type="button" className="tk-ib" onClick={() => setEditing(a.id)} aria-label={`${w('Modifier', 'Edit')} : ${a.text}`}><Pencil size={16} aria-hidden="true" /></button><button type="button" className="tk-ib" onClick={() => void removeTodo(a, w, refresh)} aria-label={`${w('Supprimer', 'Delete')} : ${a.text}`}><Trash2 size={16} aria-hidden="true" /></button></div>
       </li>)}</ul>
     </div>) : <p className="muted small" style={{ margin: '4px 18px' }}>{w('Rien à faire pour l’instant.', 'Nothing to do for now.')}</p>}
     <form className="tk-add" onSubmit={(e) => { e.preventDefault(); if (text.trim() && !add.isPending) add.mutate(); }}><Plus size={16} aria-hidden="true" className="muted" /><input value={text} onChange={(e) => setText(e.target.value)} maxLength={300} placeholder={w('Une chose à faire · #DEMO-42 pour la rattacher · ! pour importance haute', 'Something to do · #DEMO-42 to tie it · ! for high importance')} aria-label={w('Ajouter une chose à faire', 'Add something to do')} /><kbd aria-hidden="true">↵</kbd></form>

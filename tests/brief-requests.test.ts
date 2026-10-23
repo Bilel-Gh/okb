@@ -26,3 +26,19 @@ describe('the brief without a repository also names the requests', () => {
     expect(text).toContain('Open OKB requests: DEMO-4211 (team) [R-1a2b3c]');
   });
 });
+
+describe('the session brief gives the agent the rule for a ticket’s todos (F2.4-24, D74)', () => {
+  const ticket = { ref: 'DEMO-4211', title: 'Le panier perd les remises', status: 'active' as const, auto: false, repos: [], journal: [], textFile: null, note: null };
+  it('says how many todos, how to add them, and what it may not touch', () => {
+    const text = renderBrief({ ...base, ticket });
+    expect(text).toContain('okb action add');
+    expect(text).toContain('--ticket DEMO-4211');
+    expect(text).toContain('--why');
+    expect(text).toContain('at most 3');
+    expect(text).toMatch(/never rewrite or remove the person's todos/);
+    expect(text).toContain('removed');
+  });
+  it('says nothing about todos without a ticket', () => {
+    expect(renderBrief(base)).not.toContain('okb action add');
+  });
+});

@@ -11,7 +11,7 @@ import { MORE, SCREENS, SETTINGS, screenOf, screenTabs, type NavEntry } from './
 import { Palette } from './Palette';
 import { hrefFor, type Route } from './router';
 import { applyLook, LOOKS, readLogo, readLook, readMode, readRail, readStyle, saveRail, type Look, type Mode, type Rail, type Style } from './theme';
-import { toast, useToasts } from './toast';
+import { toast, dismissToast, useToasts } from './toast';
 
 type Modules = { modules: { id: string; enabled: boolean }[] };
 type Waiting = { suggestions: { status: string }[] };
@@ -407,7 +407,7 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
       </nav>
       <Palette open={palette} onOpenChange={setPalette} appearance={appearance} devOn={devOn} />
       <div className="toasts" role="status" aria-live="polite">
-        {toasts.map((x) => <div key={x.id} className={`toast${x.kind === 'err' ? ' err' : ''}`}>{x.text}</div>)}
+        {toasts.map((x) => <div key={x.id} className={`toast${x.kind === 'err' ? ' err' : ''}`}>{x.text}{x.action ? <button type="button" className="toast-action" onClick={() => { x.action!.run(); dismissToast(x.id); }}>{x.action.label}</button> : null}</div>)}
       </div>
     </div>
   );
