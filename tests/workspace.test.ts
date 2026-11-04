@@ -82,7 +82,15 @@ describe('a workspace: one KB for a team of repositories, narrowed to the one at
     git(orders, 'merge', '-q', '--no-ff', '-m', 'Merge ORD-42', 'feature/ORD-42-lines');
     const after = (await run(['scope', '--context', '--cwd', orders], env, orders)).stdout;
     expect(after).toContain('merged');
-    expect(after).toContain('This ticket looks finished and has no note yet');
+    // Quiet (D76): the brief offers nothing, opens on one line, and stays in its budget.
+    expect(after).not.toContain('offer /okb-dev:ticket');
+    expect(after).toContain('OKB works in the background');
+    expect(after).toMatch(/Start your first answer of this session with this line, as it is, and repeat it only when it changes: 🎫 ORD-42 autoriser les commandes de 100 lignes · 📦 orders-service/);
+    expect(after.length).toBeLessThanOrEqual(4000);
+    expect((await json(['scope'], env, orders)).headline).toContain('🎫 ORD-42');
+    await run(['settings', 'set', 'presence', 'assist'], env, orders);
+    expect((await run(['scope', '--context', '--cwd', orders], env, orders)).stdout).toContain('This ticket looks finished and has no note yet');
+    await run(['settings', 'set', 'presence', 'quiet'], env, orders);
 
     const done = await json(['ticket', 'done'], env, orders);
     expect(done).toMatchObject({ ok: true, ticket: { ref: 'ORD-42', status: 'done' } });

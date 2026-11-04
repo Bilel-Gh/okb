@@ -438,6 +438,7 @@ export const EN = {
   'settings.hint.conceptAssist.level.targeted': 'cards for the terms of the domain',
   'settings.hint.conceptAssist.level.pedagogical': 'plus the basic notions',
   'settings.hint.conceptAssist.level.off': 'no new card',
+  'settings.explain.presence': 'In the background, OKB gives the agent a short brief when a session starts and answers when asked, without ever interrupting you: what it spots waits in the app. “As in 2.4” brings back the offers during the session.',
   'settings.explain.routing.suggest': 'When a message looks like “end of session” or “read this transcript”, Claude offers the matching OKB command. It only offers; you decide.',
   'settings.label.agents.model': 'Model of the evidence-gathering subagents',
   'settings.opt.agents.model.inherit': 'Same as the session',

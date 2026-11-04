@@ -114,9 +114,26 @@ describe('what is spotted waits for the end of the session (F2.0-09)', () => {
     expect(await loadQueue(config)).toEqual([]);
   });
 
-  it('the hook at the end of an answer: silent along the way, one grouped question when the person closes the session', async () => {
+  it('the hook at the end of an answer, OKB quiet (D76): silent along the way and at the closing, the card waits in the app', async () => {
     await brain();
     const { dir, env } = last;
+    const transcript = resolve(dir, 'transcript.jsonl');
+    const said = (text: string) => `${JSON.stringify({ type: 'user', message: { role: 'user', content: text } })}\n`;
+    const hook = (answer: string) => spawnSync(process.execPath, [resolve(TEST_ROOT, '..', 'plugin', 'hooks', 'stop.mjs')], {
+      input: JSON.stringify({ session_id: 'abc-123', transcript_path: transcript, last_assistant_message: answer, cwd: dir }), env: { ...env, OKB_HEADLESS: '' }, encoding: 'utf8',
+    }).stdout;
+    await writeFile(transcript, said("c'est quoi OData ?"));
+    expect(hook(LONG)).toBe('');
+    await appendFile(transcript, said('merci, à demain'));
+    expect(hook('Bonne soirée.')).toBe('');
+    expect((await json(['suggest', 'list', '--all'], env, dir)).suggestions.map((x: { title: string; status: string }) => [x.title, x.status])).toEqual([['OData', 'pending']]);
+  });
+
+  it('the hook at the end of an answer, OKB as in 2.4: silent along the way, one grouped question when the person closes the session', async () => {
+    await brain();
+    const { dir, env } = last;
+    const { writeSetting } = await import('../src/settings/settings.js');
+    await writeSetting('travail', 'presence', 'assist', env);
     const transcript = resolve(dir, 'transcript.jsonl');
     const said = (text: string) => `${JSON.stringify({ type: 'user', message: { role: 'user', content: text } })}\n`;
     const hook = (answer: string) => spawnSync(process.execPath, [resolve(TEST_ROOT, '..', 'plugin', 'hooks', 'stop.mjs')], {

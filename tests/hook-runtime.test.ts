@@ -50,6 +50,12 @@ describe('Claude hooks are observable and retry failures without content logs', 
     expect((await run('plugins/okb-dev/hooks/file.mjs',input,{OKB_HOME:home,OKB_CLI:cli})).stdout).toContain('Useful note');
     expect((await run('plugins/okb-dev/hooks/file.mjs',{...input,cwd:ROOT},{OKB_HOME:home,OKB_CLI:cli})).stdout).toContain('Useful note');
   });
+  it('gives the notes of five files per session at most (D76)', async () => {
+    const {home,cli}=await fixture(); const at=(f: string)=>({cwd:home,session_id:'capped',tool_input:{file_path:`src/${f}.ts`}});
+    for (const f of ['a','b','c','d','e']) expect((await run('plugins/okb-dev/hooks/file.mjs',at(f),{OKB_HOME:home,OKB_CLI:cli})).stdout).toContain('Useful note');
+    expect((await run('plugins/okb-dev/hooks/file.mjs',at('f'),{OKB_HOME:home,OKB_CLI:cli})).stdout).toBe('');
+    expect(await log(home)).toContainEqual(expect.objectContaining({reason:'session-cap'}));
+  });
   it('uses the same runtime contract in an installed/cache module copy', async () => {
     const {home,cli}=await fixture(); const copy=resolve(home,'cache','okb-dev','2.0.0'); await cp(resolve(ROOT,'plugins/okb-dev'),copy,{recursive:true});
     const p=spawn(process.execPath,[resolve(copy,'hooks/session-scope.mjs')],{env:{...process.env,OKB_HOME:home,OKB_CLI:cli,PATH:'/usr/bin:/bin'},stdio:['pipe','pipe','pipe']}); let out='';p.stdout.on('data',(c)=>out+=c);p.stdin.end(JSON.stringify({cwd:home,source:'resume'})); await new Promise((r)=>p.on('close',r));expect(out).toContain('fixture context');

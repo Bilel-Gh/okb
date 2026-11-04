@@ -1545,3 +1545,41 @@ todo ne contourne pas un refus ; la casse de la référence du ticket ne compte
 pas ; une todo cochée laisse sa ligne dans le journal de son ticket, au nom de
 qui l’a cochée ; le fil lit assez de journal pour qu’une journée de commits n’en
 chasse pas les décisions.
+
+## D76 — OKB en arrière-plan pendant le travail (4 novembre 2026)
+
+Constat d’usage : pendant un ticket, OKB prend la parole trop souvent. Il
+propose une commande à partir des mots de la personne, une carte à la fin de
+chaque session, l’annonce de chaque todo, une note pour un ticket fini, un
+onboarding pour un repo sans note. La personne doit penser à OKB au lieu de son
+travail.
+
+Un réglage global, que seule la personne change : `presence`. La valeur
+`quiet` est celle par défaut, `assist` garde le fonctionnement de la 2.4.
+En `quiet` :
+
+- `okb route --suggest` ne propose plus de commande ; le resserrement du scope
+  sur un repo ou un ticket nommé reste, sans annonce ;
+- `okb suggest moment` repère et garde, sans rien proposer, même à la clôture
+  (mode `background`) ; les cartes nommées attendent dans l’app ;
+- le brief de session et celui du cerveau ne demandent plus à l’agent de
+  proposer, d’annoncer ou de demander. Ils lui donnent une ligne à poser en tête
+  de sa première réponse, puis seulement quand elle change : le ticket et son
+  titre, le repo, la PR, la CI, l’attente, la prochaine étape, et seulement ce
+  qui est connu. `okb scope --json` la renvoie dans `headline`, et les skills
+  du module dev l’utilisent ;
+- les todos et le journal du ticket continuent, sans annonce.
+
+Toujours, quelle que soit la présence :
+
+- un brief de repo tient en 4 000 caractères (environ 1 000 tokens), et seuls
+  les trois derniers essais échoués y figurent ;
+- les notes liées aux fichiers lus sont données pour cinq fichiers au plus par
+  session.
+
+Rien ne change pour l’approbation : une note demandée par la personne suit les
+règles de son KB (D71), une note validée ne change qu’avec son oui, et l’agent
+ne change jamais ce réglage. Ce qui mérite d’être gardé sera rassemblé après la
+session par un agent dédié (chantier suivant), à partir de ce qui a été repéré
+et des transcripts.
+

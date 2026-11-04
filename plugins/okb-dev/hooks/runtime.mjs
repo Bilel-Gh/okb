@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const runnable = (p) => { try { accessSync(p, constants.X_OK); return true; } catch { return false; } };
 const exists = (p) => { try { return statSync(p).isFile(); } catch { return false; } };
-const REASONS = new Set('started headless invalid-input event-not-covered input-limit deadline context-sent binary-absent runtime-unsupported timeout binary-or-runtime-absent cli-error profile-or-repo-unresolved cli-ok no-context invalid-output missing-cwd excluded-file already-sent lookup-failed no-notes dedup-write-failed irrelevant-command no-matches excluded-prompt agent-notification no-suggestion consent-processed continuation transcript-window transcript-unavailable no-user-prompt short-exchange outside-scope profile-resolution-error brief-error'.split(' '));
+const REASONS = new Set('started headless invalid-input event-not-covered input-limit deadline context-sent binary-absent runtime-unsupported timeout binary-or-runtime-absent cli-error profile-or-repo-unresolved cli-ok no-context invalid-output missing-cwd excluded-file already-sent session-cap lookup-failed no-notes dedup-write-failed irrelevant-command no-matches excluded-prompt agent-notification no-suggestion consent-processed continuation transcript-window transcript-unavailable no-user-prompt short-exchange outside-scope profile-resolution-error brief-error'.split(' '));
 const home = () => process.env.OKB_HOME || resolve(homedir(), '.okb');
 export function resolveEngine(url) {
   const here = dirname(fileURLToPath(url));

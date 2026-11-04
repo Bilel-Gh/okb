@@ -439,6 +439,7 @@ export const FR: Record<keyof typeof EN, string> = {
   'settings.hint.conceptAssist.level.targeted': 'des fiches pour les termes du domaine',
   'settings.hint.conceptAssist.level.pedagogical': 'plus les notions de base',
   'settings.hint.conceptAssist.level.off': 'aucune nouvelle fiche',
+  'settings.explain.presence': 'En arrière-plan, OKB donne à l’agent un brief court au début de la session et répond quand on lui demande, sans jamais t’interrompre : ce qu’il repère attend dans l’app. « Comme en 2.4 » ramène les suggestions pendant la session.',
   'settings.explain.routing.suggest': 'Quand un message ressemble à « fin de session » ou « lis ce transcript », Claude te propose la commande OKB qui correspond. Il propose seulement ; c’est toi qui décides.',
   'settings.label.agents.model': 'Modèle des sous-agents qui cherchent les preuves',
   'settings.opt.agents.model.inherit': 'Comme la session',

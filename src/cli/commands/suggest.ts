@@ -6,6 +6,7 @@ import { loadBundleFor } from '../../kb/bundle.js';
 import { noteEvent, scoreBundle } from '../../scores/scores.js';
 import { hasConsent, idsFromQuestion, idsIn, isPlainYes, recordConsent } from '../../suggest/consent.js';
 import { addSuggestion, buildCard, contextFor, dailyBudget, findSuggestion, renderCard, setStatus, SIGNALS, spentToday, stars, type Signal, type SuggestInput } from '../../suggest/suggest.js';
+import type { SpotMode } from '../../suggest/session.js';
 import { invokedBy } from '../../usage/events.js';
 import { OkbError } from '../../util/errors.js';
 import { asBundlePath } from '../../util/paths.js';
@@ -117,13 +118,16 @@ export async function cmdSuggest(ctx: Ctx): Promise<number> {
   }
 }
 
-export async function suggestMode(config: OkbConfig): Promise<'live' | 'session' | 'never'> {
+export async function suggestMode(config: OkbConfig): Promise<SpotMode> {
   const v = (config as unknown as { suggest?: { mode?: string } }).suggest?.mode;
   const { readRootConfig } = await import('../../kb/registry.js');
-  const root = (await readRootConfig().catch(() => ({}))) as { suggest?: { mode?: unknown } };
+  const root = (await readRootConfig().catch(() => ({}))) as { suggest?: { mode?: unknown }; presence?: unknown };
   const m = v ?? root.suggest?.mode;
+  if (m === 'never') return 'never';
+  // Quiet OKB (D76): spotted and kept, never offered during the work.
+  if (root.presence !== 'assist') return 'background';
   // Grouped at the end of the session unless the person chose otherwise (F2.0-09).
-  return m === 'live' || m === 'never' ? m : 'session';
+  return m === 'live' ? m : 'session';
 }
 
 /**

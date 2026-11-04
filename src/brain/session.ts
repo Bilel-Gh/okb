@@ -3,13 +3,18 @@ import type { Bundle } from '../kb/bundle.js';
 import type { BrainLayout } from './layout.js';
 import { nowView, renderNow } from './now.js';
 import { brainShape } from './views.js';
+import type { Presence } from '../settings/presence.js';
+
+/** Quiet OKB (D76): the assistant never offers a note on its own; what is worth keeping is gathered after the session. */
+const QUIET_NOTES = ' OKB works in the background: never offer a note, a card, a check or an OKB command on your own, and never ask the user about OKB.';
 
 /**
  * What Claude gets when a session starts: the brain's drawers and subjects, « Maintenant »,
  * the subject of the folder it opens in, and the rules for a new note. Short on purpose
  * (≤ ~800 tokens whatever the size of the brain: `okb metrics` measures it).
  */
-export async function sessionBrief(config: OkbConfig, layout: BrainLayout, bundle: Bundle, cwd?: string): Promise<string> {
+export async function sessionBrief(config: OkbConfig, layout: BrainLayout, bundle: Bundle, cwd?: string, presence: Presence = 'quiet'): Promise<string> {
+  const quiet = presence === 'quiet';
   const name = config.profile.displayName || config.profile.id;
   const shape = brainShape(layout, bundle);
   const lines: string[] = [];
@@ -37,8 +42,10 @@ export async function sessionBrief(config: OkbConfig, layout: BrainLayout, bundl
     const share = await validatedShare(config, bundle).catch(() => null);
     const checks = openDb(config).all<{ id: string; path: string }>("SELECT id, path FROM note_requests WHERE kind = 'check' AND state = 'pending' ORDER BY created_at");
     lines.push('', `Notes to review by the person: ${share?.pending ?? 0}${share?.share !== null && share?.share !== undefined ? ` (memory ${share.share} % validated)` : ''}.${checks.length ? ` Checks asked: ${checks.map((c) => `${c.path} [${c.id}]`).join(', ')} — confront each with its sources, then propose the fixes.` : ''}`);
-    lines.push('Notes: this KB files the agent\'s notes at once, « to review »; a note the person asked for is their yes: no suggestion card; prepare it as usual, then `okb keep <proposal> --json` and say in one line « Note rangée, déjà utilisable : <title> · <place> · Ouvrir dans OKB »' + (config.review.offer ? ', then offer a check against the sources in one line' : '') + '. A change to a validated note waits for their yes. You never validate, reject or approve a note, and never change this setting. A note you would add on your own still gets a suggestion card first.');
-  } else lines.push('', 'Notes: never write one without the person\'s yes. Before writing, show a suggestion card (type, exact place from `okb where <type> --title … --product … --repo …`, why, notes that already cover it from `okb ask`, estimated cost) and wait.');
+    lines.push('Notes: this KB files the agent\'s notes at once, « to review »; a note the person asked for is their yes: no suggestion card; prepare it as usual, then `okb keep <proposal> --json` and say in one line « Note rangée, déjà utilisable : <title> · <place> · Ouvrir dans OKB »' + (config.review.offer && !quiet ? ', then offer a check against the sources in one line' : '') + '. A change to a validated note waits for their yes. You never validate, reject or approve a note, and never change this setting.' + (quiet ? QUIET_NOTES : ' A note you would add on your own still gets a suggestion card first.'));
+  } else lines.push('', quiet
+    ? 'Notes: never write one without the person\'s yes. When they ask for one, show a suggestion card first (type, exact place from `okb where <type> --title … --product … --repo …`, why, notes that already cover it from `okb ask`, estimated cost) and wait.' + QUIET_NOTES
+    : 'Notes: never write one without the person\'s yes. Before writing, show a suggestion card (type, exact place from `okb where <type> --title … --product … --repo …`, why, notes that already cover it from `okb ask`, estimated cost) and wait.');
   lines.push('Read the context of a subject with `okb brain context <folder or note>` (parents\' 5-minute pages, children, linked concept cards). Facts go to the lowest level that holds them; lessons rise to the highest level where they stay true.');
   return lines.join('\n');
 }

@@ -209,6 +209,10 @@ describe('packaged CLI', () => {
     expect(tour.stdout).toContain('Throwaway KB deleted');
     const status = json<{ profile: string; line: string; pending: unknown[] }>(await okb(['status', '--json'], s.env));
     expect(status.line).toContain('📚 alpha');
+    // Quiet by default (D76): no command is offered from the person's words; as in 2.4, it is.
+    const quiet = json<{ suggestion: unknown; context: string }>(await okb(['route', '--suggest', '--json', 'ok fin de session'], s.env));
+    expect(quiet).toMatchObject({ suggestion: null, context: '' });
+    expect((await okb(['settings', 'set', 'presence', 'assist'], s.env)).code).toBe(0);
     const offer = json<{ suggestion: { intent: string; command: string } }>(await okb(['route', '--suggest', '--json', 'ok fin de session'], s.env));
     expect(offer.suggestion).toMatchObject({ intent: 'done', command: '/okb:done' });
     const fr = { ...s.env, OKB_LANG: 'fr' };

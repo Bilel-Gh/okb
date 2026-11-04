@@ -24,6 +24,7 @@ type Kept = Moment & { readonly at: string; readonly card?: string };
 type Ledger = { id: string; startedAt: string; lastAt: string; moments: Kept[]; offered: string[]; quiet: boolean; liveAt?: string };
 type Ledgers = { version: 1; sessions: Ledger[] };
 
+export type SpotMode = 'live' | 'session' | 'background' | 'never';
 export type SpotInput = MomentInput & { readonly session?: string };
 export type Offer = { readonly session: string; readonly cards: Suggestion[]; readonly toName: Moment[] };
 export type Spotted = { readonly moments: Moment[]; readonly offer: Offer | null; readonly context?: string; readonly suggestion?: Suggestion };
@@ -65,9 +66,10 @@ const quote = (text: string) => text.replace(/[`"«»\n]/g, ' ').replace(/\s+/g,
 /**
  * One exchange of a conversation: spot its moments, keep them, and say what to
  * offer — nothing along the way (unless `live`), the grouped question when the
- * person closes the session. Never writes a note; never spends a token.
+ * person closes the session. `background` (OKB quiet, D76) keeps everything and
+ * offers nothing: the cards wait in the app. Never writes a note; never spends a token.
  */
-export async function spot(config: OkbConfig, input: SpotInput, options: { readonly mode: 'live' | 'session' | 'never'; readonly now?: Date }): Promise<Spotted> {
+export async function spot(config: OkbConfig, input: SpotInput, options: { readonly mode: SpotMode; readonly now?: Date }): Promise<Spotted> {
   const now = options.now ?? new Date();
   if (options.mode === 'never' || !config.kb.brain) return { moments: [], offer: null };
   const session = sessionId(input.session, now);
@@ -93,6 +95,7 @@ export async function spot(config: OkbConfig, input: SpotInput, options: { reado
     return { ...l, offered: [...l.offered] };
   });
 
+  if (options.mode === 'background') return { moments, offer: null };
   if (isClosing(input.prompt)) {
     const offer = await sessionOffer(config, session, now);
     return offer.cards.length || offer.toName.length ? { moments, offer, context: groupedContext(offer) } : { moments, offer: null };

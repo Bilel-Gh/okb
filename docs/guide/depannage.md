@@ -47,8 +47,9 @@ d’écraser ta modification.
 
 - Vérifie que le plugin est installé : `okb doctor` (ligne « Plugin dans Claude »),
   puis ouvre une **nouvelle** session Claude.
-- Vérifie que les propositions sont actives : `okb settings show` →
-  `routing.suggest`.
+- Par défaut, OKB ne propose plus rien pendant le travail (`presence: quiet`) :
+  c'est voulu. Pour les propositions, `okb settings set presence=assist`, puis
+  vérifie `routing.suggest` dans `okb settings show`.
 - Tu peux toujours utiliser les commandes : `/okb:done`, `/okb:ingest`…
 
 ## La commande `okb` est introuvable

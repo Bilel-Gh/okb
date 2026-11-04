@@ -15,7 +15,7 @@ import { addRepo, findRepo, listRepos, type RepoEntry } from '../../repo/registr
 import { scanAndStore } from '../../repo/scan.js';
 import { ticketContext } from '../../repo/ticket.js';
 import { OkbError } from '../../util/errors.js';
-import { buildBrief, renderBrief, type Brief } from '../../work/brief.js';
+import { buildBrief, headline, renderBrief, type Brief } from '../../work/brief.js';
 import { tiedNotes } from '../../work/rank.js';
 import { chooseScope, resolveScope, scopeFor, workspaceOfRepo, workspaceRepos, type Scope } from '../../work/scope.js';
 import { addJournal, finishTicket, listTickets, loadTicket, NOTE_KINDS, syncTicket, ticketId, ticketText, titleFrom, type TicketRecord } from '../../work/tickets.js';
@@ -297,7 +297,7 @@ async function setScope(ctx: Ctx, scope: Scope, target: string): Promise<number>
 async function showScope(ctx: Ctx, scope: Scope, changed = false): Promise<number> {
   const brief = scope.config ? await buildBrief(scope, { sync: true }).catch(() => null) : null;
   if (ctx.mode === 'json') {
-    ctx.out.json({ ok: true, changed, via: scope.via, workspace: scope.workspace?.id ?? null, kb: scope.kb, repo: scope.repo?.id ?? null, ticket: scope.ticket?.ref ?? null, brief });
+    ctx.out.json({ ok: true, changed, via: scope.via, workspace: scope.workspace?.id ?? null, kb: scope.kb, repo: scope.repo?.id ?? null, ticket: scope.ticket?.ref ?? null, brief, headline: brief ? headline(brief) : null });
     return 0;
   }
   if (!scope.workspace && !scope.repo) {
@@ -349,7 +349,8 @@ async function scopeContext(ctx: Ctx, cwd: string): Promise<number> {
   let text = '';
   if (scope?.config) {
     const brief = await buildBrief(scope, { sync: true }).catch(() => { reason = 'brief-error'; return null; });
-    if (brief) text = renderBrief(brief);
+    const { presenceOf } = await import('../../settings/presence.js');
+    if (brief) text = renderBrief(brief, { presence: await presenceOf() });
     // In a workspace, outside its repositories: a folder of notes or a new repository says what it is.
     if (!scope.repo) {
       const { repoContextText } = await import('./repo.js');

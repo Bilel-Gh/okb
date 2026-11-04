@@ -39,7 +39,12 @@ rien écrire :
 
 ## Quand les cartes arrivent
 
-- **À la fin de la session**, en une seule question : quand tu dis « merci, à
+- **Par défaut, jamais pendant le travail** (réglage `presence`, valeur
+  `quiet`) : OKB repère sans rien dire, les cartes attendent dans l'application
+  (**À valider**), et Claude ne te pose aucune question sur OKB. Avec
+  `okb settings set presence=assist`, tu retrouves le fonctionnement de la 2.4
+  décrit ci-dessous.
+- **À la fin de la session** (avec `presence: assist`), en une seule question : quand tu dis « merci, à
   demain » ou « fin de session », Claude te montre ce qui a été repéré. **Trois
   choses au plus** par session, les plus utiles d'abord.
 - **« Pas maintenant » est retenu** : les cartes attendent dans l'application

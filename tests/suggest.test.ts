@@ -112,6 +112,7 @@ describe('moments worth a note, spotted without AI', () => {
     const { env, dir } = await brain();
     const { writeSetting } = await import('../src/settings/settings.js');
     await writeSetting('travail', 'suggest.mode', 'live', env);
+    await writeSetting('travail', 'presence', 'assist', env);
     const answer = 'OData est un protocole… '.repeat(40);
     const first = await run(['suggest', 'moment', '--stdin', '--json'], env, dir).then(() => null);
     expect(first).toBeNull();

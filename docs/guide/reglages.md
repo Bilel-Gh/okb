@@ -145,7 +145,17 @@ d’autres :
 okb settings set routing.otherKnowledgeTools="support-kb, wiki produit"
 ```
 
-Et si tu préfères qu’OKB ne propose jamais rien de lui-même dans Claude :
+Par défaut, OKB reste en arrière-plan (`presence: quiet`) : Claude reçoit un
+brief court au début de la session, commence sa première réponse par une ligne
+qui dit où en est le ticket, et ne te propose ni commande, ni carte, ni
+vérification pendant le travail. Pour retrouver les propositions de la 2.4 :
+
+```bash
+okb settings set presence=assist
+```
+
+Avec `presence: assist`, tu peux encore couper les seules propositions de
+commandes :
 
 ```bash
 okb settings set routing.suggest=false

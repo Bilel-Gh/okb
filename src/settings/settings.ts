@@ -58,6 +58,8 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: 'agents.model', group: 'assistant', type: 'choice', scope: 'global', path: ['agents', 'model'], options: ['inherit', 'sonnet', 'haiku', 'opus'], recommended: 'inherit', fallback: 'inherit' },
   { key: 'routing.otherKnowledgeTools', group: 'assistant', type: 'list', scope: 'profile', path: ['routing', 'otherKnowledgeTools'], fallback: [] },
   // Suggestions before writing (src/suggest): when cards are shown, and the daily writing budget in tokens.
+  // How present OKB is during the work (src/settings/presence.ts, D76): quiet keeps it in the background.
+  { key: 'presence', group: 'assistant', type: 'choice', scope: 'global', path: ['presence'], options: ['quiet', 'assist'], recommended: 'quiet', fallback: 'quiet' },
   { key: 'suggest.mode', group: 'assistant', type: 'choice', scope: 'global', path: ['suggest', 'mode'], options: ['session', 'live', 'never'], recommended: 'session', fallback: 'session' },
   { key: 'dev.attribution', group: 'assistant', type: 'choice', scope: 'global', path: ['dev', 'attribution'], options: ['off', 'on'], recommended: 'off', fallback: 'off' },
   // How OKB itself asks a model (src/ai/provider.ts): Claude Code when installed, else ANTHROPIC_API_KEY.

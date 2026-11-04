@@ -70,6 +70,14 @@ Details: [release notes 2.0.0](docs/releases/RELEASE-2.0.0.md) · guides (FR):
 [les documents](docs/guide/documents.md), [les espaces](docs/guide/espaces.md),
 [brancher un assistant (MCP)](docs/guide/assistants-mcp.md).
 
+## In the background (development, 4 November)
+
+While you work on a ticket, OKB no longer takes the floor: no command, card or
+check is offered during the session, and Claude opens with one line that says
+where the ticket stands. What OKB spots waits in the app. The 2.4 behaviour is
+one setting away (`okb settings set presence=assist`).
+[Notes (FR)](docs/releases/RELEASE-USAGE-2026-11-04.md).
+
 ## How 2.4 came together, and what is still a preview
 
 The [23 October agent todos and Today](docs/releases/RELEASE-USAGE-2026-10-23.md)

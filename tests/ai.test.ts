@@ -80,7 +80,9 @@ describe('hooks during an AI call made by OKB', () => {
     const s = await makeSandbox({ profileId: 'alpha' });
     made.push(s.dir);
     sandboxEnv = s.env;
-    // Without the flag, the intent hook offers to end the session…
+    // Without the flag, the intent hook offers to end the session (OKB as in 2.4)…
+    const { writeSetting } = await import('../src/settings/settings.js');
+    await writeSetting('alpha', 'presence', 'assist', s.env);
     expect(hook('plugin/hooks/intent.mjs', prompt, false).stdout).toContain('additionalContext');
     // …with it, every context hook says nothing.
     for (const file of ['plugin/hooks/session-focus.mjs', 'plugin/hooks/intent.mjs', 'plugin/hooks/stop.mjs', 'plugin/hooks/consent.mjs', 'plugins/okb-dev/hooks/session-scope.mjs', 'plugins/okb-dev/hooks/bash.mjs', 'plugins/okb-dev/hooks/file.mjs']) {

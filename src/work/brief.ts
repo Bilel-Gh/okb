@@ -23,6 +23,8 @@ import { noteRepo, tiedNotes } from './rank.js';
 import { ticketDetail, type TicketState, type Attempt } from './ticket-state.js';
 import { openRequests } from './ticket-requests.js';
 import { openTeamRequests, teamOf } from './team.js';
+import { lang, type Lang } from '../i18n/index.js';
+import type { Presence } from '../settings/presence.js';
 
 /**
  * The brief: what Claude needs to work in a scope, small enough to read at
@@ -231,7 +233,61 @@ function teamLines(brief: Brief, lines: string[]): void {
   lines.push(`Open team requests: ${brief.teamRequests.map((q) => `${q.kind} ${q.subject} [${q.id}]`).join('; ')}. Find the team responsible with your own tools (ServiceNow assignment group, Jira team or component, wiki team page), write it with \`okb team set <repo|product> <name> --value … --origin … --url …\`, then report with \`okb team requests close <id>\`; never claim a source you could not read.`);
 }
 
-export function renderBrief(brief: Brief, options: { mentionedRef?: string | null } = {}): string {
+export function renderBrief(brief: Brief, options: { mentionedRef?: string | null; presence?: Presence; lang?: Lang } = {}): string {
+  const quiet = (options.presence ?? 'quiet') === 'quiet';
+  // The rules of a quiet OKB close the brief and are never cut.
+  const tail = quiet ? quietLines(brief, options.lang).join('\n') : '';
+  const room = BRIEF_BUDGET - (tail ? tail.length + 1 : 0);
+  const text = renderLines(brief, options, quiet);
+  return [text.length <= room ? text : cut(text, room), tail].filter(Boolean).join('\n');
+}
+
+/**
+ * The most a brief adds to a session (D76): about a thousand tokens. Lists are
+ * already short; a ticket with a long history loses its last lines, and the
+ * rest is one command away.
+ */
+export const BRIEF_BUDGET = 4000;
+
+function cut(text: string, room: number): string {
+  const more = '… (the rest: `okb scope --json`)';
+  const head = text.slice(0, room - more.length - 1);
+  return `${head.slice(0, Math.max(head.lastIndexOf('\n'), 0)) || head}\n${more}`;
+}
+
+const PR_WORDS: Readonly<Record<Lang, Readonly<Record<string, string>>>> = {
+  fr: { 'not-open': 'pas de PR', draft: 'PR brouillon', open: 'PR ouverte', review: 'PR en revue', approved: 'PR approuvée', 'changes-requested': 'PR : corrections demandées', merged: 'PR fusionnée', closed: 'PR fermée' },
+  en: { 'not-open': 'no PR', draft: 'draft PR', open: 'PR open', review: 'PR in review', approved: 'PR approved', 'changes-requested': 'PR: changes requested', merged: 'PR merged', closed: 'PR closed' },
+};
+const short = (text: string, max: number) => { const one = text.replace(/\s+/g, ' ').trim(); return one.length <= max ? one : `${one.slice(0, max - 1).trimEnd()}…`; };
+
+/**
+ * The one line the person reads at the top of the assistant's first answer
+ * (D76): the ticket and its title, the repository, where the PR, the checks
+ * and the wait stand, and the next step — only what is known.
+ */
+export function headline(brief: Brief, l: Lang = lang()): string {
+  const fr = l === 'fr';
+  const t = brief.ticket;
+  if (!brief.repo) {
+    const where = brief.workspace ? `🗂️ ${brief.workspace.name}` : `📚 ${brief.kb.name}`;
+    const n = brief.activeTickets.length;
+    return [where, fr ? `${brief.repos.length} repo${brief.repos.length > 1 ? 's' : ''}` : `${brief.repos.length} repositor${brief.repos.length > 1 ? 'ies' : 'y'}`, n ? (fr ? `${n} ticket${n > 1 ? 's' : ''} en cours` : `${n} ticket${n > 1 ? 's' : ''} in progress`) : (fr ? 'aucun ticket en cours' : 'no ticket in progress')].join(' · ');
+  }
+  if (!t) return [`📦 ${brief.repo.name}`, `📚 ${brief.kb.name}`, fr ? 'aucun ticket en cours' : 'no ticket in progress'].join(' · ');
+  const state = (d: string) => t.states?.find((x) => x.dimension === d && x.status !== 'unknown')?.status;
+  const parts = [`🎫 ${t.ref}${t.title && t.title !== t.ref ? ` ${short(t.title, 48)}` : ''}`, `📦 ${brief.repo.name}`];
+  const pr = state('pr');
+  if (pr && PR_WORDS[l][pr]) parts.push(PR_WORDS[l][pr]!);
+  if (state('checks') === 'failed') parts.push(fr ? 'CI en échec' : 'CI failing');
+  if (state('waiting') === 'blocked') parts.push(fr ? 'bloqué' : 'blocked');
+  else if (state('waiting') === 'waiting') parts.push(fr ? 'en attente' : 'waiting');
+  if (t.status === 'done') parts.push(fr ? 'terminé' : 'finished');
+  if (t.resume?.next) parts.push(`➡️ ${short(t.resume.next, 60)}`);
+  return parts.join(' · ');
+}
+
+function renderLines(brief: Brief, options: { mentionedRef?: string | null }, quiet: boolean): string {
   const root = brief.kb.root;
   const where = brief.workspace ? `workspace "${brief.workspace.name}", KB "${brief.kb.name}"` : `KB "${brief.kb.name}"`;
   const lines: string[] = [];
@@ -243,10 +299,8 @@ export function renderBrief(brief: Brief, options: { mentionedRef?: string | nul
     if (brief.landscape) lines.push(`How the repositories connect: ${root}/${brief.landscape}`);
     if (brief.requests?.length) lines.push(`Open OKB requests: ${brief.requests.map((q) => `${q.ref} (${q.fields.join(', ')}) [${q.id}]`).join('; ')}. Fill them with /okb-dev:ticket once the user picks the repository; never claim a source you could not read.`);
     teamLines(brief, lines);
-    lines.push(
-      'For a question across repositories, `okb ask "<question>" --json` searches the whole KB.',
-      'If the user starts working without naming a repository or a ticket, ask in one short line which one; for work on one repository, opening Claude Code in its folder is the simplest (the scope follows by itself).',
-    );
+    lines.push('For a question across repositories, `okb ask "<question>" --json` searches the whole KB.');
+    if (!quiet) lines.push('If the user starts working without naming a repository or a ticket, ask in one short line which one; for work on one repository, opening Claude Code in its folder is the simplest (the scope follows by itself).');
     return lines.join('\n');
   }
   const r = brief.repo;
@@ -258,20 +312,20 @@ export function renderBrief(brief: Brief, options: { mentionedRef?: string | nul
     if (t.journal.length) lines.push(`Ticket journal: ${t.journal.map(journalLine).join(' | ')}`);
     if (t.resume) {
       lines.push(`Resume: goal=${t.resume.goal}; last action=${t.resume.lastAction || 'unknown'}; next=${t.resume.next || 'unknown'}.`);
-      for (const a of t.resume.failed) lines.push(`Failed approach: ${a.approach}; conditions: ${a.conditions}; result: ${a.result}${a.next ? `; next: ${a.next}` : ''}.`);
+      for (const a of t.resume.failed.slice(-3)) lines.push(`Failed approach: ${a.approach}; conditions: ${a.conditions}; result: ${a.result}${a.next ? `; next: ${a.next}` : ''}.`);
     }
     if (t.states?.length) lines.push(`Independent observations: ${t.states.map((s) => `${s.dimension}${s.environment ? `/${s.environment}` : ''}=${s.status}${s.at ? ` (${s.source}, ${s.at.slice(0, 10)})` : ''}`).join('; ')}. Work finished or merged never means delivered.`);
     if (t.missingCriteria?.length) lines.push(`Before closing the work: ${t.missingCriteria.join('; ')}.`);
     // D74: the agent's todos go straight in, a few at a time, and never come back once removed.
-    lines.push(`Todos: when you read the ticket and at the end of the session, add at most 3 with \`okb action add "<text>" --ticket ${t.ref} --why "<a few words: from the Jira criteria, failing test…>" [--importance high]\`, and announce each in one line (« ✦ OKB 1 todo ajoutée à ${t.ref} : … »); more only when the person asks. You may tick any todo (\`okb action done <id>\`) and set its importance, never rewrite or remove the person's todos. A todo the person removed is refused if you add it again: do not insist.`);
+    lines.push(`Todos: when you read the ticket and at the end of the session, add at most 3 with \`okb action add "<text>" --ticket ${t.ref} --why "<a few words: from the Jira criteria, failing test…>" [--importance high]\`, ${quiet ? 'without announcing them' : `and announce each in one line (« ✦ OKB 1 todo ajoutée à ${t.ref} : … »)`}; more only when the person asks. You may tick any todo (\`okb action done <id>\`) and set its importance, never rewrite or remove the person's todos. A todo the person removed is refused if you add it again: do not insist.`);
     if (t.note) lines.push(`Its note: ${root}/${t.note}`);
-    else if (t.status === 'done' || t.repos.some((p) => p.merged)) lines.push(`This ticket looks finished and has no note yet: offer /okb-dev:ticket to write it (ask first).`);
+    else if (!quiet && (t.status === 'done' || t.repos.some((p) => p.merged))) lines.push(`This ticket looks finished and has no note yet: offer /okb-dev:ticket to write it (ask first).`);
   }
   if (brief.requests?.length) lines.push(`Open OKB requests: ${brief.requests.map((q) => `${q.ref} (${q.fields.join(', ')}) [${q.id}]`).join('; ')}. The person asked you to fill these with /okb-dev:ticket: read only what your tools allow (Jira, ServiceNow, wiki), record each value with \`okb ticket set\`, then report with \`okb ticket requests close <id>\`; never claim a source you could not read.`);
   if (brief.team) lines.push(`Team responsible: ${brief.team.value} (${brief.team.inherited ? `from product ${brief.team.inherited}, ` : ''}${brief.team.origin}).`);
   teamLines(brief, lines);
   if (brief.notes.length) lines.push('Read before exploring the code (approved notes, cite them):', ...list(root, brief.notes));
-  else lines.push('This repository has no note yet: offer /okb-dev:onboard if the user is discovering it (ask first).');
+  else if (!quiet) lines.push('This repository has no note yet: offer /okb-dev:onboard if the user is discovering it (ask first).');
   if (brief.recentTickets.length) lines.push('Recent tickets here:', ...list(root, brief.recentTickets));
   if (brief.shared.length) lines.push(`Shared notes tied to it (business, features, other repositories)${brief.sharedKb ? `, in the workspace's KB "${brief.sharedKb.name}"` : ''}:`, ...list(brief.sharedKb?.root ?? root, brief.shared));
   const edges = [
@@ -284,15 +338,26 @@ export function renderBrief(brief: Brief, options: { mentionedRef?: string | nul
       ? `In this scope: \`okb ask "<question>" --json\` searches this repository's KB first, then the shared notes of "${brief.sharedKb.name}" (--everywhere for the whole of both).`
       : 'In this scope: `okb ask "<question>" --json` ranks this repository and the shared notes tied to it first (--everywhere for the whole KB).',
     t
-      ? 'While working, record each decision, trap or open question in one line: `okb ticket note "<text>" --kind decision|trap|question` (a local journal; nothing is written in the KB). When the ticket is done, offer /okb-dev:ticket.'
+      ? quiet
+        ? 'While working, record each decision, trap or open question in one line, without mentioning it: `okb ticket note "<text>" --kind decision|trap|question` (a local journal; nothing is written in the KB).'
+        : 'While working, record each decision, trap or open question in one line: `okb ticket note "<text>" --kind decision|trap|question` (a local journal; nothing is written in the KB). When the ticket is done, offer /okb-dev:ticket.'
       : options.mentionedRef
-        ? startLine(options.mentionedRef, r.id)
-        : `No ticket in progress. When the user starts one, run \`okb ticket resume <ref> --repo ${r.id}\` (reconciles authorized notes with local follow-up; any note update remains a proposal), then follow /okb-dev:ticket's find/create/resume gesture.`,
+        ? startLine(options.mentionedRef, r.id, quiet ? 'quiet' : 'assist')
+        : `No ticket in progress. When the user starts one, run \`okb ticket resume <ref> --repo ${r.id}\` (reconciles authorized notes with local follow-up; any note update remains a proposal)${quiet ? ', silently' : ", then follow /okb-dev:ticket's find/create/resume gesture"}.`,
   );
   return lines.join('\n');
 }
 
+/** How a quiet OKB behaves in the session (D76): it serves the work and never takes the floor. */
+function quietLines(brief: Brief, l?: Lang): string[] {
+  return [
+    `Start your first answer of this session with this line, as it is, and repeat it only when it changes: ${headline(brief, l)}`,
+    'OKB works in the background: never offer an OKB command, a note, a card or a check, and never ask the user about OKB. Use OKB yourself when it helps (`okb ask`, the notes above), and answer about it when the user asks. What is worth keeping is gathered after the session.',
+  ];
+}
+
 /** What Claude does with a ticket the user names and OKB does not follow yet. */
-export function startLine(ref: string, repoId: string): string {
+export function startLine(ref: string, repoId: string, presence: Presence = 'quiet'): string {
+  if (presence === 'quiet') return `The user mentions ticket ${ref}, which OKB does not follow yet. If they are starting work on it, save the ticket text they gave to a file in your scratch folder and run \`okb ticket resume ${ref} --repo ${repoId} --ticket-file <file>\` silently (reconciles authorized notes with local follow-up; any note update remains a proposal).`;
   return `The user mentions ticket ${ref}, which OKB does not follow yet. If they are starting work on it, save the ticket text they gave to a file in your scratch folder and run \`okb ticket resume ${ref} --repo ${repoId} --ticket-file <file>\` (reconciles authorized notes with local follow-up; any note update remains a proposal), then follow /okb-dev:ticket's find/create/resume gesture.`;
 }

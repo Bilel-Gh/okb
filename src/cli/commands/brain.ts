@@ -278,7 +278,8 @@ async function brainSession(ctx: Ctx): Promise<number> {
   }
   if (!layout) return 0;
   const { sessionBrief } = await import('../../brain/session.js');
-  ctx.out.line(await sessionBrief(config, layout, await loadBundleFor(config), flagString(ctx.args, 'cwd')));
+  const { presenceOf } = await import('../../settings/presence.js');
+  ctx.out.line(await sessionBrief(config, layout, await loadBundleFor(config), flagString(ctx.args, 'cwd'), await presenceOf()));
   return 0;
 }
 

@@ -1,11 +1,12 @@
 ---
 name: okb-capture
-description: Keep what matters in the user's OKB brain with their yes before any token is spent writing — spot a moment worth a note, show a suggestion card (type, exact place, why, what exists, cost), write only what they accept; or jot a raw thought into the inbox and sort it. Use when the user says « garde ça », « note ça », « qu'est-ce qu'on garde ? », « fais une fiche sur … », or when an explanation, a solved bug or a decision deserves a note. Do not use to answer from the KB, ingest a document or review a proposal.
+description: Keep what matters in the user's OKB brain with their yes before any token is spent writing — spot a moment worth a note, show a suggestion card (type, exact place, why, what exists, cost), write only what they accept; or jot a raw thought into the inbox and sort it. Use when the user says « garde ça », « note ça », « qu'est-ce qu'on garde ? », « fais une fiche sur … », or when OKB's session hook hands over what it spotted. Do not use to answer from the KB, ingest a document or review a proposal.
 ---
 
 # Capture, with a yes first
 
 > 📚 **First reply.** `okb profile --json` once; open with `📚 <KB name>`. Speak the user's language.
+> 🤫 **OKB in the background (D76).** When the session brief says OKB works in the background, do what was asked and offer nothing beyond it: no card, note, check or other OKB command. What is worth keeping is gathered after the session.
 > 🧭 **Choices are buttons** (AskUserQuestion, 2–4 options, recommended first with « (recommandé) », one question at a time; several notes at once: `multiSelect`).
 > 🛡️ **Only OKB's own KBs.** Never another tool's knowledge base (`routing.otherKnowledgeTools`).
 > ✍️ **Format.** Short, tables for lists, last line « ➡️ Prochaine étape : … ». Secrets are refused (`E_SECRET`).

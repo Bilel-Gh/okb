@@ -5,6 +5,7 @@ import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import { createHook } from './runtime.mjs';
 const hook = createHook(import.meta.url, 'PostToolUse', 7000);
+const MAX_PER_SESSION = 5;
 const input = await hook.read();
 const file = String(input?.tool_input?.file_path ?? input?.tool_input?.path ?? '');
 if (!file || /\.(md|lock|png|jpe?g|svg|ico)$/i.test(file) || /node_modules|\/\.git\//.test(file)) hook.finish('excluded-file');
@@ -17,6 +18,8 @@ const key = digest(resolve(cwd,file));
 let seen=[];
 try { const saved=JSON.parse(readFileSync(seenFile,'utf8')); if(Array.isArray(saved))seen=saved; } catch { /* first lookup */ }
 if(seen.includes(key))hook.finish('already-sent');
+// D76: a few files' notes per session at most, so the notes help without filling the context.
+if(seen.length>=MAX_PER_SESSION)hook.finish('session-cap');
 const out=await hook.run(['find','--file',file,'--json'], {cwd,json:true,timeout:5000});
 if (!out) hook.finish('lookup-failed');
 const notes = Array.isArray(out.notes) ? out.notes.slice(0,3) : [];

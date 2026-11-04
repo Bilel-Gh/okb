@@ -34,6 +34,7 @@ import { PRESETS } from '../../style/presets.js';
 import { resolveStyle } from '../../style/resolve.js';
 import { lengthOf, styleOf, typeDefaults } from '../../style/simple.js';
 import { proposeRevision } from '../../revise/revise.js';
+import type { Presence } from '../../settings/presence.js';
 import { getTemplate, loadTemplates, pick, renderSkeleton, renderTemplateGuide } from '../../templates/registry.js';
 import { statePaths } from '../../state/paths.js';
 import { estimateTokens, paginate } from '../../util/context-meter.js';
@@ -842,10 +843,14 @@ async function routeSuggest(args: ParsedArgs, out: Output, mode: OutputMode): Pr
   } catch {
     enabled = false; // no KB yet: nothing to offer
   }
+  // Quiet OKB (D76): no command is offered from the person's words; the scope still follows them.
+  const { presenceOf } = await import('../../settings/presence.js');
+  const presence = await presenceOf();
+  if (presence === 'quiet') enabled = false;
   const kbs = (await listKbs()).map((k) => ({ id: k.id, name: k.name }));
   const otherTools = [...new Set([...configured, ...(await detectOtherKnowledgeTools(flagString(args, 'cwd')))])];
   const suggestion = enabled ? suggestIntent(message, { kbs, otherTools }) : null;
-  const scope = flagString(args, 'cwd') ? await scopeFromPrompt(message, flagString(args, 'cwd')!) : null;
+  const scope = flagString(args, 'cwd') ? await scopeFromPrompt(message, flagString(args, 'cwd')!, presence) : null;
   const context = [scope?.text ?? '', suggestion ? renderOffer(suggestion, lang()) : ''].filter(Boolean).join('\n\n');
   if (mode === 'json') out.json({ ok: true, enabled, suggestion, scope: scope ? { repo: scope.repo, ticket: scope.ticket, changed: scope.changed } : null, context });
   else if (context) out.line(context);
@@ -857,7 +862,7 @@ async function routeSuggest(args: ParsedArgs, out: Output, mode: OutputMode): Pr
  * narrows OKB to it: Claude gets that repository's brief at once. A ticket
  * OKB does not follow yet comes with how to start following it.
  */
-async function scopeFromPrompt(message: string, cwd: string): Promise<{ text: string; repo: string; ticket: string | null; changed: boolean } | null> {
+async function scopeFromPrompt(message: string, cwd: string, presence: Presence): Promise<{ text: string; repo: string; ticket: string | null; changed: boolean } | null> {
   try {
     const { resolveScope, scopeFromMessage } = await import('../../work/scope.js');
     const scope = await resolveScope(resolve(cwd));
@@ -869,10 +874,12 @@ async function scopeFromPrompt(message: string, cwd: string): Promise<{ text: st
     if (hit.changed) {
       const { scopeFor } = await import('../../work/scope.js');
       const brief = await buildBrief(await scopeFor(scope.workspace, hit.repo, hit.ticket, 'chosen'), { sync: true });
-      lines.push(`OKB narrowed its scope to "${hit.repo.name}"${hit.ticket ? ` and ticket ${hit.ticket.ref}` : ''} because the user named it: say so in one short line (🎯 ${hit.repo.name}${hit.ticket ? ` · 🎫 ${hit.ticket.ref}` : ''}) and work from this brief.`);
-      if (brief) lines.push(renderBrief(brief, { mentionedRef: newRef }));
+      lines.push(presence === 'quiet'
+        ? `OKB narrowed its scope to "${hit.repo.name}"${hit.ticket ? ` and ticket ${hit.ticket.ref}` : ''} because the user named it: work from this brief.`
+        : `OKB narrowed its scope to "${hit.repo.name}"${hit.ticket ? ` and ticket ${hit.ticket.ref}` : ''} because the user named it: say so in one short line (🎯 ${hit.repo.name}${hit.ticket ? ` · 🎫 ${hit.ticket.ref}` : ''}) and work from this brief.`);
+      if (brief) lines.push(renderBrief(brief, { mentionedRef: newRef, presence }));
     } else if (newRef) {
-      lines.push(startLine(newRef, hit.repo.id));
+      lines.push(startLine(newRef, hit.repo.id, presence));
     }
     return lines.length ? { text: lines.join('\n'), repo: hit.repo.id, ticket: hit.ticket?.ref ?? hit.ref, changed: hit.changed } : null;
   } catch {
