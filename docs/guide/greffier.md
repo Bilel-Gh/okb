@@ -58,6 +58,15 @@ Rien n’est lu deux fois. Le budget est à part du reste d’OKB :
 okb settings set scribe.budget=600000
 ```
 
+## Juste du premier coup
+
+Avant d’être rangée, chaque note passe une porte de qualité, sans IA : elle
+cite la conversation, ne redit pas une note existante, est posée au bon
+endroit, n’a ni tiret cadratin ni phrase de plus de 45 mots, et un concept a
+sa phrase de résumé. Une note arrêtée pour son écriture est réécrite une fois.
+Si elle échoue encore, elle n’est pas rangée : elle t’attend dans « À relire »
+avec la raison.
+
 ## Et ton oui ?
 
 Une note du greffier suit les règles de ta KB, comme toute note d’agent : avec

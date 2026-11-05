@@ -11,6 +11,8 @@ import type { RepoEntry } from '../repo/registry.js';
 import { statePaths } from '../state/paths.js';
 import { OkbError } from '../util/errors.js';
 import { withStateLock } from '../util/state-lock.js';
+import type { Proposal } from '../proposal/model.js';
+import { checkProposal, describeProblems, type GateResult } from '../quality/gate.js';
 import { changeLedger, readLedger, scribeSettings, today, type Ledger, type SessionEntry } from '../scribe/ledger.js';
 import { renderDigest, triage, type Triage } from '../scribe/digest.js';
 import { readTranscript, type Chunk, type Turn } from '../scribe/transcript.js';
@@ -41,7 +43,7 @@ export type Outcome = {
   readonly kb?: string;
   readonly ticket?: string | null;
   readonly journal: number;
-  readonly notes: readonly { readonly title: string; readonly path: string | null; readonly result: 'kept' | 'proposed' | 'covered' | 'declined' | 'failed'; readonly error?: string }[];
+  readonly notes: readonly { readonly title: string; readonly path: string | null; readonly result: 'kept' | 'proposed' | 'flagged' | 'covered' | 'declined' | 'failed'; readonly error?: string; readonly problems?: readonly string[] }[];
   readonly tokens: number;
 };
 
@@ -267,10 +269,20 @@ async function writeNote(config: OkbConfig, candidate: Plan['notes'][number], c:
   const target = card.recommendation === 'complete' ? card.target : card.path ?? `notes/${safeName(candidate.title)}.md`;
   if (!target) return { title: candidate.title, path: null, result: 'failed' };
   try {
-    const proposalId = await draft(config, candidate, card.recommendation === 'complete' ? { mode: 'append', path: target } : { mode: 'create', path: target, type: card.type }, c);
+    const where = card.recommendation === 'complete' ? { mode: 'append' as const, path: target } : { mode: 'create' as const, path: target, type: card.type };
+    // D78: a note that trips the quality gate is rewritten once when the problem is one of writing.
+    let made = await draft(config, candidate, where, c, []);
+    if (!made.gate.pass && made.gate.rewritable) made = await draft(config, candidate, where, c, describeProblems(made.gate.problems));
+    const { computeProposalHash } = await import('../proposal/model.js');
+    const { saveProposal } = await import('../proposal/store.js');
+    const signed = { ...made.proposal, notes: [...made.proposal.notes, `prepared by the scribe from conversation ${c.session.slice(0, 8)} (D77)`, ...describeProblems(made.gate.problems)] };
+    await saveProposal(config, { ...signed, contentHash: computeProposalHash(signed) });
+    const problems = [...new Set(made.gate.problems.map((p) => p.code))];
+    // Never shown as done: it waits for the person, with its reasons written on it.
+    if (!made.gate.pass) return { title: candidate.title, path: target, result: 'flagged', problems };
     const { keepProposal } = await import('../review/keep.js');
-    const kept = await keepProposal(config, proposalId, c.env);
-    if (kept.applied.length) { await setStatus(config, card.id, 'done', undefined, proposalId); return { title: candidate.title, path: target, result: 'kept' }; }
+    const kept = await keepProposal(config, signed.id, c.env);
+    if (kept.applied.length) { await setStatus(config, card.id, 'done', undefined, signed.id); return { title: candidate.title, path: target, result: 'kept' }; }
     return { title: candidate.title, path: target, result: 'proposed' };
   } catch (e) {
     // The card stays in the app: the person can still ask for it.
@@ -278,7 +290,7 @@ async function writeNote(config: OkbConfig, candidate: Plan['notes'][number], c:
   }
 }
 
-async function draft(config: OkbConfig, candidate: Plan['notes'][number], target: { mode: 'create'; path: string; type: string } | { mode: 'append'; path: string }, c: NoteContext): Promise<string> {
+async function draft(config: OkbConfig, candidate: Plan['notes'][number], target: { mode: 'create'; path: string; type: string } | { mode: 'append'; path: string }, c: NoteContext, fix: readonly string[]): Promise<{ proposal: Proposal; gate: GateResult }> {
   const dir = resolve(statePaths(config).root, 'scribe');
   await mkdir(dir, { recursive: true, mode: 0o700 });
   const source = resolve(dir, `${c.session.slice(0, 40)}.md`);
@@ -291,7 +303,7 @@ async function draft(config: OkbConfig, candidate: Plan['notes'][number], target
   const template = templateId ? await getTemplate(config, templateId).catch(() => undefined) : undefined;
   const roles = template ? template.sections.map((s) => `${s.role}${s.required ? ' (required)' : ''}: ${s.guide[c.lang]}`) : ['(free sections: give each a "heading" instead of a role)'];
   const blocks = doc.blocks.map((b) => `[${b.id}] ${b.text}`).join('\n');
-  const answer = await c.call(NOTE_SYSTEM, [`Note: ${candidate.type} « ${candidate.title} » — ${candidate.why}. Language: ${c.lang}.`, `Roles:\n${roles.join('\n')}`, '<<<BLOCKS', blocks, 'BLOCKS>>>'].join('\n'), 3000);
+  const answer = await c.call(NOTE_SYSTEM, [`Note: ${candidate.type} « ${candidate.title} »: ${candidate.why}. Language: ${c.lang}.`, `Roles:\n${roles.join('\n')}`, ...(fix.length ? [`Your first version was refused. Fix this:\n${fix.join('\n')}`] : []), '<<<BLOCKS', blocks, 'BLOCKS>>>'].join('\n'), 3000);
   const json = answer ? /\{[\s\S]*\}/.exec(answer)?.[0] : null;
   if (!json) throw new Error('no-json');
   const body = JSON.parse(json) as { sections?: unknown; openQuestions?: unknown };
@@ -300,7 +312,6 @@ async function draft(config: OkbConfig, candidate: Plan['notes'][number], target
   const base = analysisTemplate([doc], resolveStyle(config, {}).style, template) as Record<string, unknown>;
   const analysis = { ...base, reviewedBlockIds: doc.blocks.map((b) => b.id), summary: '', sections: Array.isArray(body.sections) ? body.sections : [], openQuestions: Array.isArray(body.openQuestions) ? body.openQuestions : [] };
   const { prepareProposal } = await import('../pipeline/ingest.js');
-  const { saveProposal } = await import('../proposal/store.js');
   const { asBundlePath } = await import('../util/paths.js');
   const day = new Date().toISOString().slice(0, 10);
   const report = await prepareProposal(config, [doc], {
@@ -309,10 +320,7 @@ async function draft(config: OkbConfig, candidate: Plan['notes'][number], target
       : { mode: 'create', path: asBundlePath(target.path), title: candidate.title, type: target.type },
     analysis,
   });
-  const { computeProposalHash } = await import('../proposal/model.js');
-  const signed = { ...report.proposal, notes: [...report.proposal.notes, `prepared by the scribe from conversation ${c.session.slice(0, 8)} (D77)`] };
-  await saveProposal(config, { ...signed, contentHash: computeProposalHash(signed) });
-  return report.proposal.id;
+  return { proposal: report.proposal, gate: checkProposal(report.proposal, await loadBundleFor(config)) };
 }
 
 /* ----------------------------------------------------------------- utils */

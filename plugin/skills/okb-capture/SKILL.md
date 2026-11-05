@@ -70,6 +70,8 @@ and estimated cost. Show it as is, then the buttons
   drafting, `okb keep <proposal> --json`, then one line « Note rangée, déjà
   utilisable : <titre> · <place> · Ouvrir dans OKB » (+ a check offer if
   `review.offer`). Never validate or reject.
+  `problems` in the answer (quality gate, D78): rewrite once, then leave it
+  waiting with one line saying why.
 - **« Plus tard »** `okb suggest later <id>`; **« Non »** `okb suggest decline <id>`.
   « Plus tard » is remembered: the card waits in the app and is not offered
   again in a conversation for a week.

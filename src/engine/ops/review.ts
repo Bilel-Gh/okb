@@ -12,7 +12,7 @@ export const notesKeep = defineOperation({
   input: z.object({ proposal }).strict(),
   async run({ config, env, actor }, input) {
     const r = await keepProposal(config, input.proposal, env);
-    return { applied: r.applied, waiting: r.waiting, receipt: r.receipt?.id ?? null };
+    return { applied: r.applied, waiting: r.waiting, receipt: r.receipt?.id ?? null, problems: r.problems };
   },
 });
 

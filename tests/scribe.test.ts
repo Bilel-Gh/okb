@@ -112,12 +112,13 @@ describe('the scribe files a finished conversation (D77)', () => {
     notes: [{ type: 'decision', title: 'Conversion de devise avant la remise', why: 'une règle qui reviendra', quotes: ['les remises sont en euros'] }],
   });
   /** A model that answers the plan, then a note citing the block that holds its words. */
-  const fakeAsk = (calls: Outgoing[]) => async (out: Outgoing): Promise<AiResult> => {
+  const CLEAN = 'La conversion de devise passe avant la remise, car les remises sont en euros.';
+  const fakeAsk = (calls: Outgoing[], claim: (n: number) => string = () => CLEAN) => async (out: Outgoing): Promise<AiResult> => {
     calls.push(out);
     if (out.system.includes('list only what is worth remembering')) return { text: plan, tokens: { input: 1000, output: 200 }, provider: 'fake' };
     const block = /\[([^\]]+)\][^\n]*les remises sont en euros/.exec(out.prompt)![1]!;
     const roles = [...out.prompt.matchAll(/^([a-z-]+) \(required\):/gm)].map((m) => m[1]!);
-    const sections = roles.map((role, i) => ({ role, claims: [{ id: `c${i}`, text: 'La conversion de devise passe avant la remise, car les remises sont en euros.', kind: 'reported', evidence: [{ blockId: block, quote: 'les remises sont en euros' }] }], aids: [] }));
+    const sections = roles.map((role, i) => ({ role, claims: [{ id: `c${i}`, text: claim(calls.length), kind: 'reported', evidence: [{ blockId: block, quote: 'les remises sont en euros' }] }], aids: [] }));
     return { text: JSON.stringify({ sections, openQuestions: [] }), tokens: { input: 1500, output: 400 }, provider: 'fake' };
   };
 
@@ -154,6 +155,28 @@ describe('the scribe files a finished conversation (D77)', () => {
     await writeSetting('', 'scribe.mode', 'after', env);
     const out = await scribeSession(file, { pass: 'after', env, ask: fakeAsk([]) });
     expect(out.notes[0]).toMatchObject({ result: 'proposed' });
+  });
+
+  it('rewrites once a note the quality gate stops for its writing, and never files one that still fails (D78)', async () => {
+    const DASHED = 'La conversion de devise passe avant la remise — les remises sont en euros.';
+    const first = await setup();
+    await writeSetting('', 'scribe.mode', 'after', first.env);
+    await writeSetting(first.config.profile.id, 'changes.agentWrites', 'review-later', first.env);
+    const calls: Outgoing[] = [];
+    const fixed = await scribeSession(first.file, { pass: 'after', env: first.env, ask: fakeAsk(calls, (n) => (n === 2 ? DASHED : CLEAN)) });
+    expect(fixed.notes[0]).toMatchObject({ result: 'kept' });
+    expect(calls).toHaveLength(3);
+    expect(calls[2]!.prompt).toContain('quality gate (D78): dash');
+    const second = await setup();
+    await writeSetting('', 'scribe.mode', 'after', second.env);
+    await writeSetting(second.config.profile.id, 'changes.agentWrites', 'review-later', second.env);
+    const stuck = await scribeSession(second.file, { pass: 'after', env: second.env, ask: fakeAsk([], () => DASHED) });
+    expect(stuck.notes[0]).toMatchObject({ result: 'flagged', problems: ['dash'] });
+    const c = (await loadConfig({ env: second.env, profileId: 'travail' })).config;
+    await expect(readFile(resolve(c.kb.root, stuck.notes[0]!.path!), 'utf8')).rejects.toThrow();
+    const { listProposals } = await import('../src/proposal/store.js');
+    const waiting = (await listProposals(c)).filter((p) => p.status === 'prepared');
+    expect(waiting.some((p) => p.notes.some((n) => n.startsWith('quality gate (D78): dash')))).toBe(true);
   });
 
   it('a live pass waits for a batch and writes no note', async () => {

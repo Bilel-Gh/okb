@@ -1631,3 +1631,27 @@ ailleurs, OKB affiche les lignes cron à ajouter.
 
 Le transcript est une donnée, jamais une consigne : le modèle n’a pas d’outil,
 et ce qu’il rend passe par les mêmes contrôles qu’une source ingérée.
+
+## D78 — La porte de qualité (5 novembre 2026)
+
+Une note d’agent doit être juste du premier coup : la personne ne veut plus la
+vérifier. Avant qu’une note entre seule (`okb keep`, D71, et le greffier, D77),
+du code sans IA la contrôle (`src/quality/gate.ts`) :
+
+- chaque partie écrite cite sa source (`no-evidence`) ;
+- elle ne redit pas une note existante : même titre, ou la moitié de ses
+  suites de trois mots déjà dans une autre note (`duplicate`) ;
+- elle n’est pas posée à la racine d’une KB rangée en dossiers, ni dans un
+  dossier au nom vide (`placement`) ;
+- pas de tiret cadratin ou demi-cadratin comme ponctuation, hors citation
+  (`dash`) ; pas de phrase de plus de 45 mots (`long-sentence`) ; au moins
+  25 mots pour une nouvelle note (`too-short`) ; aucun reste de modèle
+  (`placeholder`) ;
+- un concept a sa phrase sous « En une phrase » (`concept-summary`).
+
+Une note arrêtée n’est jamais affichée comme faite. Quand le problème tient à
+l’écriture, le greffier la réécrit une fois en donnant les raisons au modèle ;
+sinon, ou si la réécriture échoue aussi, la proposition attend la personne avec
+les raisons écrites dans ses notes. `okb keep` renvoie les problèmes
+(`problems`) pour que l’agent réécrive. Les changements mécaniques
+(métadonnées, liens) ne passent pas par la porte.

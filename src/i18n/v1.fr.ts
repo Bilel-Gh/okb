@@ -1402,6 +1402,7 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'action.deleted': 'Action supprimée.',
   'review.kept': 'Rangée, à relire : {path}',
   'review.waiting': 'En attente de ton oui dans « À relire » : {id}',
+  'review.gate': 'Pas classée, la porte de qualité l’a arrêtée ({codes}). Réécris-la et prépare-la de nouveau, sinon elle attend la personne.',
   'web.review.confirm.validate': 'Valider ces notes dans OKB ?',
   'web.review.confirm.reject': 'Retirer cette note ?',
   'web.review.confirm.move': 'Déplacer cette note ?',

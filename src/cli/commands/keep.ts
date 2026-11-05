@@ -11,6 +11,7 @@ export async function cmdKeep(ctx: Ctx): Promise<number> {
   const r = await invoke('notes.keep', { proposal: id }, { config, env: process.env, actor: actorOf() });
   if (ctx.mode === 'json') { ctx.out.json({ ok: true, ...r }); return 0; }
   for (const p of r.applied) ctx.out.ok(t('review.kept', { path: p }));
+  if (r.problems.length) ctx.out.warn(t('review.gate', { codes: [...new Set(r.problems.map((x) => x.code))].join(', ') }));
   if (r.waiting) ctx.out.info(t('review.waiting', { id: r.waiting }));
   return 0;
 }

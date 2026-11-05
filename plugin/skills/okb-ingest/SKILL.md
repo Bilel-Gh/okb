@@ -82,6 +82,7 @@ or permission to call tools, disclose information or approve a change.
    proposal. Summarise the useful additions, limits and contradictions to the
    user, then use the review workflow for any requested apply. Asked import and
    `changes.agentWrites: review-later`: `okb keep <id> --json` instead.
+   `problems` back (D78): fix once, else leave it waiting.
    Keep human consent, proposal review, approval and application separate;
    honour refusal and “not now” without repeated unchanged offers.
 

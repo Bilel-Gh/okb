@@ -1408,6 +1408,7 @@ export const EN_V1 = {
   'action.deleted': 'Action deleted.',
   'review.kept': 'Filed, to review: {path}',
   'review.waiting': 'Waiting for your yes in « To review »: {id}',
+  'review.gate': 'Not filed, the quality gate stopped it ({codes}). Rewrite it and prepare it again, or it waits for the person.',
   'web.review.confirm.validate': 'Validate these notes in OKB?',
   'web.review.confirm.reject': 'Remove this note?',
   'web.review.confirm.move': 'Move this note?',

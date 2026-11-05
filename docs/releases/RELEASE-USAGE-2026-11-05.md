@@ -26,3 +26,11 @@ Checkout de développement non publié ; le numéro du paquet reste 2.4.0.
 
 Rien ne change pour ton oui : une note du greffier suit les règles de ta KB
 (D71) et une note validée ne change jamais sans toi.
+
+## La porte de qualité (D78)
+
+Une note que Claude ou le greffier range seul passe d’abord une porte, sans
+IA : elle cite sa source, ne redit pas une note existante, est rangée au bon
+endroit, n’a ni tiret cadratin ni phrase interminable, et un concept a sa
+phrase de résumé. Une note arrêtée n’est jamais affichée comme faite : elle
+est réécrite une fois, sinon elle t’attend avec la raison écrite dessus.
