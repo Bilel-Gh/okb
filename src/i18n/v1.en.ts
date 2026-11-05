@@ -74,6 +74,7 @@ export const EN_V1 = {
   'settings.opt.scribe.mode.live': 'also while the conversation goes on, by batches (ticket sheet and journal)',
   'settings.label.scribe.budget': 'Daily budget of the scribe (tokens)',
   'settings.label.scribe.skip': 'Folders the scribe never reads',
+  'settings.label.frozen': 'Functions kept but hidden (career, progress, translate, exam, share, assistant, desktop)',
   'settings.label.presence': 'While you work, OKB…',
   'settings.opt.presence.quiet': 'stays in the background: a short brief for the agent, no question or card',
   'settings.opt.presence.assist': 'offers its commands and cards during the session (as in 2.4)',

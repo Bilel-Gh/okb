@@ -124,17 +124,20 @@ export function suggest(name: string): string[] {
   return all.map((n) => ({ n, d: distance(name.toLowerCase(), n) })).filter((x) => x.d <= Math.max(2, Math.floor(name.length / 3))).sort((a, b) => a.d - b.d).slice(0, 2).map((x) => x.n);
 }
 
-export function cmdHelp(ctx: Ctx): number {
+export async function cmdHelp(ctx: Ctx): Promise<number> {
   const topic = ctx.args.positionals[0];
   if (topic) return commandHelp(ctx, topic);
   const all = Boolean(ctx.args.flags.all);
   if (ctx.mode === 'json') { ctx.out.json({ ok: true, commands: COMMANDS }); return 0; }
   const { out } = ctx;
+  // D80: a frozen function keeps its command, out of the list (okb help --all shows it).
+  const { frozenFeatures } = await import('../../modules/catalog.js');
+  const frozen: ReadonlySet<string> = all ? new Set() : await frozenFeatures().catch(() => new Set());
   out.line(`${paint.brand('◆')} ${paint.bold('OKB')} — ${t('help.tagline')}`);
   for (const group of ['start', 'daily', 'care', 'advanced'] as const) {
     if (group === 'advanced' && !all) continue;
     out.heading(t(`help.group.${group}`));
-    for (const c of COMMANDS.filter((x) => x.group === group)) out.line(`  ${paint.code(`okb ${c.name}`.padEnd(16))} ${t(`help.cmd.${c.name}`)}`);
+    for (const c of COMMANDS.filter((x) => x.group === group && !frozen.has(x.name))) out.line(`  ${paint.code(`okb ${c.name}`.padEnd(16))} ${t(`help.cmd.${c.name}`)}`);
   }
   out.line();
   out.line(paint.dim(t('help.global')));

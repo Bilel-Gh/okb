@@ -126,3 +126,19 @@ export async function setModule(id: ModuleId, on: boolean, env: NodeJS.ProcessEn
   }, env);
   return enabledModules(env);
 }
+
+/**
+ * Frozen functions (chantier 7, D80): kept and working, but out of sight. The
+ * web app hides their pages and tabs, `okb help` stops listing their commands;
+ * the commands still answer and nothing is deleted. Revision cards stay.
+ * `okb settings set frozen=` brings everything back.
+ */
+export const FREEZABLE = ['career', 'progress', 'translate', 'exam', 'share', 'assistant', 'desktop'] as const;
+export type Freezable = (typeof FREEZABLE)[number];
+export const DEFAULT_FROZEN: readonly Freezable[] = FREEZABLE;
+
+export async function frozenFeatures(env: NodeJS.ProcessEnv = process.env): Promise<Set<Freezable>> {
+  const root = (await readRootConfig(env).catch(() => ({}))) as { frozen?: unknown };
+  const list = Array.isArray(root.frozen) ? root.frozen : root.frozen === undefined ? DEFAULT_FROZEN : [];
+  return new Set(list.filter((x): x is Freezable => (FREEZABLE as readonly string[]).includes(String(x))));
+}

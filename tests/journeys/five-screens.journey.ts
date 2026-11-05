@@ -89,8 +89,11 @@ describe('the five screens, as a person uses them (F2.0-20)', () => {
 
   it('Assistant: the conversation with the person’s agent, and one link away a question answered by the notes’ passages, without spending anything', async () => {
     app = await openApp(browser);
-    const { page } = app;
-    await screen(/Assistant/).click();
+    const { page, url } = app;
+    // D80: the Assistant screen is frozen, out of the rail, and still opens at its address.
+    await screen(/Mémoire/).waitFor();
+    await expect.poll(() => screen(/Assistant/).count()).toBe(0);
+    await page.goto(`${url}/#/assistant`);
     // The screen is the conversation (2.3); nothing is sent by opening it.
     await page.getByRole('button', { name: /Envoyer à mon agent/ }).waitFor();
     await page.getByRole('link', { name: /Chercher dans mes notes sans IA/ }).first().click();

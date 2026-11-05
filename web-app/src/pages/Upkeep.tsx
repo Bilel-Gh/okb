@@ -11,6 +11,7 @@ import { ErrorState, SkeletonRows } from '../ui/States';
 import { Ring } from '../ui/Ring';
 import { Indicators } from './Indicators';
 import { DesktopUpdates, ExportSpace } from '../ui/DesktopControls';
+import { useFrozen } from '../app/Shell';
 
 type HealthGroup = { code: string; title: string; why?: string; fix?: string; items: { level: 'error' | 'warning' | 'info'; where: string; message: string }[] };
 type Health = { scanned: number; okf: boolean; health: { score: number; errors: number; warnings: number; infos: number }; groups: HealthGroup[] };
@@ -152,6 +153,7 @@ export function BackupTab() {
 /* ================================================================ diagnosis */
 
 function DoctorTab() {
+  const frozen = useFrozen();
   const t = useT();
   const qc = useQueryClient();
   const r = useQuery({ queryKey: ['doctor'], queryFn: () => get<Doctor>('/api/doctor') });
@@ -180,7 +182,7 @@ function DoctorTab() {
           ))}
         </ul>
       </section>
-      {window.okbDesktop ? <DesktopUpdates /> : <section className="panel">
+      {window.okbDesktop && !frozen.has('desktop') ? <DesktopUpdates /> : <section className="panel">
         <div className="panel-head"><h2>{t('web.doctor.update')}</h2><span className="pill sm num" style={{ marginLeft: 'auto' }}>v{r.data.version}</span></div>
         <div className="panel-body row wrap"><p className="muted grow">{t('update.q')}</p><button type="button" className="btn" onClick={() => setAsking(true)}><RefreshCw size={14} aria-hidden="true" />{t('web.doctor.updateGo')}</button></div>
       </section>}

@@ -12,6 +12,7 @@ import { toast } from '../app/toast';
 import { LevelBar, type Tier } from '../ui/LevelBar';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
 import { ExamPanel } from './Exam';
+import { useFrozen } from '../app/Shell';
 import { RepoRelations } from './RepoRelations';
 import { RepoTeam } from './RepoTeam';
 import { TicketPreview } from '../ui/WorkPreview';
@@ -270,6 +271,7 @@ function CodeMap({ map, risks }: { map: NonNullable<RepoDetail['map']>; risks: R
 }
 
 function LinkedDetail({ id, color, setTitle }: { id: string; color: string; setTitle?: (s: string) => void }) {
+  const frozen = useFrozen();
   const w = useShareWords();
   const t = useT();
   const qc = useQueryClient();
@@ -337,7 +339,7 @@ function LinkedDetail({ id, color, setTitle }: { id: string; color: string; setT
           )}
         </div>
       </div>
-      <details className="panel repo-secondary"><summary>{w('Détails techniques et compréhension', 'Technical details and understanding')}</summary><div className="stack lg"><LevelPanel name={repo.name} level={d.data.level} color={color} /><Questions repoId={repo.id} questions={d.data.questions} /><ExamPanel repo={repo.id} color={color} />{map ? <CodeMap map={map} risks={d.data.risks} /> : null}</div></details>
+      <details className="panel repo-secondary"><summary>{w('Détails techniques et compréhension', 'Technical details and understanding')}</summary><div className="stack lg"><LevelPanel name={repo.name} level={d.data.level} color={color} /><Questions repoId={repo.id} questions={d.data.questions} />{frozen.has('exam') ? null : <ExamPanel repo={repo.id} color={color} />}{map ? <CodeMap map={map} risks={d.data.risks} /> : null}</div></details>
       <RepoRelations repo={repo.name} />
     </div>
   );
@@ -353,6 +355,7 @@ function Meter({ label, done, total, color }: { label: string; done: number; tot
 }
 
 function Detail({ data, id, setTitle }: { data: ReposData; id: string; setTitle?: (s: string) => void }) {
+  const frozen = useFrozen();
   const t = useT();
   const linked = data.repos.find((r) => r.id === id || r.name === id);
   const unlinked = data.unlinked.find((r) => r.name === id);
@@ -365,7 +368,7 @@ function Detail({ data, id, setTitle }: { data: ReposData; id: string; setTitle?
       {linked ? <><RepoTeam repo={linked.id} product={linked.product || null} /><LinkedDetail id={linked.id} color={color} setTitle={setTitle} /></> : unlinked ? (
         <>
           <LevelPanel name={name} level={unlinked.level} color={color} />
-          <ExamPanel repo={unlinked.name} color={color} />
+          {frozen.has('exam') ? null : <ExamPanel repo={unlinked.name} color={color} />}
           <section className="panel"><div className="panel-head"><h2><Link2 size={17} aria-hidden="true" />{t('app.repos.linkTitle')}</h2></div><div className="panel-body"><LinkForm folder={unlinked.folder} name={unlinked.name} /></div></section>
           <section className="panel"><div className="panel-head"><h2><Terminal size={17} aria-hidden="true" />{t('app.repos.withClaude')}</h2></div><div className="panel-body stack">
             <p className="small muted">{t('app.repos.withClaudeWhy')}</p>

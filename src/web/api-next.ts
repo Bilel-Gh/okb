@@ -36,7 +36,8 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
   return {
     'GET /api/modules': async (ctx) => {
       const { moduleList } = await import('../cli/commands/modules.js');
-      return { modules: await moduleList(ctx.env) };
+      const { frozenFeatures } = await import('../modules/catalog.js');
+      return { modules: await moduleList(ctx.env), frozen: [...(await frozenFeatures(ctx.env))] };
     },
     'POST /api/modules/toggle': async (ctx, _q, b) => ({ ok: true, enabled: [...(await setModule(moduleId(b.id), b.on === true, ctx.env))].sort() }),
     'POST /api/modules/install': async (ctx, _q, b) => installClaudeModule(moduleId(b.id), ctx.env),
@@ -90,7 +91,8 @@ export function nextRoutes(kbConfig: KbConfig): Record<string, (ctx: Ctx, q: Q, 
       const config = await kbConfig(ctx, q.get('kb'));
       const { readRootConfig } = await import('../kb/registry.js');
       const show = ((await readRootConfig(ctx.env).catch(() => ({}))) as { progress?: { show?: unknown } }).progress?.show !== false;
-      if (!show) return { show: false };
+      const { frozenFeatures } = await import('../modules/catalog.js');
+      if (!show || (await frozenFeatures(ctx.env)).has('progress')) return { show: false };
       const { progress } = await import('../progress/progress.js');
       return { show: true, ...(await progress(config)) };
     },

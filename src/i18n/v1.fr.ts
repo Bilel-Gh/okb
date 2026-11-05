@@ -71,6 +71,7 @@ export const FR_V1: Record<keyof typeof EN_V1, string> = {
   'settings.opt.scribe.mode.live': 'aussi pendant la conversation, par paquets (fiche du ticket et journal)',
   'settings.label.scribe.budget': 'Budget quotidien du greffier (tokens)',
   'settings.label.scribe.skip': 'Dossiers que le greffier ne lit jamais',
+  'settings.label.frozen': 'Fonctions gardées mais cachées (carrière, progression, traduction, examen, partage, assistant, desktop)',
   'settings.label.presence': 'Pendant le travail, OKB…',
   'settings.opt.presence.quiet': 'reste en arrière-plan : un brief court pour l’agent, aucune question ni carte',
   'settings.opt.presence.assist': 'propose ses commandes et ses cartes au fil de la session (comme en 2.4)',

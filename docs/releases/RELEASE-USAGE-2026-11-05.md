@@ -57,3 +57,10 @@ est réécrite une fois, sinon elle t’attend avec la raison écrite dessus.
   qu’une dépendance ne se modifie pas, et quels skills de livraison utiliser
   sans les réécrire.
 - OKB ne touche à rien dans tes méta-repos : il lit, c’est tout.
+
+## Moins de choses à l’écran (D80)
+
+La carrière, l’XP et les badges, la traduction, l’examen d’un repo, le partage
+à deux, l’écran Assistant et l’app desktop sont gelés : cachés, mais rien
+n’est supprimé. Les cartes de révision restent. Pour tout revoir :
+`okb settings set frozen=`.

@@ -6,6 +6,7 @@ import { tn, useT } from '../app/i18n';
 import { hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
 import { PageTabs } from '../ui/PageTabs';
+import { useFrozen } from '../app/Shell';
 import UnderstandingPage, { UnderstandingProgress } from './Understanding';
 import { useShareWords } from '../app/sharing';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
@@ -160,14 +161,15 @@ function CareerTab() {
 export default function Learn({ route }: { route: Extract<Route, { name: 'learn' }> }) {
   const t = useT();
   const w = useShareWords();
-  const tab = route.tab;
+  const frozen = useFrozen();
+  const tab = route.tab === 'career' && frozen.has('career') ? undefined : route.tab;
   return (
     <div className="page">
       <PageTabs label={t('app.screen.progress')} tabs={[
         { to: { name: 'learn' }, label: t('app.learn.tab.review'), current: !tab, icon: Layers },
         { to: { name: 'learn', tab: 'understanding' }, label: w('Comprendre', 'Understand'), current: tab === 'understanding', icon: BookOpen },
         { to: { name: 'learn', tab: 'progress' }, label: t('app.learn.tab.progress'), current: tab === 'progress', icon: Trophy },
-        { to: { name: 'learn', tab: 'career' }, label: t('app.learn.tab.career'), current: tab === 'career', icon: Briefcase },
+        ...(frozen.has('career') ? [] : [{ to: { name: 'learn', tab: 'career' } as Route, label: t('app.learn.tab.career'), current: tab === 'career', icon: Briefcase }]),
       ]} />
       {!tab ? <Review /> : tab === 'understanding' ? <UnderstandingPage /> : tab === 'progress' ? <UnderstandingProgress /> : <CareerTab />}
     </div>

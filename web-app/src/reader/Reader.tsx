@@ -19,6 +19,7 @@ import { dropCrumbLine, drawDiagrams, markTerms, normalizeNoteHeadings, outline,
 import { LocalGraph } from './LocalGraph';
 import { Provenance, type ProvenanceData } from './Provenance';
 import { Translate } from './Translate';
+import { useFrozen } from '../app/Shell';
 import { Understanding } from './Understanding';
 
 export type NoteView = {
@@ -90,6 +91,7 @@ function TypeMenu({ path, category }: { path: string; category: string }) {
 export function Reader({ path, anchor, understand = false, setTitle }: { path: string; anchor?: string; understand?: boolean; setTitle: (s: string) => void }) {
   const t = useT();
   const w = useShareWords();
+  const frozen = useFrozen();
   const note = useQuery({ queryKey: ['note', path], queryFn: () => get<NoteView>('/api/note', { path }) });
   const article = useRef<HTMLDivElement>(null);
   const [toc, setToc] = useState<OutlineItem[]>([]);
@@ -168,7 +170,7 @@ export function Reader({ path, anchor, understand = false, setTitle }: { path: s
               onClick={() => toast(togglePin({ path: n.path, title: n.title, category: n.category }) ? t('app.note.pinned') : t('app.note.unpinned'))}>
               {isPinned(pins, n.path) ? <PinOff size={15} aria-hidden="true" /> : <Pin size={15} aria-hidden="true" />}
             </button>
-            <Translate key={n.path} path={n.path} source={n.lang} onShow={setTranslated} shown={translated?.lang ?? null} />
+            {frozen.has('translate') ? null : <Translate key={n.path} path={n.path} source={n.lang} onShow={setTranslated} shown={translated?.lang ?? null} />}
             <a className="btn sm ghost icon" href={hrefFor({ name: 'graph', focus: n.path })} aria-label={t('web.graph.see')} title={t('web.graph.see')}><Share2 size={15} aria-hidden="true" /></a>
             <Popover.Root>
               <Popover.Trigger asChild><button type="button" className="btn sm ghost icon" aria-label={t('app.note.more')} title={t('app.note.more')}><MoreHorizontal size={16} aria-hidden="true" /></button></Popover.Trigger>

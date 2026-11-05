@@ -1682,3 +1682,17 @@ a des sous-modules n’en est pas un. La lecture est tolérante (OKB garde ce
 qu’il reconnaît) et seule : aucune commande Git, aucune écriture, aucune copie.
 Les noms d’équipe, de serveur ou de produit restent dans les dossiers de la
 personne, jamais dans OKB.
+
+## D80 — Geler sans supprimer (5 novembre 2026)
+
+Le rework se concentre sur le travail de développeur. Sept fonctions sont
+gelées par défaut : la carrière, la progression (XP et badges), la traduction,
+l’examen de connaissance d’un repo, le partage à deux, l’écran Assistant et
+l’app desktop. Les cartes de révision (FSRS) restent : elles serviront les
+formations.
+
+Geler, c’est cacher, pas retirer : l’app web n’affiche plus leurs pages,
+onglets et boutons, `okb help` ne liste plus leurs commandes (`okb help --all`
+les montre), `/api/progress` ne rend plus l’XP. Les commandes répondent
+toujours, les données restent, rien n’est migré. Le réglage global `frozen`
+(liste) dit ce qui est gelé ; `okb settings set frozen=` rend tout visible.

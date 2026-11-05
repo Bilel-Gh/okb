@@ -13,7 +13,7 @@ import { hrefFor, type Route } from './router';
 import { applyLook, LOOKS, readLogo, readLook, readMode, readRail, readStyle, saveRail, type Look, type Mode, type Rail, type Style } from './theme';
 import { toast, dismissToast, useToasts } from './toast';
 
-type Modules = { modules: { id: string; enabled: boolean }[] };
+type Modules = { modules: { id: string; enabled: boolean }[]; frozen?: string[] };
 type Waiting = { suggestions: { status: string }[] };
 export type Status = { name: string; notes: number; concepts: number; writingLanguage?: string; toReview?: number; review?: { pending: number; share: number | null }; health?: { score: number }; categories?: { id: string; emoji: string; label: string; count: number }[] };
 
@@ -25,6 +25,12 @@ export function useWaitingCount(): number {
   const s = useQuery({ queryKey: ['suggestions'], queryFn: () => get<Waiting>('/api/suggestions'), refetchInterval: 60_000 });
   const p = useStatus();
   return (s.data?.suggestions.filter((x) => x.status === 'pending').length ?? 0) + (p.data?.toReview ?? 0);
+}
+
+/** Functions kept but out of sight (D80): career, progress, translate, exam, share, assistant, desktop. */
+export function useFrozen(): ReadonlySet<string> {
+  const modules = useQuery({ queryKey: ['modules'], queryFn: () => get<Modules>('/api/modules'), staleTime: 60_000 });
+  return new Set(modules.data?.frozen ?? []);
 }
 
 /** Whether the developer module is on (its pages show only then). */
@@ -341,7 +347,8 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
   useEffect(() => { if (currentSession()?.outdated) toast(t('app.outdated')); }, [t]);
 
   const screen = screenOf(route);
-  const tabs = screenTabs(route, devOn);
+  const frozen = useFrozen();
+  const tabs = screenTabs(route, devOn).filter((x) => !(frozen.has('share') && x.to.name === 'sharing'));
   const inMore = MORE.some((e) => e.route.name === route.name);
 
   return (
@@ -358,7 +365,7 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
         </div>
         <KbSwitcher folded={folded} />
         <nav className="rail-section" aria-label={t('app.nav.screens')}>
-          {SCREENS.map((e) => <NavLink key={e.id} entry={e} current={screen === e.id} folded={folded} />)}
+          {SCREENS.filter((e) => !(frozen.has('assistant') && e.id === 'assistant')).map((e) => <NavLink key={e.id} entry={e} current={screen === e.id} folded={folded} />)}
         </nav>
         <nav className="rail-section rail-foot" aria-label={t('app.more.label')}>
           <MoreMenu folded={folded} current={inMore} />
@@ -396,7 +403,7 @@ export function Shell({ route, title, crumb, children }: { route: Route; title: 
         <StatusBar waiting={waiting} />
       </div>
       <nav className="tabbar" aria-label={t('app.nav.main')}>
-        {SCREENS.map((e) => {
+        {SCREENS.filter((e) => !(frozen.has('assistant') && e.id === 'assistant')).map((e) => {
           const Icon = e.icon;
           return (
             <a key={e.id} href={hrefFor(e.route)} aria-current={screen === e.id ? 'page' : undefined}>

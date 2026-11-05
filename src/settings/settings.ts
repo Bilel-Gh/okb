@@ -64,6 +64,8 @@ export const SETTINGS: readonly SettingDef[] = [
   { key: 'scribe.mode', group: 'assistant', type: 'choice', scope: 'global', path: ['scribe', 'mode'], options: ['off', 'after', 'live'], recommended: 'after', fallback: 'off' },
   { key: 'scribe.budget', group: 'assistant', type: 'number', scope: 'global', path: ['scribe', 'budget'], recommended: 400000, fallback: 400000 },
   { key: 'scribe.skip', group: 'assistant', type: 'list', scope: 'global', path: ['scribe', 'skip'], fallback: [] },
+  // D80: functions kept but out of sight (career, progress, translate, exam, share, assistant, desktop).
+  { key: 'frozen', group: 'help', type: 'list', scope: 'global', path: ['frozen'], fallback: ['career', 'progress', 'translate', 'exam', 'share', 'assistant', 'desktop'] },
   { key: 'suggest.mode', group: 'assistant', type: 'choice', scope: 'global', path: ['suggest', 'mode'], options: ['session', 'live', 'never'], recommended: 'session', fallback: 'session' },
   { key: 'dev.attribution', group: 'assistant', type: 'choice', scope: 'global', path: ['dev', 'attribution'], options: ['off', 'on'], recommended: 'off', fallback: 'off' },
   // How OKB itself asks a model (src/ai/provider.ts): Claude Code when installed, else ANTHROPIC_API_KEY.

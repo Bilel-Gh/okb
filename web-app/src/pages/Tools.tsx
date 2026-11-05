@@ -5,6 +5,7 @@ import { get, post } from '../app/api';
 import { useCategories } from '../app/data';
 import { tn, useT } from '../app/i18n';
 import { go, hrefFor, type Route } from '../app/router';
+import { useFrozen } from '../app/Shell';
 import { toast } from '../app/toast';
 import { CatIcon } from '../ui/CatMark';
 import { Choice } from '../ui/Choice';
@@ -227,7 +228,8 @@ function Categories() {
 
 export default function Tools({ route }: { route: Extract<Route, { name: 'tools' }> }) {
   const t = useT();
-  const tab = route.tab ?? 'source';
+  const frozen = useFrozen();
+  const tab = route.tab === 'share' && frozen.has('share') ? 'source' : route.tab ?? 'source';
   return (
     <div className="page">
       <PageTabs label={t('app.nav.tools')} tabs={[
@@ -235,7 +237,7 @@ export default function Tools({ route }: { route: Extract<Route, { name: 'tools'
         { to: { name: 'tools', tab: 'skills' }, label: t('app.tools.tab.skills'), current: tab === 'skills', icon: ListChecks },
         { to: { name: 'tools', tab: 'templates' }, label: t('app.tools.tab.templates'), current: tab === 'templates', icon: BookMarked },
         { to: { name: 'tools', tab: 'categories' }, label: t('app.tools.tab.categories'), current: tab === 'categories', icon: Tags },
-        { to: { name: 'tools', tab: 'share' }, label: t('app.tools.tab.share'), current: tab === 'share', icon: Package },
+        ...(frozen.has('share') ? [] : [{ to: { name: 'tools', tab: 'share' } as Route, label: t('app.tools.tab.share'), current: tab === 'share', icon: Package }]),
       ]} />
       {tab === 'source' ? <Source /> : tab === 'skills' ? <Skills /> : tab === 'templates' ? <Templates /> : tab === 'share' ? <Suspense fallback={<SkeletonRows rows={6} />}><Share /></Suspense> : <Categories />}
     </div>
