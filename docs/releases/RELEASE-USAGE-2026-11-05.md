@@ -47,3 +47,13 @@ est réécrite une fois, sinon elle t’attend avec la raison écrite dessus.
   courte avec le lien de la PR quand il est passé du premier coup.
 - Un numéro ServiceNow (`INC0012345`, `RITM…`, `CHG…`) est reconnu comme une
   référence de ticket, par l’app comme par le greffier.
+
+## Les méta-repos (D79)
+
+- `okb meta` dans ton dossier de méta-repos : pour chacun, les repos de
+  l’équipe, les dépendances (en lecture seule), les owners, les pipelines, les
+  docs, les notes de passation, le glossaire et les skills de livraison.
+- Claude le sait aussi : dans un méta-repo, son brief dit où il se trouve,
+  qu’une dépendance ne se modifie pas, et quels skills de livraison utiliser
+  sans les réécrire.
+- OKB ne touche à rien dans tes méta-repos : il lit, c’est tout.

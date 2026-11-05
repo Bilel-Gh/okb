@@ -56,6 +56,7 @@ const HANDLERS: Record<string, Handler> = {
   workspace: (c) => requireFeature('repos').then(() => import('./commands/work.js')).then((m) => m.cmdWorkspace(c)),
   scope: (c) => import('./commands/work.js').then((m) => m.cmdScope(c)),
   scribe: (c) => import('./commands/scribe.js').then((m) => m.cmdScribe(c)),
+  meta: (c) => import('./commands/meta.js').then((m) => m.cmdMeta(c)),
   ticket: (c) => requireFeature('tickets').then(() => import('./commands/work.js')).then((m) => m.cmdTicket(c)),
   brain: (c) => import('./commands/brain.js').then((m) => m.cmdBrain(c)),
   where: (c) => import('./commands/brain.js').then((m) => m.cmdWhere(c)),

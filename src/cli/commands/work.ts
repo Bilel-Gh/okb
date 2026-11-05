@@ -362,6 +362,10 @@ async function scopeContext(ctx: Ctx, cwd: string): Promise<number> {
     const { repoContextText } = await import('./repo.js');
     text = await repoContextText(cwd);
   }
+  // In a team's meta-repository (chantier 3): one line on where this folder sits, its dependencies and skills.
+  const { metaForDir, metaHeadline, readMetaRepo } = await import('../../work/meta-repos.js');
+  const meta = await metaForDir(cwd).catch(() => null);
+  if (meta) text = [text, metaHeadline(await readMetaRepo(meta.meta, { light: true }), meta.repo)].filter(Boolean).join('\n');
   if (ctx.mode === 'json') ctx.out.json({ ok: true, context: text, reason: text ? 'context-sent' : reason === 'no-context' && !scope?.config ? 'outside-scope' : reason });
   else if (text) ctx.out.line(text);
   return 0;

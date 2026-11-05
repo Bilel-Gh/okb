@@ -1655,3 +1655,30 @@ sinon, ou si la réécriture échoue aussi, la proposition attend la personne av
 les raisons écrites dans ses notes. `okb keep` renvoie les problèmes
 (`problems`) pour que l’agent réécrive. Les changements mécaniques
 (métadonnées, liens) ne passent pas par la porte.
+
+## D79 — Les méta-repos, carte de l’équipe (5 novembre 2026)
+
+Certaines équipes rangent leurs repos dans des méta-repos : un repo Git presque
+sans code, qui pointe vers les repos livrés ensemble (des sous-modules figés sur
+une version), vers ceux d’autres équipes dont elles dépendent
+(`dependencies/`), et qui garde la documentation transverse (`docs/`, `KT/`,
+un glossaire), la configuration de livraison et de conformité (`compliance/` :
+owners, pipelines) et les skills IA de l’équipe (`.github/skills/`).
+
+OKB lit cette carte au lieu de la reconstruire (`src/work/meta-repos.ts`,
+module développeur) :
+
+- `okb meta [<dossier>]` et l’opération `meta.map` (donc MCP) rendent, pour
+  chaque méta-repo, les repos de l’équipe, les dépendances, les owners
+  (CODEOWNERS et clés `owners` de `compliance/`), les pipelines (GitHub Actions,
+  Jenkins), les docs, les notes de passation, le glossaire et les skills ;
+- au début d’une session dans un méta-repo, le brief ajoute une ligne : où se
+  trouve le dossier, qu’une dépendance se lit sans se modifier, quels skills de
+  livraison utiliser sans les réécrire.
+
+Un dossier n’est un méta-repo que s’il a un `.gitmodules` et au moins un de
+`dependencies/`, `compliance/`, `KT/`, `.github/skills/` : un repo de code qui
+a des sous-modules n’en est pas un. La lecture est tolérante (OKB garde ce
+qu’il reconnaît) et seule : aucune commande Git, aucune écriture, aucune copie.
+Les noms d’équipe, de serveur ou de produit restent dans les dossiers de la
+personne, jamais dans OKB.

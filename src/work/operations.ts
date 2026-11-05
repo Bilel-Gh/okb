@@ -229,3 +229,16 @@ export const ticketsRequestsPrompt = defineOperation({
     return { prompt: requestPrompt(req, i.lang) };
   },
 });
+
+/** Chantier 3: the team's map, read from its meta-repositories. Read only. */
+export const metaMap = defineOperation({
+  id: 'meta.map', module: 'dev', effect: 'read',
+  summary: 'The map of a workspace of meta-repositories: for each, the team\'s repositories, the dependencies on other teams (read only, never changed), owners, delivery pipelines, docs, hand-over notes (KT), glossary and the team\'s AI skills (cite them, never copy them). Read only; nothing is written in the workspace.',
+  input: z.object({ path: z.string().min(1).max(1000), meta: z.string().max(200).optional() }).strict(),
+  run: async (_ctx, input) => {
+    const { readMetaWorkspace } = await import('./meta-repos.js');
+    const map = await readMetaWorkspace(input.path);
+    if (!map.metaRepos.length) throw new OkbError('E_NOT_FOUND', `no meta-repository in ${input.path}`, { key: 'metaNone', params: { path: input.path } });
+    return input.meta ? { ...map, metaRepos: map.metaRepos.filter((m) => m.name === input.meta) } : map;
+  },
+});

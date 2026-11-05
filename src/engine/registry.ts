@@ -21,7 +21,7 @@ import { assistantAction, assistantAsk, assistantCancel, assistantConfigure, ass
 import { exportSpace } from './ops/export.js';
 import { understandingReadOp, understandingKeepOp, understandingRecordOp, understandingOverviewOp, understandingMeetingOp, understandingReadinessOp, understandingLearningOp, understandingProgressOp, understandingObjectiveAddOp, understandingObjectiveDoneOp, understandingReviewOp } from './ops/understanding.js';
 import type { Operation, OpContext } from './operation.js';
-import { ticketsList, ticketsGet, ticketsStart, ticketsResume, ticketsBrief, ticketsState, ticketsCriterion, ticketsAttempt, ticketsReuse, ticketsClose, ticketsGithubConfig, ticketsGithubStatus, ticketsGithub, ticketsJira, ticketsSheet, ticketsFieldSet, ticketsFieldClear, ticketsFieldNa, ticketsConflictResolve, ticketsRename, ticketsPin, ticketsSource, ticketsReposDetach, ticketsUnfollow, ticketsRestore, ticketsLinksList, ticketsLinksSet, ticketsLinksScan, ticketsRequestsCreate, ticketsRequestsList, ticketsRequestsClose, ticketsRequestsCancel, ticketsRequestsPrompt } from '../work/operations.js';
+import { ticketsList, ticketsGet, ticketsStart, ticketsResume, ticketsBrief, ticketsState, ticketsCriterion, ticketsAttempt, ticketsReuse, ticketsClose, ticketsGithubConfig, ticketsGithubStatus, ticketsGithub, ticketsJira, ticketsSheet, ticketsFieldSet, ticketsFieldClear, ticketsFieldNa, ticketsConflictResolve, ticketsRename, ticketsPin, ticketsSource, ticketsReposDetach, ticketsUnfollow, ticketsRestore, ticketsLinksList, ticketsLinksSet, ticketsLinksScan, ticketsRequestsCreate, ticketsRequestsList, ticketsRequestsClose, ticketsRequestsCancel, ticketsRequestsPrompt, metaMap } from '../work/operations.js';
 
 export { jsonSchemaOf } from './schema.js';
 export type { Actor, Effect, OpContext, Operation } from './operation.js';
@@ -47,6 +47,7 @@ const OPS = {
   'arch.link.reset': archLinkReset,
   'arch.url.classify': archUrlClassify,
   'arch.conflict.resolve': archConflictResolve,
+  'meta.map': metaMap,
   'tickets.list': ticketsList,
   'tickets.get': ticketsGet,
   'tickets.start': ticketsStart,
