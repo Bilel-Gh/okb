@@ -8,7 +8,7 @@ import { useShareWords } from '../app/sharing';
 import { CRITERION_WORDS, DIMENSION_WORDS, STATE_WORDS, TICKET_STATES, type GithubPermission, type TicketCriterion, type TicketRecord, type TicketState, type TicketView } from '../app/tickets';
 import { ConfirmDialog } from '../ui/Confirm';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
-import { TicketPreview } from '../ui/WorkPreview';
+import { TrackerTabs } from '../ui/TrackerTabs';
 import type { Project } from './Projects';
 import { DocumentRows, type Doc } from './Documents';
 import { TicketPage } from './ticket/TicketPage';
@@ -50,7 +50,7 @@ function List() {
   const shown = q.data.tickets.filter((t) => t.status === filter);
   return <div className="page stack lg"><div className="page-head"><div className="segmented" role="group" aria-label={w('Filtrer les tickets', 'Filter tickets')}>{(['active', 'done'] as const).map((v) => <button key={v} type="button" aria-pressed={filter === v} onClick={() => setFilter(v)}>{v === 'active' ? w('À reprendre', 'To resume') : w('Travail terminé', 'Work done')}</button>)}</div><span className="spacer" /><button className="btn primary" type="button" onClick={() => setAdding(!adding)} aria-expanded={adding}><Plus size={16} aria-hidden="true" />{w('Suivre un ticket', 'Follow a ticket')}</button></div>
     {adding ? <section className="panel"><div className="panel-body"><StartTicket /></div></section> : null}
-    <section className="panel"><div className="panel-head"><h2><TicketIcon size={17} aria-hidden="true" />{w('Mes tickets', 'My tickets')}</h2></div><div className="panel-body"><p className="muted">{w('Le travail terminé ne confirme ni la PR, ni la CI, ni la livraison.', 'Finished work does not confirm the PR, CI or delivery.')}</p></div>{shown.length ? <ul className="rows">{shown.map((t) => <TicketPreview key={t.ref} ticket={t} />)}</ul> : <div className="panel-body"><Empty title={w('Aucun ticket dans cette liste', 'No ticket in this list')} /></div>}</section>
+    <section className="panel"><div className="panel-head"><h2><TicketIcon size={17} aria-hidden="true" />{w('Mes tickets', 'My tickets')}</h2></div><div className="panel-body"><p className="muted">{w('Le travail terminé ne confirme ni la PR, ni la CI, ni la livraison.', 'Finished work does not confirm the PR, CI or delivery.')}</p></div>{shown.length ? <TrackerTabs key={filter} tickets={shown} pageSize={20} label={w('Tickets par source', 'Tickets by source')} /> : <div className="panel-body"><Empty title={w('Aucun ticket dans cette liste', 'No ticket in this list')} /></div>}</section>
   </div>;
 }
 

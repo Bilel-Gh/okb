@@ -34,3 +34,16 @@ IA : elle cite sa source, ne redit pas une note existante, est rangée au bon
 endroit, n’a ni tiret cadratin ni phrase interminable, et un concept a sa
 phrase de résumé. Une note arrêtée n’est jamais affichée comme faite : elle
 est réécrite une fois, sinon elle t’attend avec la raison écrite dessus.
+
+## L’écran de retour
+
+- **Accueil** : tes tickets en trois onglets, **Tous**, **Jira** (bleu) et
+  **ServiceNow** (vert), les cinq derniers de chacun avec leur statut, leur
+  mission en une ligne et le repo.
+- **Page Tickets** : les mêmes onglets, vingt tickets par page.
+- **Fiche d’un ticket** : un onglet **Comment je l’ai résolu**. Une timeline
+  quand il y a eu un bloqueur, une review qui demande des changements ou une
+  réouverture (explication, bloqueur, correction, review), une explication
+  courte avec le lien de la PR quand il est passé du premier coup.
+- Un numéro ServiceNow (`INC0012345`, `RITM…`, `CHG…`) est reconnu comme une
+  référence de ticket, par l’app comme par le greffier.

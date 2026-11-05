@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { trackerOf } from './tracker.js';
 import { resumeTicket } from './ticket-resume.js';
 import { loadBundleFor } from '../kb/bundle.js';
 import { findRepo, listRepos } from '../repo/registry.js';
@@ -7,7 +8,7 @@ import { OkbError } from '../util/errors.js';
 import { addAttempt, addCriterion, attemptSchema, briefSchema, criterionPatch, criterionSchema, recordReuse, setTicketState, stateSchema, ticketDetail, updateCriterion, updateTicketBrief } from './ticket-state.js';
 import { configureGithub, githubInput, githubSetupInput, importJiraSnapshot, jiraInput, readGithubPr } from './ticket-external.js';
 import { detachRepo, finishTicket, listTickets, loadTicket, pinTicket, renameTicket, restoreTicket, setSourceLink, startTicket, syncTicket, ticketId, unfollowTicket } from './tickets.js';
-import { clearField, FIELDS, markNotApplicable, ORIGINS, resolveConflict, setField, type NaTarget, type Origin } from './ticket-fields.js';
+import { clearField, FIELDS, markNotApplicable, ORIGINS, readFields, resolveConflict, setField, type NaTarget, type Origin } from './ticket-fields.js';
 import { documentedRefs, linksFor, scanLinks, setLink } from './ticket-links.js';
 import { cancelRequest, closeRequest, openRequests, requestFields, requestPrompt } from './ticket-requests.js';
 import { ticketSheet } from './ticket-sheet.js';
@@ -27,7 +28,7 @@ async function view(ctx: OpContext, ticketRef: string) {
 
 export const ticketsList = defineOperation({
   id: 'tickets.list', module: 'dev', effect: 'read', summary: 'Local tickets; done describes the work, not CI, review or delivery.',
-  input: z.object({}).strict(), run: async ({ config }) => ({ tickets: await Promise.all((await listTickets(config)).map(async (ticket) => { const detail = await ticketDetail(config, ticket.ref); return { ...ticket, next: detail.detail.next, waiting: detail.detail.states.find((s) => s.dimension === 'waiting') ?? null }; })) }),
+  input: z.object({}).strict(), run: async ({ config }) => ({ tickets: await Promise.all((await listTickets(config)).map(async (ticket) => { const detail = await ticketDetail(config, ticket.ref); const { fields } = readFields(config, ticket.ref); return { ...ticket, next: detail.detail.next, waiting: detail.detail.states.find((s) => s.dimension === 'waiting') ?? null, tracker: trackerOf(ticket.ref, detail.detail.external), mission: (fields.summary?.value ?? fields.description?.value ?? detail.detail.goal ?? '').split('\n')[0]!.slice(0, 200), sheetTitle: fields.title?.value ?? null, pr: detail.detail.states.find((s) => s.dimension === 'pr')?.status ?? 'unknown' }; })) }),
 });
 export const ticketsGet = defineOperation({
   id: 'tickets.get', module: 'dev', effect: 'read', summary: 'Resume a ticket: goal, last action, failed attempts with conditions, next step, separate states and exit criteria.',

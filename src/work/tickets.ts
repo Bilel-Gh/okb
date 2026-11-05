@@ -1,4 +1,5 @@
 import { readdir } from 'node:fs/promises';
+import { SERVICENOW_REF } from './tracker.js';
 import { resolve } from 'node:path';
 import type { SQLInputValue } from 'node:sqlite';
 import { z } from 'zod';
@@ -75,6 +76,8 @@ export function ticketId(refOrTitle: string): string {
   const raw = refOrTitle.trim();
   if (/^T-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(raw)) return raw;
   if (/^[A-Za-z][A-Za-z0-9]{0,15}[-_]\d{1,7}$/.test(raw)) return raw.toUpperCase().replace('_', '-');
+  // A ServiceNow number keeps its own form (INC0012345), it is not a title.
+  if (SERVICENOW_REF.test(raw)) return raw.toUpperCase();
   const slug = raw.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
   if (!slug) throw new OkbError('E_INVALID', 'a ticket needs a reference or a title', { key: 'ticketNoRef' });
   return `T-${slug}`;

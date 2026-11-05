@@ -14,6 +14,8 @@ import '../../styles/ticket.css';
 import { Attempts, Criteria, External, Reuses, StartTicket, StateEditor, TicketDocuments } from '../Tickets';
 import { Brief30, Details, History, LinkedNotes, Pending, Todos, useAsk } from './panels';
 import { Editable, TkRing, useSheetWrite } from './parts';
+import { Story } from './Story';
+import '../../styles/work.css';
 
 const STEP_NAME: Record<JourneyStep['id'], readonly [string, string]> = { understood: ['Compris', 'Understood'], work: DIMENSION_WORDS.work, pr: DIMENSION_WORDS.pr, checks: DIMENSION_WORDS.checks, delivery: DIMENSION_WORDS.delivery };
 const DIMENSION_OF: Partial<Record<JourneyStep['id'], string>> = { work: 'work', pr: 'pr', checks: 'checks', delivery: 'delivery' };
@@ -71,7 +73,7 @@ export function TicketPage({ refId, setTitle }: { refId: string; setTitle?: (s: 
   const followed = q.data?.followed === true;
   const view = useQuery({ queryKey: ['ticket', refId], queryFn: () => get<TicketView>('/api/ticket', { ref: refId }), enabled: followed });
   const write = useSheetWrite(refId); const ask = useAsk(refId);
-  const [menu, setMenu] = useState(false); const [renaming, setRenaming] = useState(false); const [declaring, setDeclaring] = useState<string | null>(null);
+  const [menu, setMenu] = useState(false); const [tab, setTab] = useState<'sheet' | 'story'>('sheet'); const [renaming, setRenaming] = useState(false); const [declaring, setDeclaring] = useState<string | null>(null);
   const sheet = followed ? q.data as TicketSheet : null;
   const title = sheet?.title?.value ?? null;
   useEffect(() => { if (q.data) setTitle?.(`${q.data.ref}${title ? ` · ${title}` : ''}`); }, [q.data?.ref, title, setTitle]);
@@ -101,10 +103,14 @@ export function TicketPage({ refId, setTitle }: { refId: string; setTitle?: (s: 
     <Journey sheet={sheet} onDeclare={setDeclaring} />
     {declaring ? <section className="tk-card"><div className="tk-card-h"><h2>{w('Déclarer : ', 'Declare: ')}{w(...(DIMENSION_WORDS as Record<string, readonly [string, string]>)[declaring]!)}</h2><button type="button" className="btn sm ghost" style={{ marginLeft: 'auto' }} onClick={() => setDeclaring(null)}>{w('Fermer', 'Close')}</button></div><div className="tk-card-b"><StateEditor key={declaring} refId={sheet.ref} {...(declared ? { state: declared } : {})} done={() => setDeclaring(null)} /></div></section> : null}
     <WorkAssistant kind="ticket" refId={sheet.ref} title={`${sheet.ref}${title ? ` · ${title}` : ''}`} />
-    <div className="tk-cols">
+    <div className="segmented" role="tablist" aria-label={w('Vues du ticket', 'Ticket views')}>
+      <button type="button" role="tab" aria-selected={tab === 'sheet'} aria-pressed={tab === 'sheet'} onClick={() => setTab('sheet')}>{w('Fiche', 'Sheet')}</button>
+      <button type="button" role="tab" aria-selected={tab === 'story'} aria-pressed={tab === 'story'} onClick={() => setTab('story')}>{w('Comment je l’ai résolu', 'How I solved it')}</button>
+    </div>
+    {tab === 'story' ? <Story sheet={sheet} /> : <div className="tk-cols">
       <div className="tk-col"><Brief30 sheet={sheet} /><Todos sheet={sheet} /><LinkedNotes sheet={sheet} /></div>
       <aside className="tk-col"><Details sheet={sheet} declare={setDeclaring} /><Pending sheet={sheet} /><History sheet={sheet} /></aside>
-    </div>
+    </div>}
     <details className="panel repo-secondary" id="tk-more"><summary>{w('Plus de détails : critères de fin, essais, sources externes, réutilisations', 'More details: exit criteria, attempts, external sources, reuse')}</summary>
       {view.data ? <div className="grid-2"><div className="stack lg"><Criteria view={view.data} /><Reuses view={view.data} /></div><div className="stack lg"><Attempts view={view.data} /><External view={view.data} /><TicketDocuments refId={sheet.ref} /></div></div> : view.error ? <ErrorState error={view.error} /> : <SkeletonRows />}
     </details>

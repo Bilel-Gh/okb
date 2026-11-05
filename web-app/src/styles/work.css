@@ -14,3 +14,25 @@
 .assistant-work-context { padding: 12px; border: 1px solid var(--hair); border-radius: 10px; overflow-wrap: anywhere; }
 .assistant-messages.prepared-empty { min-height: 0; padding: 0; }
 @media (max-width: 600px) { .work-assistant { flex-direction: column; align-items: stretch; } .work-preview > a { padding-inline: 12px; } }
+
+/* Tickets by tracker: All, Jira, ServiceNow (chantier 4) */
+.tt-tabs { display: flex; gap: var(--s1); padding: 0 var(--s4) var(--s2); flex-wrap: wrap; }
+.tt-tab { display: inline-flex; align-items: center; gap: var(--s2); padding: 4px 12px; border-radius: var(--r-pill); border: 1px solid var(--hair); background: var(--surface); color: var(--ink-2); font-size: var(--t-sm); cursor: pointer; }
+.tt-tab[aria-selected="true"] { border-color: var(--tt); color: var(--ink); background: color-mix(in srgb, var(--tt) 12%, var(--surface)); }
+.tt-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tt); }
+.tt-count { font-variant-numeric: tabular-nums; color: var(--ink-3); font-size: var(--t-xs); }
+.tt-row a { display: flex; align-items: center; gap: var(--s3); }
+.tt-bar { align-self: stretch; width: 4px; border-radius: 2px; background: var(--tt); flex: none; }
+.tt-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tt-ref { font-family: var(--mono); font-size: var(--t-sm); color: var(--tt); }
+.tt-meta { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.tt-src { font-size: var(--t-xs); color: var(--tt); font-weight: 600; }
+.tt-mission { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-pages { display: flex; align-items: center; justify-content: center; gap: var(--s3); padding: var(--s2) 0 var(--s3); }
+
+/* « How I solved it » */
+.story { list-style: none; margin: 0; padding: 0 0 0 var(--s4); border-left: 2px solid var(--hair); display: flex; flex-direction: column; gap: var(--s3); }
+.story li { position: relative; }
+.story li::before { content: ""; position: absolute; left: calc(-1 * var(--s4) - 6px); top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--st, var(--ink-3)); }
+.story .k { font-size: var(--t-xs); font-weight: 600; color: var(--st, var(--ink-3)); text-transform: uppercase; letter-spacing: .04em; }
+.story .x { display: block; color: var(--ink); white-space: pre-wrap; }

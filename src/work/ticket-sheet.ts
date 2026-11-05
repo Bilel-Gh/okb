@@ -1,4 +1,6 @@
 import type { OkbConfig } from '../config/schema.js';
+import { trackerOf, type Tracker } from './tracker.js';
+import { ticketStory, type TicketStory } from './ticket-story.js';
 import { listActions, type Action } from '../projects/actions.js';
 import { openDb } from '../state/db.js';
 import { completeness, type Completeness } from './ticket-completeness.js';
@@ -37,6 +39,10 @@ export type TicketSheet = {
   readonly pinned: boolean;
   readonly history: readonly JournalEntry[];
   readonly close: { readonly allowed: boolean; readonly missing: readonly string[] };
+  /** Jira, ServiceNow or other (chantier 4). */
+  readonly tracker: Tracker;
+  /** « How I solved it »: the journal, attempts and PR told in order. */
+  readonly story: TicketStory;
 };
 
 const PR: Record<string, JourneyStep['state']> = { merged: 'done', approved: 'done', open: 'now', review: 'now', draft: 'now', 'changes-requested': 'wait' };
@@ -76,5 +82,7 @@ export async function ticketSheet(config: OkbConfig, ref: string, actor: 'person
     completeness: done, journey: journey(done.percent, detail.states), links: options.links === false ? [] : await linksFor(config, id, actor), requests: openRequests(config, { ref: id }),
     criteria: detail.criteria, states: detail.states, attempts: detail.attempts, external: detail.external, repos: ticket.repos,
     pinned: isPinned(config, id), history: [...ticket.journal].reverse().slice(0, 50), close: detail.close,
+    tracker: trackerOf(id, detail.external),
+    story: ticketStory({ journal: ticket.journal, attempts: detail.attempts, states: detail.states, summary: fields.summary?.value ?? null, done: fields.done?.value ?? null }),
   };
 }

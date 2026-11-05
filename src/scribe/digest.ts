@@ -18,7 +18,7 @@ export type Triage = {
   readonly personTurns: number;
 };
 
-const REF = /\b([A-Z][A-Z0-9]{1,15}-\d{1,7})\b/g;
+const REF = /\b([A-Z][A-Z0-9]{1,15}-\d{1,7}|(?:INC|RITM|REQ|CHG|PRB|PTASK|SCTASK|CTASK|CS)\d{5,10})\b/g;
 const LONG = 6000;
 
 export function triage(chunk: Pick<Chunk, 'turns' | 'branch'>): Triage {

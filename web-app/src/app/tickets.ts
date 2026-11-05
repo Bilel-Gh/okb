@@ -11,7 +11,11 @@ export type TicketRecord = {
   repos: { id: string; branch: string | null }[];
   journal: { at: string; kind: string; text: string; repo?: string; sha?: string }[];
   next?: string; waiting?: { status: string; detail: string } | null;
+  tracker?: Tracker; mission?: string; sheetTitle?: string | null; pr?: string;
 };
+export type Tracker = 'jira' | 'servicenow' | 'other';
+export type StoryKind = 'start' | 'explain' | 'decision' | 'trap' | 'question' | 'blocker' | 'review' | 'fix' | 'commits' | 'done' | 'reopen';
+export type TicketStory = { shape: 'timeline' | 'straight' | 'empty'; summary: string | null; steps: { at: string; kind: StoryKind; text: string }[]; pr: string | null };
 export type TicketState = { dimension: TicketDimension; environment: string | null; status: string; source: 'person' | 'agent' | 'github' | 'jira'; at: string | null; detail: string; url: string | null };
 export type TicketCriterion = { id: string; kind: 'tests' | 'documentation' | 'acceptance' | 'confirmation' | 'other'; text: string; required: boolean; status: 'unknown' | 'pending' | 'met' | 'waived'; at: string };
 export type TicketAttempt = { id: string; approach: string; conditions: string; result: string; next: string; at: string };
@@ -59,6 +63,7 @@ export type TicketSheet = {
   repos: { id: string; branch: string | null }[]; pinned: boolean;
   history: { at: string; kind: string; text: string }[];
   close: { allowed: boolean; missing: string[] };
+  tracker?: Tracker; story?: TicketStory;
 };
 export type DocumentedSheet = { ref: string; followed: false; links: TicketLink[] };
 export const ORIGIN_WORDS: Record<Origin, readonly [string, string]> = {

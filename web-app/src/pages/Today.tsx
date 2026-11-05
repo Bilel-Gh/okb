@@ -1,4 +1,5 @@
 import '../styles/review.css';
+import { HomeTickets } from '../ui/TrackerTabs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, BadgeCheck, CalendarCheck, Check, CheckCheck, ChevronLeft, ChevronRight, Clock, FileDiff, GraduationCap, HeartPulse, Hourglass, Inbox, Layers, ListTodo, NotebookPen, Pencil, Plus, ShieldAlert, ShieldCheck, Sparkles, Sun, Target, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -184,6 +185,7 @@ function TodayTab() {
     <>
       <Hello todo={d ? d.todo.length : null} waiting={d ? d.waiting.length : null} due={d ? d.review.due : null} backup={d?.backup} />
       {day.error ? <ErrorState error={day.error} retry={() => void day.refetch()} /> : null}
+      <HomeTickets />
       <div className="grid-2">
         <div className="stack lg">
           <Panel title={t('app.today.resume')} link={{ href: hrefFor({ name: 'projects' }), label: t('app.today.allProjects') }} flush>
