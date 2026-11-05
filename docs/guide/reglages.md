@@ -161,6 +161,10 @@ commandes :
 okb settings set routing.suggest=false
 ```
 
+Le greffier, qui lit tes conversations finies pour tenir le journal et les
+notes, est éteint par défaut : `okb scribe on` (après coup) ou
+`okb scribe on --live` (en direct aussi). Voir [le greffier](greffier.md).
+
 ## Réglages avancés
 
 `okb settings show` liste tout, avec la valeur recommandée. Les politiques

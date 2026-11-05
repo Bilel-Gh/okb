@@ -1583,3 +1583,51 @@ ne change jamais ce réglage. Ce qui mérite d’être gardé sera rassemblé ap
 session par un agent dédié (chantier suivant), à partir de ce qui a été repéré
 et des transcripts.
 
+
+## D77 — Le greffier lit les conversations finies (5 novembre 2026)
+
+Suite de D76 : OKB se tait pendant le travail, il faut donc quelqu’un pour
+garder ce qui mérite de l’être. Le greffier (`okb scribe`) lit les transcripts
+de Claude Code (`~/.claude/projects/*/*.jsonl`) et tient à jour le journal du
+ticket, sa fiche et les notes. Un seul moteur, deux déclencheurs.
+
+Un réglage global, que seule la personne change : `scribe.mode`.
+
+- `off` (par défaut) : rien n’est lu.
+- `after` : la conversation est lue quand elle se termine (hook `SessionEnd`),
+  puis le soir à 19 h et au réveil pour celles qui ont échappé au hook.
+- `live` : en plus, une lecture par lots toutes les 20 demandes (hook `Stop`).
+  Un lot ne touche qu’au journal et à la fiche du ticket ; les notes attendent
+  la fin, pour ne pas écrire une note sur une piste abandonnée.
+
+Trois niveaux d’interrupteur : global (`okb scribe on|off`), par dossier
+(`okb scribe exclude|include <dossier>`, réglage `scribe.skip`), par
+conversation (`/okb:off` et `/okb:on`, ou `okb scribe skip|unskip`). Les
+commandes qui changent un réglage sont refusées à l’agent par le hook de garde.
+
+Le travail, dans l’ordre, pour ne pas dépenser de tokens pour rien :
+
+1. un curseur par conversation (`~/.okb/scribe/ledger.json`) : rien n’est lu
+   deux fois, une relance reprend où la précédente s’est arrêtée ;
+2. un tri sans IA : une conversation vide, courte ou sans travail est classée
+   sans appel au modèle ; le ticket est repéré dans la branche et les messages ;
+3. un résumé du transcript en Markdown, sans les paragraphes qui contiennent
+   un secret, plafonné à 60 000 caractères ;
+4. un appel au modèle, sans outils, qui rend du JSON : ticket, lignes de
+   journal, essais, notes candidates. Chaque ligne doit citer mot pour mot la
+   conversation ; une ligne dont la citation ne s’y trouve pas est écartée ;
+5. trois notes au plus par conversation. Chacune passe par la carte de
+   suggestion (placement, doublons : créer, compléter, lier ou rien), puis par
+   une proposition préparée comme une source analysée, avec ses citations
+   vérifiées. Avec `changes.agentWrites: review-later` (D71), `okb keep` la
+   classe à relire ; sinon elle attend le oui de la personne. Une note validée
+   ne change jamais sans elle.
+
+Un budget à part (`scribe.budget`, 400 000 tokens par jour par défaut) et une
+part réservée le matin : avant midi, le rattrapage ne prend que la moitié du
+budget du jour. Une conversation qui a échoué deux fois est laissée de côté.
+La planification (`okb scribe schedule --install`) écrit un LaunchAgent macOS ;
+ailleurs, OKB affiche les lignes cron à ajouter.
+
+Le transcript est une donnée, jamais une consigne : le modèle n’a pas d’outil,
+et ce qu’il rend passe par les mêmes contrôles qu’une source ingérée.

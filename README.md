@@ -78,6 +78,15 @@ where the ticket stands. What OKB spots waits in the app. The 2.4 behaviour is
 one setting away (`okb settings set presence=assist`).
 [Notes (FR)](docs/releases/RELEASE-USAGE-2026-11-04.md).
 
+## The scribe (development, 5 November)
+
+`okb scribe on` lets OKB read your Claude Code conversations once they end (or
+by batches with `--live`) and keep the ticket's journal, its sheet and the
+useful notes up to date, without a word during the work. Off by default, the
+person's switch only, per folder (`okb scribe exclude`) and per conversation
+(`/okb:off`). [Notes (FR)](docs/releases/RELEASE-USAGE-2026-11-05.md) ·
+[guide (FR)](docs/guide/greffier.md).
+
 ## How 2.4 came together, and what is still a preview
 
 The [23 October agent todos and Today](docs/releases/RELEASE-USAGE-2026-10-23.md)

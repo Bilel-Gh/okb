@@ -47,4 +47,18 @@ describe('who decides that the agent writes directly (F2.0-52, D71)', () => {
     ]) expect(JSON.parse(await run(command)).hookSpecificOutput.permissionDecision, command).toBe('deny');
     expect(await run('okb settings set writing.preset=expert')).toBe('');
   });
+
+  it('the hook keeps the scribe and the presence switches for the person (D76, D77)', async () => {
+    for (const command of [
+      'okb scribe on',
+      'okb scribe off',
+      'okb scribe on --live',
+      'okb scribe exclude ~/code/perso',
+      'okb settings set scribe.budget=900000',
+      'okb settings set presence=assist',
+      "printf 'scribe:\\n  mode: live\\n' >> ~/.okb/config.yaml",
+    ]) expect(JSON.parse(await run(command)).hookSpecificOutput.permissionDecision, command).toBe('deny');
+    expect(await run('okb scribe')).toBe('');
+    expect(await run('okb scribe skip --cwd /code')).toBe('');
+  });
 });

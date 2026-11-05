@@ -60,6 +60,10 @@ export const SETTINGS: readonly SettingDef[] = [
   // Suggestions before writing (src/suggest): when cards are shown, and the daily writing budget in tokens.
   // How present OKB is during the work (src/settings/presence.ts, D76): quiet keeps it in the background.
   { key: 'presence', group: 'assistant', type: 'choice', scope: 'global', path: ['presence'], options: ['quiet', 'assist'], recommended: 'quiet', fallback: 'quiet' },
+  // The scribe (src/scribe, D77): whether OKB reads the conversations, its own daily budget, folders it never reads.
+  { key: 'scribe.mode', group: 'assistant', type: 'choice', scope: 'global', path: ['scribe', 'mode'], options: ['off', 'after', 'live'], recommended: 'after', fallback: 'off' },
+  { key: 'scribe.budget', group: 'assistant', type: 'number', scope: 'global', path: ['scribe', 'budget'], recommended: 400000, fallback: 400000 },
+  { key: 'scribe.skip', group: 'assistant', type: 'list', scope: 'global', path: ['scribe', 'skip'], fallback: [] },
   { key: 'suggest.mode', group: 'assistant', type: 'choice', scope: 'global', path: ['suggest', 'mode'], options: ['session', 'live', 'never'], recommended: 'session', fallback: 'session' },
   { key: 'dev.attribution', group: 'assistant', type: 'choice', scope: 'global', path: ['dev', 'attribution'], options: ['off', 'on'], recommended: 'off', fallback: 'off' },
   // How OKB itself asks a model (src/ai/provider.ts): Claude Code when installed, else ANTHROPIC_API_KEY.
@@ -131,7 +135,7 @@ export function parseSettingValue(def: SettingDef, raw: unknown): unknown {
 /** Change one setting, keeping the file's comments, then check the profile still loads. */
 /** What the agent may write is the person's call (D71): an agent cannot change these settings. */
 /** Settings only the person changes (D71): an agent is refused, the app asks for their presence. */
-export const PERSON_ONLY: ReadonlySet<string> = new Set(['changes.agentWrites', 'review.offer', 'review.auto']);
+export const PERSON_ONLY: ReadonlySet<string> = new Set(['changes.agentWrites', 'review.offer', 'review.auto', 'presence', 'scribe.mode', 'scribe.budget', 'scribe.skip']);
 export function assertPersonSetting(key: string, actor: 'person' | 'agent'): void {
   if (actor !== 'person' && PERSON_ONLY.has(key)) throw new OkbError('E_NOT_APPROVED', `${key} is the person's own setting`, { key: 'settingPersonOnly', params: { key } });
 }

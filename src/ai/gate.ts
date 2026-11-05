@@ -17,7 +17,7 @@ import { completeLocalText, localTextSystem } from '../assistant/bridge.js';
  * 4. what the call used is counted, even when its answer is unusable.
  * Callers keep their own `oneAtATime` queue: this function never waits on it.
  */
-export type Purpose = 'translate' | 'ask' | 'exam' | 'assistant';
+export type Purpose = 'translate' | 'ask' | 'exam' | 'assistant' | 'scribe';
 /** A note whose text, title or terms the message carries; `hash` is the content the person saw. */
 export type OutgoingNote = { readonly path: string; readonly secret: boolean; readonly hash?: string };
 /** The person's yes to send one 🔒 note, for the content they saw. */
@@ -41,7 +41,12 @@ export async function throughAiGate<T extends { provider: string; usedTokens: nu
   }
   const cost = out.cost ?? estimateTokens(out.system + out.prompt) + Math.min(out.maxTokens, 400);
   const { dailyBudget, spentToday } = await import('../suggest/suggest.js');
-  const [spent, budget] = await Promise.all([spentToday(config, now), dailyBudget(env)]);
+  // The scribe (D77) has its own budget, apart from what the person asks for during the day.
+  const { aiSpentToday } = await import('./usage.js');
+  const { scribeSettings } = await import('../scribe/ledger.js');
+  const [spent, budget] = out.purpose === 'scribe'
+    ? await Promise.all([aiSpentToday(config, now, { only: 'scribe' }), scribeSettings(env).then((s) => s.budget)])
+    : await Promise.all([spentToday(config, now), dailyBudget(env)]);
   if (spent + cost > budget) throw new OkbError('E_INVALID', `daily budget reached (${spent} + ${cost} > ${budget} tokens)`, { key: 'budgetExceeded', params: { spent, cost, budget } });
   try {
     const r = await run();

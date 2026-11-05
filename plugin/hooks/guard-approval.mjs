@@ -32,6 +32,9 @@ const ENV_ESCAPE = /OKB_APPLY_MODE\s*=\s*allow-direct/;
 // D71: whether the agent files notes directly is the person's setting, never a tool's.
 const AGENT_WRITES = /\b(agentWrites|review\.(auto|offer))\b/;
 const PROFILE_TOUCH = /(profile\.ya?ml|\bsettings\s+set\b)/;
+// D76, D77: how present OKB is and whether its scribe reads the conversations are the person's settings.
+const SCRIBE = /\b(scribe\.(mode|budget|skip)|presence)\b/;
+const SCRIBE_SWITCH = /\bokb\s+scribe\s+(on|off|live|exclude|include)\b/;
 const KEY_READ = /(cat|less|more|head|tail|xxd|od|strings|cp|mv)\b[^;&|]*approval\.key/;
 // The person's yes to a suggestion is recorded by OKB's hooks from what they did, never by a tool call.
 const CONSENT = /\bsuggest\s+consent\b|consent\.jsonl|\bsecret\s+allow\b|unlocked\.json/;
@@ -68,6 +71,12 @@ process.stdin.on('end', () => {
 
   if (/profile\.ya?ml$/.test(file) && (AGENT_WRITES.test(written) || /\boffer\s*:|\bauto\s*:/.test(written))) {
     return deny('Whether the agent files notes directly is the user\'s own setting. Ask them to change it in OKB\'s settings.');
+  }
+  if (/(^|\/)config\.ya?ml$/.test(file) && /\bscribe\s*:|\bpresence\s*:/.test(written)) {
+    return deny('Whether OKB reads the conversations, and how present it is, are the user\'s own settings. Ask them to change it.');
+  }
+  if ((SCRIBE.test(command) && PROFILE_TOUCH.test(command)) || SCRIBE_SWITCH.test(command) || (/\bconfig\.ya?ml\b/.test(command) && /\b(scribe|presence)\s*:/.test(command))) {
+    return deny('Whether OKB reads the conversations, and how present it is, are the user\'s own settings. Ask them to run it.');
   }
   if (OKB.test(command) && APPROVE.test(command)) {
     return deny(

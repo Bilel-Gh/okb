@@ -115,7 +115,8 @@ describe('plugin descriptions', () => {
       const body = text.split('---').slice(2).join('---');
       // A command delegates; it must not restate a procedure.
       expect(body.split('\n').filter((l) => l.trim()).length).toBeLessThan(12);
-      if (command !== 'doctor.md') {
+      // doctor and the scribe's per-conversation switch (D77) run one okb command, not a workflow.
+      if (!['doctor.md', 'off.md', 'on.md'].includes(command)) {
         expect(body).toMatch(/okb-(setup|capture|ask|today|learn|meeting|ingest|garden|career|review|guide|skillify|dev-[a-z]+)` skill/);
       }
     }

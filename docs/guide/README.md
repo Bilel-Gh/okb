@@ -33,6 +33,7 @@ Tu peux tout faire de trois façons, au choix :
 [l’assistant local](assistant-local.md) · [export complet et restauration](export-et-restauration.md).
 [Le suivi d’un ticket](reprendre-un-ticket.md) détaille la préparation 2.4.
 [Valider les notes en un geste](valider-les-notes.md) : l’agent range, tu relis au calme.
+[Le greffier](greffier.md) : tes conversations Claude Code deviennent journal, fiche de ticket et notes, sans un mot pendant le travail.
 [Les gros transcripts](transcripts-longs.md) distinguent une question ciblée
 d’un compte rendu couvrant toutes les fenêtres, avec leurs corrections.
 Ces guides décrivent le code de développement ; la publication et les essais

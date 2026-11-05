@@ -23,6 +23,8 @@ try {
     if(said && !said.startsWith('<'))prompts.push(said);
   }
 }catch{hook.finish('transcript-unavailable');}finally{await handle?.close().catch(()=>{});}
+// D77, live: every 20 messages of the person, the scribe files the ticket's journal in its own process.
+if(prompts.length && prompts.length%20===0 && input?.transcript_path)await hook.run(['scribe','run','--file',String(input.transcript_path),'--live','--detach','--json'],{cwd:typeof input?.cwd==='string' ? input.cwd : undefined,json:true,timeout:3000});
 const prompt=prompts.pop() ?? '';
 if(!prompt)hook.finish('no-user-prompt');
 if(answer.length<500 && !WORTH.test(prompt.slice(0,400)))hook.finish('short-exchange');

@@ -14,14 +14,18 @@ export async function recordAiUsage(config: OkbConfig, entry: { tokens: number; 
   await appendLine(file(config), JSON.stringify({ at: now.toISOString(), ...entry }));
 }
 
-/** Tokens OKB's AI calls used today. */
-export async function aiSpentToday(config: OkbConfig, now = new Date()): Promise<number> {
+/** Tokens OKB's AI calls used today: the scribe's apart (D77), or only them. */
+export async function aiSpentToday(config: OkbConfig, now = new Date(), which: { only?: 'scribe' } = {}): Promise<number> {
   const day = now.toISOString().slice(0, 10);
   const raw = await readFile(file(config), 'utf8').catch(() => '');
   let total = 0;
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue;
-    try { const e = JSON.parse(line) as { at?: string; tokens?: number }; if (e.at?.startsWith(day) && typeof e.tokens === 'number') total += e.tokens; } catch { /* a torn line */ }
+    try {
+      const e = JSON.parse(line) as { at?: string; tokens?: number; purpose?: string };
+      if ((e.purpose === 'scribe') !== (which.only === 'scribe')) continue;
+      if (e.at?.startsWith(day) && typeof e.tokens === 'number') total += e.tokens;
+    } catch { /* a torn line */ }
   }
   return total;
 }
