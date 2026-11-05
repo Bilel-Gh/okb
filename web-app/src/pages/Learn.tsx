@@ -7,6 +7,7 @@ import { hrefFor, type Route } from '../app/router';
 import { toast } from '../app/toast';
 import { PageTabs } from '../ui/PageTabs';
 import { useFrozen } from '../app/Shell';
+import { Formations } from './Formations';
 import UnderstandingPage, { UnderstandingProgress } from './Understanding';
 import { useShareWords } from '../app/sharing';
 import { Empty, ErrorState, SkeletonRows } from '../ui/States';
@@ -167,11 +168,12 @@ export default function Learn({ route }: { route: Extract<Route, { name: 'learn'
     <div className="page">
       <PageTabs label={t('app.screen.progress')} tabs={[
         { to: { name: 'learn' }, label: t('app.learn.tab.review'), current: !tab, icon: Layers },
+        { to: { name: 'learn', tab: 'formations' }, label: w('Formations', 'Formations'), current: tab === 'formations', icon: GraduationCap },
         { to: { name: 'learn', tab: 'understanding' }, label: w('Comprendre', 'Understand'), current: tab === 'understanding', icon: BookOpen },
         { to: { name: 'learn', tab: 'progress' }, label: t('app.learn.tab.progress'), current: tab === 'progress', icon: Trophy },
         ...(frozen.has('career') ? [] : [{ to: { name: 'learn', tab: 'career' } as Route, label: t('app.learn.tab.career'), current: tab === 'career', icon: Briefcase }]),
       ]} />
-      {!tab ? <Review /> : tab === 'understanding' ? <UnderstandingPage /> : tab === 'progress' ? <UnderstandingProgress /> : <CareerTab />}
+      {!tab ? <Review /> : tab === 'formations' ? <Formations /> : tab === 'understanding' ? <UnderstandingPage /> : tab === 'progress' ? <UnderstandingProgress /> : <CareerTab />}
     </div>
   );
 }

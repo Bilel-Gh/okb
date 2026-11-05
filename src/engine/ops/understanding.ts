@@ -96,3 +96,15 @@ export const understandingReviewOp = defineOperation({
 });
 
 export const UNDERSTANDING_OPERATIONS = [understandingReadOp, understandingKeepOp, understandingRecordOp, understandingOverviewOp, understandingMeetingOp, understandingReadinessOp, understandingLearningOp, understandingProgressOp, understandingObjectiveAddOp, understandingObjectiveDoneOp, understandingReviewOp] as const;
+
+/** Chantier 5: the formations agents prepared (notes of type Formation), with each step's level and cards. Read only. */
+export const learnFormationsOp = defineOperation({
+  id: 'learn.formations', module: 'core', effect: 'read',
+  summary: 'The formations: learning paths kept as notes of type Formation (or in formations/), their goal (revision, certification, skill), the date to be ready by, each linked step with the person’s observed level and its revision cards due. To create one, write a Formation note through the usual proposal: its links, in order, are the steps.',
+  input: z.object({}).strict(),
+  async run(ctx) {
+    const { listFormations } = await import('../../learn/formations.js');
+    const { loadBundleFor } = await import('../../kb/bundle.js');
+    return { formations: await listFormations(ctx.config, await loadBundleFor(ctx.config)) };
+  },
+});

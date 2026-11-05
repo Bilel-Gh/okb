@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
  */
 export type TodayTab = 'focus' | 'week';
 export type InboxTab = 'toreview' | 'all' | 'suggestions' | 'proposals' | 'captures' | 'history';
-export type LearnTab = 'understanding' | 'progress' | 'career';
+export type LearnTab = 'understanding' | 'progress' | 'career' | 'formations';
 export type ToolsTab = 'source' | 'skills' | 'templates' | 'categories' | 'share';
 export type UpkeepTab = 'health' | 'doctor' | 'usage' | 'backup';
 export type SettingsTab = 'appearance' | 'brains' | 'new';
@@ -108,7 +108,7 @@ export function parseRoute(hash: string): Route {
     case 'a-relire':
       return { name: 'inbox', tab: 'toreview' };
     case 'learn':
-      return rest === 'progress' || rest === 'understanding' ? { name: 'learn', tab: rest } : { name: 'learn' };
+      return rest === 'progress' || rest === 'understanding' || rest === 'formations' ? { name: 'learn', tab: rest } : { name: 'learn' };
     case 'progress':
       return { name: 'learn' };
     case 'career':

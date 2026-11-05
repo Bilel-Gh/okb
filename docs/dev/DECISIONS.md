@@ -1696,3 +1696,20 @@ onglets et boutons, `okb help` ne liste plus leurs commandes (`okb help --all`
 les montre), `/api/progress` ne rend plus l’XP. Les commandes répondent
 toujours, les données restent, rien n’est migré. Le réglage global `frozen`
 (liste) dit ce qui est gelé ; `okb settings set frozen=` rend tout visible.
+
+## D81 — Les formations (5 novembre 2026)
+
+Une formation est un parcours qu’un agent prépare quand la personne veut
+monter en compétence. Elle reste une note ordinaire, donc elle passe par la
+proposition et la relecture : `type: Formation` (ou une note du dossier
+`formations/`), avec `goal` (`revision`, `certification` ou une compétence) et
+`by` (la date à tenir). Ses liens, dans l’ordre, sont ses étapes.
+
+OKB la lit (`src/learn/formations.ts`, opération `learn.formations`, onglet
+**Progresser › Formations**) et ajoute ce qu’il sait déjà : le niveau observé
+sur chaque étape (jamais décidé à la place de la personne), les cartes de
+révision de ces notes et celles à revoir, sur leur calendrier FSRS existant,
+l’avancement et l’étape suivante. Rien n’est écrit par la lecture.
+La page Mémoire garde sa recherche, ses filtres et ses tris ; le contrôle des
+concepts sans phrase de résumé reste `okb concepts check`, et la porte de
+qualité (D78) refuse désormais un nouveau concept sans elle.

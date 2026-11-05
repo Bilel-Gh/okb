@@ -86,6 +86,7 @@ export function engineRoutes(kbConfig: KbConfig): Record<string, Handler> {
     'POST /api/space/export': op('space.export', (_q, b) => pick(b, ['folder'])),
     'GET /api/understanding/overview': op('understanding.overview', () => ({})),
     'GET /api/understanding/learning': op('understanding.learning', (q) => fromQuery(q, ['subject', 'path'])),
+    'GET /api/formations': op('learn.formations', () => ({})),
     'POST /api/understanding/read': op('understanding.read', (_q, b) => pick(b, ['path', 'mode', 'projectId'])),
     'POST /api/understanding/keep': op('understanding.keep', (_q, b) => pick(b, ['readingId'])),
     'POST /api/understanding/record': op('understanding.record', (_q, b) => pick(b, ['path', 'kind', 'point', 'projectId', 'eventId'])),

@@ -46,3 +46,9 @@ user's focus. Something to learn: `okb learn goal add "<objective>" [--by <date>
 Concept notes and « Q : … — R : … » lines become cards. A training note without
 its « À réviser » section, or a notion without its concept card → one suggestion
 card (`okb-capture` §2), never written unasked. Last line « ➡️ Prochaine étape : … ».
+
+## A formation
+
+« Prépare-moi une formation sur X » → one note `type: Formation` (`goal`,
+`by`), its steps as links in order to existing notes, through the usual
+proposal (`okb-ingest` rules). Its progress shows in the app, Progresser › Formations.

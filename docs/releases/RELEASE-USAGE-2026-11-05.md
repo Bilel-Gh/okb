@@ -64,3 +64,11 @@ La carrière, l’XP et les badges, la traduction, l’examen d’un repo, le pa
 à deux, l’écran Assistant et l’app desktop sont gelés : cachés, mais rien
 n’est supprimé. Les cartes de révision restent. Pour tout revoir :
 `okb settings set frozen=`.
+
+## Les formations (D81)
+
+Demande à Claude « prépare-moi une formation sur … pour le … » : elle arrive
+comme une note à relire, et ses liens dans l’ordre sont les étapes. Dans
+**Progresser › Formations**, tu vois pour chacune son objectif (révision,
+certification, compétence), le compte à rebours, l’avancement, l’étape
+suivante et les cartes de révision à revoir.

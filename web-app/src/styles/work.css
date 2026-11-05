@@ -36,3 +36,8 @@
 .story li::before { content: ""; position: absolute; left: calc(-1 * var(--s4) - 6px); top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--st, var(--ink-3)); }
 .story .k { font-size: var(--t-xs); font-weight: 600; color: var(--st, var(--ink-3)); text-transform: uppercase; letter-spacing: .04em; }
 .story .x { display: block; color: var(--ink); white-space: pre-wrap; }
+
+/* Formations (chantier 5) */
+.formation-bar { height: 8px; border-radius: 4px; background: var(--sunk); overflow: hidden; margin-bottom: 4px; }
+.formation-bar span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.formation-steps { margin: var(--s2) 0 0; padding-left: var(--s5); display: flex; flex-direction: column; gap: 4px; }

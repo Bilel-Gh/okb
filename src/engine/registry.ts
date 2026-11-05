@@ -19,7 +19,7 @@ import { todayViewOp } from './ops/today.js';
 import { notesKeep, notesReviewList, notesReviewRequestCheck } from './ops/review.js';
 import { assistantAction, assistantAsk, assistantCancel, assistantConfigure, assistantConversation, assistantConversations, assistantEnd, assistantStart, assistantStatus } from './ops/assistant.js';
 import { exportSpace } from './ops/export.js';
-import { understandingReadOp, understandingKeepOp, understandingRecordOp, understandingOverviewOp, understandingMeetingOp, understandingReadinessOp, understandingLearningOp, understandingProgressOp, understandingObjectiveAddOp, understandingObjectiveDoneOp, understandingReviewOp } from './ops/understanding.js';
+import { understandingReadOp, understandingKeepOp, understandingRecordOp, understandingOverviewOp, understandingMeetingOp, understandingReadinessOp, understandingLearningOp, understandingProgressOp, understandingObjectiveAddOp, understandingObjectiveDoneOp, understandingReviewOp, learnFormationsOp } from './ops/understanding.js';
 import type { Operation, OpContext } from './operation.js';
 import { ticketsList, ticketsGet, ticketsStart, ticketsResume, ticketsBrief, ticketsState, ticketsCriterion, ticketsAttempt, ticketsReuse, ticketsClose, ticketsGithubConfig, ticketsGithubStatus, ticketsGithub, ticketsJira, ticketsSheet, ticketsFieldSet, ticketsFieldClear, ticketsFieldNa, ticketsConflictResolve, ticketsRename, ticketsPin, ticketsSource, ticketsReposDetach, ticketsUnfollow, ticketsRestore, ticketsLinksList, ticketsLinksSet, ticketsLinksScan, ticketsRequestsCreate, ticketsRequestsList, ticketsRequestsClose, ticketsRequestsCancel, ticketsRequestsPrompt, metaMap } from '../work/operations.js';
 
@@ -89,6 +89,7 @@ const OPS = {
   'understanding.meeting': understandingMeetingOp,
   'understanding.readiness': understandingReadinessOp,
   'understanding.learning': understandingLearningOp,
+  'learn.formations': learnFormationsOp,
   'understanding.progress': understandingProgressOp,
   'understanding.objective.add': understandingObjectiveAddOp,
   'understanding.objective.done': understandingObjectiveDoneOp,
